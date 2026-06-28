@@ -52,9 +52,13 @@ Ondersteunt zowel **XAF 3.2** als **XAF 4.0** (verplicht vanaf 1 januari 2026). 
 
 ## Online beschikbaar
 
-De tool is live op **[bouwman.tools](https://bouwman.tools)** — geen installatie nodig, gewoon de browser openen.
+Alle tools zijn live op **[bouwman.tools](https://bouwman.tools)** — geen installatie nodig, gewoon de browser openen.
 
-Toegang is beveiligd via Cloudflare Access: alleen uitgenodigde gebruikers kunnen inloggen (via e-mail of Cloudflare-account). Gebruikersbeheer via Cloudflare Zero Trust dashboard.
+Toegang is beveiligd via Cloudflare Access: alleen uitgenodigde gebruikers kunnen inloggen (via e-mailadres OTP of Google-account). Na inloggen verschijnt `portal.html` — een gepersonaliseerde pagina die op basis van het ingelogde e-mailadres alleen de tools toont waartoe de gebruiker toegang heeft.
+
+Gebruikersbeheer:
+- Cloudflare Zero Trust → Access → Applications → per tool of overkoepelend
+- Portaltoegang (`portal.html`) beheer je in het `TOEGANG`-object bovenaan `portal.html`
 
 ## Technisch
 
