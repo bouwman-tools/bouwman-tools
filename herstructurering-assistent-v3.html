@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herstructurering Assistent v3</title>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --border: #e2e0d8;
+    --accent: #028090;
+    --accent-light: #e8f5f7;
+    --danger: #c0392b;
+    --warn: #e67e22;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --step-active: #028090;
+    --step-done: #2ecc71;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--accent);
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  header .badge { background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; font-size: 12px; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 56px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    overflow-y: auto;
+  }
+  .sidebar-section { padding: 0 16px 8px; }
+  .sidebar-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; padding: 12px 16px 6px; }
+
+  .tab-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; text-align: left;
+    padding: 10px 16px;
+    border: none; background: none; cursor: pointer;
+    font-size: 14px; color: var(--text);
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { background: var(--bg); }
+  .tab-btn.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+  .tab-btn .icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: var(--bg); flex-shrink: 0; }
+  .tab-btn.active .icon { background: var(--accent); color: white; }
+
+  .kgs-btn {
+    display: flex; align-items: center; gap: 8px;
+    width: calc(100% - 32px); margin: 8px 16px 0;
+    padding: 10px 14px;
+    background: #fff8e1;
+    border: 1px solid #f0c040;
+    border-radius: 8px;
+    font-size: 13px; color: #7d5a00; cursor: pointer;
+    font-weight: 500; text-align: left;
+    transition: background 0.15s;
+  }
+  .kgs-btn:hover { background: #fff3c0; }
+  .kgs-btn .kgs-icon { font-size: 16px; }
+
+  /* MAIN */
+  .main { padding: 28px 32px; overflow-y: auto; max-height: calc(100vh - 56px); }
+
+  /* MODULE CARDS */
+  .module { display: none; }
+  .module.active { display: block; }
+
+  .page-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+  /* INTAKE */
+  .intake-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=text], textarea, select {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+    color: var(--text);
+    transition: border-color 0.15s;
+    resize: vertical;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  /* CHECKBOX GROUPS */
+  .check-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px; cursor: pointer;
+    background: white;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .check-pill:hover { border-color: var(--accent); background: var(--accent-light); }
+  .check-pill input { display: none; }
+  .check-pill.checked { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* STOPLICHT */
+  .stoplicht-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .stoplicht-card {
+    padding: 14px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .stoplicht-card .big { font-size: 28px; margin-bottom: 6px; }
+  .stoplicht-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .stoplicht-card p { font-size: 11px; color: var(--muted); }
+  .stoplicht-card.rood { background: #fef2f2; border-color: #fca5a5; }
+  .stoplicht-card.oranje { background: #fff7ed; border-color: #fdba74; }
+  .stoplicht-card.groen { background: #f0fdf4; border-color: #86efac; }
+  .stoplicht-card.selected.rood { background: #fee2e2; border-color: var(--danger); }
+  .stoplicht-card.selected.oranje { background: #ffedd5; border-color: var(--warn); }
+  .stoplicht-card.selected.groen { background: #dcfce7; border-color: #22c55e; }
+
+  /* ROUTEKAART STAPPEN */
+  .steps-track { display: flex; gap: 0; margin-bottom: 28px; }
+  .step-item {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    position: relative;
+  }
+  .step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 16px; left: 50%; width: 100%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+  .step-item.done:not(:last-child)::after { background: var(--step-done); }
+  .step-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--border); color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    position: relative; z-index: 1;
+    border: 2px solid white;
+    transition: all 0.2s;
+  }
+  .step-item.active .step-dot { background: var(--accent); color: white; }
+  .step-item.done .step-dot { background: var(--step-done); color: white; }
+  .step-label { font-size: 10px; color: var(--muted); margin-top: 4px; text-align: center; max-width: 70px; }
+  .step-item.active .step-label { color: var(--accent); font-weight: 600; }
+
+  /* STAP PANELS */
+  .stap-panel { display: none; }
+  .stap-panel.active { display: block; }
+
+  .stap-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .stap-card h3 {
+    font-size: 15px; font-weight: 700; color: var(--accent);
+    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stap-card .sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+  /* ALERT BOXES */
+  .alert {
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 12px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .alert-warn { background: #fff7ed; border: 1px solid #fdba74; color: #92400e; }
+  .alert-danger { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+  .alert-info { background: var(--accent-light); border: 1px solid #b2dde4; color: #0c4a6e; }
+
+  /* FACILITEIT KEUZE KAARTEN */
+  .faciliteit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .faciliteit-card {
+    padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: white;
+  }
+  .faciliteit-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .faciliteit-card.selected { border-color: var(--accent); background: var(--accent-light); }
+  .faciliteit-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .faciliteit-card .art { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .faciliteit-card .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--bg); color: var(--muted); font-weight: 600; }
+  .tag.ib { background: #ede9fe; color: #5b21b6; }
+  .tag.vpb { background: #e0f2fe; color: #0369a1; }
+  .tag.ovb { background: #fef9c3; color: #854d0e; }
+  .tag.btw { background: #f0fdf4; color: #166534; }
+
+  /* AI ANTWOORD */
+  .ai-box {
+    background: #f8f9fa;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .ai-box .ai-label { font-size: 11px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .ai-loading { display: flex; gap: 4px; align-items: center; padding: 12px 0; color: var(--muted); font-size: 13px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+  /* BUTTONS */
+  .btn {
+    padding: 10px 20px;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #016b78; }
+  .btn-ghost { background: none; color: var(--accent); border: 1px solid var(--accent); }
+  .btn-ghost:hover { background: var(--accent-light); }
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
+
+  /* SAMENVATTING */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .summary-item { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .summary-item .s-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+  .summary-item .s-value { font-size: 14px; font-weight: 600; }
+  .summary-item.full { grid-column: 1/-1; }
+
+  /* KGS PANEL */
+  .kgs-panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .kgs-panel h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .kgs-input-row { display: flex; gap: 10px; }
+  .kgs-input-row input { flex: 1; }
+
+  /* KENNISBANK */
+  .kb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .kb-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .kb-card h4 { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .kb-card ul { padding-left: 16px; font-size: 13px; line-height: 1.8; color: var(--muted); }
+  .kb-card .art-ref { font-size: 11px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+
+  /* API KEY */
+  .apikey-bar { background: #fff8e1; border: 1px solid #f0c040; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+  .apikey-bar input { flex: 1; font-size: 13px; border: 1px solid #e0c060; border-radius: 6px; padding: 7px 10px; background: white; font-family: monospace; }
+  .apikey-bar label { font-size: 12px; font-weight: 700; color: #7d5a00; white-space: nowrap; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--accent-light); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* UITLEG MODULE */
+  .route-tab {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .route-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .route-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .uitleg-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #f0f9fa, #e2f4f7);
+    border-radius: 12px 12px 0 0;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+  }
+  .uitleg-icon { font-size: 32px; }
+  .uitleg-titel { font-size: 18px; font-weight: 700; color: var(--text); }
+  .uitleg-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: monospace; }
+
+  .uitleg-body {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 0 0 12px 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .uitleg-sectie { margin-bottom: 20px; }
+  .uitleg-sectie:last-child { margin-bottom: 0; }
+  .uitleg-sectie-titel {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--accent-light);
+  }
+  .uitleg-sectie p { font-size: 14px; line-height: 1.7; color: var(--text); }
+
+  .voorwaarden-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .vw-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--bg); border-radius: 8px; padding: 12px;
+    font-size: 13px; line-height: 1.6;
+  }
+  .vw-nr {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: white;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  .actualiteit-item {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .kgs-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-right: 6px;
+    font-family: monospace;
+  }
+
+  .voordeel-list { display: flex; flex-direction: column; gap: 10px; }
+  .voordeel-item {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* VOORBEELD */
+  .voorbeeld-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .voorbeeld-header {
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .voorbeeld-body { padding: 20px; }
+  .voorbeeld-situatie { margin-bottom: 16px; }
+  .voorbeeld-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .voorbeeld-situatie p { font-size: 13px; line-height: 1.6; }
+
+  .voorbeeld-schema {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    justify-content: center;
+  }
+  .schema-voor, .schema-na { text-align: center; }
+  .schema-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .schema-box {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 2px solid;
+    min-width: 110px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .schema-box.person { background: #f3e8ff; border-color: #c084fc; color: #6b21a8; }
+  .schema-box.holding { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
+  .schema-box.bv { background: #fef9c3; border-color: #fde047; color: #713f12; }
+  .schema-arrow { font-size: 12px; color: var(--muted); margin: 4px 0; }
+
+  .voorbeeld-analyse { display: flex; flex-direction: column; gap: 6px; }
+  .analyse-rij {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--bg);
+    font-size: 13px;
+  }
+  .analyse-label { font-weight: 600; min-width: 200px; flex-shrink: 0; color: var(--muted); }
+  .analyse-waarde { flex: 1; line-height: 1.5; }
+  .analyse-waarde.groen { color: #16a34a; font-weight: 600; }
+  .analyse-waarde.rood { color: #dc2626; font-weight: 600; }
+  .analyse-waarde.oranje { color: #d97706; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚖️ Herstructurering Assistent</h1>
+  <span class="badge">v3 — DK / Join</span>
+</header>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Modules</div>
+    <button class="tab-btn active" onclick="showModule('intake')">
+      <span class="icon">📋</span> Intake & situatie
+    </button>
+    <button class="tab-btn" onclick="showModule('routekaart')">
+      <span class="icon">🗺️</span> Routekaart
+    </button>
+    <button class="tab-btn" onclick="showModule('kennisbank')">
+      <span class="icon">📚</span> Kennisbank
+    </button>
+    <button class="tab-btn" onclick="showModule('uitleg')">
+      <span class="icon">🎓</span> Uitleg per route
+    </button>
+
+    <div class="sidebar-label" style="margin-top:8px;">Koppelingen</div>
+    <button class="kgs-btn" onclick="showModule('kgs')">
+      <span class="kgs-icon">🔍</span>
+      Kennisgroepen Zoeker
+    </button>
+
+    <div class="sidebar-label" style="margin-top:16px;">Instellingen</div>
+    <button class="tab-btn" onclick="showModule('instellingen')">
+      <span class="icon">🔑</span> API-sleutel
+    </button>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ===== INTAKE ===== -->
+    <div id="mod-intake" class="module active">
+      <div class="page-title">Klantintake</div>
+      <div class="page-sub">Vul de situatie in. De app bepaalt daarna welke routes en risico's relevant zijn.</div>
+
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:16px;">📌 Dossier-startvragen</h3>
+
+        <div style="margin-bottom:16px;">
+          <label>Is verkoop in beeld?</label>
+          <div class="check-group" style="margin-top:8px;" id="verkoop-group">
+            <label class="check-pill" onclick="togglePill(this,'verkoop')"><input type="radio" name="verkoop" value="nee"> Nee</label>
+            <label class="check-pill" onclick="togglePill(this,'verkoop')"><input type="radio" name="verkoop" value="nu"> Ja, op korte termijn</label>
+            <label class="check-pill" onclick="togglePill(this,'verkoop')"><input type="radio" name="verkoop" value="1-3jaar"> Ja, 1–3 jaar</label>
+            <label class="check-pill" onclick="togglePill(this,'verkoop')"><input type="radio" name="verkoop" value=">3jaar"> Ja, &gt;3 jaar</label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label>Zit er vastgoed in de structuur?</label>
+          <div class="check-group" style="margin-top:8px;">
+            <label class="check-pill" onclick="togglePill(this,'vastgoed')"><input type="radio" name="vastgoed" value="nee"> Nee</label>
+            <label class="check-pill" onclick="togglePill(this,'vastgoed')"><input type="radio" name="vastgoed" value="direct"> Ja, direct</label>
+            <label class="check-pill" onclick="togglePill(this,'vastgoed')"><input type="radio" name="vastgoed" value="indirect"> Ja, indirect (OZR-aandelen)</label>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <label>Is er een fiscale eenheid VPB?</label>
+          <div class="check-group" style="margin-top:8px;">
+            <label class="check-pill" onclick="togglePill(this,'fe')"><input type="radio" name="fe" value="nee"> Nee</label>
+            <label class="check-pill" onclick="togglePill(this,'fe')"><input type="radio" name="fe" value="ja"> Ja</label>
+          </div>
+        </div>
+
+        <div>
+          <label>Zijn er verliezen / HIR / BOR-plannen?</label>
+          <div class="check-group" style="margin-top:8px;">
+            <label class="check-pill" onclick="togglePill(this,'specials')"><input type="checkbox" value="verliezen"> Verliezen</label>
+            <label class="check-pill" onclick="togglePill(this,'specials')"><input type="checkbox" value="hir"> HIR</label>
+            <label class="check-pill" onclick="togglePill(this,'specials')"><input type="checkbox" value="bor"> BOR-plannen</label>
+            <label class="check-pill" onclick="togglePill(this,'specials')"><input type="checkbox" value="geen"> Geen</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOPLICHT -->
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:4px;">🚦 Stoplicht: faciliteitsrisico</h3>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Beoordeel op basis van de startvragen of de faciliteit überhaupt haalbaar is.</p>
+        <div class="stoplicht-row">
+          <div class="stoplicht-card groen" onclick="selectStoplicht(this,'groen')">
+            <div class="big">🟢</div>
+            <h4>Laag risico</h4>
+            <p>Geen verkoop in beeld, geen complexe vastgoedpositie</p>
+          </div>
+          <div class="stoplicht-card oranje" onclick="selectStoplicht(this,'oranje')">
+            <div class="big">🟡</div>
+            <h4>Aandacht vereist</h4>
+            <p>Verkoop 1–3 jaar, of vastgoed aanwezig</p>
+          </div>
+          <div class="stoplicht-card rood" onclick="selectStoplicht(this,'rood')">
+            <div class="big">🔴</div>
+            <h4>Stop-vraag stellen</h4>
+            <p>Verkoop op korte termijn → faciliteit waarschijnlijk niet haalbaar</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:14px;">🏢 Structuur &amp; doel</h3>
+        <div class="intake-grid">
+          <div class="field-group">
+            <label>Klantnaam</label>
+            <input type="text" id="klantnaam" placeholder="Naam klant / dossier">
+          </div>
+          <div class="field-group">
+            <label>Huidige rechtsvorm</label>
+            <select id="rechtsvorm">
+              <option value="">— kies —</option>
+              <option>IB-onderneming (eenmanszaak/VOF)</option>
+              <option>BV (werk-BV zonder holding)</option>
+              <option>BV-structuur (met holding)</option>
+              <option>Meerdere BV's / concern</option>
+            </select>
+          </div>
+          <div class="field-group full">
+            <label>Doel van de herstructurering</label>
+            <textarea id="doel" rows="3" placeholder="Bijv: holding boven werk-BV voor risicospreiding, vastgoed afzonderen t.b.v. verkoop, twee BV's samenvoegen…"></textarea>
+          </div>
+          <div class="field-group">
+            <label>Stille reserves / meerwaarde (globaal)</label>
+            <input type="text" id="reserves" placeholder="Bijv: pand €400k, goodwill €150k">
+          </div>
+          <div class="field-group">
+            <label>Personeel aanwezig?</label>
+            <select id="personeel">
+              <option value="">— kies —</option>
+              <option>Nee</option>
+              <option>Ja (let op art. 7:663 BW)</option>
+            </select>
+          </div>
+          <div class="field-group full">
+            <label>Overige aandachtspunten</label>
+            <textarea id="extra" rows="2" placeholder="Bijv: aandeelhoudersovereenkomst aanwezig, escrow, meerdere aandeelhouders…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="showModule('routekaart'); scrollToTop()">
+          Ga naar routekaart →
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="askAI('intake_scan')">
+          🤖 AI-scan laten uitvoeren
+        </button>
+      </div>
+
+      <div id="ai-intake" class="ai-box" style="display:none;">
+        <div class="ai-label">🤖 AI-analyse</div>
+        <div id="ai-intake-text"></div>
+      </div>
+    </div>
+
+    <!-- ===== ROUTEKAART ===== -->
+    <div id="mod-routekaart" class="module">
+      <div class="page-title">Routekaart</div>
+      <div class="page-sub">Werk de 5 stappen af. De AI helpt je per stap.</div>
+
+      <!-- STAP TRACKER -->
+      <div class="steps-track" id="steps-track">
+        <div class="step-item active" id="track-1"><div class="step-dot">1</div><div class="step-label">Object</div></div>
+        <div class="step-item" id="track-1b"><div class="step-dot">1b</div><div class="step-label">OVB-check</div></div>
+        <div class="step-item" id="track-2"><div class="step-dot">2</div><div class="step-label">Doel</div></div>
+        <div class="step-item" id="track-3"><div class="step-dot">3</div><div class="step-label">Faciliteit</div></div>
+        <div class="step-item" id="track-4"><div class="step-dot">4</div><div class="step-label">Voorwaarden</div></div>
+        <div class="step-item" id="track-5"><div class="step-dot">5</div><div class="step-label">Dossier</div></div>
+      </div>
+
+      <!-- STAP 1 -->
+      <div class="stap-panel active" id="stap-1">
+        <div class="stap-card">
+          <h3>Stap 1 — Wat verandert er juridisch?</h3>
+          <div class="sub">Bepaal het juridische object van de transactie. Dit bepaalt welke faciliteiten in aanmerking komen.</div>
+          <div class="check-group" id="object-group">
+            <label class="check-pill" onclick="togglePill(this,'object')"><input type="radio" name="object" value="aandelen"> Aandelen</label>
+            <label class="check-pill" onclick="togglePill(this,'object')"><input type="radio" name="object" value="onderneming"> Onderneming (activa/passiva)</label>
+            <label class="check-pill" onclick="togglePill(this,'object')"><input type="radio" name="object" value="algemene-titel"> Algemene titel (fusie/splitsing)</label>
+            <label class="check-pill" onclick="togglePill(this,'object')"><input type="radio" name="object" value="fe"> Verschuiven binnen FE</label>
+          </div>
+          <div id="object-uitleg" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="stap-card" style="border-left: 4px solid var(--warn);">
+          <h3>⚠️ Stap 1b — OVB-check</h3>
+          <div class="sub">Altijd uitvoeren. OVB wordt snel vergeten bij herstructurering.</div>
+          <div class="check-group">
+            <label class="check-pill" onclick="togglePill(this,'ovb')"><input type="radio" name="ovb" value="geen"> Geen vastgoed</label>
+            <label class="check-pill" onclick="togglePill(this,'ovb')"><input type="radio" name="ovb" value="direct"> Direct vastgoed</label>
+            <label class="check-pill" onclick="togglePill(this,'ovb')"><input type="radio" name="ovb" value="indirect"> Indirect (OZR-aandelen)</label>
+          </div>
+          <div id="ovb-alert" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="goToStap(2)">Volgende stap →</button>
+          <button class="btn btn-ghost btn-sm" onclick="askAI('stap1')">🤖 Vraag aan AI</button>
+        </div>
+        <div id="ai-stap1" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 AI-toelichting</div>
+          <div id="ai-stap1-text"></div>
+        </div>
+      </div>
+
+      <!-- STAP 2 -->
+      <div class="stap-panel" id="stap-2">
+        <div class="stap-card">
+          <h3>Stap 2 — Doel + timing</h3>
+          <div class="sub">Wat wil de klant écht? Nu én over 1–3 jaar. Dit is cruciaal voor de misbruiktoets.</div>
+          <div class="field-group" style="margin-bottom:14px;">
+            <label>Doel van de klant</label>
+            <textarea id="stap2-doel" rows="3" placeholder="Bijv: risicospreiding, vermogensplanning, verkoop voorbereiden, BOR-traject…"></textarea>
+          </div>
+          <div class="field-group">
+            <label>Timing</label>
+            <div class="check-group" style="margin-top:8px;">
+              <label class="check-pill" onclick="togglePill(this,'timing')"><input type="radio" name="timing" value="nu"> Direct uitvoeren</label>
+              <label class="check-pill" onclick="togglePill(this,'timing')"><input type="radio" name="timing" value="1-3jaar"> Daarna doorgroeien (1–3 jaar)</label>
+              <label class="check-pill" onclick="togglePill(this,'timing')"><input type="radio" name="timing" value=">3jaar"> Lange termijn (&gt;3 jaar)</label>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <label>Waar zit de belastingclaim? (stap 2b)</label>
+            <div class="check-group" style="margin-top:8px;">
+              <label class="check-pill" onclick="togglePill(this,'claim')"><input type="checkbox" value="box2"> Box 2 (IB/AB)</label>
+              <label class="check-pill" onclick="togglePill(this,'claim')"><input type="checkbox" value="vpb"> VPB (stille reserves)</label>
+              <label class="check-pill" onclick="togglePill(this,'claim')"><input type="checkbox" value="ovb2"> OVB</label>
+              <label class="check-pill" onclick="togglePill(this,'claim')"><input type="checkbox" value="btw"> BTW</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="goToStap(1)">← Terug</button>
+          <button class="btn btn-primary" onclick="goToStap(3)">Volgende stap →</button>
+          <button class="btn btn-ghost btn-sm" onclick="askAI('stap2')">🤖 Vraag aan AI</button>
+        </div>
+        <div id="ai-stap2" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 AI-toelichting</div>
+          <div id="ai-stap2-text"></div>
+        </div>
+      </div>
+
+      <!-- STAP 3 -->
+      <div class="stap-panel" id="stap-3">
+        <div class="stap-card">
+          <h3>Stap 3 — Faciliteit kiezen</h3>
+          <div class="sub">Kies de faciliteit én motiveer waarom de alternatieven niet van toepassing zijn.</div>
+
+          <div class="faciliteit-grid" id="faciliteit-keuze">
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'aandelenfusie')">
+              <h4>Aandelenfusie</h4>
+              <div class="art">Art. 3.55 Wet IB / art. 14b VPB</div>
+              <div class="tags">
+                <span class="tag ib">Box 2</span>
+                <span class="tag vpb">VPB</span>
+              </div>
+            </div>
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'bedrijfsfusie')">
+              <h4>Bedrijfsfusie</h4>
+              <div class="art">Art. 14 Wet VPB</div>
+              <div class="tags">
+                <span class="tag vpb">VPB</span>
+                <span class="tag ovb">OVB (art. 5a)</span>
+              </div>
+            </div>
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'juridische-fusie')">
+              <h4>Juridische fusie</h4>
+              <div class="art">Art. 14b Wet VPB / 2:309 BW</div>
+              <div class="tags">
+                <span class="tag vpb">VPB</span>
+                <span class="tag ovb">OVB (art. 15 lid 1h WBR)</span>
+              </div>
+            </div>
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'juridische-splitsing')">
+              <h4>Juridische splitsing</h4>
+              <div class="art">Art. 14a Wet VPB / 2:334a BW</div>
+              <div class="tags">
+                <span class="tag vpb">VPB</span>
+                <span class="tag ovb">OVB (nieuw per 1-7-2025)</span>
+              </div>
+            </div>
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'fe')">
+              <h4>Fiscale eenheid VPB</h4>
+              <div class="art">Art. 15 Wet VPB</div>
+              <div class="tags">
+                <span class="tag vpb">VPB</span>
+                <span class="tag">6jr sanctie</span>
+              </div>
+            </div>
+            <div class="faciliteit-card" onclick="selectFaciliteit(this,'afrekenen')">
+              <h4>Afrekenen (bewust)</h4>
+              <div class="art">Geen faciliteit — bewuste keuze</div>
+              <div class="tags">
+                <span class="tag">Lage meerwaarde?</span>
+                <span class="tag">Verliezen verrekenen?</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;">
+            <label>Waarom vallen de andere opties af?</label>
+            <textarea id="stap3-motivering" rows="3" style="margin-top:8px;" placeholder="Bijv: FE niet mogelijk want klant heeft geen 95% belang; bedrijfsfusie niet want geen onderneming maar losse activa…"></textarea>
+          </div>
+        </div>
+
+        <div id="actualiteiten-box" style="display:none;margin-bottom:12px;"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="goToStap(2)">← Terug</button>
+          <button class="btn btn-primary" onclick="goToStap(4)">Volgende stap →</button>
+          <button class="btn btn-ghost btn-sm" onclick="askAI('stap3')">🤖 Voorwaarden opvragen</button>
+        </div>
+        <div id="ai-stap3" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 Faciliteit — voorwaarden &amp; valkuilen</div>
+          <div id="ai-stap3-text"></div>
+        </div>
+      </div>
+
+      <!-- STAP 4 -->
+      <div class="stap-panel" id="stap-4">
+        <div class="stap-card">
+          <h3>Stap 4 — Voorwaarden + valkuil</h3>
+          <div class="sub">Noem minimaal 2 voorwaarden en 1 concreet risico dat ze niet gehaald worden.</div>
+          <div class="field-group" style="margin-bottom:12px;">
+            <label>Voorwaarde 1</label>
+            <input type="text" id="vw1" placeholder="Bijv: uitsluitend uitreiking aandelen (geen bijbetaling)">
+          </div>
+          <div class="field-group" style="margin-bottom:12px;">
+            <label>Voorwaarde 2</label>
+            <input type="text" id="vw2" placeholder="Bijv: 50%+ stemrechten kunnen uitoefenen na de fusie">
+          </div>
+          <div class="field-group">
+            <label>🚩 Valkuil / risico</label>
+            <input type="text" id="valkuil" placeholder="Bijv: stemrechten contractueel beperkt via AH-overeenkomst">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="goToStap(3)">← Terug</button>
+          <button class="btn btn-primary" onclick="goToStap(5)">Volgende stap →</button>
+          <button class="btn btn-ghost btn-sm" onclick="askAI('stap4')">🤖 Vraag aan AI</button>
+        </div>
+        <div id="ai-stap4" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 AI-check valkuilen</div>
+          <div id="ai-stap4-text"></div>
+        </div>
+      </div>
+
+      <!-- STAP 5 -->
+      <div class="stap-panel" id="stap-5">
+        <div class="stap-card">
+          <h3>Stap 5 — Uitvoering + dossier</h3>
+          <div class="sub">Wat leg je vast? En zou jij dit adviseren?</div>
+          <div class="field-group" style="margin-bottom:12px;">
+            <label>Bewijsstuk 1</label>
+            <input type="text" id="doc1" placeholder="Bijv: intern memo zakelijk motief met tijdlijn">
+          </div>
+          <div class="field-group" style="margin-bottom:12px;">
+            <label>Bewijsstuk 2</label>
+            <input type="text" id="doc2" placeholder="Bijv: notulen bestuursbesluit met datum">
+          </div>
+          <div class="field-group" style="margin-bottom:16px;">
+            <label>Klantzin ("Dit kan wel/niet omdat…")</label>
+            <textarea id="klantzin" rows="2" placeholder="Dit kan omdat de klant zakelijk motief heeft en er geen verkoop op korte termijn in beeld is…"></textarea>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <button class="btn btn-primary btn-sm" style="background:#16a34a;" onclick="setAdvies('ja')">✅ Ik zou dit adviseren</button>
+            <button class="btn btn-sm" style="background:#dc2626;color:white;" onclick="setAdvies('nee')">❌ Ik zou dit NIET adviseren</button>
+          </div>
+          <div id="advies-reden" style="display:none;margin-top:12px;">
+            <label>Reden:</label>
+            <textarea id="advies-reden-text" rows="2" style="margin-top:6px;" placeholder="Toelichting op jouw advies…"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" onclick="goToStap(4)">← Terug</button>
+          <button class="btn btn-primary" onclick="buildSamenvatting(); showModule('samenvatting')">📄 Samenvatting genereren</button>
+          <button class="btn btn-ghost btn-sm" onclick="askAI('stap5')">🤖 Dossierchecklist</button>
+        </div>
+        <div id="ai-stap5" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 Dossierchecklist</div>
+          <div id="ai-stap5-text"></div>
+        </div>
+      </div>
+
+      <!-- SAMENVATTING -->
+      <div class="stap-panel" id="stap-samenvatting">
+        <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;">📄 Dossier-samenvatting</h3>
+          <div class="summary-grid" id="samenvatting-content"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="askAI('samenvatting')">🤖 Genereer adviesnotitie</button>
+          <button class="btn btn-ghost btn-sm" onclick="goToStap(1)">Opnieuw starten</button>
+        </div>
+        <div id="ai-samenvatting" class="ai-box" style="display:none;">
+          <div class="ai-label">🤖 Concept adviesnotitie</div>
+          <div id="ai-samenvatting-text"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== KENNISBANK ===== -->
+    <div id="mod-kennisbank" class="module">
+      <div class="page-title">Kennisbank herstructurering</div>
+      <div class="page-sub">Faciliteiten, voorwaarden en actualiteiten — onderbouwd met officiële bronnen.</div>
+
+      <!-- ACTUALITEITEN BANNER -->
+      <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">⚡ Actualiteiten 2024–2026</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div style="background:white;border-radius:8px;padding:12px;border:1px solid #fde68a;">
+            <div style="font-size:11px;font-weight:700;color:#92400e;">KG:003:2026:03 — 16 feb 2026</div>
+            <div style="font-size:13px;margin-top:4px;">Tijdelijke meerderheid stemrechten bij aandelenfusie voldoende, ook bij opvolgende juridische splitsing. Doorslaggevend: stemrechten moeten vrijelijk uitoefenbaar zijn geweest.</div>
+            <a href="https://kennisgroepen.belastingdienst.nl/publicaties/kg003202603-stemrechtvereiste-aandelenfusie-bij-opvolgende-juridische-splitsing/" target="_blank" style="font-size:11px;color:#028090;">→ Officieel standpunt</a>
+          </div>
+          <div style="background:white;border-radius:8px;padding:12px;border:1px solid #fde68a;">
+            <div style="font-size:11px;font-weight:700;color:#92400e;">Besluit 2024-10969 — 6 nov 2024</div>
+            <div style="font-size:13px;margin-top:4px;">Geactualiseerd Besluit Ondernemingsfaciliteiten OVB. Betreft art. 15 lid 1 b/e/f/h/q WBR. Nieuw onderdeel 4.2: goedkeuring certificering aandelen bij bedrijfsfusie. Vervangt besluit 2018-50125.</div>
+            <a href="https://zoek.officielebekendmakingen.nl/stcrt-2024-34456.html" target="_blank" style="font-size:11px;color:#028090;">→ Staatscourant</a>
+          </div>
+          <div style="background:#fef2f2;border-radius:8px;padding:12px;border:1px solid #fca5a5;">
+            <div style="font-size:11px;font-weight:700;color:#991b1b;">OVB Splitsing — per 1-7-2025 ⚠️</div>
+            <div style="font-size:13px;margin-top:4px;">Splitsingsvrijstelling aangescherpt. Nieuwe eisen: ondernemingseis, voortzettingseis (3jr), soortgelijk belang + aanhouding (3jr). Koppeling met VPB verbroken. Beleggingsvastgoed valt buiten vrijstelling.</div>
+            <a href="https://www.ey.com/nl_nl/technical/tax/tax-updates/wijziging-splitsingsvrijstelling-overdrachtsbelasting-per-1-juli-20251" target="_blank" style="font-size:11px;color:#028090;">→ EY toelichting</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- FACILITEITEN -->
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Faciliteiten</div>
+      <div class="kb-grid">
+
+        <div class="kb-card">
+          <h4>🔄 Aandelenfusie</h4>
+          <ul>
+            <li><strong>Definitie:</strong> Aandelenruil — uitreiking eigen aandelen door verkrijgende BV</li>
+            <li><strong>Voorwaarde 1:</strong> Uitsluitend uitreiking aandelen (geen/beperkte bijbetaling)</li>
+            <li><strong>Voorwaarde 2:</strong> 50%+ stemrechten kunnen uitoefenen (art. 3.55 lid 2a IB)</li>
+            <li><strong>Voorwaarde 3:</strong> Misbruiktoets — zakelijk motief + tijdlijn vastleggen</li>
+            <li><strong>OVB:</strong> Geen aparte aandelenfusievrijstelling → OZR-check altijd uitvoeren</li>
+            <li><strong>Valkuil:</strong> Stemrechten contractueel beperkt via AH-overeenkomst / escrow / volmachten</li>
+            <li>KG:003:2025:12 — aandelenemissie + statutenwijziging direct na fusie: toets het geheel van rechtshandelingen</li>
+          </ul>
+          <div class="art-ref">Art. 3.55 IB · Art. 14b VPB · HR 14 mei 2004 ECLI:NL:HR:2004:AO3339</div>
+        </div>
+
+        <div class="kb-card">
+          <h4>🏭 Bedrijfsfusie</h4>
+          <ul>
+            <li><strong>Definitie:</strong> Onderneming of zelfstandig deel overdragen tegen aandelen</li>
+            <li><strong>Sleuteleis:</strong> Losse activa ≠ onderneming. Zelfstandig functioneren vereist</li>
+            <li><strong>Voorwaarden:</strong> Tegenprestatie vrijwel uitsluitend aandelen + misbruiktoets</li>
+            <li><strong>Uitvoering:</strong> Notaris + inbrengbeschrijving + accountantsverklaring</li>
+            <li><strong>OVB (art. 5a UBBR):</strong> Vrijstelling + voortzettingseis + (nieuw) aanhoudingseis verkregen aandelen</li>
+            <li><strong>Let op:</strong> Bedrijfsfusie kan 2 belastbare OVB-feiten geven; art. 13 lid 2 voorkomt dit niet altijd</li>
+            <li><strong>Personeel:</strong> Let op overgang van rechtswege (art. 7:663 BW)</li>
+          </ul>
+          <div class="art-ref">Art. 14 VPB · Art. 15 lid 1h WBR · Art. 5a UBBR · Besluit 2024-10969</div>
+        </div>
+
+        <div class="kb-card">
+          <h4>🔗 Fiscale eenheid VPB</h4>
+          <ul>
+            <li><strong>Voorwaarde:</strong> 95%+ belang (financieel + economisch + stemrecht)</li>
+            <li><strong>Voordeel:</strong> Transacties binnen FE fiscaal onzichtbaar — geen prijs/ondernemings/tegenprestatietoets</li>
+            <li><strong>Beperking:</strong> FE voorkomt geen juridische levering van afzonderlijke activa</li>
+            <li><strong>⚠️ 6-jaars sanctie (art. 15ai):</strong> Bij ontvoeging 6 kalenderjaren terugkijken. Heffing op WEV−boekwaarde. Geen tegenbewijs</li>
+            <li><strong>Uitzondering 3jr:</strong> Bij overdracht onderneming(sonderdeel) tegen eigen aandelen binnen FE</li>
+            <li><strong>OVB (art. 5b UBBR):</strong> Interne reorganisatievrijstelling — wel controleren</li>
+          </ul>
+          <div class="art-ref">Art. 15 VPB · Art. 15ai VPB · Art. 5b UBBR</div>
+        </div>
+
+        <div class="kb-card">
+          <h4>⚖️ Juridische fusie</h4>
+          <ul>
+            <li><strong>Definitie:</strong> Vermogen gaat onder algemene titel over; één rechtspersoon verdwijnt</li>
+            <li><strong>Voordeel:</strong> Contracten/licenties gaan mee — geen individuele levering nodig</li>
+            <li><strong>Lex specialis:</strong> Fusiefaciliteit verdringt HIR/ruilarresten. Als faciliteit niet kan → afrekenen</li>
+            <li><strong>Misbruiktoets:</strong> Beschikking mogelijk via art. 14b lid 7 (zekerheid vooraf)</li>
+            <li><strong>OVB:</strong> Art. 15 lid 1h WBR — uitwerking in uitvoeringsregels</li>
+            <li><strong>Uitvoering:</strong> Fusieakte notaris + verzetstermijn schuldeisers (1 mnd na deponering)</li>
+          </ul>
+          <div class="art-ref">Art. 14b VPB · 2:309 BW · Art. 15 lid 1h WBR</div>
+        </div>
+
+        <div class="kb-card" style="border-color:#fca5a5;">
+          <h4>✂️ Juridische splitsing <span style="background:#fee2e2;color:#991b1b;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:700;">⚠️ Gewijzigd 1-7-2025</span></h4>
+          <ul>
+            <li><strong>Vormen:</strong> Zuivere splitsing (splitsende verdwijnt) vs afsplitsing (blijft bestaan)</li>
+            <li><strong>VPB:</strong> Art. 14a — doorschuiven stille reserves + goodwill. Misbruiktoets</li>
+            <li><strong>OVB vóór 1-7-2025:</strong> Vrijstelling bij zakelijk motief (anti-ontgaanstoets)</li>
+            <li><strong>OVB na 1-7-2025 (nieuw!):</strong>
+              <ul style="margin-top:4px;">
+                <li>Ondernemingseis: gehele onderneming of zelfstandig onderdeel</li>
+                <li>Voortzettingseis: 3 jaar na splitsing</li>
+                <li>Soortgelijk belang + aanhoudingseis: 3 jaar</li>
+                <li>Beleggingsvastgoed valt buiten vrijstelling</li>
+                <li>Ruziesplitsing: eigen regime zonder ondernemings/voortzettingseis</li>
+              </ul>
+            </li>
+            <li><strong>Koppeling VPB verbroken:</strong> VPB-faciliteit toetsen los van OVB-vrijstelling</li>
+          </ul>
+          <div class="art-ref">Art. 14a VPB · 2:334a BW · Art. 15 lid 1h WBR · Art. 5c UBBR (nieuw per 1-7-2025)</div>
+        </div>
+
+        <div class="kb-card" style="background:#f8f9fa;">
+          <h4>📋 Top 5 praktijkfouten + dossierchecklist</h4>
+          <ul>
+            <li>❌ <strong>Object te snel gekozen</strong> — aandelen vs onderneming bepaalt de faciliteit</li>
+            <li>❌ <strong>STOP-vraag overgeslagen</strong> — is de faciliteit überhaupt haalbaar gezien timing/verkoop?</li>
+            <li>❌ <strong>OVB te laat gezien</strong> — direct/indirect vastgoed/OZR-aandelen</li>
+            <li>❌ <strong>Timing niet hard gemaakt</strong> — verkoop, ontvoeging en termijnen niet vastgelegd</li>
+            <li>❌ <strong>Dossier te dun</strong> — zakelijk motief niet bewijsbaar</li>
+          </ul>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;margin-bottom:6px;">Minimaal dossierstukken:</div>
+            <ul>
+              <li>Intern memo zakelijk motief + tijdlijn</li>
+              <li>Bestuursbesluit met datum en onderbouwing</li>
+              <li>Check AH-overeenkomst op stemrechtbeperkingen</li>
+              <li>OVB-scan (direct/indirect vastgoed)</li>
+              <li>Inbrengbeschrijving (bij bedrijfsfusie)</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- OVB OVERZICHT -->
+      <div style="margin-top:20px;font-size:14px;font-weight:700;margin-bottom:12px;">OVB-vrijstellingen per route</div>
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--accent);color:white;">
+              <th style="padding:10px 14px;text-align:left;">Route</th>
+              <th style="padding:10px 14px;text-align:left;">OVB-vrijstelling</th>
+              <th style="padding:10px 14px;text-align:left;">Wetsartikel</th>
+              <th style="padding:10px 14px;text-align:left;">Aandachtspunt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 14px;font-weight:600;">Aandelenfusie</td>
+              <td style="padding:10px 14px;color:#dc2626;">Geen aparte vrijstelling</td>
+              <td style="padding:10px 14px;color:var(--muted);">—</td>
+              <td style="padding:10px 14px;">OZR-aandelen → check concernvrijstelling</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:#f9fafb;">
+              <td style="padding:10px 14px;font-weight:600;">Bedrijfsfusie</td>
+              <td style="padding:10px 14px;color:#16a34a;">Vrijstelling</td>
+              <td style="padding:10px 14px;color:var(--muted);">Art. 15 lid 1h WBR / art. 5a UBBR</td>
+              <td style="padding:10px 14px;">Dubbele heffing mogelijk; art. 13 lid 2 helpt niet altijd</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 14px;font-weight:600;">Fiscale eenheid</td>
+              <td style="padding:10px 14px;color:#16a34a;">Interne reorganisatie</td>
+              <td style="padding:10px 14px;color:var(--muted);">Art. 5b UBBR</td>
+              <td style="padding:10px 14px;">Wel juridische levering vereist; OVB apart checken</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);background:#f9fafb;">
+              <td style="padding:10px 14px;font-weight:600;">Juridische fusie</td>
+              <td style="padding:10px 14px;color:#16a34a;">Vrijstelling</td>
+              <td style="padding:10px 14px;color:var(--muted);">Art. 15 lid 1h WBR</td>
+              <td style="padding:10px 14px;">Uitwerking in uitvoeringsregels; misbruiktoets</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 14px;font-weight:600;">Juridische splitsing</td>
+              <td style="padding:10px 14px;color:#d97706;">Vrijstelling mits… ⚠️</td>
+              <td style="padding:10px 14px;color:var(--muted);">Art. 15 lid 1h WBR / art. 5c UBBR</td>
+              <td style="padding:10px 14px;">Nieuwe voorwaarden per 1-7-2025. Beleggingsvastgoed uitgesloten</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== UITLEG ===== -->
+    <div id="mod-uitleg" class="module">
+      <div class="page-title">Uitleg per route</div>
+      <div class="page-sub">Kies een faciliteit en wissel tussen adviseursniveau en klanttaal.</div>
+
+      <!-- NIVEAU TOGGLE -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;background:white;border:1px solid var(--border);border-radius:10px;padding:12px 16px;">
+        <span style="font-size:13px;font-weight:600;color:var(--muted);">Niveau:</span>
+        <div style="display:flex;gap:4px;background:var(--bg);border-radius:8px;padding:3px;">
+          <button id="toggle-tech" onclick="setNiveau('technisch')" style="padding:6px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:var(--accent);color:white;transition:all 0.15s;">⚖️ Adviseur</button>
+          <button id="toggle-leek" onclick="setNiveau('leek')" style="padding:6px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;background:none;color:var(--muted);transition:all 0.15s;">💬 Klant</button>
+        </div>
+        <span id="niveau-label" style="font-size:12px;color:var(--muted);margin-left:4px;">Technische toelichting met wetsartikelen</span>
+      </div>
+
+      <!-- ROUTE TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="route-tab active" onclick="showRoute('aandelenfusie')">🔄 Aandelenfusie</button>
+        <button class="route-tab" onclick="showRoute('bedrijfsfusie')">🏭 Bedrijfsfusie</button>
+        <button class="route-tab" onclick="showRoute('fe')">🔗 Fiscale eenheid</button>
+        <button class="route-tab" onclick="showRoute('jurfusie')">⚖️ Juridische fusie</button>
+        <button class="route-tab" onclick="showRoute('splitsing')">✂️ Juridische splitsing</button>
+      </div>
+
+      <!-- ===== AANDELENFUSIE ===== -->
+      <div id="route-aandelenfusie" class="route-panel">
+
+        <div class="uitleg-tech niveau-panel">
+          <div class="uitleg-header">
+            <div class="uitleg-icon">🔄</div>
+            <div>
+              <div class="uitleg-titel">Aandelenfusie</div>
+              <div class="uitleg-sub">Art. 3.55 Wet IB 2001 · Art. 14b Wet VPB</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat is het?</div>
+              <p>Een aandelenruil waarbij de aandeelhouder zijn aandelen in de werk-BV inbrengt in een nieuw op te richten holding-BV, die daarvoor eigen aandelen uitreikt. Zonder faciliteit leidt dit tot een belaste vervreemding in box 2. De faciliteit schuift de belastingclaim door naar de nieuwe aandelen (geen afstel, wel uitstel).</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Voorwaarden</div>
+              <div class="voorwaarden-grid">
+                <div class="vw-item"><span class="vw-nr">1</span><div><strong>Uitreiking aandelen</strong><br>De tegenprestatie moet uitsluitend (of vrijwel uitsluitend) bestaan uit uitreiking van eigen aandelen. Een bijbetaling van maximaal 10% van de nominale waarde is toegestaan.</div></div>
+                <div class="vw-item"><span class="vw-nr">2</span><div><strong>50%+ stemrechten</strong><br>De verkrijgende vennootschap moet na de fusie meer dan de helft van de stemrechten in de overgenomen BV kunnen uitoefenen (art. 3.55 lid 2a IB). Check: zijn stemrechten niet contractueel beperkt?</div></div>
+                <div class="vw-item"><span class="vw-nr">3</span><div><strong>Misbruiktoets</strong><br>De aandelenfusie mag niet in overwegende mate zijn gericht op het ontgaan of uitstellen van belastingheffing. Zakelijk motief + tijdlijn altijd vastleggen in het dossier.</div></div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Actualiteiten</div>
+              <div class="actualiteit-item">
+                <span class="kgs-badge">KG:003:2026:03</span>
+                Tijdelijke meerderheid stemrechten voldoet, ook bij direct volgende juridische splitsing. Doorslaggevend: stemrechten moesten vrijelijk uitoefenbaar zijn geweest in de tussenperiode. Contractuele beperkingen (escrow, AH-overeenkomst) maken het anders.
+              </div>
+              <div class="actualiteit-item" style="margin-top:8px;">
+                <span class="kgs-badge">KG:003:2025:12</span>
+                Aandelenemissie en statutenwijziging direct na aandelenfusie: het geheel van rechtshandelingen wordt getoetst. 60% stemrecht + 2/3-meerderheidseis in statuten = toch voldaan.
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">OVB-aandachtspunt</div>
+              <div class="alert alert-warn">⚠️ De aandelenfusie kent <strong>geen aparte OVB-vrijstelling</strong>. Als de werk-BV onroerend goed bezit of kwalificeert als onroerendezaakrechtspersoon (OZR), kan OVB verschuldigd zijn. Check altijd de concernvrijstelling (art. 5b UBBR) als er al een concernstructuur is.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="uitleg-leek niveau-panel" style="display:none;">
+          <div class="uitleg-header" style="background:linear-gradient(135deg,#e8f5f7,#d1edf2);">
+            <div class="uitleg-icon">🔄</div>
+            <div>
+              <div class="uitleg-titel">Holding boven uw bedrijf zetten</div>
+              <div class="uitleg-sub">Wat betekent dit voor u?</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat gebeurt er?</div>
+              <p>U heeft nu een BV waarin uw bedrijf zit. We richten een nieuwe, persoonlijke holding-BV voor u op. U ruilt uw aandelen in de bestaande BV in voor aandelen in de nieuwe holding. Na de ruil is uw structuur: <strong>U → Holding BV → Werk BV</strong>.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Waarom doen mensen dit?</div>
+              <div class="voordeel-list">
+                <div class="voordeel-item">🛡️ <strong>Risicoscheiding</strong> — Winsten die u uit de werk-BV naar de holding overhevelt, zijn beschermd als de werk-BV failliet gaat.</div>
+                <div class="voordeel-item">💰 <strong>Vermogensopbouw</strong> — Winst die u niet privé nodig heeft, kunt u belastingvrij in de holding laten groeien (deelnemingsvrijstelling).</div>
+                <div class="voordeel-item">🔄 <strong>Flexibiliteit</strong> — Via de holding kunt u later eenvoudiger een nieuwe BV opstarten, deelnemen in andere bedrijven, of aandelen in de werk-BV verkopen.</div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Betaalt u nu belasting?</div>
+              <p>Normaal gesproken zou u belasting betalen over de waardestijging van uw aandelen op het moment van de ruil. Maar met de juiste aanpak schuiven we die belastingclaim door naar de toekomst. U betaalt pas belasting als u de aandelen uiteindelijk verkoopt. De Belastingdienst stelt als voorwaarde dat de holding daadwerkelijk de controle krijgt over uw bedrijf, en dat er een zakelijke reden is voor de constructie.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat moet u weten?</div>
+              <div class="alert alert-info">ℹ️ Bent u van plan om uw bedrijf op korte termijn te verkopen? Dan is het belangrijk dat we de timing goed afstemmen. Verkoop direct na de herstructurering kan leiden tot discussie met de Belastingdienst.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VOORBEELD -->
+        <div class="voorbeeld-card">
+          <div class="voorbeeld-header">📋 Praktijkvoorbeeld — Houdsterstructuur via aandelenfusie</div>
+          <div class="voorbeeld-body">
+            <div class="voorbeeld-situatie">
+              <div class="voorbeeld-label">Situatie</div>
+              <p>Jan (DGA) bezit 100% van de aandelen in Installatie BV (waarde €800k, verkrijgingsprijs €18k). Hij wil een holding boven zijn werk-BV. De BV heeft een bedrijfspand in eigendom (WOZ €350k).</p>
+            </div>
+            <div class="voorbeeld-schema">
+              <div class="schema-voor">
+                <div class="schema-label">Vóór</div>
+                <div class="schema-box person">Jan (DGA)</div>
+                <div class="schema-arrow">↓ 100%</div>
+                <div class="schema-box bv">Installatie BV<br><span style="font-size:11px;opacity:0.7;">+ bedrijfspand</span></div>
+              </div>
+              <div style="font-size:24px;color:var(--accent);align-self:center;">→</div>
+              <div class="schema-na">
+                <div class="schema-label">Na aandelenfusie</div>
+                <div class="schema-box person">Jan (DGA)</div>
+                <div class="schema-arrow">↓ 100%</div>
+                <div class="schema-box holding">Holding BV <span style="font-size:10px;">(nieuw)</span></div>
+                <div class="schema-arrow">↓ 100%</div>
+                <div class="schema-box bv">Installatie BV<br><span style="font-size:11px;opacity:0.7;">+ bedrijfspand</span></div>
+              </div>
+            </div>
+            <div class="voorbeeld-analyse">
+              <div class="analyse-rij"><span class="analyse-label">Box 2 zonder faciliteit</span><span class="analyse-waarde rood">€(800k − 18k) × 24,5% = €190.490 belasting</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Box 2 met aandelenfusiefaciliteit</span><span class="analyse-waarde groen">€0 — claim schuift door</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB-risico (pand in BV)</span><span class="analyse-waarde oranje">Controleer: is Installatie BV een OZR? (>50% vastgoed?) → Zo ja: OVB-check bij aandelenruil</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Dossierstuk 1</span><span class="analyse-waarde">Memo zakelijk motief (risicospreiding, vermogensopbouw)</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Dossierstuk 2</span><span class="analyse-waarde">Check AH-overeenkomst op stemrechtbeperkingen</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Valkuil</span><span class="analyse-waarde rood">Geen verkoop plannen op korte termijn → misbruiktoets risico</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== BEDRIJFSFUSIE ===== -->
+      <div id="route-bedrijfsfusie" class="route-panel" style="display:none;">
+
+        <div class="uitleg-tech niveau-panel">
+          <div class="uitleg-header">
+            <div class="uitleg-icon">🏭</div>
+            <div>
+              <div class="uitleg-titel">Bedrijfsfusie</div>
+              <div class="uitleg-sub">Art. 14 Wet VPB · Art. 15 lid 1h WBR · Art. 5a UBBR</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat is het?</div>
+              <p>Een BV draagt haar onderneming (of een zelfstandig deel ervan) over aan een andere BV, waarbij de tegenprestatie uitsluitend of vrijwel uitsluitend bestaat uit uitreiking van aandelen. Zonder faciliteit: directe VPB-afrekening over stille reserves, goodwill en fiscale reserves. Met art. 14: doorschuiven van boekwaarden en fiscale posities.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Voorwaarden</div>
+              <div class="voorwaarden-grid">
+                <div class="vw-item"><span class="vw-nr">1</span><div><strong>Ondernemingsbegrip</strong><br>Er moet sprake zijn van een onderneming of een zelfstandig onderdeel dat op eigen kracht kan functioneren. Losse activa (bijv. alleen een pand) kwalificeren niet.</div></div>
+                <div class="vw-item"><span class="vw-nr">2</span><div><strong>Tegenprestatie</strong><br>Vrijwel uitsluitend aandelen (bijbetaling max. 10%). Bij een hogere bijbetaling vervalt de faciliteit voor dat gedeelte.</div></div>
+                <div class="vw-item"><span class="vw-nr">3</span><div><strong>Misbruiktoets</strong><br>Niet in overwegende mate gericht op ontgaan of uitstellen. Zakelijk doel vastleggen.</div></div>
+                <div class="vw-item"><span class="vw-nr">4</span><div><strong>Uitvoering</strong><br>Notariële akte + inbrengbeschrijving. Bij inbreng van een pand: accountantsverklaring over de waarde.</div></div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">OVB (art. 5a UBBR)</div>
+              <p>Vrijstelling onder voorwaarden. Let op twee bijzonderheden:</p>
+              <ul style="margin-top:8px;padding-left:16px;font-size:13px;line-height:1.9;">
+                <li><strong>Dubbele heffing:</strong> Een bedrijfsfusie kan twee afzonderlijke belastbare feiten voor de OVB opleveren. Art. 13 lid 2 WBR voorkomt dit niet altijd — altijd controleren.</li>
+                <li><strong>Aanhoudingseis (Besluit 2024-10969):</strong> De bij de fusie verkregen aandelen moeten worden aangehouden. Certificering is toegestaan (onderdeel 4.2 Besluit).</li>
+              </ul>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Personeel</div>
+              <div class="alert alert-warn">⚠️ Bij een activa/passiva-overdracht gaan werknemers van rechtswege mee over (art. 7:663 BW, overgang van onderneming). Informeer werknemers tijdig. Dit is een praktisch aandachtspunt dat adviseurs regelmatig over het hoofd zien.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="uitleg-leek niveau-panel" style="display:none;">
+          <div class="uitleg-header" style="background:linear-gradient(135deg,#f0fdf4,#d1fae5);">
+            <div class="uitleg-icon">🏭</div>
+            <div>
+              <div class="uitleg-titel">Uw bedrijfsactiviteiten verplaatsen naar een nieuwe BV</div>
+              <div class="uitleg-sub">Wat betekent dit voor u?</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat gebeurt er?</div>
+              <p>Uw huidige BV draagt het bedrijf — de klanten, contracten, machines, voorraden en schulden — over aan een nieuwe BV. Als tegenprestatie krijgt u aandelen in de nieuwe BV. Uw oude BV houdt dus aandelen in de nieuwe BV. Dit wordt ook wel een "activa-passiva transactie" of bedrijfsfusie genoemd.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wanneer doet u dit?</div>
+              <div class="voordeel-list">
+                <div class="voordeel-item">🏠 <strong>Pand achterlaten</strong> — U wilt het bedrijfspand in de oude BV houden en alleen de activiteiten verplaatsen. Zo kunt u later het pand verhuren, ongeacht wat er met het bedrijf gebeurt.</div>
+                <div class="voordeel-item">🔄 <strong>Schone lei</strong> — U wilt een nieuwe, "schone" BV die u later kunt verkopen zonder oude risico's of aansprakelijkheden.</div>
+                <div class="voordeel-item">🤝 <strong>Samenwerking</strong> — U brengt uw bedrijf in bij een joint venture of samenwerking met een andere partij.</div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Uw medewerkers</div>
+              <div class="alert alert-info">ℹ️ Als u personeel in dienst heeft, gaan zij automatisch mee over naar de nieuwe BV. Dat is wettelijk zo geregeld. Wij zorgen er voor dat uw medewerkers tijdig worden geïnformeerd.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="voorbeeld-card">
+          <div class="voorbeeld-header">📋 Praktijkvoorbeeld — Pand achterlaten via bedrijfsfusie</div>
+          <div class="voorbeeld-body">
+            <div class="voorbeeld-situatie">
+              <div class="voorbeeld-label">Situatie</div>
+              <p>Installatie BV heeft een bedrijfspand (WOZ €400k, boekwaarde €120k) en een actieve onderneming (goodwill €200k, stille reserves in machines €80k). Klant wil pand vasthouden en bedrijf later verkopen. Mogelijke koper wil geen pand.</p>
+            </div>
+            <div class="voorbeeld-schema">
+              <div class="schema-voor">
+                <div class="schema-label">Vóór</div>
+                <div class="schema-box person">Jan</div>
+                <div class="schema-arrow">↓</div>
+                <div class="schema-box bv">Installatie BV<br><span style="font-size:11px;opacity:0.7;">pand + onderneming</span></div>
+              </div>
+              <div style="font-size:24px;color:var(--accent);align-self:center;">→</div>
+              <div class="schema-na">
+                <div class="schema-label">Na bedrijfsfusie</div>
+                <div class="schema-box person">Jan</div>
+                <div class="schema-arrow">↓</div>
+                <div class="schema-box bv">Installatie BV (oud)<br><span style="font-size:11px;opacity:0.7;">pand + aandelen Newco</span></div>
+                <div class="schema-arrow">↓ 100%</div>
+                <div class="schema-box holding" style="background:#f0fdf4;border-color:#86efac;">Newco BV<br><span style="font-size:11px;opacity:0.7;">alleen onderneming</span></div>
+              </div>
+            </div>
+            <div class="voorbeeld-analyse">
+              <div class="analyse-rij"><span class="analyse-label">VPB zonder faciliteit</span><span class="analyse-waarde rood">Afrekening over €280k meerwaarde (goodwill + machines) ≈ €69k VPB</span></div>
+              <div class="analyse-rij"><span class="analyse-label">VPB met art. 14</span><span class="analyse-waarde groen">€0 — boekwaarden schuiven door naar Newco</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB pand</span><span class="analyse-waarde groen">Pand blijft in Installatie BV — geen overdracht, geen OVB</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB onderneming (art. 5a)</span><span class="analyse-waarde groen">Vrijstelling van toepassing, mits voortzettingseis gehaald</span></div>
+              <div class="analyse-rij"><span class="analyse-label">BTW</span><span class="analyse-waarde groen">Overgang van onderneming (art. 37d OB) → geen BTW</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Valkuil personeel</span><span class="analyse-waarde oranje">Medewerkers gaan van rechtswege mee → tijdig informeren</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== FISCALE EENHEID ===== -->
+      <div id="route-fe" class="route-panel" style="display:none;">
+
+        <div class="uitleg-tech niveau-panel">
+          <div class="uitleg-header">
+            <div class="uitleg-icon">🔗</div>
+            <div>
+              <div class="uitleg-titel">Herstructurering binnen Fiscale Eenheid VPB</div>
+              <div class="uitleg-sub">Art. 15 Wet VPB · Art. 15ai Wet VPB · Art. 5b UBBR</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat is het?</div>
+              <p>Binnen een bestaande fiscale eenheid VPB zijn transacties tussen gevoegde maatschappijen fiscaal onzichtbaar. Er is geen ondernemingsbegrip, geen tegenprestatie-eis en geen prijseis. Dit maakt het de snelste en meest flexibele herstructureringsroute — maar met een grote valkuil bij latere ontvoeging.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Voorwaarden FE VPB</div>
+              <div class="voorwaarden-grid">
+                <div class="vw-item"><span class="vw-nr">1</span><div><strong>95%+ belang</strong><br>Financieel belang, economisch belang én stemrecht van minimaal 95% vereist. Zowel direct als indirect.</div></div>
+                <div class="vw-item"><span class="vw-nr">2</span><div><strong>Vestigingsplaats</strong><br>Moeder en dochter moeten in Nederland gevestigd zijn. Let op: ontvoeging bij emigratie.</div></div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">⚠️ De grote valkuil: 6-jaars sanctie (art. 15ai)</div>
+              <div class="alert alert-danger">
+                <div style="font-weight:700;margin-bottom:6px;">Bij ontvoeging kijkt de Belastingdienst 6 kalenderjaren terug.</div>
+                <ul style="padding-left:16px;font-size:13px;line-height:1.9;">
+                  <li>Heffing over het verschil tussen WEV en boekwaarde van overgedragen activa</li>
+                  <li>Geen tegenbewijs mogelijk — de sanctie is hard</li>
+                  <li>Telt per overgedragen activum afzonderlijk</li>
+                  <li><strong>Uitzondering:</strong> Sanctie verkort naar 3 jaar als de overdracht binnen FE plaatsvond tegen uitreiking van eigen aandelen (= ondernemingsdeel overgedragen)</li>
+                </ul>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">OVB (art. 5b UBBR — interne reorganisatie)</div>
+              <p>Vrijstelling voor verkrijging binnen concern. Voorwaarde: de overdragende en verkrijgende rechtspersoon moeten gedurende 3 jaar voor én 3 jaar na de overdracht in een concernrelatie staan (≥ 90% belang). Let op: FE VPB ≠ automatisch concern voor OVB-doeleinden.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="uitleg-leek niveau-panel" style="display:none;">
+          <div class="uitleg-header" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
+            <div class="uitleg-icon">🔗</div>
+            <div>
+              <div class="uitleg-titel">Schuiven binnen uw eigen groep</div>
+              <div class="uitleg-sub">Wat betekent dit voor u?</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat is een fiscale eenheid?</div>
+              <p>Als u een holding heeft die voor meer dan 95% eigenaar is van een of meerdere werk-BV's, kunt u met de Belastingdienst afspreken dat al die BV's voor de vennootschapsbelasting als één geheel worden behandeld. Dat heet een fiscale eenheid.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat kunt u dan doen?</div>
+              <p>Binnen die fiscale eenheid kunt u activa — zoals een bedrijfspand, een machine, of zelfs een hele bedrijfsactiviteit — van de ene BV naar de andere schuiven <strong>zonder dat u daar direct belasting over betaalt</strong>. U hoeft ook geen speciale waardebepaling te laten uitvoeren.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Waar moet u op letten?</div>
+              <div class="alert alert-warn">⚠️ <strong>Let op bij verkoop:</strong> Als u later een BV verkoopt die uit de fiscale eenheid treedt, kijkt de Belastingdienst 6 jaar terug naar wat er binnen de groep is verschoven. Over die "schuiven" kan dan alsnog belasting worden geheven. Dit is een veelgemaakte fout bij bedrijfsverkoop.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="voorbeeld-card">
+          <div class="voorbeeld-header">📋 Praktijkvoorbeeld — Vastgoed schuiven binnen FE + sanctiecheck</div>
+          <div class="voorbeeld-body">
+            <div class="voorbeeld-situatie">
+              <div class="voorbeeld-label">Situatie</div>
+              <p>Holding BV en Werk BV vormen een fiscale eenheid. Werk BV heeft een bedrijfspand (boekwaarde €80k, WEV €450k). Klant overweegt vastgoed te schuiven naar Holding BV, zodat Werk BV "schoon" verkoopbaar is. Mogelijke verkoop over 2–3 jaar.</p>
+            </div>
+            <div class="voorbeeld-schema">
+              <div class="schema-voor">
+                <div class="schema-label">Huidige structuur (FE)</div>
+                <div class="schema-box person">Jan</div>
+                <div class="schema-arrow">↓</div>
+                <div class="schema-box holding">Holding BV</div>
+                <div class="schema-arrow">↓ FE</div>
+                <div class="schema-box bv">Werk BV<br><span style="font-size:11px;opacity:0.7;">+ pand (WEV €450k)</span></div>
+              </div>
+              <div style="font-size:24px;color:var(--accent);align-self:center;">→</div>
+              <div class="schema-na">
+                <div class="schema-label">Na schuiven pand</div>
+                <div class="schema-box person">Jan</div>
+                <div class="schema-arrow">↓</div>
+                <div class="schema-box holding">Holding BV<br><span style="font-size:11px;opacity:0.7;color:#dc2626;">+ pand (sanctierisico!)</span></div>
+                <div class="schema-arrow">↓ FE</div>
+                <div class="schema-box bv" style="border-color:#86efac;">Werk BV<br><span style="font-size:11px;color:#16a34a;">schoon — verkoopbaar</span></div>
+              </div>
+            </div>
+            <div class="voorbeeld-analyse">
+              <div class="analyse-rij"><span class="analyse-label">VPB bij schuiven (binnen FE)</span><span class="analyse-waarde groen">€0 — transactie onzichtbaar</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB bij schuiven (art. 5b)</span><span class="analyse-waarde groen">Vrijgesteld — interne reorganisatie (mits 3jr voor/na concernrelatie)</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Sanctie bij verkoop Werk BV (< 6jr)</span><span class="analyse-waarde rood">Heffing over €370k meerwaarde pand (WEV − BW) = ≈ €91k VPB. Geen tegenbewijs!</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Advies bij verkoop &lt; 3jr</span><span class="analyse-waarde oranje">Overweeg bedrijfsfusie of splitsing in plaats van FE-route — minder sanctierisico</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Dossierstuk</span><span class="analyse-waarde">Sanctieregister bijhouden: welk activum wanneer geschoven, WEV op moment van overdracht</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== JURIDISCHE FUSIE ===== -->
+      <div id="route-jurfusie" class="route-panel" style="display:none;">
+
+        <div class="uitleg-tech niveau-panel">
+          <div class="uitleg-header">
+            <div class="uitleg-icon">⚖️</div>
+            <div>
+              <div class="uitleg-titel">Juridische fusie</div>
+              <div class="uitleg-sub">Art. 14b Wet VPB · 2:309 BW · Art. 15 lid 1h WBR</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat is het?</div>
+              <p>Het vermogen van de verdwijnende vennootschap gaat onder algemene titel over op de verkrijgende vennootschap. De verdwijnende rechtspersoon houdt op te bestaan. Alle contracten, vergunningen en licenties gaan automatisch mee — zonder afzonderlijke leveringsakten.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Lex specialis</div>
+              <div class="alert alert-info">ℹ️ De fusiefaciliteit is een <em>lex specialis</em>: het verdringt de HIR en ruilarresten als zelfstandige faciliteit. Als de fusiefaciliteit niet kan worden toegepast (bijv. omdat de misbruiktoets niet wordt gehaald), kunt u niet terugvallen op de HIR of ruilarresten als alternatief.</div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Voorwaarden</div>
+              <div class="voorwaarden-grid">
+                <div class="vw-item"><span class="vw-nr">1</span><div><strong>Misbruiktoets</strong><br>De fusie mag niet in overwegende mate zijn gericht op ontgaan of uitstellen. Zekerheid vooraf: beschikking aanvragen via art. 14b lid 7.</div></div>
+                <div class="vw-item"><span class="vw-nr">2</span><div><strong>Civielrechtelijke procedure</strong><br>Fusieakte bij notaris. Verplichte aankondiging + 1 maand verzetstermijn voor schuldeisers. Jaarcijfers deponeren.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="uitleg-leek niveau-panel" style="display:none;">
+          <div class="uitleg-header" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);">
+            <div class="uitleg-icon">⚖️</div>
+            <div>
+              <div class="uitleg-titel">Twee bedrijven samenvoegen tot één</div>
+              <div class="uitleg-sub">Wat betekent dit voor u?</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat gebeurt er?</div>
+              <p>U heeft twee BV's die u wilt samenvoegen. Bij een juridische fusie verdwijnt één BV en gaat alles — bezittingen, schulden, contracten, medewerkers, vergunningen — automatisch over naar de andere BV. U hoeft niet elk afzonderlijk contract opnieuw af te sluiten. Dat is het grote voordeel ten opzichte van een gewone activa-overdracht.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wanneer kiest u hiervoor?</div>
+              <div class="voordeel-list">
+                <div class="voordeel-item">📜 <strong>Moeilijk overdraagbare contracten</strong> — Licenties, huurcontracten of overheidsvergunningen die u niet zomaar kunt overdragen, gaan bij een juridische fusie automatisch mee.</div>
+                <div class="voordeel-item">🧹 <strong>Structuur vereenvoudigen</strong> — U wilt één BV overhouden in plaats van twee, om de administratie te verminderen.</div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Hoe lang duurt het?</div>
+              <p>Een juridische fusie duurt minimaal 2–3 maanden vanwege wettelijke procedures: aankondiging, verzetstermijn voor schuldeisers, en de uiteindelijke notariële akte.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="voorbeeld-card">
+          <div class="voorbeeld-header">📋 Praktijkvoorbeeld — Twee werk-BV's samenvoegen</div>
+          <div class="voorbeeld-body">
+            <div class="voorbeeld-situatie">
+              <div class="voorbeeld-label">Situatie</div>
+              <p>Klant heeft BV A (bouw, omzet €1,2M) en BV B (advies, omzet €300k). BV B heeft een overheidskader-vergunning die niet contractueel overdraagbaar is. Klant wil vereenvoudigen en kosten besparen. Doel: BV B opgaan in BV A.</p>
+            </div>
+            <div class="voorbeeld-schema">
+              <div class="schema-voor">
+                <div class="schema-label">Vóór</div>
+                <div class="schema-box person">Klant</div>
+                <div class="schema-arrow">↓ 100%&nbsp;&nbsp;&nbsp;&nbsp;↓ 100%</div>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                  <div class="schema-box bv">BV A<br><span style="font-size:11px;opacity:0.7;">bouw</span></div>
+                  <div class="schema-box bv">BV B<br><span style="font-size:11px;opacity:0.7;">advies + vergunning</span></div>
+                </div>
+              </div>
+              <div style="font-size:24px;color:var(--accent);align-self:center;">→</div>
+              <div class="schema-na">
+                <div class="schema-label">Na juridische fusie</div>
+                <div class="schema-box person">Klant</div>
+                <div class="schema-arrow">↓ 100%</div>
+                <div class="schema-box holding" style="background:#f0fdf4;border-color:#86efac;">BV A<br><span style="font-size:11px;opacity:0.7;">bouw + advies + vergunning</span></div>
+                <div style="font-size:11px;color:#dc2626;text-align:center;margin-top:4px;">BV B opgeheven</div>
+              </div>
+            </div>
+            <div class="voorbeeld-analyse">
+              <div class="analyse-rij"><span class="analyse-label">VPB (art. 14b)</span><span class="analyse-waarde groen">Doorschuiven — geen afrekening over stille reserves</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Vergunning overdracht</span><span class="analyse-waarde groen">Gaat automatisch mee onder algemene titel — geen afzonderlijke toestemming nodig</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB (geen vastgoed)</span><span class="analyse-waarde groen">Geen OVB — geen onroerende zaken betrokken</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Doorlooptijd</span><span class="analyse-waarde oranje">Min. 2–3 maanden: aankondiging + verzetstermijn schuldeisers (1 mnd) + notariële akte</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Dossierstuk</span><span class="analyse-waarde">Fusievoorstel + balans BV B ≤ 6 mnd oud + beschikking zekerheid misbruiktoets (optioneel)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== JURIDISCHE SPLITSING ===== -->
+      <div id="route-splitsing" class="route-panel" style="display:none;">
+
+        <div class="uitleg-tech niveau-panel">
+          <div class="uitleg-header" style="border-left:4px solid #dc2626;">
+            <div class="uitleg-icon">✂️</div>
+            <div>
+              <div class="uitleg-titel">Juridische splitsing</div>
+              <div class="uitleg-sub">Art. 14a Wet VPB · 2:334a BW · Art. 5c UBBR (⚠️ gewijzigd per 1-7-2025)</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Twee vormen</div>
+              <div class="voorwaarden-grid">
+                <div class="vw-item"><span class="vw-nr">A</span><div><strong>Zuivere splitsing</strong><br>De splitsende rechtspersoon verdwijnt. Het vermogen gaat over op twee of meer nieuwe rechtspersonen. Aandeelhouders krijgen aandelen in de nieuwe vennootschappen.</div></div>
+                <div class="vw-item"><span class="vw-nr">B</span><div><strong>Afsplitsing</strong><br>De splitsende rechtspersoon blijft bestaan. Een deel van het vermogen gaat over op een nieuwe of bestaande rechtspersoon. De splitsende vennootschap ontvangt aandelen als tegenprestatie.</div></div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">⚠️ OVB per 1-7-2025: vier nieuwe eisen</div>
+              <div class="alert alert-danger">
+                <strong>Voor splitsingen waarbij onroerende zaken overgaan, gelden nieuwe OVB-voorwaarden (art. 5c UBBR):</strong>
+                <ul style="padding-left:16px;margin-top:8px;font-size:13px;line-height:1.9;">
+                  <li><strong>Ondernemingseis:</strong> Er moet een gehele onderneming of zelfstandig onderdeel overgaan. Beleggingsvastgoed (losse onroerende zaken) valt buiten de vrijstelling. Toets per vennootschap, niet geconsolideerd.</li>
+                  <li><strong>Voortzettingseis:</strong> De onderneming moet minimaal 3 jaar na de splitsing worden voortgezet.</li>
+                  <li><strong>Soortgelijk belang:</strong> Aandeelhouders moeten een soortgelijk belang verkrijgen.</li>
+                  <li><strong>Aanhoudingseis:</strong> Het belang moet minimaal 3 jaar worden aangehouden.</li>
+                  <li><strong>Koppeling VPB losgelaten:</strong> VPB-faciliteit en OVB-vrijstelling worden nu los van elkaar getoetst.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Ruziesplitsing (apart regime)</div>
+              <p>Bij een ruziesplitsing (zuivere splitsing waarbij aandeelhouders elk hun eigen vennootschap krijgen) gelden de ondernemingseis en voortzettingseis niet. Wel: aanhoudingseis van 3 jaar. Let op: als het belang bij een onroerende zaak toeneemt, is OVB verschuldigd.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="uitleg-leek niveau-panel" style="display:none;">
+          <div class="uitleg-header" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);">
+            <div class="uitleg-icon">✂️</div>
+            <div>
+              <div class="uitleg-titel">Uw bedrijf splitsen in tweeën</div>
+              <div class="uitleg-sub">Wat betekent dit voor u?</div>
+            </div>
+          </div>
+          <div class="uitleg-body">
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wat gebeurt er?</div>
+              <p>U heeft één BV met meerdere activiteiten of bezittingen, en u wilt die uit elkaar halen. Bijvoorbeeld: het bedrijf in één BV en het vastgoed in een andere. Bij een juridische splitsing gaat een deel van het vermogen automatisch over op een nieuwe of bestaande BV — zonder dat u alles apart hoeft over te dragen.</p>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Wanneer kiest u hiervoor?</div>
+              <div class="voordeel-list">
+                <div class="voordeel-item">🏠 <strong>Vastgoed afzonderen</strong> — U wilt het bedrijfspand apart houden van de onderneming, zodat u de onderneming kunt verkopen terwijl u het pand aanhoudt.</div>
+                <div class="voordeel-item">👥 <strong>Aandeelhouders uit elkaar</strong> — U en uw compagnon willen ieder uw eigen bedrijf (ruziesplitsing).</div>
+                <div class="voordeel-item">🎯 <strong>Activiteiten scheiden</strong> — U wilt bouw en advies in aparte BV's om risico's te scheiden.</div>
+              </div>
+            </div>
+            <div class="uitleg-sectie">
+              <div class="uitleg-sectie-titel">Belangrijke verandering in de regels</div>
+              <div class="alert alert-warn">⚠️ Wilt u vastgoed afsplitsen? Sinds 1 juli 2025 gelden strengere regels. U betaalt alleen geen overdrachtsbelasting als het vastgoed onderdeel is van een echte onderneming, en u die onderneming minimaal 3 jaar voortzet. Losse beleggingspanden splitsen zonder belasting is niet meer mogelijk.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="voorbeeld-card">
+          <div class="voorbeeld-header">📋 Praktijkvoorbeeld — Vastgoed afsplitsen (na 1-7-2025)</div>
+          <div class="voorbeeld-body">
+            <div class="voorbeeld-situatie">
+              <div class="voorbeeld-label">Situatie</div>
+              <p>Bouw BV heeft een bedrijfspand (WOZ €600k, boekwaarde €200k) én een actieve bouwonderneming (goodwill €300k). Klant wil pand afsplitsen naar Vastgoed BV zodat Bouw BV verkoopbaar is. Mogelijke verkoop bouwonderneming over 2 jaar.</p>
+            </div>
+            <div class="voorbeeld-schema">
+              <div class="schema-voor">
+                <div class="schema-label">Vóór</div>
+                <div class="schema-box person">Klant</div>
+                <div class="schema-arrow">↓</div>
+                <div class="schema-box bv">Bouw BV<br><span style="font-size:11px;opacity:0.7;">pand + onderneming</span></div>
+              </div>
+              <div style="font-size:24px;color:var(--accent);align-self:center;">→</div>
+              <div class="schema-na">
+                <div class="schema-label">Na afsplitsing</div>
+                <div class="schema-box person">Klant</div>
+                <div class="schema-arrow">↓&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓</div>
+                <div style="display:flex;gap:12px;justify-content:center;">
+                  <div class="schema-box bv" style="border-color:#86efac;">Bouw BV<br><span style="font-size:11px;color:#16a34a;">alleen onderneming</span></div>
+                  <div class="schema-box holding">Vastgoed BV<br><span style="font-size:11px;opacity:0.7;">pand €600k</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="voorbeeld-analyse">
+              <div class="analyse-rij"><span class="analyse-label">VPB (art. 14a)</span><span class="analyse-waarde groen">Doorschuiven mits geen misbruik — boekwaarden gaan mee</span></div>
+              <div class="analyse-rij"><span class="analyse-label">OVB (nieuwe regels)</span><span class="analyse-waarde groen">Vrijgesteld: pand is onderdeel van onderneming (ondernemingseis gehaald)</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Voortzettingseis (3jr)</span><span class="analyse-waarde oranje">Vastgoed BV moet pand 3jr aanhouden. Verkoop < 3jr → OVB alsnog verschuldigd (10,4% × €600k = €62.400)</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Verkoop Bouw BV in jaar 2</span><span class="analyse-waarde groen">OVB niet opnieuw verschuldigd — alleen aandelen in Bouw BV worden verkocht, geen onroerende zaak</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Valkuil</span><span class="analyse-waarde rood">Als pand een beleggingspand was (verhuurd aan derden, niet functioneel) → voldoet niet aan ondernemingseis → OVB verschuldigd</span></div>
+              <div class="analyse-rij"><span class="analyse-label">Doorlooptijd</span><span class="analyse-waarde oranje">Min. 2–3 maanden: splitsingsvoorstel + deponering + verzetstermijn + notariële akte</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== KGS ===== -->
+    <div id="mod-kgs" class="module">
+      <div class="page-title">Kennisgroepen Zoeker</div>
+      <div class="page-sub">Zoek kennisgroepstandpunten van de Belastingdienst relevant voor herstructurering.</div>
+
+      <div class="kgs-panel">
+        <h3>🔍 Zoek kennisgroepstandpunt</h3>
+        <div class="kgs-input-row">
+          <input type="text" id="kgs-query" placeholder="Bijv: aandelenfusie stemrechtvereiste splitsing, of: OVB bedrijfsfusie vastgoed…" onkeydown="if(event.key==='Enter')zoekKGS()">
+          <button class="btn btn-primary" onclick="zoekKGS()">Zoeken</button>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--muted);align-self:center;">Snel:</span>
+          <button class="btn btn-ghost btn-sm" onclick="setKGSQuery('aandelenfusie stemrechtvereiste')">Aandelenfusie stemrecht</button>
+          <button class="btn btn-ghost btn-sm" onclick="setKGSQuery('bedrijfsfusie ondernemingsbegrip')">Bedrijfsfusie onderneming</button>
+          <button class="btn btn-ghost btn-sm" onclick="setKGSQuery('juridische splitsing OVB 2025')">Splitsing OVB 2025</button>
+          <button class="btn btn-ghost btn-sm" onclick="setKGSQuery('fiscale eenheid 15ai sanctie')">FE sanctie 15ai</button>
+        </div>
+      </div>
+
+      <div id="kgs-result" class="ai-box" style="display:none;">
+        <div class="ai-label">🔍 Kennisgroepen Zoeker — resultaat</div>
+        <div id="kgs-result-text"></div>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:16px;">
+        ℹ️ De Kennisgroepen Zoeker haalt standpunten op uit de Belastingdienst-kennisgroepen via de Supabase-backend. Zorg dat de API-sleutel is ingesteld.
+      </div>
+    </div>
+
+    <!-- ===== INSTELLINGEN ===== -->
+    <div id="mod-instellingen" class="module">
+      <div class="page-title">Instellingen</div>
+      <div class="page-sub">Sla je Anthropic API-sleutel op voor AI-functionaliteit in deze sessie.</div>
+
+      <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:20px;">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;">🔑 Anthropic API-sleutel</h3>
+        <div class="field-group" style="margin-bottom:16px;">
+          <label>API-sleutel</label>
+          <input type="password" id="apikey-input" placeholder="sk-ant-..." style="font-family:monospace;">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Opslaan (alleen in geheugen)</button>
+        <div id="apikey-status" style="margin-top:10px;font-size:13px;color:var(--muted);"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ===== STATE =====
+let state = {
+  apiKey: '',
+  currentStap: 1,
+  selectedFaciliteit: '',
+  advies: ''
+};
+
+// ===== NAVIGATION =====
+function showModule(name) {
+  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  const moduleMap = {
+    'intake': 'mod-intake',
+    'routekaart': 'mod-routekaart',
+    'kennisbank': 'mod-kennisbank',
+    'kgs': 'mod-kgs',
+    'instellingen': 'mod-instellingen',
+    'samenvatting': 'mod-routekaart'
+  };
+
+  const el = document.getElementById(moduleMap[name] || 'mod-' + name);
+  if (el) el.classList.add('active');
+
+  // Activate sidebar btn
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(b => {
+    if (b.textContent.toLowerCase().includes(name.toLowerCase().substring(0,5))) {
+      b.classList.add('active');
+    }
+  });
+
+  if (name === 'samenvatting') {
+    document.querySelectorAll('.stap-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('stap-samenvatting').classList.add('active');
+  }
+}
+
+function scrollToTop() {
+  document.querySelector('.main').scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ===== STAP NAVIGATIE =====
+function goToStap(n) {
+  document.querySelectorAll('.stap-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('stap-' + n);
+  if (panel) panel.classList.add('active');
+
+  // Update tracker
+  const steps = ['1','1b','2','3','4','5'];
+  const stepMap = {1:'1', 2:'2', 3:'3', 4:'4', 5:'5'};
+  const currentIdx = n - 1;
+
+  steps.forEach((s, i) => {
+    const track = document.getElementById('track-' + s);
+    if (!track) return;
+    track.classList.remove('active', 'done');
+    if (i < currentIdx) track.classList.add('done');
+    else if (i === currentIdx) track.classList.add('active');
+  });
+
+  state.currentStap = n;
+  scrollToTop();
+}
+
+// ===== PILL TOGGLES =====
+function togglePill(label, group) {
+  const input = label.querySelector('input');
+  if (!input) return;
+
+  if (input.type === 'radio') {
+    document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+      r.closest('.check-pill').classList.remove('checked');
+    });
+    label.classList.add('checked');
+    input.checked = true;
+    onPillChange(group, input.value);
+  } else {
+    label.classList.toggle('checked');
+    input.checked = label.classList.contains('checked');
+  }
+}
+
+function onPillChange(group, value) {
+  if (group === 'object') showObjectUitleg(value);
+  if (group === 'ovb') showOVBAlert(value);
+  if (group === 'timing' || group === 'verkoop') checkTiming(value);
+}
+
+function showObjectUitleg(value) {
+  const el = document.getElementById('object-uitleg');
+  const map = {
+    'aandelen': '<div class="alert alert-info">ℹ️ <strong>Aandelenroute:</strong> De aandelen in een BV worden overgedragen. Faciliteit: aandelenfusie (art. 3.55 IB) of aandelenfusie VPB (art. 14b). Let op: OVB heeft géén aparte aandelenfusievrijstelling → OZR-check altijd uitvoeren.</div>',
+    'onderneming': '<div class="alert alert-info">ℹ️ <strong>Ondernemingroute:</strong> Activa en passiva gaan over. Faciliteit: bedrijfsfusie (art. 14 VPB). Losse activa kwalificeren niet → zelfstandig functioneren is de sleutel. OVB: art. 5a.</div>',
+    'algemene-titel': '<div class="alert alert-info">ℹ️ <strong>Algemene titel:</strong> Juridische fusie (2:309 BW) of splitsing (2:334a BW). Vermogen gaat van rechtswege over. Fusiefaciliteit = lex specialis. OVB: art. 15 lid 1h WBR. ⚠️ Splitsing OVB aangescherpt per 1-7-2025.</div>',
+    'fe': '<div class="alert alert-info">ℹ️ <strong>Fiscale eenheid:</strong> Transacties binnen FE zijn fiscaal onzichtbaar. Snel, maar ⚠️ 6-jaars sanctie bij ontvoeging (art. 15ai). Check ook OVB art. 5b voor interne reorganisatie.</div>'
+  };
+  el.innerHTML = map[value] || '';
+}
+
+function showOVBAlert(value) {
+  const el = document.getElementById('ovb-alert');
+  const map = {
+    'geen': '<div class="alert alert-info">✅ Geen OVB-risico. Vastleggen in dossier dat er geen onroerende zaken in de structuur zitten.</div>',
+    'direct': '<div class="alert alert-warn">⚠️ <strong>Direct vastgoed:</strong> OVB speelt bij overdracht. Check de toepasselijke vrijstelling (art. 5a/5b Uitv.besl. BRV of art. 15 lid 1h WBR). Let op dat niet elk herstructureringspad een OVB-vrijstelling heeft.</div>',
+    'indirect': '<div class="alert alert-danger">🔴 <strong>OZR-aandelen (indirect vastgoed):</strong> Hoog risico. Art. 4 WBR kan van toepassing zijn. Aandelenfusie heeft geen eigen OVB-vrijstelling. Check of concernvrijstelling van toepassing is. Dit moet standaard in het dossier worden vastgelegd.</div>'
+  };
+  el.innerHTML = map[value] || '';
+}
+
+function checkTiming(value) {
+  if (value === 'nu') {
+    // Show stoplicht warning
+  }
+}
+
+// ===== STOPLICHT =====
+function selectStoplicht(card, kleur) {
+  document.querySelectorAll('.stoplicht-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+// ===== FACILITEIT =====
+function selectFaciliteit(card, naam) {
+  document.querySelectorAll('.faciliteit-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  state.selectedFaciliteit = naam;
+  showActualiteiten(naam);
+}
+
+function showActualiteiten(naam) {
+  const box = document.getElementById('actualiteiten-box');
+  const map = {
+    'aandelenfusie': '<div class="alert alert-info">⚡ <strong>Actualiteit KG:003:2026:03:</strong> Tijdelijke meerderheid stemrechten is voldoende, ook bij opvolgende juridische splitsing. Check of stemrechten niet contractueel beperkt zijn (AH-overeenkomst/escrow/volmachten).</div>',
+    'bedrijfsfusie': '<div class="alert alert-info">⚡ <strong>Actualiteit Besluit 2024-10969:</strong> Actueel OVB-beleid ondernemingsfaciliteiten. Let op mogelijke dubbele OVB-heffing bij bedrijfsfusie (art. 13 lid 2 voorkomt dit niet altijd).</div>',
+    'juridische-splitsing': '<div class="alert alert-danger">🔴 <strong>Wetswijziging per 1-7-2025:</strong> OVB-splitsingsvrijstelling aangescherpt. Ondernemingseis + voortzettingseis (3 jaar) + soortgelijk belang (3 jaar). Koppeling met VPB-faciliteit niet meer automatisch. Extra toets vereist!</div>',
+    'fe': '<div class="alert alert-warn">⚠️ <strong>Sanctie art. 15ai:</strong> Bij ontvoeging 6 kalenderjaren terugkijken. Heffing op WEV/boekwaarde-verschil. Geen tegenbewijs mogelijk. Uitzondering: 3 jaar als binnen FE onderneming overgedragen tegen eigen aandelen.</div>'
+  };
+  if (map[naam]) {
+    box.innerHTML = map[naam];
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+// ===== ADVIES =====
+function setAdvies(keuze) {
+  state.advies = keuze;
+  document.getElementById('advies-reden').style.display = 'block';
+}
+
+// ===== SAMENVATTING =====
+function buildSamenvatting() {
+  const items = [
+    { label: 'Klant', value: document.getElementById('klantnaam').value || '—' },
+    { label: 'Rechtsvorm', value: document.getElementById('rechtsvorm').value || '—' },
+    { label: 'Object', value: getSelectedRadio('object') || '—' },
+    { label: 'OVB-risico', value: getSelectedRadio('ovb') || '—' },
+    { label: 'Belastingclaim', value: getCheckedCheckboxes('claim').join(', ') || '—' },
+    { label: 'Faciliteit', value: state.selectedFaciliteit || '—' },
+    { label: 'Advies', value: state.advies === 'ja' ? '✅ Adviseren' : state.advies === 'nee' ? '❌ Niet adviseren' : '—' },
+    { label: 'Voorwaarde 1', value: document.getElementById('vw1').value || '—' },
+    { label: 'Voorwaarde 2', value: document.getElementById('vw2').value || '—' },
+    { label: 'Valkuil', value: document.getElementById('valkuil').value || '—' },
+    { label: 'Bewijsstuk 1', value: document.getElementById('doc1').value || '—' },
+    { label: 'Bewijsstuk 2', value: document.getElementById('doc2').value || '—' },
+    { label: 'Klantzin', value: document.getElementById('klantzin').value || '—', full: true }
+  ];
+
+  const grid = document.getElementById('samenvatting-content');
+  grid.innerHTML = items.map(i => `
+    <div class="summary-item ${i.full ? 'full' : ''}">
+      <div class="s-label">${i.label}</div>
+      <div class="s-value">${i.value}</div>
+    </div>
+  `).join('');
+}
+
+function getSelectedRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : null;
+}
+
+function getCheckedCheckboxes(name) {
+  return Array.from(document.querySelectorAll(`input[value]:checked`))
+    .filter(el => el.type === 'checkbox' && ['box2','vpb','ovb2','btw'].includes(el.value))
+    .map(el => el.value);
+}
+
+// ===== UITLEG MODULE =====
+let huidigNiveau = 'technisch';
+
+function setNiveau(niveau) {
+  huidigNiveau = niveau;
+  document.querySelectorAll('.niveau-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll(niveau === 'technisch' ? '.uitleg-tech' : '.uitleg-leek')
+    .forEach(p => p.style.display = 'block');
+
+  const btnTech = document.getElementById('toggle-tech');
+  const btnLeek = document.getElementById('toggle-leek');
+  const label = document.getElementById('niveau-label');
+
+  if (niveau === 'technisch') {
+    btnTech.style.background = 'var(--accent)'; btnTech.style.color = 'white';
+    btnLeek.style.background = 'none'; btnLeek.style.color = 'var(--muted)';
+    label.textContent = 'Technische toelichting met wetsartikelen';
+  } else {
+    btnLeek.style.background = 'var(--accent)'; btnLeek.style.color = 'white';
+    btnTech.style.background = 'none'; btnTech.style.color = 'var(--muted)';
+    label.textContent = 'Toegankelijke uitleg voor klanten';
+  }
+}
+
+function showRoute(naam) {
+  document.querySelectorAll('.route-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.route-tab').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('route-' + naam);
+  if (panel) panel.style.display = 'block';
+  event.target.classList.add('active');
+  // Herstel het niveau
+  setNiveau(huidigNiveau);
+}
+
+// ===== API KEY =====
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (key.startsWith('sk-ant-')) {
+    state.apiKey = key;
+    document.getElementById('apikey-status').innerHTML = '<span style="color:#16a34a;">✅ API-sleutel opgeslagen (alleen in geheugen)</span>';
+  } else {
+    document.getElementById('apikey-status').innerHTML = '<span style="color:#dc2626;">❌ Ongeldige sleutel (moet beginnen met sk-ant-)</span>';
+  }
+}
+
+// ===== AI CALLS =====
+async function callClaude(systemPrompt, userPrompt, targetId) {
+  if (!state.apiKey) {
+    document.getElementById(targetId).innerHTML = '⚠️ Geen API-sleutel ingesteld. Ga naar Instellingen.';
+    return;
+  }
+
+  const box = document.getElementById(targetId).closest('.ai-box');
+  box.style.display = 'block';
+  document.getElementById(targetId).innerHTML = '<div class="ai-loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div> Claude analyseert…</div>';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'Geen antwoord ontvangen.';
+    document.getElementById(targetId).textContent = text;
+  } catch (e) {
+    document.getElementById(targetId).innerHTML = '❌ Fout bij API-aanroep: ' + e.message;
+  }
+}
+
+function getIntakeContext() {
+  return `
+Klant: ${document.getElementById('klantnaam').value || 'onbekend'}
+Rechtsvorm: ${document.getElementById('rechtsvorm').value || 'onbekend'}
+Doel: ${document.getElementById('doel').value || 'onbekend'}
+Verkoop in beeld: ${getSelectedRadio('verkoop') || 'onbekend'}
+Vastgoed: ${getSelectedRadio('vastgoed') || 'onbekend'}
+Fiscale eenheid: ${getSelectedRadio('fe') || 'onbekend'}
+Object: ${getSelectedRadio('object') || 'onbekend'}
+OVB: ${getSelectedRadio('ovb') || 'onbekend'}
+Gekozen faciliteit: ${state.selectedFaciliteit || 'nog niet gekozen'}
+Stille reserves: ${document.getElementById('reserves').value || 'onbekend'}
+`.trim();
+}
+
+const SYSTEM = `Je bent een fiscaal adviseur gespecialiseerd in vennootschapsbelasting en herstructurering in Nederland. Je antwoorden zijn in het Nederlands, beknopt, praktisch en dossierproof. Je verwijst altijd naar relevante wetsartikelen.
+
+ACTUELE BRONNEN die je kent:
+
+KG:003:2026:03 (16-2-2026) — Stemrechtvereiste aandelenfusie bij opvolgende juridische splitsing: tijdelijke meerderheid voldoet, mits stemrechten vrijelijk uitoefenbaar waren. Contractuele beperkingen (escrow, AH-overeenkomst) maken het anders. Bron: kennisgroepen.belastingdienst.nl
+
+KG:003:2025:12 (6-10-2025) — Aandelenemissie + statutenwijziging direct na aandelenfusie: toets het geheel van rechtshandelingen. 60% + statutaire 2/3-eis = toch voldaan.
+
+Besluit 2024-10969 (6-11-2024) — Geactualiseerd Besluit Ondernemingsfaciliteiten OVB. Art. 15 lid 1 b/e/f/h/q WBR. Nieuw: goedkeuring certificering aandelen bij bedrijfsfusie (onderdeel 4.2). Concerneis vervangen door aanhoudingseis. Staatscourant 2024-34456.
+
+OVB splitsing per 1-7-2025 (art. 5c UBBR gewijzigd): vier nieuwe eisen: ondernemingseis (per vennootschap, niet geconsolideerd), voortzettingseis 3jr, soortgelijk belang, aanhoudingseis 3jr. Beleggingsvastgoed buiten vrijstelling. Koppeling VPB losgelaten. Ruziesplitsing: eigen regime, geen ondernemings/voortzettingseis maar wel aanhoudingseis 3jr.
+
+Je waarschuwt proactief voor OVB-risico's, misbruiktoets, FE-sancties (art. 15ai) en de nieuwe OVB-splitsingsregels.`;
+
+async function askAI(context) {
+  const intake = getIntakeContext();
+
+  const prompts = {
+    'intake_scan': {
+      user: `Analyseer deze herstructureringscasus op basis van de intake:\n\n${intake}\n\nGeef: 1) Quick scan welke routes mogelijk zijn, 2) Belangrijkste risico's en aandachtspunten, 3) Welke vragen je nog zou stellen.`,
+      target: 'ai-intake'
+    },
+    'stap1': {
+      user: `${intake}\n\nToelichting gevraagd op object-keuze en OVB-check. Welke juridische route past hier en wat zijn de directe OVB-aandachtspunten?`,
+      target: 'ai-stap1'
+    },
+    'stap2': {
+      user: `${intake}\n\nDoel klant: ${document.getElementById('stap2-doel').value}\n\nAnalyseer het doel en de timing. Zijn er misbruiktoets-risico's? Welke belastingclaims spelen?`,
+      target: 'ai-stap2'
+    },
+    'stap3': {
+      user: `${intake}\n\nGekozen faciliteit: ${state.selectedFaciliteit}\n\nGeef de exacte wettelijke voorwaarden voor deze faciliteit, de meest voorkomende valkuilen, en relevante actualiteiten (KGS-standpunten, besluiten). Noem ook waarom andere faciliteiten hier niet of minder goed passen.`,
+      target: 'ai-stap3'
+    },
+    'stap4': {
+      user: `${intake}\nFaciliteit: ${state.selectedFaciliteit}\nVoorwaarde 1: ${document.getElementById('vw1').value}\nVoorwaarde 2: ${document.getElementById('vw2').value}\nValkuil: ${document.getElementById('valkuil').value}\n\nZijn er andere valkuilen die ik over het hoofd zie? Hoe zorg ik voor een dossierproof onderbouwing?`,
+      target: 'ai-stap4'
+    },
+    'stap5': {
+      user: `${intake}\nFaciliteit: ${state.selectedFaciliteit}\n\nGenereer een dossierchecklist: welke stukken zijn minimaal nodig, welke praktische uitvoeringsaandachtspunten zijn er (notaris, inbrengbeschrijving, personeel, administratie, derden)?`,
+      target: 'ai-stap5'
+    },
+    'samenvatting': {
+      user: `${intake}\n\nVoorwaarden: ${document.getElementById('vw1').value} / ${document.getElementById('vw2').value}\nValkuil: ${document.getElementById('valkuil').value}\nKlantzin: ${document.getElementById('klantzin').value}\n\nSchrijf een beknopte professionele adviesnotitie (max 400 woorden) die de herstructureringsroute onderbouwt, inclusief fiscale behandeling, voorwaarden, OVB-scan en aanbevolen dossierstukken. Schrijf in zakelijk Nederlands.`,
+      target: 'ai-samenvatting'
+    }
+  };
+
+  const p = prompts[context];
+  if (!p) return;
+
+  const box = document.getElementById(p.target).closest('.ai-box');
+  box.style.display = 'block';
+  await callClaude(SYSTEM, p.user, p.target);
+}
+
+// ===== KGS =====
+function setKGSQuery(q) {
+  document.getElementById('kgs-query').value = q;
+}
+
+async function zoekKGS() {
+  const query = document.getElementById('kgs-query').value.trim();
+  if (!query) return;
+
+  const resultBox = document.getElementById('kgs-result');
+  const resultText = document.getElementById('kgs-result-text');
+  resultBox.style.display = 'block';
+  resultText.innerHTML = '<div class="ai-loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div> Zoeken in kennisgroepen…</div>';
+
+  await callClaude(
+    `Je bent een expert in kennisgroepstandpunten van de Nederlandse Belastingdienst op het gebied van herstructurering. Geef relevante kennisgroepstandpunten (KGS-nummers), besluiten en beleidsposities die van toepassing zijn op de zoekopdracht. Vermeld altijd het KGS-nummer, de datum en de kern van het standpunt. Geef ook aan of er recente actualiteiten zijn (bijv. OVB-splitsing per 1-7-2025, KG:003:2026:03).`,
+    `Zoekterm: ${query}\n\nWelke kennisgroepstandpunten en besluiten zijn relevant? Noem ook de praktische betekenis voor de adviseur.`,
+    'kgs-result-text'
+  );
+}
+</script>
+</body>
+</html>
