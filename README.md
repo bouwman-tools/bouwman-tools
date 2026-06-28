@@ -54,6 +54,8 @@ Ondersteunt zowel **XAF 3.2** als **XAF 4.0** (verplicht vanaf 1 januari 2026). 
 
 De tool is live op **[bouwman.tools](https://bouwman.tools)** — geen installatie nodig, gewoon de browser openen.
 
+Toegang is beveiligd via Cloudflare Access: alleen uitgenodigde gebruikers kunnen inloggen (via e-mail of Cloudflare-account). Gebruikersbeheer via Cloudflare Zero Trust dashboard.
+
 ## Technisch
 
 - Puur client-side: geen data wordt verstuurd naar een server
