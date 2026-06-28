@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bouwman.tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #FDF6F0;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #2C1A0E;
+      padding: 32px 32px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo { font-size: 1.4rem; font-weight: 700; color: #F5EBE0; letter-spacing: -.01em; }
+    .logo span { color: #E8784F; }
+    .user-bar { display: flex; align-items: center; gap: 12px; }
+    .user-email { font-size: 0.78rem; color: #A07860; }
+    .logout-link {
+      font-size: 0.72rem; color: #A07860; text-decoration: none;
+      border: 1px solid #4a2e1a; padding: 4px 12px; border-radius: 20px;
+      transition: color .2s, border-color .2s;
+    }
+    .logout-link:hover { color: #F5EBE0; border-color: #A07860; }
+    main {
+      flex: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      width: 100%;
+    }
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: #A07860; margin-bottom: 16px; margin-top: 36px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .tool-card {
+      display: flex; flex-direction: column; gap: 8px;
+      background: #fff; border: 1px solid #E8C4A8; border-radius: 12px;
+      padding: 22px 22px 20px; text-decoration: none; color: inherit;
+      transition: border-color .2s, box-shadow .2s, transform .15s;
+    }
+    .tool-card:hover {
+      border-color: #C0522A;
+      box-shadow: 0 4px 16px rgba(192,82,42,.12);
+      transform: translateY(-2px);
+    }
+    .tool-icon { font-size: 1.6rem; line-height: 1; }
+    .tool-name { font-size: 1rem; font-weight: 700; color: #2C1A0E; }
+    .tool-desc { font-size: 0.82rem; color: #A07860; line-height: 1.4; }
+    .tool-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .tool-tag {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .06em; color: #C0522A; background: #FDF6F0;
+      border: 1px solid #E8C4A8; border-radius: 4px; padding: 2px 8px;
+    }
+    .tool-tag.ai { color: #7C4DBA; background: #F5F0FC; border-color: #D4B8F0; }
+    .tool-tag.privacy-local {
+      display: inline-flex; align-items: center; gap: 5px;
+      color: #15803d; background: #f0fdf4; border-color: #bbf7d0;
+      text-transform: none; letter-spacing: 0; font-weight: 500;
+    }
+    .tool-tag.privacy-local::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #22c55e; flex-shrink: 0;
+    }
+    .tool-tag.privacy-ai {
+      display: inline-flex; align-items: center; gap: 5px;
+      color: #92400e; background: #fffbeb; border-color: #fde68a;
+      text-transform: none; letter-spacing: 0; font-weight: 500;
+    }
+    .tool-tag.privacy-ai::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #f59e0b; flex-shrink: 0;
+    }
+    .no-tools {
+      text-align: center; padding: 48px 24px; color: #A07860; font-size: 0.9rem;
+    }
+    footer {
+      text-align: center; padding: 20px; font-size: 0.75rem;
+      color: #A07860; border-top: 1px solid #E8C4A8;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">bouwman<span>.tools</span></div>
+    <div class="user-bar">
+      <span class="user-email" id="user-email"></span>
+      <a href="/cdn-cgi/access/logout" class="logout-link">Uitloggen</a>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div class="no-tools">Tools laden…</div>
+  </main>
+
+  <footer>bouwman.tools &mdash; gebouwd door Sylvain Bouwman</footer>
+
+  <script>
+    // ─── Toegangsbeheer ───────────────────────────────────────────────────────
+    // Voeg hier e-mailadressen toe en geef aan welke tools zichtbaar zijn.
+    // Gebruik 'all' voor volledige toegang, of een array van bestandsnamen.
+    const TOEGANG = {
+      's.bouwman@joinadministraties.nl': 'all',
+      'info@persal.online':              'all',
+      'sylvainbouwman@gmail.com':        ['auto-fiscaal-2027.html'],
+    };
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const TOOLS = [
+      {
+        section: 'Accountancy & Jaarrekening',
+        items: [
+          { file: 'xaf_export.html', icon: '📊', name: 'XAF Raw Export',
+            desc: 'Verwerk XAF-auditfiles (3.2 & 4.0) naar Excel of CSV — volledig in de browser, ook voor bestanden van 700 MB+',
+            tags: [{l:'Accountancy'},{l:'Lokaal',c:'privacy-local'}] },
+          { file: 'Join-jaarrekening-review.html', icon: '🔍', name: 'Jaarrekening Review',
+            desc: 'Toets een jaarrekening snel aan de kantoorstandaard via AI-analyse',
+            tags: [{l:'Accountancy'},{l:'AI',c:'ai'},{l:'Via Anthropic API',c:'privacy-ai'}] },
+        ]
+      },
+      {
+        section: 'Auto & Mobiliteit',
+        items: [
+          { file: 'auto-fiscaal-2027.html', icon: '🚗', name: 'Auto Fiscaal 2027',
+            desc: 'Gecombineerde tool voor eindheffing, youngtimer-bijtelling en RDW-kentekenlookup — alle grote autowijzigingen per 1 januari 2027',
+            tags: [{l:'Auto'},{l:'RDW'},{l:'Kenteken via RDW',c:'privacy-local'}] },
+          { file: 'join-auto-rekenmodel.html', icon: '⚖️', name: 'Auto van de Zaak',
+            desc: 'Bereken snel of een auto op de zaak of privé fiscaal gunstiger uitpakt',
+            tags: [{l:'Auto'},{l:'Lokaal',c:'privacy-local'}] },
+        ]
+      },
+      {
+        section: 'BV & DGA',
+        items: [
+          { file: 'bv_janee_DK.html', icon: '🏢', name: 'BV Ja/Nee',
+            desc: 'Doorrekenen of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak',
+            tags: [{l:'BV'},{l:'Lokaal',c:'privacy-local'}] },
+          { file: 'join-bv-documenten.html', icon: '📄', name: 'Sjablonen DGA',
+            desc: 'Genereer juridische documenten voor de inrichting van een holdingstructuur voor een DGA',
+            tags: [{l:'BV'},{l:'DGA'},{l:'Lokaal',c:'privacy-local'}] },
+          { file: 'rc-schuld-dga.html', icon: '💰', name: 'Rekeningcourant + Dividend',
+            desc: 'Bereken de optimale aflossingsroute van een rekening-courantschuld voor een DGA',
+            tags: [{l:'BV'},{l:'DGA'},{l:'Lokaal',c:'privacy-local'}] },
+          { file: 'herstructurering-assistent-v3.html', icon: '🔄', name: 'Herstructurering',
+            desc: 'Stap-voor-stap herstructureringstrajecten doorrekenen en adviseren via AI',
+            tags: [{l:'BV'},{l:'AI',c:'ai'},{l:'Via Anthropic API',c:'privacy-ai'}] },
+        ]
+      },
+      {
+        section: 'Loonheffing & WKR',
+        items: [
+          { file: 'join-wkr-agent-intern.html', icon: '🤖', name: 'WKR Agent (intern)',
+            desc: 'AI-assistent voor vragen over de werkkostenregeling — interne versie',
+            tags: [{l:'WKR'},{l:'AI',c:'ai'},{l:'Via Anthropic API',c:'privacy-ai'}] },
+          { file: 'join-wkr-agent-extern.html', icon: '🤖', name: 'WKR Agent (extern)',
+            desc: 'AI-assistent voor vragen over de werkkostenregeling — versie voor klanten',
+            tags: [{l:'WKR'},{l:'AI',c:'ai'},{l:'Via Anthropic API',c:'privacy-ai'}] },
+          { file: 'nhg-werkgeversverklaring-wizard.html', icon: '🏠', name: 'Werkgeversverklaring NHG',
+            desc: 'Genereer snel en foutloos een NHG-werkgeversverklaring via een stap-voor-stap wizard',
+            tags: [{l:'HR'},{l:'NHG'},{l:'Lokaal',c:'privacy-local'}] },
+        ]
+      },
+      {
+        section: 'Overig',
+        items: [
+          { file: 'join-prijsafspraken.html', icon: '💼', name: 'Prijsafspraken',
+            desc: 'Raadpleeg klantprijsafspraken via een Excel-exportbestand',
+            tags: [{l:'Facturatie'},{l:'Lokaal',c:'privacy-local'}] },
+          { file: 'kennisgroepen-zoeker.html', icon: '📚', name: 'Kennisgroepen-zoeker',
+            desc: 'Zoek en analyseer kennisgroepstandpunten van de Belastingdienst via AI',
+            tags: [{l:'Belastingdienst'},{l:'AI',c:'ai'},{l:'Via Anthropic API',c:'privacy-ai'}] },
+        ]
+      },
+    ];
+
+    function getEmail() {
+      const cookie = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('CF_Authorization='));
+      if (!cookie) return null;
+      try {
+        const payload = JSON.parse(atob(cookie.split('=').slice(1).join('=').split('.')[1]));
+        return payload.email || null;
+      } catch { return null; }
+    }
+
+    function canSee(file, access) {
+      if (!access) return true; // onbekend: toon alles
+      if (access === 'all') return true;
+      return access.includes(file);
+    }
+
+    function render() {
+      const email = getEmail();
+      const access = email ? (TOEGANG[email] ?? 'all') : 'all';
+
+      if (email) {
+        document.getElementById('user-email').textContent = email;
+      }
+
+      const main = document.getElementById('main-content');
+      let html = '';
+      let anyVisible = false;
+
+      for (const section of TOOLS) {
+        const visible = section.items.filter(t => canSee(t.file, access));
+        if (!visible.length) continue;
+        anyVisible = true;
+        html += `<div class="section-label">${section.section}</div><div class="tools-grid">`;
+        for (const t of visible) {
+          const tags = t.tags.map(tag =>
+            `<span class="tool-tag${tag.c ? ' '+tag.c : ''}">${tag.l}</span>`
+          ).join('');
+          html += `
+            <a href="${t.file}" class="tool-card">
+              <div class="tool-icon">${t.icon}</div>
+              <div class="tool-name">${t.name}</div>
+              <div class="tool-desc">${t.desc}</div>
+              <div class="tool-tags">${tags}</div>
+            </a>`;
+        }
+        html += '</div>';
+      }
+
+      main.innerHTML = anyVisible ? html
+        : '<div class="no-tools">Je hebt nog geen toegang tot tools. Neem contact op met Sylvain Bouwman.</div>';
+    }
+
+    render();
+  </script>
+
+</body>
+</html>
