@@ -7,8 +7,10 @@ Portaal en deployment-repo voor alle interne tools van Bouwman.
 ```
 bouwman-tools (deze repo)          → gehost op bouwman.tools
 ├── portal.html                    ← portaalpagina
-├── auto-fiscaal-2027.html
+├── beheer.html                    ← gebruikersbeheer (alleen voor beheerder)
+├── access-beheer-worker.js        ← Cloudflare Worker broncode
 ├── betalingskenmerk.html
+├── auto-fiscaal-2027.html
 ├── bv_janee_DK.html
 ├── herstructurering-assistent-v3.html
 ├── Join-jaarrekening-review.html
@@ -55,10 +57,10 @@ oorspronkelijk in deze repo zat en later is gesplitst.
 1. **Maak een nieuwe (privé) repo aan** op GitHub voor de tool
 2. Zet het HTML-bestand erin en push
 3. **Voeg de sync-workflow toe** (zie kopje *Sync instellen*)
-4. **Voeg de tool toe aan `portal.html`** in deze repo:
-   - Voeg een item toe aan het `TOOLS`-array met `file`, `icon`, `name`, `desc` en `tags`
-   - Voeg het e-mailadres + bestandsnaam toe aan het `TOEGANG`-object
-5. Push portal.html — de tool is live op `bouwman.tools/mijn-tool.html`
+4. **Voeg de tool toe aan `portal.html`** — voeg een item toe aan het `TOOLS`-array met `file`, `icon`, `name`, `desc` en `tags`
+5. **Voeg de tool toe aan `beheer.html`** — voeg een regel toe aan het `TOOLS`-array bovenaan het script
+6. Push — de tool is live op `bouwman.tools/mijn-tool.html`
+7. Geef gebruikers toegang via `bouwman.tools/beheer.html`
 
 ## Sync instellen voor een nieuwe repo
 
@@ -100,30 +102,31 @@ jobs:
 
 ## Gebruikersbeheer
 
-Toegang werkt op twee lagen:
+Toegang wordt volledig beheerd via **`bouwman.tools/beheer.html`** — alleen bereikbaar voor de beheerder.
 
-### 1. Cloudflare Access — wie kan inloggen
-- Ga naar **one.dash.cloudflare.com** → Zero Trust → Access → Applications
-- Klik op de juiste application → Edit → Policies
-- Voeg het e-mailadres toe onder *Include*
-- De gebruiker ontvangt bij het eerste bezoek een OTP per mail
+Hier kun je:
+- Gebruikers toevoegen met hun e-mailadres
+- Per gebruiker aanvinken welke tools zichtbaar zijn
+- Gebruikers bewerken of verwijderen
 
-### 2. Portal — welke tools zijn zichtbaar
-Bovenaan het script in `portal.html` staat het `TOEGANG`-object:
+Na opslaan worden twee systemen automatisch bijgewerkt:
+1. **Cloudflare KV** — slaat de rechten op (wordt direct uitgelezen door portal.html)
+2. **Cloudflare Access** — regelt wie de pagina's daadwerkelijk kan openen (loopt op de achtergrond)
 
-```javascript
-const TOEGANG = {
-  's.bouwman@joinadministraties.nl': 'all',
-  'collega@kantoor.nl': ['auto-fiscaal-2027.html', 'betalingskenmerk.html'],
-};
-```
+### Eerste toegang voor een nieuwe gebruiker
+Cloudflare Access stuurt geen automatische uitnodigingsmail. Stuur de gebruiker zelf:
+> Ga naar **bouwman.tools/portal.html**, vul je e-mailadres in en je ontvangt een eenmalige code. Daarna ben je 30 dagen ingelogd.
 
-- `'all'` → alle tools zichtbaar
-- Array van bestandsnamen → alleen die tools zichtbaar
-- Onbekend e-mailadres → ziet alle tools (voeg toe aan TOEGANG om te beperken)
+### Problemen met toegang
+Als een gebruiker "geen machtiging" ziet terwijl hij wel in het systeem staat:
+- Laat hem een **incognitovenster** gebruiken en opnieuw inloggen
+- Of laat hem cookies wissen voor `bouwman.tools` en `cloudflareaccess.com`
 
-Het beheer-paneel onderin de portal (alleen zichtbaar voor `'all'`-accounts)
-bevat dezelfde instructies als snel-naslagwerk.
+### Technische opbouw
+- **Worker:** `access-beheer.s-bouwman.workers.dev` (broncode: `access-beheer-worker.js`)
+- **KV namespace:** PERMISSIONS (Cloudflare account)
+- **CF Access apps:** één per tool + één voor beheer.html (alleen s.bouwman)
+- **Sessieduur:** 30 dagen voor alle apps
 
 ## Hosting
 
