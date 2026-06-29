@@ -215,13 +215,12 @@
       },
     ];
 
-    function getEmail() {
-      const cookie = document.cookie.split(';').map(c => c.trim())
-        .find(c => c.startsWith('CF_Authorization='));
-      if (!cookie) return null;
+    async function getEmail() {
       try {
-        const payload = JSON.parse(atob(cookie.split('=').slice(1).join('=').split('.')[1]));
-        return payload.email || null;
+        const res = await fetch('/cdn-cgi/access/get-identity');
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.email || null;
       } catch { return null; }
     }
 
@@ -232,7 +231,7 @@
     }
 
     async function render() {
-      const email = getEmail();
+      const email = await getEmail();
       let access = [];
       if (email) {
         try {
