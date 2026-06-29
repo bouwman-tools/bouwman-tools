@@ -122,6 +122,11 @@ Als een gebruiker "geen machtiging" ziet terwijl hij wel in het systeem staat:
 - Laat hem een **incognitovenster** gebruiken en opnieuw inloggen
 - Of laat hem cookies wissen voor `bouwman.tools` en `cloudflareaccess.com`
 
+Als de portal **helemaal leeg** is en het e-mailadres rechtsboven ontbreekt:
+- CF Access heeft de `CF_Authorization` cookie op HttpOnly gezet — portal.html gebruikt daarvoor nu `/cdn-cgi/access/get-identity` (al gefixed). Uitloggen en opnieuw inloggen is voldoende.
+
+**Let op:** elke machine (lokaal, RDS, etc.) heeft een eigen CF Access sessie van 30 dagen. Bij eerste gebruik op een nieuw apparaat is altijd een eenmalige code nodig.
+
 ### Technische opbouw
 - **Worker:** `access-beheer.s-bouwman.workers.dev` (broncode: `access-beheer-worker.js`)
 - **KV namespace:** PERMISSIONS (Cloudflare account)
