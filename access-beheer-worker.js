@@ -35,7 +35,7 @@ export default {
     if (path === '/permissions' && request.method === 'POST') {
       const { email } = await request.json();
       const permissions = await getPermissions(env);
-      const access = email ? (permissions[email] ?? 'all') : 'all';
+      const access = email ? (permissions[email] ?? []) : [];
       return ok({ access }, request);
     }
 
