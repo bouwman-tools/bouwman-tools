@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gebruikersbeheer — bouwman.tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #FDF6F0;
+      margin: 0;
+      min-height: 100vh;
+    }
+    header {
+      background: #2C1A0E;
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { font-size: 1.2rem; font-weight: 700; color: #F5EBE0; }
+    .logo span { color: #E8784F; }
+    .back { font-size: 0.8rem; color: #A07860; text-decoration: none; border: 1px solid #4a2e1a; padding: 4px 12px; border-radius: 20px; }
+    .back:hover { color: #F5EBE0; border-color: #A07860; }
+    main { max-width: 860px; margin: 0 auto; padding: 36px 24px; }
+    h2 { font-size: 1.1rem; font-weight: 700; color: #2C1A0E; margin: 0 0 20px; }
+    .card {
+      background: #fff;
+      border: 1px solid #E8C4A8;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    /* Gebruikerslijst */
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #F0E0D0;
+    }
+    .user-row:last-child { border-bottom: none; }
+    .user-email { flex: 1; font-size: 0.9rem; color: #2C1A0E; font-weight: 600; }
+    .user-access { font-size: 0.78rem; color: #A07860; flex: 2; }
+    .btn-edit {
+      font-size: 0.75rem; padding: 5px 12px; border-radius: 6px;
+      border: 1px solid #E8C4A8; background: #FDF6F0; color: #C0522A;
+      cursor: pointer; font-weight: 600;
+    }
+    .btn-edit:hover { background: #F5EBE0; }
+    .btn-del {
+      font-size: 0.75rem; padding: 5px 10px; border-radius: 6px;
+      border: 1px solid #fca5a5; background: #fff5f5; color: #dc2626;
+      cursor: pointer; font-weight: 600;
+    }
+    .btn-del:hover { background: #fee2e2; }
+
+    /* Formulier */
+    label { display: block; font-size: 0.82rem; font-weight: 600; color: #5a3e2e; margin-bottom: 5px; }
+    input[type="email"] {
+      width: 100%; padding: 9px 12px; border: 1px solid #E8C4A8;
+      border-radius: 8px; font-size: 0.9rem; color: #2C1A0E; outline: none;
+      margin-bottom: 16px;
+    }
+    input[type="email"]:focus { border-color: #C0522A; }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .tool-check {
+      display: flex; align-items: center; gap: 8px;
+      background: #FDF6F0; border: 1px solid #E8C4A8; border-radius: 8px;
+      padding: 8px 12px; cursor: pointer; user-select: none;
+      font-size: 0.82rem; color: #2C1A0E;
+    }
+    .tool-check input { width: 15px; height: 15px; accent-color: #C0522A; cursor: pointer; }
+    .tool-check.checked { border-color: #C0522A; background: #fff5f0; }
+
+    .all-toggle {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+      font-size: 0.85rem; font-weight: 600; color: #2C1A0E; cursor: pointer;
+    }
+    .all-toggle input { width: 16px; height: 16px; accent-color: #C0522A; cursor: pointer; }
+
+    .form-actions { display: flex; gap: 10px; }
+    .btn-save {
+      padding: 10px 22px; font-size: 0.9rem; font-weight: 700;
+      background: #C0522A; color: white; border: none; border-radius: 8px;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-save:hover { opacity: 0.88; }
+    .btn-cancel {
+      padding: 10px 18px; font-size: 0.9rem; font-weight: 600;
+      background: transparent; color: #A07860; border: 1px solid #E8C4A8;
+      border-radius: 8px; cursor: pointer;
+    }
+    .btn-cancel:hover { background: #F5EBE0; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #2C1A0E; color: white; padding: 10px 22px;
+      border-radius: 20px; font-size: 0.85rem; opacity: 0;
+      pointer-events: none; transition: opacity .2s;
+    }
+    .toast.show { opacity: 1; }
+    .loading { color: #A07860; font-size: 0.9rem; padding: 12px 0; }
+    .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #A07860; margin-bottom: 14px; }
+    #token-screen {
+      max-width: 420px; margin: 80px auto; background: #fff;
+      border: 1px solid #E8C4A8; border-radius: 14px; padding: 32px;
+    }
+    #token-screen h2 { margin: 0 0 8px; font-size: 1rem; color: #2C1A0E; }
+    #token-screen p { font-size: 0.82rem; color: #A07860; margin: 0 0 16px; }
+    #token-input {
+      width: 100%; padding: 9px 12px; border: 1px solid #E8C4A8;
+      border-radius: 8px; font-size: 0.88rem; font-family: monospace;
+      margin-bottom: 12px; outline: none;
+    }
+    #token-input:focus { border-color: #C0522A; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">bouwman<span>.tools</span> — Gebruikersbeheer</div>
+  <a href="/portal.html" class="back">← Terug naar portal</a>
+</header>
+
+<div id="token-screen" style="display:none">
+  <h2>Beheertoegang</h2>
+  <p>Voer de beheer-token in. Deze wordt opgeslagen in je browser.</p>
+  <input type="password" id="token-input" placeholder="Plak hier de token" />
+  <button class="btn-save" onclick="saveToken()">Opslaan en doorgaan</button>
+</div>
+
+<main id="app" style="display:none">
+
+  <div class="card" id="users-card">
+    <div class="section-title">Huidige gebruikers</div>
+    <div id="users-list" class="loading">Laden…</div>
+  </div>
+
+  <div class="card" id="form-card">
+    <div class="section-title" id="form-title">Nieuwe gebruiker toevoegen</div>
+
+    <label for="email-input">E-mailadres</label>
+    <input type="email" id="email-input" placeholder="naam@kantoor.nl" />
+
+    <label>Toegang tot tools</label>
+
+    <label class="all-toggle">
+      <input type="checkbox" id="all-check" onchange="toggleAll(this.checked)">
+      Toegang tot alle (huidige en toekomstige) tools
+    </label>
+
+    <div class="tools-grid" id="tools-grid"></div>
+
+    <div class="form-actions">
+      <button class="btn-save" onclick="saveUser()">Opslaan</button>
+      <button class="btn-cancel" onclick="resetForm()">Annuleren</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const WORKER = '/api';
+  let ADMIN_TOKEN = localStorage.getItem('bwt_admin_token') || '';
+
+  const TOOLS = [
+    { file: 'betalingskenmerk.html',               name: 'Betalingskenmerk' },
+    { file: 'Join-jaarrekening-review.html',        name: 'Jaarrekening Review' },
+    { file: 'auto-fiscaal-2027.html',               name: 'Auto Fiscaal 2027' },
+    { file: 'join-auto-rekenmodel.html',            name: 'Auto van de Zaak' },
+    { file: 'bv_janee_DK.html',                     name: 'BV Ja/Nee' },
+    { file: 'join-bv-documenten.html',              name: 'Sjablonen DGA' },
+    { file: 'rc-schuld-dga.html',                   name: 'Rekeningcourant + Dividend' },
+    { file: 'herstructurering-assistent-v3.html',   name: 'Herstructurering' },
+    { file: 'join-wkr-agent-intern.html',           name: 'WKR Agent (intern)' },
+    { file: 'join-wkr-agent-extern.html',           name: 'WKR Agent (extern)' },
+    { file: 'nhg-werkgeversverklaring-wizard.html', name: 'Werkgeversverklaring NHG' },
+    { file: 'kennisgroepen-zoeker.html',             name: 'Kennisgroepen-zoeker' },
+    { file: 'join-prijsafspraken.html',              name: 'Prijsafspraken' },
+    { file: 'https://xaf.bouwman.tools/',            name: 'XAF Raw Export' },
+  ];
+
+  let editingEmail = null;
+
+  function api(path, method = 'GET', body) {
+    return fetch(WORKER + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(r => r.json());
+  }
+
+  function accessLabel(tools) {
+    if (tools === 'all') return 'Alle tools';
+    if (!tools || tools.length === 0) return 'Geen tools';
+    if (tools.length <= 3) return tools.map(f => TOOLS.find(t => t.file === f)?.name || f).join(', ');
+    return `${tools.length} tools`;
+  }
+
+  async function loadUsers() {
+    const list = document.getElementById('users-list');
+    const permissions = await api('/admin/users');
+    const entries = Object.entries(permissions);
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="loading">Nog geen gebruikers.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(([email, tools]) => `
+      <div class="user-row">
+        <div class="user-email">${email}</div>
+        <div class="user-access">${accessLabel(tools)}</div>
+        <button class="btn-edit" onclick="editUser('${email}')">Bewerken</button>
+        <button class="btn-del" onclick="deleteUser('${email}')">Verwijderen</button>
+      </div>
+    `).join('');
+  }
+
+  function buildToolsGrid(selected) {
+    const all = selected === 'all';
+    document.getElementById('all-check').checked = all;
+    const grid = document.getElementById('tools-grid');
+    grid.style.opacity = all ? '0.4' : '1';
+    grid.style.pointerEvents = all ? 'none' : '';
+    grid.innerHTML = TOOLS.map(t => {
+      const checked = all || (Array.isArray(selected) && selected.includes(t.file));
+      return `
+        <label class="tool-check ${checked ? 'checked' : ''}" id="lbl-${btoa(t.file).replace(/=/g,'')}">
+          <input type="checkbox" value="${t.file}" ${checked ? 'checked' : ''}
+            onchange="this.closest('label').classList.toggle('checked', this.checked)">
+          ${t.name}
+        </label>`;
+    }).join('');
+  }
+
+  function toggleAll(checked) {
+    const grid = document.getElementById('tools-grid');
+    grid.style.opacity = checked ? '0.4' : '1';
+    grid.style.pointerEvents = checked ? 'none' : '';
+    grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.checked = checked;
+      cb.closest('label').classList.toggle('checked', checked);
+    });
+  }
+
+  function getSelectedTools() {
+    if (document.getElementById('all-check').checked) return 'all';
+    return [...document.querySelectorAll('#tools-grid input:checked')].map(cb => cb.value);
+  }
+
+  function editUser(email) {
+    editingEmail = email;
+    document.getElementById('form-title').textContent = 'Gebruiker bewerken';
+    document.getElementById('email-input').value = email;
+    document.getElementById('email-input').disabled = true;
+    // Fetch current permissions to prefill
+    api('/admin/users').then(permissions => {
+      buildToolsGrid(permissions[email] ?? 'all');
+    });
+    document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    editingEmail = null;
+    document.getElementById('form-title').textContent = 'Nieuwe gebruiker toevoegen';
+    document.getElementById('email-input').value = '';
+    document.getElementById('email-input').disabled = false;
+    buildToolsGrid([]);
+  }
+
+  async function saveUser() {
+    const email = editingEmail || document.getElementById('email-input').value.trim();
+    if (!email) { showToast('Voer een e-mailadres in.'); return; }
+    const tools = getSelectedTools();
+    await api('/admin/upsert', 'POST', { email, tools });
+    showToast(`${email} opgeslagen.`);
+    resetForm();
+    loadUsers();
+  }
+
+  async function deleteUser(email) {
+    if (!confirm(`${email} verwijderen?`)) return;
+    await api('/admin/delete', 'POST', { email });
+    showToast(`${email} verwijderd.`);
+    loadUsers();
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function saveToken() {
+    const val = document.getElementById('token-input').value.trim();
+    if (!val) return;
+    ADMIN_TOKEN = val;
+    localStorage.setItem('bwt_admin_token', val);
+    document.getElementById('token-screen').style.display = 'none';
+    document.getElementById('app').style.display = '';
+    buildToolsGrid([]);
+    loadUsers();
+  }
+
+  // Init
+  if (ADMIN_TOKEN) {
+    document.getElementById('app').style.display = '';
+    buildToolsGrid([]);
+    loadUsers();
+  } else {
+    document.getElementById('token-screen').style.display = '';
+  }
+</script>
+</body>
+</html>

@@ -139,20 +139,6 @@
   <footer>bouwman.tools &mdash; gebouwd door Sylvain Bouwman</footer>
 
   <script>
-    // ─── Toegangsbeheer ───────────────────────────────────────────────────────
-    // Voeg hier e-mailadressen toe en geef aan welke tools zichtbaar zijn.
-    // Gebruik 'all' voor volledige toegang, of een array van bestandsnamen.
-    const TOEGANG = {
-      's.bouwman@joinadministraties.nl': 'all',
-      'info@persal.online':              'all',
-      'sylvainbouwman@gmail.com':        ['auto-fiscaal-2027.html'],
-      'd.vanderveer@joinadministraties.nl':    ['betalingskenmerk.html'],
-      'a.vanvalkenhoef@joinadministraties.nl': ['betalingskenmerk.html'],
-      'p.bosch@joinadministraties.nl':         ['betalingskenmerk.html'],
-      's.chea@joinadministraties.nl':          ['betalingskenmerk.html'],
-      'm.kappers@joinadministraties.nl':       ['betalingskenmerk.html'],
-    };
-    // ─────────────────────────────────────────────────────────────────────────
 
     const TOOLS = [
       {
@@ -240,14 +226,24 @@
     }
 
     function canSee(file, access) {
-      if (!access) return true; // onbekend: toon alles
+      if (!access) return true;
       if (access === 'all') return true;
       return access.includes(file);
     }
 
-    function render() {
+    async function render() {
       const email = getEmail();
-      const access = email ? (TOEGANG[email] ?? 'all') : 'all';
+      let access = 'all';
+      if (email) {
+        try {
+          const res = await fetch('/api/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          access = (await res.json()).access ?? 'all';
+        } catch { access = 'all'; }
+      }
 
       if (email) {
         document.getElementById('user-email').textContent = email;
