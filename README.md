@@ -1,68 +1,112 @@
-# XAF Raw Export Tool
+# bouwman.tools
 
-Een standalone HTML-tool die XAF-auditfiles (XML Auditfile Financieel) inleest en exporteert naar Excel. Geen installatie, geen server — gewoon het HTML-bestand openen in een browser.
+Portaal en deployment-repo voor alle interne tools van Bouwman.
 
-## Gebruik
+## Architectuur
 
-1. Open `xaf_export.html` in een moderne browser (Chrome, Edge, Firefox)
-2. Klik op het dropgebied en selecteer een `.xaf` of `.xml` bestand
-3. Wacht tot de voortgangsbalk klaar is
-4. Kies optioneel welke perioden je wilt exporteren via de periodefilter
-5. Klik **Download Excel** of **Download CSV**
+```
+bouwman-tools (deze repo)
+├── portal.html          ← portaalpagina op bouwman.tools
+├── betalingskenmerk.html
+├── auto-fiscaal-2027.html
+├── bv_janee_DK.html
+└── ...                  ← alle tool-HTML-bestanden
 
-## Output (tabbladen)
+xaf-export-tool (aparte repo)
+└── index.html           ← gehost op xaf.bouwman.tools (eigen subdomein)
+```
 
-| Tabblad | Inhoud |
-|---|---|
-| Bedrijfsgegevens | Naam, KvK, BTW, boekjaar, software, XAF-versie |
-| Grootboekrekeningen | accID, omschrijving, type, RGScode (4.0) / leadCode (3.2) |
-| BTW-codes | vatID, omschrijving, rekeningen |
-| Beginsaldi | Openingssaldi per grootboekrekening |
-| Deb_Cred | Debiteur/crediteur stamgegevens (indien aanwezig) |
-| Mutaties | Alle journaalregels met dagboek, transactie en BTW-info |
-| Aansluitcheck | Transacties waarbij debet ≠ credit (alleen aanwezig als er fouten zijn) |
+Elke tool heeft zijn **eigen ontwikkelrepo** (bijv. `auto-fiscaal-2027`, `betalingskenmerk-tool`). De HTML-bestanden uit die repos worden gesynchroniseerd naar deze repo voor deployment via GitHub Pages op `bouwman.tools`.
 
-Bij meer dan 1.000.000 mutatieregels wordt het Mutaties-tabblad automatisch gesplitst.
+De XAF-export is de uitzondering: die heeft een eigen subdomein (`xaf.bouwman.tools`) omdat de tool oorspronkelijk in deze repo zat en later is gesplitst.
 
-## Extra functies
+## Een nieuwe tool toevoegen
 
-- **Aansluitcheck**: direct na het inlezen zie je hoeveel transacties in balans zijn (gekleurde badge). Ongebalanceerde transacties komen als apart tabblad in de Excel.
-- **Periodefilter**: selecteer welke perioden je wilt exporteren via klikbare chips (standaard alle perioden). Een live teller toont hoeveel mutatieregels de selectie oplevert. Geldt voor zowel Excel als CSV.
-- **CSV-download**: exporteert het Mutaties-tabblad als puntkomma-gescheiden CSV met UTF-8 BOM — opent direct correct in Nederlandse Excel.
-- **Beginsaldi met naam**: het tabblad Beginsaldi toont naast het rekeningnummer ook de omschrijving vanuit de grootboekrekeningen.
+1. **Maak een nieuwe repo aan** voor de tool (bijv. `mijn-tool`)
+2. Zet het HTML-bestand erin (bijv. `mijn-tool.html`) en push naar GitHub
+3. **Voeg de sync-workflow toe** aan de tool-repo (zie kopje *Sync instellen* hieronder)
+4. **Voeg de tool toe aan `portal.html`** in deze repo:
+   - Voeg een item toe aan het `TOOLS`-array
+   - Voeg het bestand toe aan het `TOEGANG`-object voor de juiste gebruikers
+5. Push — de tool is live op `bouwman.tools/mijn-tool.html`
 
-## Weergave
+Voor een tool met **eigen subdomein** (zoals XAF):
+- Voeg een `CNAME`-bestand toe aan de tool-repo
+- Zet GitHub Pages aan op de tool-repo (`gh api repos/Sylvainbouwman/<repo>/pages --method POST --field source[branch]=master --field source[path]=/`)
+- Voeg een DNS CNAME-record toe in Cloudflare (DNS only, niet proxied)
+- Voeg een Cloudflare Access Application toe voor het subdomein
 
-- Card-layout met gradient header en schaduw
-- Stat-kaartjes na inlezen: rekeningen, beginsaldi, mutatieregels, BTW-codes, deb/cred
-- Drag & drop ondersteund naast klik-to-select
-- Periodes als klikbare chips; live mutatieteller past mee bij elke wijziging
+## Sync instellen (tool-repo → bouwman-tools)
 
-## Grote bestanden
+Elke tool-repo heeft een GitHub Action nodig die bij elke push het HTML-bestand automatisch naar deze repo kopieert.
 
-De tool is geoptimaliseerd voor bestanden van 700 MB en groter:
+### Eenmalige voorbereiding
 
-- Verwerking draait in een **Web Worker** (UI blijft responsief)
-- XML wordt **per dagboek** geparsed — nooit het volledige bestand als één DOM
-- Voortgangsbalk toont dagboeken verwerkt en aantal mutatieregels
+1. Maak een **GitHub Personal Access Token (PAT)** aan:
+   - Ga naar github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+   - Geef toegang tot de `bouwman-tools` repo met de rechten: **Contents: Read and write**
+2. Sla de token op als **secret** in elke tool-repo:
+   - Repo → Settings → Secrets and variables → Actions → New repository secret
+   - Naam: `BOUWMAN_TOOLS_PAT`
 
-## XAF-versies
+### Workflow-bestand
 
-Ondersteunt zowel **XAF 3.2** als **XAF 4.0** (verplicht vanaf 1 januari 2026). De gedetecteerde versie wordt getoond in het Bedrijfsgegevens-tabblad.
+Maak in de tool-repo het bestand `.github/workflows/sync-to-bouwman-tools.yml` aan:
 
-## Online beschikbaar
+```yaml
+name: Sync naar bouwman-tools
 
-Alle tools zijn live op **[bouwman.tools](https://bouwman.tools)** — geen installatie nodig, gewoon de browser openen.
+on:
+  push:
+    branches: [master]
 
-Toegang is beveiligd via Cloudflare Access: alleen uitgenodigde gebruikers kunnen inloggen (via e-mailadres OTP of Google-account). Na inloggen verschijnt `portal.html` — een gepersonaliseerde pagina die op basis van het ingelogde e-mailadres alleen de tools toont waartoe de gebruiker toegang heeft.
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-Gebruikersbeheer:
-- Cloudflare Zero Trust → Access → Applications → per tool of overkoepelend
-- Portaltoegang (`portal.html`) beheer je in het `TOEGANG`-object bovenaan `portal.html`
+      - name: Kopieer HTML naar bouwman-tools
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.BOUWMAN_TOOLS_PAT }}
+        with:
+          source_file: 'mijn-tool.html'        # ← aanpassen
+          destination_repo: 'Sylvainbouwman/bouwman-tools'
+          destination_branch: 'master'
+          user_email: 's.bouwman@joinadministraties.nl'
+          user_name: 'Sylvainbouwman'
+          commit_message: 'Sync mijn-tool.html vanuit mijn-tool repo'
+```
 
-## Technisch
+## Gebruikersbeheer
 
-- Puur client-side: geen data wordt verstuurd naar een server
-- Afhankelijkheid: [SheetJS (xlsx)](https://sheetjs.com/) via CDN
-- Compatibel met Chrome, Edge en Firefox (niet IE)
-- Gehost via GitHub Pages op bouwman.tools
+Toegang werkt op twee lagen:
+
+### 1. Cloudflare Access (wie kan inloggen)
+- Ga naar **one.dash.cloudflare.com** → Zero Trust → Access → Applications
+- Klik op de juiste application → Edit → Policies
+- Voeg het e-mailadres toe onder *Include*
+- De gebruiker ontvangt bij het eerste bezoek een OTP per mail
+
+### 2. Portal (welke tools zijn zichtbaar)
+Bovenaan het `<script>`-blok in `portal.html` staat het `TOEGANG`-object:
+
+```javascript
+const TOEGANG = {
+  's.bouwman@joinadministraties.nl': 'all',          // volledige toegang
+  'collega@kantoor.nl':              ['auto-fiscaal-2027.html', 'betalingskenmerk.html'],
+};
+```
+
+- `'all'` → alle tools zichtbaar
+- Array → alleen de genoemde bestanden zichtbaar
+- Onbekend e-mailadres → ziet alle tools (voeg toe aan TOEGANG om te beperken)
+
+Het beheer-paneel onderin de portal (alleen zichtbaar voor accounts met `'all'`) bevat dezelfde instructies als snel-naslagwerk.
+
+## Hosting
+
+- **bouwman.tools** → GitHub Pages vanuit deze repo (master branch)
+- **xaf.bouwman.tools** → GitHub Pages vanuit de `xaf-export-tool` repo
+- DNS en toegangsbeveiliging lopen via **Cloudflare** (proxied + Access)
