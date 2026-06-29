@@ -94,6 +94,7 @@ jobs:
           git config user.name "Sylvainbouwman"
           git add mijn-tool.html
           git diff --staged --quiet || git commit -m "Sync mijn-tool.html vanuit <repo-naam>"
+          git pull origin master --rebase
           git push
 ```
 
