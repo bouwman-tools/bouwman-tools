@@ -39,8 +39,9 @@ export default {
       return ok({ access }, request);
     }
 
-    // Admin-endpoints — vereisen ADMIN_TOKEN header
-    if (request.headers.get('X-Admin-Token') !== env.ADMIN_TOKEN) {
+    // Admin-endpoints — alleen bereikbaar via bouwman.tools (CF Access beschermt beheer.html)
+    const origin = request.headers.get('Origin') || '';
+    if (!origin.includes('bouwman.tools') && !origin.includes('workers.dev')) {
       return new Response('Unauthorized', { status: 401 });
     }
 
