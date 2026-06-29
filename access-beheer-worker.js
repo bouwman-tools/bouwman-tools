@@ -23,7 +23,7 @@ const APP_IDS = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname || '/';
 
@@ -55,7 +55,7 @@ export default {
       const permissions = await getPermissions(env);
       permissions[email] = tools;
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      await syncCFAccess(permissions, env);
+      ctx.waitUntil(syncCFAccess(permissions, env));
       return ok({ ok: true }, request);
     }
 
@@ -65,7 +65,7 @@ export default {
       const permissions = await getPermissions(env);
       delete permissions[email];
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      await syncCFAccess(permissions, env);
+      ctx.waitUntil(syncCFAccess(permissions, env));
       return ok({ ok: true }, request);
     }
 
