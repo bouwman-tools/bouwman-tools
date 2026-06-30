@@ -1478,12 +1478,13 @@ async function callClaude(apiKey, systemPrompt, userText, maxTokens) {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages: [{
         role: 'user',
         content: [
@@ -1559,13 +1560,24 @@ btnReview.addEventListener('click', async () => {
       totalOutput += a.outputTokens;
     }
 
-    // ── Aanroep 2: Module B+C — inhoudelijk + klantnotitie
+    // ── Module A direct tonen
     stopLoadingSteps();
-    loadingModuleLabel.textContent = 'Stap 2 van 2 — Inhoudelijke analyse';
-    loadingTitle.textContent = 'Inhoudelijke analyse…';
-    loadingSubtitle.textContent = 'Claude analyseert de financiële positie en schrijft de klantnotitie';
-    steps.forEach(s => document.getElementById(s).classList.remove('active'));
+    loadingCard.classList.remove('visible');
+    resetLoading();
 
+    const kostenA = (a.inputTokens * 3 + a.outputTokens * 15) / 1_000_000 * 0.92;
+    renderResult(a.rawText, a.inputTokens, a.outputTokens, kostenA);
+
+    // Laadstatus voor Module B+C tonen terwijl tweede call loopt
+    resultBodyBC.innerHTML = `
+      <div style="padding:32px 28px; display:flex; align-items:center; gap:14px;">
+        <div class="spinner" style="width:28px;height:28px;border-width:3px;"></div>
+        <span style="font-size:13px; color:var(--muted);">Inhoudelijke analyse en klantnotitie worden opgesteld…</span>
+      </div>`;
+    resultFilenameBC.textContent = selectedFile?.name || '';
+    resultCardBC.style.display = 'block';
+
+    // ── Aanroep 2: Module B+C — inhoudelijk + klantnotitie
     const promptBC   = isBV ? SYSTEM_PROMPT_BC_BV : SYSTEM_PROMPT_BC_IB;
     const userTextBC = `Analyseer de jaarrekening als ervaren samensteller en fiscaal adviseur voor ${isBV ? 'BV' : 'IB-ondernemingen'}. Gebruik de exacte sectielabels (##B_FINANCIEEL## etc. en ##NOTITIE##).`;
 
@@ -1573,17 +1585,25 @@ btnReview.addEventListener('click', async () => {
     totalInput  += bc.inputTokens;
     totalOutput += bc.outputTokens;
 
-    loadingCard.classList.remove('visible');
-    resetLoading();
-
-    const kostenEUR = (totalInput * 3 + totalOutput * 15) / 1_000_000 * 0.92;
-    renderResult(a.rawText, totalInput, totalOutput, kostenEUR);
+    // Laadstatus verbergen en Module B+C renderen
+    resultCardBC.style.display = 'none';
+    resultBodyBC.innerHTML = '';
     renderModuleBC(bc.rawText);
+
+    // Totale kosten bijwerken
+    const kostenEUR = (totalInput * 3 + totalOutput * 15) / 1_000_000 * 0.92;
+    document.getElementById('kostenTokens').textContent =
+      `${totalInput.toLocaleString('nl')} input · ${totalOutput.toLocaleString('nl')} output tokens`;
+    document.getElementById('kostenBadge').textContent =
+      `≈ € ${kostenEUR.toFixed(3).replace('.', ',')}`;
+    document.getElementById('kostenInfo').style.display = 'flex';
 
   } catch (err) {
     stopLoadingSteps();
     loadingCard.classList.remove('visible');
     resetLoading();
+    resultCardBC.style.display = 'none';
+    resultBodyBC.innerHTML = '';
     uploadCard.style.display = 'block';
     errorMsg.textContent = 'Er is een fout opgetreden: ' + err.message;
     errorMsg.classList.add('visible');
