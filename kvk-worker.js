@@ -58,18 +58,17 @@ export default {
       return json({ naam, count, drempel: DREMPEL, melding: count >= DREMPEL }, 200, request);
 
     } else if (handelsnaam) {
-      // Naam-zoeken — eerst met postcode (preciezer), fallback naar naam-only
-      const postcode = (body.postcode || '').replace(/\s+/g, '').toUpperCase();
-
-      const zoekKvk = async (extraParams) => {
-        const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=10${extraParams}`;
+      // Naam-zoeken — 25 resultaten ophalen, client filtert op plaats
+      let resultaten = [];
+      try {
+        const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=25`;
         const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
         if (!r.ok) {
           const fout = await r.text().catch(() => '');
           throw new Error(`KvK HTTP ${r.status}|${fout}`);
         }
         const data = await r.json();
-        return (data.resultaten || [])
+        resultaten = (data.resultaten || [])
           .filter(r => r.type === 'hoofdvestiging' || r.type === 'rechtspersoon')
           .map(r => ({
             kvkNummer: r.kvkNummer,
@@ -78,12 +77,6 @@ export default {
             plaats:    r.adres?.binnenlandsAdres?.plaats ?? r.adres?.buitenlandsAdres?.plaats ?? '',
             straat:    [r.adres?.binnenlandsAdres?.straatnaam, r.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
           }));
-      };
-
-      let resultaten = [];
-      try {
-        if (postcode) resultaten = await zoekKvk(`&postcode=${encodeURIComponent(postcode)}`);
-        if (resultaten.length === 0) resultaten = await zoekKvk('');
       } catch (e) {
         const [code, detail] = (e.message || '').split('|');
         return json({ error: code || 'Zoekfout', detail: detail || '' }, 502, request);
