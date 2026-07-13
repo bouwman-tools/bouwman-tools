@@ -710,6 +710,7 @@ footer a:hover { color: var(--mint); }
             <option value="2024">2024</option>
             <option value="2025">2025</option>
             <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
           </select>
         </div>
         <div class="field" style="justify-content:center;">
@@ -756,9 +757,10 @@ footer a:hover { color: var(--mint); }
             <div style="font-weight:800;color:var(--white);margin-bottom:6px;">Overige regels</div>
             <div>Regulier: <strong style="color:var(--mint);">22%</strong> van catalogusprijs</div>
             <div>Kenteken vóór 2017: <strong style="color:var(--yellow);">25%</strong> permanent</div>
-            <div style="margin-top:6px;">Youngtimer (≥15 jr t/m 2025):</div>
-            <div>Youngtimer (≥16 jr in 2026):</div>
-            <div><strong style="color:var(--yellow);">35%</strong> van waarde econ. verkeer</div>
+            <div style="margin-top:6px;">Youngtimer <strong style="color:var(--yellow);">35%</strong> van dagwaarde:</div>
+            <div>≥15 jaar t/m 2025</div>
+            <div>≥16 jaar in 2026</div>
+            <div>≥25 jaar vanaf 2027</div>
           </div>
         </div>
       </div>
@@ -1461,7 +1463,7 @@ function bcBereken() {
   const { catalogusprijs, isElektrisch, isWaterstof, datumTxt, datumTenaamstellingRaw, brandstofStr } = rdwData;
 
   // ── Youngtimer check (leeftijd op basis van datum_eerste_toelating) ──
-  const youngtimerLeeftijd = controleJaar >= 2026 ? 16 : 15;
+  const youngtimerLeeftijd = controleJaar >= 2027 ? 25 : controleJaar === 2026 ? 16 : 15;
   const leeftijdToelating  = leeftijdOp(datumTxt, `${controleJaar}-01-01`);
   const isYoungtimer       = leeftijdToelating !== null && leeftijdToelating >= youngtimerLeeftijd;
 
@@ -1527,6 +1529,17 @@ function bcBereken() {
     bijtellingJaar   = catalogusprijs * 0.22;
     bijtellingMaand  = bijtellingJaar / 12;
     berekeningUitleg = `22% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+
+  } else if (controleJaar === 2027 && (isElektrisch || isWaterstof)) {
+    // 2027 EV-tarief nog niet gepubliceerd
+    resultEl.innerHTML = `
+      <div style="padding:14px 16px;">
+        <div class="melding m-info">
+          <strong>2027 EV-tarief nog niet bekend</strong><br>
+          De bijtellingstarieven voor elektrische voertuigen in 2027 worden gepubliceerd via het Belastingplan 2027. Zodra deze bekend zijn, kan de controle worden uitgevoerd. Het 2026-tarief (18% t/m €30.000) geldt als indicatie.
+        </div>
+      </div>`;
+    return;
 
   } else {
     // EV of waterstof, 2017+
