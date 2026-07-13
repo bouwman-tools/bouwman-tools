@@ -14,7 +14,7 @@
 
 const KVK_BASE_V1 = 'https://api.kvk.nl/api/v1/zoeken';
 const KVK_BASE_V2 = 'https://api.kvk.nl/api/v2/zoeken';
-const DREMPEL  = 50;
+const DREMPEL  = 500;
 
 export default {
   async fetch(request, env) {
@@ -58,34 +58,45 @@ export default {
       return json({ naam, count, drempel: DREMPEL, melding: count >= DREMPEL }, 200, request);
 
     } else if (handelsnaam) {
-      // Naam-zoeken — 25 resultaten ophalen, client filtert op plaats
-      let resultaten = [];
+      // Naam-zoeken: zoek op originele naam + omgedraaide woordvolgorde (max 4 woorden)
+      // Hierdoor worden namen als "Figaro Kapsalon" ook gevonden als KvK "Kapsalon Figaro" heeft.
       try {
-        const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=25`;
-        const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
-        if (!r.ok) {
-          const fout = await r.text().catch(() => '');
-          throw new Error(`KvK HTTP ${r.status}|${fout}`);
+        const zoekTermen = [handelsnaam];
+        const wn = handelsnaam.split(/\s+/).filter(w => w.length > 1 && !/^(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?)$/i.test(w));
+        if (wn.length >= 2 && wn.length <= 4) {
+          const omg = [...wn].reverse().join(' ');
+          if (omg.toLowerCase() !== handelsnaam.toLowerCase()) zoekTermen.push(omg);
         }
-        const data = await r.json();
-        resultaten = (data.resultaten || [])
-          .filter(r => r.type === 'hoofdvestiging' || r.type === 'rechtspersoon')
-          .map(r => ({
-            kvkNummer: r.kvkNummer,
-            naam:      r.naam,
-            type:      r.type,
-            plaats:    r.adres?.binnenlandsAdres?.plaats ?? r.adres?.buitenlandsAdres?.plaats ?? '',
-            straat:    [r.adres?.binnenlandsAdres?.straatnaam, r.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
-          }));
+
+        const gezien = new Set();
+        const resultaten = [];
+        for (const term of zoekTermen) {
+          try {
+            const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(term)}&resultatenPerPagina=25`;
+            const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
+            if (!r.ok) continue;
+            const data = await r.json();
+            for (const item of (data.resultaten || [])) {
+              if (item.type !== 'hoofdvestiging' && item.type !== 'rechtspersoon') continue;
+              if (gezien.has(item.kvkNummer)) continue;
+              gezien.add(item.kvkNummer);
+              resultaten.push({
+                kvkNummer: item.kvkNummer,
+                naam:      item.naam,
+                type:      item.type,
+                plaats:    item.adres?.binnenlandsAdres?.plaats ?? item.adres?.buitenlandsAdres?.plaats ?? '',
+                straat:    [item.adres?.binnenlandsAdres?.straatnaam, item.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
+              });
+            }
+          } catch { /* skip misslukte zoekterm */ }
+        }
+
+        const count = await incrementTeller(env, handelsnaam);
+        await stuurNtfy(env, count);
+        return json({ resultaten, count, drempel: DREMPEL }, 200, request);
       } catch (e) {
-        const [code, detail] = (e.message || '').split('|');
-        return json({ error: code || 'Zoekfout', detail: detail || '' }, 502, request);
+        return json({ error: 'Zoekfout', detail: e.message || '' }, 502, request);
       }
-
-      const count = await incrementTeller(env, handelsnaam);
-      await stuurNtfy(env, count);
-
-      return json({ resultaten, count, drempel: DREMPEL }, 200, request);
 
     } else {
       return json({ error: 'Geef rsin of handelsnaam mee' }, 400, request);
