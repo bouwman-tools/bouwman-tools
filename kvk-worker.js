@@ -12,7 +12,8 @@
  * Secrets    : KVK_API_KEY, NTFY_TOPIC
  */
 
-const KVK_BASE = 'https://api.kvk.nl/api/v1/zoeken';
+const KVK_BASE_V1 = 'https://api.kvk.nl/api/v1/zoeken';
+const KVK_BASE_V2 = 'https://api.kvk.nl/api/v2/zoeken';
 const DREMPEL  = 50;
 
 export default {
@@ -40,7 +41,7 @@ export default {
     // ── Modus bepalen ─────────────────────────────────────────────────────────
     if (rsin.length === 9) {
       // RSIN-opzoeken (bestaand gedrag)
-      const kvkRes = await fetch(`${KVK_BASE}?rsin=${rsin}`, {
+      const kvkRes = await fetch(`${KVK_BASE_V1}?rsin=${rsin}`, {
         headers: { 'apikey': apikey, 'Accept': 'application/json' },
       });
 
@@ -58,7 +59,7 @@ export default {
 
     } else if (handelsnaam) {
       // Naam-zoeken (nieuw)
-      const url = `${KVK_BASE}?handelsnaam=${encodeURIComponent(handelsnaam)}&aantal=10`;
+      const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=10`;
       const kvkRes = await fetch(url, {
         headers: { 'apikey': apikey, 'Accept': 'application/json' },
       });
