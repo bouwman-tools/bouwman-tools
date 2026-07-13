@@ -174,6 +174,9 @@
   .btn-primary:hover { background: var(--navy-light); }
   .btn-primary:active { transform: scale(0.98); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { padding: 9px 18px; background: transparent; border: 1.5px solid var(--gray-200); border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--navy); cursor: pointer; transition: all 0.18s; }
+  .btn-secondary:hover { background: var(--gray-100); border-color: var(--navy); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .btn-mint {
     background: var(--mint);
@@ -1016,6 +1019,29 @@
     </div>
   </div>
 
+  <!-- ALLE STANDPUNTEN -->
+  <div class="section-title">📋 Alle standpunten</div>
+  <div id="panelAlle">
+    <div style="margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <button class="btn-primary" id="alleBtn" onclick="doAlle(0)">
+        <span>↓ Alle standpunten laden</span>
+      </button>
+      <span id="alleTotaalLabel" style="font-size:13px; color:var(--gray-400);"></span>
+    </div>
+    <div id="alleLoadingBar" style="display:none; margin-bottom:16px;">
+      <div class="loading-box" style="padding:16px 24px; flex-direction:row; display:flex; align-items:center; gap:16px;">
+        <div class="spinner" style="width:24px;height:24px;flex-shrink:0;margin:0;"></div>
+        <div style="flex:1;"><div class="loading-funny" id="alleLoadingMsg" style="font-size:12px;">Laden…</div></div>
+      </div>
+    </div>
+    <div id="alle-container"></div>
+    <div id="alle-paging" style="display:none; margin-top:20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <button class="btn-secondary" id="alleVorigeBtn" onclick="doAlle(allePage - 1)" style="display:none;">← Vorige</button>
+      <span id="allePagingLabel" style="font-size:13px; color:var(--gray-400);"></span>
+      <button class="btn-secondary" id="alleVolgendeBtn" onclick="doAlle(allePage + 1)" style="display:none;">Volgende →</button>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -1662,6 +1688,88 @@ async function doRecent() {
     isLoading = false;
     document.getElementById('recentBtn').disabled = false;
     document.getElementById('recentBtn').innerHTML = '<span>↓ Recente standpunten ophalen</span>';
+  }
+}
+
+// ─── ALLE STANDPUNTEN ────────────────────────────────────────────────────────
+const ALLE_PER_PAGINA = 25;
+let allePage = 0;
+let alleTotaal = 0;
+
+async function doAlle(pagina) {
+  const container  = document.getElementById('alle-container');
+  const paging     = document.getElementById('alle-paging');
+  const loadingBar = document.getElementById('alleLoadingBar');
+  const btn        = document.getElementById('alleBtn');
+
+  if (!getSupabaseUrl()) { showNoSupabaseError(container); return; }
+
+  allePage = pagina;
+  const van = pagina * ALLE_PER_PAGINA;
+  const tot = van + ALLE_PER_PAGINA - 1;
+
+  btn.disabled = true;
+  loadingBar.style.display = '';
+  container.style.opacity = '0.4';
+  document.getElementById('alleLoadingMsg').textContent = 'Laden…';
+
+  try {
+    const sbUrl = getSupabaseUrl();
+    const sbKey = getSupabaseKey();
+    const headers = {
+      'apikey': sbKey,
+      'Authorization': `Bearer ${sbKey}`,
+      'Range': `${van}-${tot}`,
+      'Range-Unit': 'items',
+      'Prefer': 'count=exact'
+    };
+
+    let url = `${sbUrl}/rest/v1/standpunten?select=titel,kenmerk,belastingsoort,datum,url,slug,eerste_keer_gezien&order=datum.desc`;
+    if (currentFilter !== 'alle') url += `&belastingsoort=ilike.*${encodeURIComponent(currentFilter)}*`;
+    const fromDate = periodToDate(currentPeriod);
+    if (fromDate) url += `&datum=gte.${fromDate}`;
+
+    const r = await fetch(url, { headers });
+    if (!r.ok) throw new Error(`Supabase fout (${r.status})`);
+
+    const contentRange = r.headers.get('Content-Range') || '';
+    const totaalMatch  = contentRange.match(/\/(\d+)$/);
+    if (totaalMatch) alleTotaal = parseInt(totaalMatch[1]);
+
+    const data = await r.json();
+    const aantalPaginas = Math.ceil(alleTotaal / ALLE_PER_PAGINA);
+
+    document.getElementById('alleTotaalLabel').textContent =
+      alleTotaal ? `${alleTotaal} standpunten totaal` : '';
+
+    if (data.length === 0) {
+      container.innerHTML = `<div class="empty-box"><div class="empty-icon">📭</div><div class="empty-title">Geen standpunten gevonden</div></div>`;
+      paging.style.display = 'none';
+      return;
+    }
+
+    container.innerHTML =
+      `<div class="results-header"><div class="results-count">Pagina ${pagina + 1} van ${aantalPaginas} — ${van + 1}–${Math.min(tot + 1, alleTotaal)} van ${alleTotaal} standpunten</div></div>` +
+      data.map(s => renderStandpuntFromDB(s)).join('');
+
+    // Paginering
+    paging.style.display = 'flex';
+    const vorigeBtn   = document.getElementById('alleVorigeBtn');
+    const volgendeBtn = document.getElementById('alleVolgendeBtn');
+    vorigeBtn.style.display   = pagina > 0 ? '' : 'none';
+    volgendeBtn.style.display = pagina < aantalPaginas - 1 ? '' : 'none';
+    document.getElementById('allePagingLabel').textContent =
+      `Pagina ${pagina + 1} van ${aantalPaginas}`;
+
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    container.innerHTML = errorHtml(err);
+  } finally {
+    loadingBar.style.display = 'none';
+    container.style.opacity = '';
+    btn.disabled = false;
+    btn.innerHTML = '<span>↓ Alle standpunten laden</span>';
   }
 }
 
