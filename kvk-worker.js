@@ -62,36 +62,51 @@ export default {
       // Naam-zoeken: zoek op originele naam + omgedraaide woordvolgorde (max 4 woorden)
       // Hierdoor worden namen als "Figaro Kapsalon" ook gevonden als KvK "Kapsalon Figaro" heeft.
       try {
-        const zoekTermen = [handelsnaam];
+        const gezien = new Set();
+        const resultaten = [];
+
+        // Helper: verwerk KvK-resultaten en voeg toe aan resultaten (dedup op kvkNummer)
+        const voegToe = items => {
+          for (const item of (items || [])) {
+            if (item.type !== 'hoofdvestiging' && item.type !== 'rechtspersoon') continue;
+            if (gezien.has(item.kvkNummer)) continue;
+            gezien.add(item.kvkNummer);
+            resultaten.push({
+              kvkNummer: item.kvkNummer,
+              naam:      item.naam,
+              type:      item.type,
+              plaats:    item.adres?.binnenlandsAdres?.plaats ?? item.adres?.buitenlandsAdres?.plaats ?? '',
+              straat:    [item.adres?.binnenlandsAdres?.straatnaam, item.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
+            });
+          }
+        };
+
+        // Zoek 1 + 2: v2 op originele naam en eventueel omgedraaide volgorde
+        const v2Termen = [handelsnaam];
         const wn = handelsnaam.split(/\s+/).filter(w => w.length > 1 && !/^(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?)$/i.test(w));
         if (wn.length >= 2 && wn.length <= 4) {
           const omg = [...wn].reverse().join(' ');
-          if (omg.toLowerCase() !== handelsnaam.toLowerCase()) zoekTermen.push(omg);
+          if (omg.toLowerCase() !== handelsnaam.toLowerCase()) v2Termen.push(omg);
         }
-        // Vrije-tekst zoek met straatnaam erbij (zoals KvK-website: "Figaro Kapsalon Molenstraat")
-        if (hint && hint.length > 2) zoekTermen.push(`${handelsnaam} ${hint}`);
-
-        const gezien = new Set();
-        const resultaten = [];
-        for (const term of zoekTermen) {
+        for (const term of v2Termen) {
           try {
             const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(term)}&resultatenPerPagina=25`;
             const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
-            if (!r.ok) continue;
-            const data = await r.json();
-            for (const item of (data.resultaten || [])) {
-              if (item.type !== 'hoofdvestiging' && item.type !== 'rechtspersoon') continue;
-              if (gezien.has(item.kvkNummer)) continue;
-              gezien.add(item.kvkNummer);
-              resultaten.push({
-                kvkNummer: item.kvkNummer,
-                naam:      item.naam,
-                type:      item.type,
-                plaats:    item.adres?.binnenlandsAdres?.plaats ?? item.adres?.buitenlandsAdres?.plaats ?? '',
-                straat:    [item.adres?.binnenlandsAdres?.straatnaam, item.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
-              });
-            }
-          } catch { /* skip misslukte zoekterm */ }
+            if (r.ok) voegToe((await r.json()).resultaten);
+          } catch { /* skip */ }
+        }
+
+        // Zoek 3: eerste sleutelwoord alleen (vangt "Figaro" als KvK-naam voor "Figaro Kapsalon")
+        // Alleen wanneer er een hint (straatnaam) is — zo beperken we het aantal API-calls
+        if (hint && hint.length > 2 && wn.length >= 2) {
+          const eersteWoord = wn[0];
+          if (eersteWoord.length >= 4) {
+            try {
+              const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(eersteWoord)}&resultatenPerPagina=25`;
+              const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
+              if (r.ok) voegToe((await r.json()).resultaten);
+            } catch { /* skip */ }
+          }
         }
 
         const count = await incrementTeller(env, handelsnaam);
