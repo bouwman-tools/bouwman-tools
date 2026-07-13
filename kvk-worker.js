@@ -58,32 +58,36 @@ export default {
       return json({ naam, count, drempel: DREMPEL, melding: count >= DREMPEL }, 200, request);
 
     } else if (handelsnaam) {
-      // Naam-zoeken (nieuw)
-      const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=10`;
-      const kvkRes = await fetch(url, {
-        headers: { 'apikey': apikey, 'Accept': 'application/json' },
-      });
+      // Naam-zoeken — eerst met postcode (preciezer), fallback naar naam-only
+      const postcode = (body.postcode || '').replace(/\s+/g, '').toUpperCase();
 
-      if (!kvkRes.ok) {
-        const foutTekst = await kvkRes.text().catch(() => '');
-        return json({ error: `KvK HTTP ${kvkRes.status}`, detail: foutTekst }, 502, request);
+      const zoekKvk = async (extraParams) => {
+        const url = `${KVK_BASE_V2}?naam=${encodeURIComponent(handelsnaam)}&resultatenPerPagina=10${extraParams}`;
+        const r   = await fetch(url, { headers: { 'apikey': apikey, 'Accept': 'application/json' } });
+        if (!r.ok) {
+          const fout = await r.text().catch(() => '');
+          throw new Error(`KvK HTTP ${r.status}|${fout}`);
+        }
+        const data = await r.json();
+        return (data.resultaten || [])
+          .filter(r => r.type === 'hoofdvestiging' || r.type === 'rechtspersoon')
+          .map(r => ({
+            kvkNummer: r.kvkNummer,
+            naam:      r.naam,
+            type:      r.type,
+            plaats:    r.adres?.binnenlandsAdres?.plaats ?? r.adres?.buitenlandsAdres?.plaats ?? '',
+            straat:    [r.adres?.binnenlandsAdres?.straatnaam, r.adres?.binnenlandsAdres?.huisnummer].filter(Boolean).join(' '),
+          }));
+      };
+
+      let resultaten = [];
+      try {
+        if (postcode) resultaten = await zoekKvk(`&postcode=${encodeURIComponent(postcode)}`);
+        if (resultaten.length === 0) resultaten = await zoekKvk('');
+      } catch (e) {
+        const [code, detail] = (e.message || '').split('|');
+        return json({ error: code || 'Zoekfout', detail: detail || '' }, 502, request);
       }
-
-      const data = await kvkRes.json();
-
-      // Houd alleen hoofdvestigingen en rechtspersonen, niet nevenvestigingen
-      const resultaten = (data.resultaten || [])
-        .filter(r => r.type === 'hoofdvestiging' || r.type === 'rechtspersoon')
-        .map(r => ({
-          kvkNummer: r.kvkNummer,
-          naam:      r.naam,
-          type:      r.type,
-          plaats:    r.adres?.binnenlandsAdres?.plaats ?? r.adres?.buitenlandsAdres?.plaats ?? '',
-          straat:    [
-            r.adres?.binnenlandsAdres?.straatnaam,
-            r.adres?.binnenlandsAdres?.huisnummer,
-          ].filter(Boolean).join(' '),
-        }));
 
       const count = await incrementTeller(env, handelsnaam);
       await stuurNtfy(env, count);
