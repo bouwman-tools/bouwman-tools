@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KvK Nummers Zoeken — Payroll</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy:   #1E2D4E;
+  --navy2:  #253660;
+  --mint:   #3DD9A0;
+  --mint2:  #2eba86;
+  --white:  #ffffff;
+  --gray50: #f8f9fb;
+  --gray100:#f0f2f5;
+  --gray200:#e2e6ec;
+  --gray400:#9aa3b2;
+  --gray600:#5a6478;
+  --gray900:#1a1f2e;
+  --green:  #22c55e;
+  --green-bg:#dcfce7;
+  --amber:  #f59e0b;
+  --amber-bg:#fef3c7;
+  --red:    #ef4444;
+  --red-bg: #fee2e2;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(30,45,78,.10);
+  --panel-w: 300px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito Sans', 'Segoe UI', system-ui, sans-serif;
+  background: var(--gray50);
+  color: var(--gray900);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  background: var(--navy);
+  color: var(--white);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.app-title { font-size: 1rem; font-weight: 700; }
+.app-subtitle { font-size: .78rem; color: var(--gray400); margin-top: 1px; }
+
+/* ── Page layout ── */
+.page-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.content-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Upload zone ── */
+.upload-wrap {
+  padding: 20px 24px 0;
+}
+.upload-zone {
+  border: 2px dashed var(--gray200);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  background: var(--white);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--mint);
+  background: #f0fdf8;
+}
+.upload-zone input[type=file] { display: none; }
+.upload-icon { font-size: 2rem; margin-bottom: 6px; }
+.upload-label { font-size: .9rem; color: var(--gray600); }
+.upload-label strong { color: var(--navy); }
+.upload-label small { display: block; margin-top: 3px; font-size: .78rem; color: var(--gray400); }
+
+/* Compact bestandsnaam na laden */
+.file-loaded {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--white);
+  border: 1px solid var(--gray200);
+  border-radius: var(--radius);
+  font-size: .88rem;
+}
+.file-loaded .file-name { font-weight: 700; color: var(--navy); }
+.file-loaded .file-meta { color: var(--gray400); font-size: .8rem; }
+.file-loaded .btn-wissel {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--gray200);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: .78rem;
+  color: var(--gray600);
+  cursor: pointer;
+}
+.file-loaded .btn-wissel:hover { background: var(--gray100); }
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray200);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolbar-group label {
+  font-size: .8rem;
+  color: var(--gray600);
+  font-weight: 600;
+  white-space: nowrap;
+}
+select {
+  border: 1px solid var(--gray200);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: .82rem;
+  color: var(--gray900);
+  background: var(--white);
+  outline: none;
+  max-width: 180px;
+}
+select:focus { border-color: var(--mint); }
+.toolbar-sep { width: 1px; height: 24px; background: var(--gray200); }
+.toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* Progress inline */
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+}
+.progress-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--gray100);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--mint);
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+.progress-txt { font-size: .78rem; color: var(--gray600); white-space: nowrap; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: background .15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--mint); color: var(--navy); }
+.btn-primary:hover { background: var(--mint2); }
+.btn-primary:disabled { background: var(--gray200); color: var(--gray400); cursor: not-allowed; }
+.btn-export { background: var(--navy); color: var(--white); }
+.btn-export:hover { background: var(--navy2); }
+
+/* ── Data tabel ── */
+.tabel-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0 0 40px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .84rem;
+}
+thead th {
+  background: var(--navy);
+  color: rgba(255,255,255,.7);
+  font-weight: 700;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 9px 12px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+thead th:first-child { width: 36px; }
+tbody tr { transition: background .1s; }
+tbody tr:hover { background: var(--gray50); }
+tbody tr.rij-meerdere { cursor: pointer; }
+tbody tr.rij-meerdere:hover { background: var(--amber-bg); }
+tbody tr.rij-actief { background: #fef9ec !important; }
+tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray100);
+  vertical-align: middle;
+}
+td.col-nr { color: var(--gray400); font-size: .78rem; width: 36px; }
+td.col-naam { font-weight: 600; color: var(--navy); }
+td.col-adres { color: var(--gray600); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.col-kvk { font-family: monospace; font-weight: 700; color: var(--navy); }
+td.col-status { width: 110px; }
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: .73rem;
+  font-weight: 700;
+}
+.badge-ok     { background: var(--green-bg); color: #15803d; }
+.badge-kies   { background: var(--amber-bg); color: #92400e; }
+.badge-nee    { background: var(--red-bg);   color: #991b1b; }
+.badge-laden  { background: var(--gray100);  color: var(--gray600); }
+.badge-skip   { background: var(--gray100);  color: var(--gray400); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.laden-dot { animation: pulse 1.2s infinite; }
+
+/* ── Opties paneel (rechts) ── */
+.options-panel {
+  width: var(--panel-w);
+  flex-shrink: 0;
+  background: var(--white);
+  border-left: 1px solid var(--gray200);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  background: var(--navy);
+  color: var(--white);
+  padding: 14px 16px;
+  font-size: .88rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.panel-naam {
+  font-size: .8rem;
+  color: rgba(255,255,255,.6);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel-leeg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--gray400);
+  font-size: .85rem;
+  text-align: center;
+  padding: 20px;
+}
+.panel-leeg-icon { font-size: 2rem; }
+.optie-kaart {
+  border: 1.5px solid var(--gray200);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.optie-kaart:hover { border-color: var(--mint); background: #f0fdf8; }
+.optie-kaart.gekozen { border-color: var(--mint); background: #f0fdf8; }
+.optie-kvk { font-family: monospace; font-size: .78rem; color: var(--gray400); margin-bottom: 3px; }
+.optie-naam { font-weight: 700; color: var(--navy); font-size: .88rem; }
+.optie-adres { font-size: .78rem; color: var(--gray600); margin-top: 2px; }
+.optie-kies-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  background: var(--mint);
+  color: var(--navy);
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.optie-kies-btn:hover { background: var(--mint2); }
+.panel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-top: 1px solid var(--gray200);
+  font-size: .78rem;
+  color: var(--gray600);
+  flex-shrink: 0;
+}
+.panel-nav button {
+  background: none;
+  border: 1px solid var(--gray200);
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: .78rem;
+  color: var(--gray600);
+}
+.panel-nav button:hover { background: var(--gray100); }
+.panel-nav button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Samenvatting balk ── */
+.summary-bar {
+  display: flex;
+  gap: 16px;
+  padding: 8px 24px;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray100);
+  font-size: .8rem;
+  color: var(--gray600);
+  flex-shrink: 0;
+}
+.sum-item { display: flex; align-items: center; gap: 4px; }
+.sum-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── Hidden ── */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="app-title">KvK Nummers Zoeken</div>
+    <div class="app-subtitle">Payroll — vul KvK-nummers automatisch aan vanuit Excel &nbsp;·&nbsp; v6</div>
+  </div>
+</header>
+
+<div class="page-body">
+
+  <!-- Linker/hoofd kolom -->
+  <div class="content-area" id="content-area">
+
+    <!-- Upload zone -->
+    <div class="upload-wrap" id="upload-wrap">
+      <div class="upload-zone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="laadBestand(event)">
+        <div class="upload-icon">📊</div>
+        <div class="upload-label">
+          <strong>Klik hier</strong> of sleep een Excel-bestand hierheen<br>
+          <small>.xlsx, .xls of .csv</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar (zichtbaar na laden) -->
+    <div class="toolbar hidden" id="toolbar">
+      <div class="toolbar-group">
+        <label>Zoek op:</label>
+        <select id="kolom-select" onchange="herlaadTabel()"></select>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-group">
+        <label>KvK invullen in:</label>
+        <select id="kvk-kolom-select" onchange="herlaadTabel()"></select>
+      </div>
+      <div class="toolbar-sep"></div>
+      <button class="btn btn-primary" id="btn-start" onclick="startVerwerking()">▶ Starten</button>
+      <button class="btn btn-export hidden" id="btn-export" onclick="exporteer()">⬇ Exporteer Excel</button>
+      <div class="toolbar-right">
+        <div class="progress-wrap hidden" id="progress-wrap">
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+          <span class="progress-txt" id="progress-txt">0 / 0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Samenvatting balk -->
+    <div class="summary-bar hidden" id="summary-bar">
+      <div class="sum-item"><div class="sum-dot" style="background:var(--green)"></div><span id="sum-ok">0 gevonden</span></div>
+      <div class="sum-item"><div class="sum-dot" style="background:var(--amber)"></div><span id="sum-kies">0 keuze vereist</span></div>
+      <div class="sum-item"><div class="sum-dot" style="background:var(--red)"></div><span id="sum-nee">0 niet gevonden</span></div>
+      <div class="sum-item"><div class="sum-dot" style="background:var(--gray200)"></div><span id="sum-skip">0 overgeslagen</span></div>
+    </div>
+
+    <!-- Tabel -->
+    <div class="tabel-scroll hidden" id="tabel-wrap">
+      <table id="data-tabel">
+        <thead id="tabel-head"></thead>
+        <tbody id="tabel-body"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Rechter paneel (keuze bij meerdere hits) -->
+  <div class="options-panel" id="options-panel">
+    <div class="panel-header">
+      <div>Meerdere treffers</div>
+      <div class="panel-naam" id="panel-naam">Klik op een gele rij om te kiezen</div>
+    </div>
+    <div id="panel-content">
+      <div class="panel-leeg">
+        <div class="panel-leeg-icon">👈</div>
+        <div>Klik op een rij met <strong style="color:var(--amber)">? kies</strong> om de opties te zien</div>
+      </div>
+    </div>
+    <div class="panel-nav hidden" id="panel-nav">
+      <button id="nav-vorige" onclick="navigeerKeuze(-1)">← Vorige</button>
+      <span id="nav-label"></span>
+      <button id="nav-volgende" onclick="navigeerKeuze(1)">Volgende →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const KVK_WORKER    = 'https://kvk-proxy.s-bouwman.workers.dev';
+const VERTRAGING_MS = 300;
+
+let werkblad      = null;
+let alleRijen     = [];   // alle data-rijen (arrays)
+let kolomHeaders  = [];   // [{label, index}]
+let teVerwerken   = [];   // [{rijIdx, naam}]
+let resultaten    = [];   // {rijIdx, status, kvkNummer, opties}  — indexed by positie in teVerwerken
+let naamIdx       = 1;
+let kvkIdx        = 5;
+let plaatsIdx     = 4;
+let straatIdx     = -1;
+let actieveRijIdx = null;
+let bezig         = false;
+
+// ── Drag & drop ──────────────────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) verwerkBestand(f);
+});
+function laadBestand(e) { if (e.target.files[0]) verwerkBestand(e.target.files[0]); }
+
+function verwerkBestand(file) {
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+    werkblad = wb.Sheets[wb.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(werkblad, { header: 1, defval: '' });
+    if (jsonData.length < 2) { alert('Het bestand lijkt leeg.'); return; }
+
+    kolomHeaders = jsonData[0].map((h, i) => ({ label: (h || `Kolom ${i+1}`).toString().trim(), index: i }));
+    alleRijen    = jsonData.slice(1);
+
+    // Compact bestandsnaam boven toolbar
+    document.getElementById('dropzone').innerHTML = `
+      <div class="file-loaded">
+        <span>📄</span>
+        <span class="file-name">${file.name}</span>
+        <span class="file-meta">${alleRijen.length} rijen</span>
+        <button class="btn-wissel" onclick="opnieuw()">↩ Ander bestand</button>
+      </div>`;
+
+    // Kolom-selects vullen
+    const opties = kolomHeaders.map(h => `<option value="${h.index}">${h.label}</option>`).join('');
+    document.getElementById('kolom-select').innerHTML     = opties;
+    document.getElementById('kvk-kolom-select').innerHTML = opties;
+
+    // Auto-detectie
+    naamIdx   = kolomHeaders.findIndex(h => /naam|bedrijf|werkgever|company|handelsnaam/i.test(h.label));
+    kvkIdx    = kolomHeaders.findIndex(h => /kvk|kamer|handelsreg/i.test(h.label));
+    plaatsIdx = kolomHeaders.findIndex(h => /^plaats$|^stad$|^city$/i.test(h.label));
+    straatIdx = kolomHeaders.findIndex(h => /^adres$|^straatnaam$|^straat$|^address$/i.test(h.label));
+    if (naamIdx   < 0) naamIdx   = 0;
+    if (kvkIdx    < 0) kvkIdx    = kolomHeaders.length - 1;
+    if (plaatsIdx < 0) plaatsIdx = -1;
+    if (straatIdx < 0) straatIdx = -1;
+    document.getElementById('kolom-select').value     = naamIdx;
+    document.getElementById('kvk-kolom-select').value = kvkIdx;
+
+    toonTabel();
+    document.getElementById('toolbar').classList.remove('hidden');
+    document.getElementById('tabel-wrap').classList.remove('hidden');
+    document.getElementById('summary-bar').classList.remove('hidden');
+    bijwerkSamenvatting();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Tabel opbouwen ────────────────────────────────────────────────────────
+function herlaadTabel() {
+  naamIdx = parseInt(document.getElementById('kolom-select').value);
+  kvkIdx  = parseInt(document.getElementById('kvk-kolom-select').value);
+  toonTabel();
+}
+
+function toonTabel() {
+  // Header: alle kolommen + status
+  const head = document.getElementById('tabel-head');
+  head.innerHTML = '<tr>' +
+    '<th class="col-nr">#</th>' +
+    kolomHeaders.map(h => `<th>${escHtml(h.label)}</th>`).join('') +
+    '<th class="col-status">Status</th>' +
+    '</tr>';
+
+  // Body
+  const tbody = document.getElementById('tabel-body');
+  tbody.innerHTML = alleRijen.map((rij, i) => rijRegel(rij, i)).join('');
+  bijwerkSamenvatting();
+}
+
+function rijRegel(rij, rijIdx) {
+  const heeftKvk = (rij[kvkIdx] || '').toString().trim() !== '';
+  const res = resultaatVoorRij(rijIdx);
+  const statusHtml = statusBadge(rijIdx, heeftKvk);
+
+  const cellen = kolomHeaders.map(h => {
+    const val = (rij[h.index] || '').toString();
+    if (h.index === kvkIdx) {
+      return `<td class="col-kvk" id="kvk-cel-${rijIdx}">${kvkCelInhoud(res, rij)}</td>`;
+    }
+    if (h.index === naamIdx) return `<td class="col-naam">${escHtml(val)}</td>`;
+    return `<td class="col-adres" title="${escHtml(val)}">${escHtml(val)}</td>`;
+  }).join('');
+
+  const isKiesbaar = res?.status === 'meerdere';
+  const rowClass   = isKiesbaar ? 'rij-meerdere' : '';
+  const onclick    = isKiesbaar ? `onclick="openPanel(${rijIdx})"` : '';
+
+  return `<tr id="rij-${rijIdx}" class="${rowClass}" ${onclick}>
+    <td class="col-nr">${rijIdx + 1}</td>
+    ${cellen}
+    <td class="col-status" id="status-cel-${rijIdx}">${statusHtml}</td>
+  </tr>`;
+}
+
+function statusBadge(rijIdx, heeftKvkBestaand) {
+  const res = resultaatVoorRij(rijIdx);
+  if (!res) {
+    if (heeftKvkBestaand) return `<span class="badge badge-skip">— al ingevuld</span>`;
+    return `<span class="badge badge-laden" style="opacity:.4">wachten</span>`;
+  }
+  switch (res.status) {
+    case 'laden':       return `<span class="badge badge-laden"><span class="laden-dot">⏳</span> laden…</span>`;
+    case 'gevonden':    return `<span class="badge badge-ok">✓ gevonden</span>`;
+    case 'meerdere':    return `<span class="badge badge-kies">? kies (${res.opties.length})</span>`;
+    case 'niet_gevonden': return `<span class="badge badge-nee">✗ niet gevonden</span>`;
+    case 'fout':        return `<span class="badge badge-nee">! fout</span>`;
+    default:            return '';
+  }
+}
+
+function resultaatVoorRij(rijIdx) {
+  return resultaten.find(r => r.rijIdx === rijIdx) ?? null;
+}
+
+// ── Verwerking starten ────────────────────────────────────────────────────
+async function startVerwerking() {
+  if (bezig) return;
+  bezig = true;
+  resultaten = [];
+  actieveRijIdx = null;
+
+  naamIdx = parseInt(document.getElementById('kolom-select').value);
+  kvkIdx  = parseInt(document.getElementById('kvk-kolom-select').value);
+  teVerwerken = alleRijen
+    .map((r, i) => ({ rijIdx: i, naam: (r[naamIdx] || '').toString().trim() }))
+    .filter(r => r.naam && !(alleRijen[r.rijIdx][kvkIdx] || '').toString().trim());
+
+  if (teVerwerken.length === 0) {
+    alert('Alle rijen hebben al een KvK-nummer, of er zijn geen bedrijfsnamen gevonden.');
+    bezig = false;
+    return;
+  }
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('progress-wrap').classList.remove('hidden');
+  updateProgress(0, teVerwerken.length);
+
+  for (let i = 0; i < teVerwerken.length; i++) {
+    const { rijIdx, naam } = teVerwerken[i];
+
+    // Status: laden
+    resultaten.push({ rijIdx, status: 'laden', kvkNummer: null, kvkNaam: null, opties: [] });
+    updateRij(rijIdx);
+
+    try {
+      // Extraheer straatnaam (letters vóór het eerste cijfer) als zoektip
+      const adresRaw  = straatIdx >= 0 ? (alleRijen[rijIdx][straatIdx] || '').toString().trim() : '';
+      const straatHint = (adresRaw.match(/^([^\d,]+)/) || [])[1]?.trim() || '';
+      const body = { handelsnaam: naam };
+      if (straatHint.length > 2) body.hint = straatHint;
+
+      const resp = await fetch(KVK_WORKER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      const res  = resultaatVoorRij(rijIdx);
+
+      if (!resp.ok || !data.resultaten) {
+        res.status = 'fout';
+      } else {
+        const kandidaten = data.resultaten;
+        const plaatsExcel = plaatsIdx >= 0 ? normPlaats(alleRijen[rijIdx][plaatsIdx]) : '';
+        const straatExcel = straatIdx >= 0 ? (alleRijen[rijIdx][straatIdx] || '').toString().trim().toLowerCase() : '';
+
+        if (kandidaten.length === 0) {
+          res.status = 'niet_gevonden';
+        } else {
+          // Eén gecombineerde score per kandidaat: naammatch + geo-score
+          const score = k => {
+            const n = k.naam;
+            let s = 0;
+            if (n.toLowerCase() === naam.toLowerCase())  s += 3; // exacte naam
+            else if (woordenGelijk(n, naam))             s += 2; // zelfde woorden, andere volgorde
+            else if (subsetMatch(naam, n))               s += 1; // KvK-naam is subverzameling van zoekterm
+            else                                         s += woordScore(naam, n) * 0.5;
+            s += geoScore(k, plaatsExcel, straatExcel);           // +1.0 plaats, +0.5 straat
+            return s;
+          };
+
+          const gesorteerd = kandidaten.slice().sort((a, b) => score(b) - score(a));
+          const top  = score(gesorteerd[0]);
+          const twee = gesorteerd.length > 1 ? score(gesorteerd[1]) : 0;
+
+          // Auto-selecteer als top duidelijk beter scoort dan tweede
+          if (gesorteerd.length === 1 || (top >= 2 && top - twee >= 0.4)) {
+            res.status    = 'gevonden';
+            res.kvkNummer = gesorteerd[0].kvkNummer;
+            res.kvkNaam   = gesorteerd[0].naam;
+            alleRijen[rijIdx][kvkIdx] = res.kvkNummer;
+          } else {
+            res.status = 'meerdere';
+            res.opties = gesorteerd.slice(0, 5); // max 5 opties
+          }
+        }
+      }
+    } catch {
+      resultaatVoorRij(rijIdx).status = 'fout';
+    }
+
+    updateRij(rijIdx);
+    updateProgress(i + 1, teVerwerken.length);
+    bijwerkSamenvatting();
+
+    if (i < teVerwerken.length - 1) await wacht(VERTRAGING_MS);
+  }
+
+  bezig = false;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-export').classList.remove('hidden');
+
+  // Panel-nav tonen als er keuzes zijn
+  const keuzeRijen = resultaten.filter(r => r.status === 'meerdere');
+  if (keuzeRijen.length > 0) {
+    openPanel(keuzeRijen[0].rijIdx);
+  }
+}
+
+function updateRij(rijIdx) {
+  const rij = alleRijen[rijIdx];
+  const res = resultaatVoorRij(rijIdx);
+  const heeftKvk = (rij[kvkIdx] || '').toString().trim() !== '';
+
+  // Status cel
+  const statusCel = document.getElementById(`status-cel-${rijIdx}`);
+  if (statusCel) statusCel.innerHTML = statusBadge(rijIdx, heeftKvk);
+
+  // KvK cel
+  const kvkCel = document.getElementById(`kvk-cel-${rijIdx}`);
+  if (kvkCel) kvkCel.innerHTML = kvkCelInhoud(res, rij);
+
+  // Rij klasse
+  const tr = document.getElementById(`rij-${rijIdx}`);
+  if (tr) {
+    tr.className = res?.status === 'meerdere' ? 'rij-meerdere' : '';
+    tr.onclick   = res?.status === 'meerdere' ? () => openPanel(rijIdx) : null;
+  }
+}
+
+function updateProgress(gedaan, totaal) {
+  const pct = totaal > 0 ? Math.round((gedaan / totaal) * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-txt').textContent  = `${gedaan} / ${totaal}`;
+}
+
+// ── Opties paneel ─────────────────────────────────────────────────────────
+function scrollNaarRij(rijIdx) {
+  const tabelWrap = document.getElementById('tabel-wrap');
+  const tr = document.getElementById(`rij-${rijIdx}`);
+  if (!tabelWrap || !tr) return;
+  const theadH  = tabelWrap.querySelector('thead')?.offsetHeight || 36;
+  // Bereken de gewenste scrollpositie: rij net onder de header
+  const doelTop = tabelWrap.getBoundingClientRect().top + theadH + 4;
+  const rijTop  = tr.getBoundingClientRect().top;
+  tabelWrap.scrollTop = Math.max(0, tabelWrap.scrollTop + (rijTop - doelTop));
+}
+
+function openPanel(rijIdx) {
+  actieveRijIdx = rijIdx;
+
+  // Markeer actieve rij — VOOR panel-update zodat scroll direct zichtbaar is
+  document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('rij-actief'));
+  const tr = document.getElementById(`rij-${rijIdx}`);
+  if (tr) tr.classList.add('rij-actief');
+  scrollNaarRij(rijIdx);
+
+  const res  = resultaatVoorRij(rijIdx);
+  const naam = (alleRijen[rijIdx][naamIdx] || '').toString();
+  document.getElementById('panel-naam').textContent = naam;
+
+  if (!res || res.status !== 'meerdere') {
+    document.getElementById('panel-content').innerHTML =
+      '<div class="panel-leeg"><div class="panel-leeg-icon">✓</div><div>Geen keuze nodig</div></div>';
+    document.getElementById('panel-nav').classList.add('hidden');
+    return;
+  }
+
+  // Bereken hoe ver de rij naar beneden is in het paneel, en gebruik dat als padding-top
+  // zodat de eerste optiekaart naast de aangeklikte rij verschijnt.
+  let paddingTop = 0;
+  if (tr) {
+    const panelEl     = document.getElementById('options-panel');
+    const panelHeader = panelEl.querySelector('.panel-header');
+    const panelHeaderH = panelHeader ? panelHeader.getBoundingClientRect().bottom : 60;
+    const rijBottom    = tr.getBoundingClientRect().top;
+    paddingTop = Math.max(0, Math.min(rijBottom - panelHeaderH, panelEl.clientHeight * 0.55));
+  }
+
+  const kaartjes = res.opties.map((opt, oi) => `
+    <div class="optie-kaart" id="optie-${rijIdx}-${oi}">
+      <div class="optie-kvk">${opt.kvkNummer}</div>
+      <div class="optie-naam">${escHtml(opt.naam)}</div>
+      <div class="optie-adres">${[opt.straat, opt.plaats].filter(Boolean).join(' · ')}</div>
+      <button class="optie-kies-btn" onclick="kiesOptie(${rijIdx}, '${opt.kvkNummer}')">Kies dit nummer</button>
+    </div>
+  `).join('');
+
+  document.getElementById('panel-content').innerHTML =
+    `<div class="panel-body" style="padding-top:${Math.round(paddingTop)}px">${kaartjes}</div>`;
+
+  // Navigatie
+  const keuzeRijen = resultaten.filter(r => r.status === 'meerdere').map(r => r.rijIdx);
+  const pos        = keuzeRijen.indexOf(rijIdx);
+  const nav        = document.getElementById('panel-nav');
+
+  if (keuzeRijen.length > 1) {
+    nav.classList.remove('hidden');
+    document.getElementById('nav-label').textContent = `${pos + 1} / ${keuzeRijen.length}`;
+    document.getElementById('nav-vorige').disabled   = pos === 0;
+    document.getElementById('nav-volgende').disabled  = pos === keuzeRijen.length - 1;
+  } else {
+    nav.classList.add('hidden');
+  }
+}
+
+function navigeerKeuze(richting) {
+  const keuzeRijen = resultaten.filter(r => r.status === 'meerdere').map(r => r.rijIdx);
+  const pos = keuzeRijen.indexOf(actieveRijIdx);
+  const nieuw = pos + richting;
+  if (nieuw >= 0 && nieuw < keuzeRijen.length) openPanel(keuzeRijen[nieuw]);
+}
+
+function kiesOptie(rijIdx, kvkNummer) {
+  const res = resultaatVoorRij(rijIdx);
+  if (!res) return;
+  res.status    = 'gevonden';
+  res.kvkNummer = kvkNummer;
+  res.kvkNaam   = res.opties.find(o => o.kvkNummer === kvkNummer)?.naam || null;
+  alleRijen[rijIdx][kvkIdx] = kvkNummer;
+
+  updateRij(rijIdx);
+  bijwerkSamenvatting();
+
+  // Ga automatisch naar de volgende keuze, of sluit paneel
+  const keuzeRijen = resultaten.filter(r => r.status === 'meerdere').map(r => r.rijIdx);
+  if (keuzeRijen.length > 0) {
+    openPanel(keuzeRijen[0]);
+  } else {
+    document.getElementById('panel-naam').textContent = 'Alle keuzes gemaakt';
+    document.getElementById('panel-content').innerHTML =
+      '<div class="panel-leeg"><div class="panel-leeg-icon">🎉</div><div>Alle keuzes gemaakt!</div></div>';
+    document.getElementById('panel-nav').classList.add('hidden');
+  }
+}
+
+// ── Samenvatting ──────────────────────────────────────────────────────────
+function bijwerkSamenvatting() {
+  const nOk   = resultaten.filter(r => r.status === 'gevonden').length;
+  const nKies = resultaten.filter(r => r.status === 'meerdere').length;
+  const nNee  = resultaten.filter(r => r.status === 'niet_gevonden' || r.status === 'fout').length;
+  const nSkip = alleRijen.filter((r, i) => {
+    const heeftKvk = (r[kvkIdx] || '').toString().trim() !== '';
+    const res = resultaatVoorRij(i);
+    return heeftKvk && !res;
+  }).length;
+
+  document.getElementById('sum-ok').textContent   = `${nOk} gevonden`;
+  document.getElementById('sum-kies').textContent  = `${nKies} keuze vereist`;
+  document.getElementById('sum-nee').textContent   = `${nNee} niet gevonden`;
+  document.getElementById('sum-skip').textContent  = `${nSkip} overgeslagen`;
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+function exporteer() {
+  const jsonData = XLSX.utils.sheet_to_json(werkblad, { header: 1, defval: '' });
+  const uitvoer  = jsonData.map((rij, ri) => {
+    const nieuw = [...rij];
+    if (ri > 0) {
+      const val = (alleRijen[ri - 1][kvkIdx] || '').toString().trim();
+      if (val) nieuw[kvkIdx] = val;
+    }
+    return nieuw;
+  });
+  const wsUit = XLSX.utils.aoa_to_sheet(uitvoer);
+  const wbUit = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbUit, wsUit, 'KvK nummers');
+  XLSX.writeFile(wbUit, 'kvk-nummers.xlsx');
+}
+
+// ── Opnieuw ───────────────────────────────────────────────────────────────
+function opnieuw() {
+  werkblad = null; alleRijen = []; kolomHeaders = []; teVerwerken = []; resultaten = [];
+  bezig = false; actieveRijIdx = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('toolbar').classList.add('hidden');
+  document.getElementById('tabel-wrap').classList.add('hidden');
+  document.getElementById('summary-bar').classList.add('hidden');
+  document.getElementById('btn-export').classList.add('hidden');
+  document.getElementById('progress-wrap').classList.add('hidden');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('tabel-body').innerHTML = '';
+  document.getElementById('dropzone').innerHTML = `
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="laadBestand(event)">
+    <div class="upload-icon">📊</div>
+    <div class="upload-label"><strong>Klik hier</strong> of sleep een Excel-bestand hierheen<br><small>.xlsx, .xls of .csv</small></div>`;
+  document.getElementById('dropzone').onclick = () => document.getElementById('file-input').click();
+  document.getElementById('panel-naam').textContent = 'Klik op een gele rij om te kiezen';
+  document.getElementById('panel-content').innerHTML = `
+    <div class="panel-leeg"><div class="panel-leeg-icon">👈</div>
+    <div>Klik op een rij met <strong style="color:var(--amber)">? kies</strong> om de opties te zien</div></div>`;
+  document.getElementById('panel-nav').classList.add('hidden');
+}
+
+// ── Hulp ──────────────────────────────────────────────────────────────────
+function kvkCelInhoud(res, rij) {
+  const num  = res?.kvkNummer || (rij[kvkIdx] || '').toString().trim() || '';
+  const naam = res?.kvkNaam   || '';
+  if (!num) return '';
+  const naamHtml = naam
+    ? `<div style="font-size:.72rem;color:var(--gray400);font-weight:normal;font-family:inherit;margin-top:1px;">${escHtml(naam)}</div>`
+    : '';
+  return escHtml(num) + naamHtml;
+}
+
+// ── Match-helpers ─────────────────────────────────────────────────────────
+function normPlaats(s) {
+  return (s || '').toString().trim().toLowerCase().replace(/[-\s]+/g, ' ');
+}
+
+// Controleer of twee namen dezelfde woorden bevatten (volgorde-onafhankelijk)
+// B.V./V.O.F./N.V. worden genegeerd; woorden van ≤1 teken ook
+function woordenGelijk(a, b) {
+  const norm = s => new Set(
+    s.toLowerCase()
+     .replace(/\b(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?)\b/gi, '')
+     .replace(/[^a-z0-9]/g, ' ')
+     .split(/\s+/)
+     .filter(w => w.length > 1)
+  );
+  const wa = norm(a), wb = norm(b);
+  if (!wa.size || !wb.size) return false;
+  return [...wa].every(w => wb.has(w)) && [...wb].every(w => wa.has(w));
+}
+
+// KvK-naam is subverzameling van zoekterm: "Figaro" ⊂ "Figaro Kapsalon" → true
+// Andersom geldt NIET: "Figaro Kapsalon" ⊄ "Figaro" → false (voor woordenGelijk)
+function subsetMatch(zoekNaam, kvkNaam) {
+  const norm = s => new Set(
+    s.toLowerCase()
+     .replace(/\b(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?)\b/gi, '')
+     .replace(/[^a-z0-9]/g, ' ')
+     .split(/\s+/)
+     .filter(w => w.length > 1)
+  );
+  const zw = norm(zoekNaam);
+  const kw = norm(kvkNaam);
+  if (!zw.size || !kw.size || kw.size >= zw.size) return false; // kw moet kleiner zijn
+  return [...kw].every(w => zw.has(w));
+}
+
+// Jaccard-score voor woordovereenkomst
+function woordScore(zoek, naam) {
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+  const zw = norm(zoek), nw = norm(naam);
+  if (!zw.length || !nw.length) return 0;
+  const nwSet = new Set(nw);
+  return zw.filter(w => nwSet.has(w)).length / Math.max(zw.length, nw.length);
+}
+
+// Geografische score: 1.0 bij plaatsmatch, +0.5 bij straatmatch
+function geoScore(kandidaat, plaatsExcel, straatExcel) {
+  let score = 0;
+  if (plaatsExcel && kandidaat.plaats) {
+    const p = normPlaats(kandidaat.plaats);
+    if (p.includes(plaatsExcel) || plaatsExcel.includes(p)) score += 1;
+  }
+  if (straatExcel) {
+    const straatWoord = straatExcel.split(/\s+/)[0];
+    if (straatWoord.length > 3 && kandidaat.straat &&
+        kandidaat.straat.toLowerCase().includes(straatWoord)) score += 0.5;
+  }
+  return score;
+}
+
+function wacht(ms) { return new Promise(r => setTimeout(r, ms)); }
+function escHtml(s) {
+  return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
