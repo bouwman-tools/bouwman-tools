@@ -33,6 +33,7 @@ export default {
     const apikey      = (body.apikey      || env.KVK_API_KEY || '').trim();
     const rsin        = (body.rsin        || '').replace(/\D/g, '');
     const handelsnaam = (body.handelsnaam || '').trim();
+    const hint        = (body.hint        || '').trim(); // optionele straatnaam als zoektip
 
     if (!apikey) {
       return json({ error: 'Geen KvK API-sleutel meegegeven' }, 400, request);
@@ -67,6 +68,8 @@ export default {
           const omg = [...wn].reverse().join(' ');
           if (omg.toLowerCase() !== handelsnaam.toLowerCase()) zoekTermen.push(omg);
         }
+        // Vrije-tekst zoek met straatnaam erbij (zoals KvK-website: "Figaro Kapsalon Molenstraat")
+        if (hint && hint.length > 2) zoekTermen.push(`${handelsnaam} ${hint}`);
 
         const gezien = new Set();
         const resultaten = [];
