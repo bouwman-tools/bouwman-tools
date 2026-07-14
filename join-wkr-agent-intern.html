@@ -559,7 +559,7 @@ const CONFIG = {
   mode: "intern",           // "intern" = API-key in localStorage
                             // "extern" = via Cloudflare Worker
   workerUrl: "https://wkr-agent.s-bouwman.workers.dev",  // alleen bij extern
-  accessCode: "join2026",   // toegangscode voor extern (case-insensitief)
+  accessCodeHash: "033c4c5f0b827e52364f1a2e9f1900ea116f537cc2c1069ab5e65ab2bdb3ac7f",
   firmName: "Join Administraties",
 };
 </script>
@@ -895,9 +895,16 @@ function checkAccess() {
   }
 }
 
-function checkAccessCode() {
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkAccessCode() {
   const code = document.getElementById('accessInput').value.trim();
-  if (code.toLowerCase() === CONFIG.accessCode.toLowerCase()) {
+  if (!code) return;
+  const hash = await sha256(code.toLowerCase());
+  if (hash === CONFIG.accessCodeHash) {
     sessionStorage.setItem('wkr_access', 'true');
     document.getElementById('accessScreen').style.display = 'none';
   } else {
