@@ -559,7 +559,6 @@ const CONFIG = {
   mode: "extern",           // "intern" = API-key in localStorage
                             // "extern" = via Cloudflare Worker
   workerUrl: "https://wkr-agent.s-bouwman.workers.dev",  // alleen bij extern
-  accessCode: "",            // toegangscode voor extern — lokaal instellen, niet committen
   firmName: "Join Administraties",
 };
 </script>
@@ -889,21 +888,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // ACCESS (extern)
 // ════════════════════════════════
 function checkAccess() {
-  const granted = sessionStorage.getItem('wkr_access');
-  if (granted !== 'true') {
+  const code = sessionStorage.getItem('wkr_code');
+  if (!code) {
     document.getElementById('accessScreen').style.display = 'flex';
   }
 }
 
 function checkAccessCode() {
   const code = document.getElementById('accessInput').value.trim();
-  if (code.toLowerCase() === CONFIG.accessCode.toLowerCase()) {
-    sessionStorage.setItem('wkr_access', 'true');
-    document.getElementById('accessScreen').style.display = 'none';
-  } else {
-    document.getElementById('accessError').style.display = 'block';
-    document.getElementById('accessInput').value = '';
-  }
+  if (!code) return;
+  sessionStorage.setItem('wkr_code', code);
+  document.getElementById('accessScreen').style.display = 'none';
+  document.getElementById('accessError').style.display = 'none';
 }
 
 // ════════════════════════════════
@@ -1164,8 +1160,17 @@ async function sendMessage() {
       const res = await fetch(CONFIG.workerUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversationHistory }),
+        body: JSON.stringify({
+          messages: conversationHistory,
+          accessCode: sessionStorage.getItem('wkr_code'),
+        }),
       });
+
+      if (res.status === 401) {
+        sessionStorage.removeItem('wkr_code');
+        document.getElementById('accessScreen').style.display = 'flex';
+        throw new Error('Onjuiste toegangscode — probeer het opnieuw');
+      }
 
       if (!res.ok) {
         const err = await res.json();
