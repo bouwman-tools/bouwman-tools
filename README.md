@@ -45,7 +45,7 @@ oorspronkelijk in deze repo zat en later is gesplitst.
 | Jaarrekening-review | master | Join-jaarrekening-review.html |
 | Facturatie | master | join-prijsafspraken.html |
 | kennisgroepen-zoeker | master | kennisgroepen-zoeker.html |
-| Rekeningcourant-met-dividend | master | rc-schuld-dga.html |
+| Rekeningcourant-met-dividend | main | rc-schuld-dga.html |
 | Sjablonen-DGA | master | join-bv-documenten.html |
 | Werkgeversverklaring | master | nhg-werkgeversverklaring-wizard.html |
 | WKR_agent | main | join-wkr-agent-intern.html + join-wkr-agent-extern.html |
