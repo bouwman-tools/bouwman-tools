@@ -3,7 +3,7 @@
 Centraal overzicht van alle tools in AI_kopgroep en hun status op bouwman.tools.
 Dit bestand wordt bijgehouden door Claude en weerspiegelt altijd de actuele stand van zaken.
 
-**Laatste update:** 16 jul 2026
+**Laatste update:** 16 jul 2026 — Facturatie en Jaarrekening Review verwijderd uit portaal
 
 ---
 
@@ -42,7 +42,6 @@ Elke tool heeft een eigen GitHub-repo én een sync-workflow die bij elke push au
 
 | Tool | URL | Repo | Start | Laatste aanpassing |
 |---|---|---|---|---|
-| Jaarrekening Review | `/Join-jaarrekening-review.html` | Sylvainbouwman/Jaarrekening-review | 18 jun 2026 | 14 jul 2026 |
 | XAF Raw Export | `xaf.bouwman.tools` | Sylvainbouwman/xaf-export-tool | 28 jun 2026 | 14 jul 2026 |
 
 ### Belastingdienst
@@ -55,7 +54,6 @@ Elke tool heeft een eigen GitHub-repo én een sync-workflow die bij elke push au
 
 | Tool | URL | Repo | Start | Laatste aanpassing |
 |---|---|---|---|---|
-| Prijsafspraken | `/join-prijsafspraken.html` | Sylvainbouwman/Facturatie | 19 jun 2026 | 14 jul 2026 |
 | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | 13 jul 2026 | 16 jul 2026 |
 
 ---
@@ -66,18 +64,16 @@ Tools met een eigen repo maar (nog) niet gepubliceerd in het portaal.
 
 | Tool | Repo | Start | Laatste aanpassing | Advies |
 |---|---|---|---|---|
-| DBA Helper / Risicoscan | Sylvainbouwman/dba-risicoscan | 3 jul 2026 | 14 jul 2026 | ✅ Publiceer — Wet DBA is actueel |
-| WWFT Check | Sylvainbouwman/wwft-check | 1 jul 2026 | 14 jul 2026 | ✅ Publiceer — verplichte compliance |
-| BTW Teruggaaf EU | Sylvainbouwman/btw-teruggaaf-eu | 13 jul 2026 | 14 jul 2026 | 🔍 Beoordeel — is de tool af? |
-| Anonimiseren | Sylvainbouwman/Anonimiseren | 18 jun 2026 | 14 jul 2026 | 🔍 Beoordeel — wat doet het precies? |
-| Betalingskenmerk Tool | Sylvainbouwman/betalingskenmerk-tool | 29 jun 2026 | 15 jul 2026 | 🚧 In ontwikkeling |
+| Anonimiseren | Sylvainbouwman/Anonimiseren | 18 jun 2026 | 14 jul 2026 | 🟡 Publiceren met "nog in test" label |
+| Auditfile App | Sylvainbouwman/Auditfile_app | 17 jun 2026 | 14 jul 2026 | 🟡 Publiceren met "nog in test" label — XAF Raw Export gaat hier op termijn in op |
+| BTW Teruggaaf EU | Sylvainbouwman/btw-teruggaaf-eu | 13 jul 2026 | 14 jul 2026 | 🟡 Publiceren met "nog in test" label |
+| DBA Helper / Risicoscan | Sylvainbouwman/dba-risicoscan | 3 jul 2026 | 14 jul 2026 | ❓ Beslissen: Streamlit of HTML voor bouwman.tools? |
+| WWFT Check | Sylvainbouwman/wwft-check | 1 jul 2026 | 14 jul 2026 | 🟡 Publiceren met "nog in test" label |
 | AFAS Help Scraper | Sylvainbouwman/Afas-help-scraper | 23 jun 2026 | 14 jul 2026 | 🚧 Uitstapje, nog niet klaar |
-| Auditfile App | Sylvainbouwman/Auditfile_app | 17 jun 2026 | 14 jul 2026 | 🗺️ Roadmap: uitgroeien tot gecombineerde auditfile-tool waarbij XAF hierin opgaat |
 | ToDo Tool | Sylvainbouwman/todo | 9 jul 2026 | 15 jul 2026 | 🔒 Intern |
 | Tool-register | Sylvainbouwman/Tool-register | 4 jul 2026 | 14 jul 2026 | 🔒 Intern |
 | Kledingkast | Sylvainbouwman/kledingkast | 21 jun 2026 | 14 jul 2026 | 🔒 Privé |
 | Prisma Dashboard | Sylvainbouwman/prisma-dashboard | 10 jul 2026 | 14 jul 2026 | 🔒 Voor klant — niet op bouwman.tools |
-| Suite | (geen git) | — | — | 🗄️ Archiveer of opruimen |
 
 ---
 
@@ -85,9 +81,11 @@ Tools met een eigen repo maar (nog) niet gepubliceerd in het portaal.
 
 | # | Punt | Actie |
 |---|---|---|
-| 1 | KvK-zoeker mist `BOUWMAN_TOOLS_PAT` secret | Handmatig instellen — zie instructie in README.md |
-| 2 | XAF Raw Export heeft geen sync workflow | Werkt via eigen subdomein, geen actie nodig |
-| 3 | Auditfile App en Suite staan ongebruikt | Overweeg te archiveren |
+| 1 | Anonimiseren, Auditfile App, BTW Teruggaaf EU, WWFT Check nog niet in portaal | Toevoegen met "nog in test" label |
+| 2 | Dividend & Uitkeringstoets mist Word-sjablonen | Sjablonen uit map opnemen in de tool |
+| 3 | DBA Helper: locatie onduidelijk | Beslissen: Streamlit of HTML? |
+| 4 | BV Ja/Nee en Gebruikelijk loon | Laten beoordelen door fiscalisten |
+| 5 | XAF Raw Export heeft geen sync workflow | Werkt via eigen subdomein, geen actie nodig |
 
 ---
 
