@@ -22,6 +22,7 @@ Wordt bijgehouden in overleg met Sylvain.
 
 | Tool | Omschrijving | Opmerking |
 |------|--------------|-----------|
+| Gecombineerde Auditfile Tool | Auditfile App verder uitbouwen zodat XAF Raw Export hierin opgaat — met keuze tussen XAF 3.2/4.0 en uitgebreide analysemogelijkheden | Vervangt xaf-export-tool op termijn |
 | Rondrekening | Netto-naar-bruto en vice versa, inclusief alle heffingen | Bewust uitgesteld |
 
 ---

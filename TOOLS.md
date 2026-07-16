@@ -70,13 +70,13 @@ Tools met een eigen repo maar (nog) niet gepubliceerd in het portaal.
 | WWFT Check | Sylvainbouwman/wwft-check | 1 jul 2026 | 14 jul 2026 | ✅ Publiceer — verplichte compliance |
 | BTW Teruggaaf EU | Sylvainbouwman/btw-teruggaaf-eu | 13 jul 2026 | 14 jul 2026 | 🔍 Beoordeel — is de tool af? |
 | Anonimiseren | Sylvainbouwman/Anonimiseren | 18 jun 2026 | 14 jul 2026 | 🔍 Beoordeel — wat doet het precies? |
-| Kledingkast | Sylvainbouwman/kledingkast | 21 jun 2026 | 14 jul 2026 | ❓ Onduidelijk doel |
-| Prisma Dashboard | Sylvainbouwman/prisma-dashboard | 10 jul 2026 | 14 jul 2026 | ❓ Intern of voor klanten? |
 | Betalingskenmerk Tool | Sylvainbouwman/betalingskenmerk-tool | 29 jun 2026 | 15 jul 2026 | 🚧 In ontwikkeling |
-| AFAS Help Scraper | Sylvainbouwman/Afas-help-scraper | 23 jun 2026 | 14 jul 2026 | 🔒 Intern hulpmiddel |
+| AFAS Help Scraper | Sylvainbouwman/Afas-help-scraper | 23 jun 2026 | 14 jul 2026 | 🚧 Uitstapje, nog niet klaar |
+| Auditfile App | Sylvainbouwman/Auditfile_app | 17 jun 2026 | 14 jul 2026 | 🗺️ Roadmap: uitgroeien tot gecombineerde auditfile-tool waarbij XAF hierin opgaat |
 | ToDo Tool | Sylvainbouwman/todo | 9 jul 2026 | 15 jul 2026 | 🔒 Intern |
 | Tool-register | Sylvainbouwman/Tool-register | 4 jul 2026 | 14 jul 2026 | 🔒 Intern |
-| Auditfile App | Sylvainbouwman/Auditfile_app | 17 jun 2026 | 14 jul 2026 | 🗄️ Archiveer — ingehaald door XAF |
+| Kledingkast | Sylvainbouwman/kledingkast | 21 jun 2026 | 14 jul 2026 | 🔒 Privé |
+| Prisma Dashboard | Sylvainbouwman/prisma-dashboard | 10 jul 2026 | 14 jul 2026 | 🔒 Voor klant — niet op bouwman.tools |
 | Suite | (geen git) | — | — | 🗄️ Archiveer of opruimen |
 
 ---
