@@ -56,7 +56,7 @@ Elke tool heeft een eigen GitHub-repo én een sync-workflow die bij elke push au
 | Tool | URL | Repo | Start | Laatste aanpassing |
 |---|---|---|---|---|
 | Prijsafspraken | `/join-prijsafspraken.html` | Sylvainbouwman/Facturatie | 19 jun 2026 | 14 jul 2026 |
-| KvK Nummers Zoeken | `/kvk-zoeker.html` | Sylvainbouwman/kvk-zoeker | 13 jul 2026 | 16 jul 2026 |
+| KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | 13 jul 2026 | 16 jul 2026 |
 
 ---
 
