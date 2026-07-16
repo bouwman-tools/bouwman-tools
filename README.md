@@ -38,16 +38,16 @@ oorspronkelijk in deze repo zat en later is gesplitst.
 
 | GitHub-repo | Branch | HTML in bouwman-tools |
 |---|---|---|
-| auto-fiscaal-2027 | master | auto-fiscaal-2027.html |
-| auto-van-de-zaak | master | join-auto-rekenmodel.html |
-| BV-Ja_Nee | master | bv_janee_DK.html |
-| Herstructurering | master | herstructurering-assistent-v3.html |
+| auto-fiscaal-2027 | main | auto-fiscaal-2027.html |
+| auto-van-de-zaak | main | join-auto-rekenmodel.html |
+| BV-Ja_Nee | main | bv_janee_DK.html |
+| Herstructurering | main | herstructurering-assistent-v3.html |
 | Jaarrekening-review | master | Join-jaarrekening-review.html |
-| Facturatie | master | join-prijsafspraken.html |
-| kennisgroepen-zoeker | master | kennisgroepen-zoeker.html |
-| Rekeningcourant-met-dividend | master | rc-schuld-dga.html |
-| Sjablonen-DGA | master | join-bv-documenten.html |
-| Werkgeversverklaring | master | nhg-werkgeversverklaring-wizard.html |
+| Facturatie | main | join-prijsafspraken.html |
+| kennisgroepen-zoeker | main | kennisgroepen-zoeker.html |
+| Rekeningcourant-met-dividend | main | rc-schuld-dga.html |
+| Sjablonen-DGA | main | join-bv-documenten.html |
+| Werkgeversverklaring | main | nhg-werkgeversverklaring-wizard.html |
 | WKR_agent | main | join-wkr-agent-intern.html + join-wkr-agent-extern.html |
 | betalingskenmerk-tool | master | betalingskenmerk.html |
 | xaf-export-tool | master | — (eigen subdomein xaf.bouwman.tools) |
@@ -79,7 +79,7 @@ name: Sync naar bouwman-tools
 
 on:
   push:
-    branches: [master]   # of main, afhankelijk van de repo
+    branches: [main]
 
 jobs:
   sync:
@@ -96,7 +96,7 @@ jobs:
           git config user.name "Sylvainbouwman"
           git add mijn-tool.html
           git diff --staged --quiet || git commit -m "Sync mijn-tool.html vanuit <repo-naam>"
-          git pull origin master --rebase
+          git pull origin main --rebase
           git push
 ```
 
