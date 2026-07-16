@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dividend & Uitkeringstoets — bouwman.tools</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap');
+
+    :root {
+      --navy:       #1E2D4E;
+      --navy-deep:  #16223c;
+      --mint:       #3DD9A0;
+      --mint-light: #e6faf3;
+      --mint-mid:   #b0efd5;
+      --yellow:     #FFD100;
+      --bg:         #f4f5f7;
+      --surface:    #ffffff;
+      --border:     #e0e4ec;
+      --text:       #1E2D4E;
+      --muted:      #6b7a99;
+      --warn:       #c0392b;
+      --warn-light: #fdf0ee;
+      --ok:         #16a34a;
+      --ok-light:   #f0fdf4;
+      --sans: 'Nunito Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      padding: 0 0 80px;
+    }
+
+    header {
+      background: var(--navy);
+      min-height: 64px;
+      display: flex;
+      align-items: stretch;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px 24px;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: var(--mint);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .header-logo svg { display: block; }
+    .header-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .header-sub { font-size: 12px; color: rgba(255,255,255,.55); margin-top: 1px; }
+
+    .content { max-width: 960px; margin: 0 auto; padding: 32px 24px 0; }
+
+    h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 14px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+    label { font-size: 13px; font-weight: 600; color: var(--navy); display: block; margin-bottom: 6px; }
+    label .sub { font-weight: 400; color: var(--muted); font-size: 12px; display: block; margin-top: 1px; }
+
+    input[type=number], input[type=text], input[type=date], select {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: var(--sans);
+      color: var(--navy);
+      background: #fff;
+      transition: border-color .15s;
+      appearance: none;
+    }
+    input[type=number]:focus, input[type=text]:focus, input[type=date]:focus, select:focus {
+      outline: none; border-color: var(--mint);
+    }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    /* Toets resultaat inline */
+    .toets-result {
+      margin-top: 16px; padding: 14px 16px; border-radius: 10px;
+      font-size: 13px; line-height: 1.6;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .toets-result.ok { background: var(--ok-light); border: 1px solid #86efac; }
+    .toets-result.warn { background: var(--warn-light); border: 1px solid #fca5a5; }
+    .toets-result.neutral { background: #f8faff; border: 1px solid #dbeafe; color: #1e40af; }
+    .toets-result .tr-icon { font-size: 18px; flex-shrink: 0; line-height: 1.3; }
+    .toets-result .tr-body strong { font-weight: 700; }
+
+    /* Berekend veld */
+    .calc-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .calc-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; }
+    .calc-row .calc-label { color: var(--muted); }
+    .calc-row .calc-val { font-weight: 600; color: var(--navy); }
+    .calc-box { background: #f8faff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
+
+    /* Conclusie */
+    .conclusie-card {
+      border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 2px solid;
+    }
+    .conclusie-card.ok { background: var(--ok-light); border-color: #86efac; }
+    .conclusie-card.warn { background: var(--warn-light); border-color: #fca5a5; }
+    .conclusie-card .c-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .conclusie-card .c-icon { font-size: 22px; }
+    .conclusie-card .c-title { font-size: 16px; font-weight: 800; }
+    .conclusie-card.ok .c-title { color: var(--ok); }
+    .conclusie-card.warn .c-title { color: var(--warn); }
+    .conclusie-card .c-body { font-size: 13px; line-height: 1.65; }
+    .conclusie-card strong { font-weight: 700; }
+
+    .check-list { list-style: none; margin-top: 10px; }
+    .check-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
+    .check-list .ci { font-size: 16px; }
+
+    /* Notulen */
+    .notulen-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .ntab {
+      padding: 8px 18px; border-radius: 20px; border: 1.5px solid var(--border);
+      font-size: 13px; font-weight: 600; cursor: pointer; background: #fff;
+      color: var(--muted); transition: all .15s;
+    }
+    .ntab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+    .notulen-doc {
+      background: #fafbfc; border: 1px solid var(--border); border-radius: 8px;
+      padding: 0; display: none; position: relative;
+    }
+    .notulen-doc.active { display: block; }
+
+    .doc-toolbar {
+      display: flex; gap: 8px; padding: 10px 14px;
+      border-bottom: 1px solid var(--border); background: #f4f5f7;
+      border-radius: 8px 8px 0 0;
+    }
+    .doc-btn {
+      font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 6px;
+      border: 1.5px solid var(--border); background: #fff; color: var(--navy);
+      cursor: pointer; display: flex; align-items: center; gap: 5px;
+      transition: all .15s; font-family: var(--sans);
+    }
+    .doc-btn:hover { border-color: var(--mint); background: var(--mint-light); }
+    .doc-btn.copied { background: var(--ok-light); border-color: #86efac; color: var(--ok); }
+
+    .doc-text {
+      white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12.5px;
+      line-height: 1.75; padding: 20px 24px; color: #1a1a2e;
+      min-height: 300px; outline: none; border-radius: 0 0 8px 8px;
+    }
+    .doc-text[contenteditable=true]:focus { background: #fff; }
+
+    .info-box { background: #f8faff; border: 1px solid #dbeafe; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #1e40af; line-height: 1.6; margin-top: 16px; }
+
+    .step-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%; background: var(--navy);
+      color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-right: 6px;
+    }
+
+    #resultSection { display: none; }
+    #notulenSection { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="header-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+          <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="header-title">Dividend & Uitkeringstoets</div>
+        <div class="header-sub">Balanstoets · Liquiditeitstoets · Notulen genereren</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="content">
+
+  <!-- Stap 1: BV-gegevens -->
+  <div class="card">
+    <h2><span class="step-badge">1</span> BV & vergadering</h2>
+    <div class="grid2">
+      <div>
+        <label>Naam BV
+          <input type="text" id="naamBV" placeholder="Bouwman Beheer B.V." oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Boekjaar waarover dividend
+          <select id="boekjaar" onchange="bereken()">
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2026">2026</option>
+          </select>
+        </label>
+      </div>
+      <div>
+        <label>Naam aandeelhouder(s)
+          <span class="sub">Bijv. naam DGA of Holding B.V.</span>
+          <input type="text" id="naamAandeelhouder" placeholder="S. Bouwman" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Naam bestuurder(s)
+          <span class="sub">Laat leeg als gelijk aan aandeelhouder</span>
+          <input type="text" id="naamBestuurder" placeholder="Zelfde als aandeelhouder" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Datum vergadering / besluit
+          <input type="date" id="datumVergadering" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Verwachte uitkeringsdatum
+          <input type="date" id="datumUitkering" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Plaatsnaam (voor handtekening)
+          <input type="text" id="plaatsnaam" placeholder="Amsterdam" oninput="bereken()" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stap 2: Balanstoets -->
+  <div class="card">
+    <h2><span class="step-badge">2</span> Balanstoets — art. 2:216 lid 1 BW</h2>
+    <div class="grid2">
+      <div>
+        <label>Eigen vermogen (totaal)
+          <span class="sub">Uit de (tussentijdse) balans</span>
+          <input type="number" id="eigenVermogen" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Gestort en opgevraagd aandelenkapitaal
+          <span class="sub">Nominale waarde geplaatste aandelen</span>
+          <input type="number" id="aandelenkapitaal" value="18000" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Wettelijke en statutaire reserves
+          <span class="sub">Niet-vrij-uitkeerbaar deel (agio, herwaardering, etc.)</span>
+          <input type="number" id="wettelijkeReserves" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Gewenst dividend
+          <span class="sub">Totale uitkering aan alle aandeelhouders</span>
+          <input type="number" id="dividend" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+    </div>
+
+    <div class="calc-box" id="balansCalc"></div>
+    <div id="balansResultaat"></div>
+  </div>
+
+  <!-- Stap 3: Liquiditeitstoets -->
+  <div class="card">
+    <h2><span class="step-badge">3</span> Liquiditeitstoets — art. 2:216 lid 2 BW</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6;">Het bestuur beoordeelt of de BV na de uitkering haar opeisbare schulden kan blijven voldoen gedurende ten minste 12 maanden. Vul de verwachte kaspositie in.</p>
+    <div class="grid2">
+      <div>
+        <label>Liquide middelen nu (bank + kas)
+          <input type="number" id="liquideMiddelen" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Kortlopende schulden / verplichtingen (nu)
+          <span class="sub">Crediteuren, belastingschulden, lening o/g &lt;1 jaar</span>
+          <input type="number" id="kortlopendeSchulden" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Verwachte netto kasstroom — 12 maanden
+          <span class="sub">Ontvangsten min kosten (excl. dividend), indicatief</span>
+          <input type="number" id="kasstroom12" value="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
+    </div>
+
+    <div class="calc-box" id="liqCalc"></div>
+    <div id="liqResultaat"></div>
+
+    <div class="info-box" style="margin-top:16px;">
+      <strong>Let op:</strong> de liquiditeitstoets is een <em>bestuursoordeel</em>. Als het bestuur de uitkering goedkeurt terwijl de BV daarna niet aan haar verplichtingen kan voldoen, zijn bestuurders hoofdelijk aansprakelijk voor het tekort (art. 2:216 lid 3 BW). De berekening hier is indicatief — voeg aanvullende toelichting toe in het bestuursbesluit als de situatie complex is.
+    </div>
+  </div>
+
+  <!-- Resultaat -->
+  <div id="resultSection">
+    <div id="conclusieCard"></div>
+  </div>
+
+  <!-- Notulen -->
+  <div id="notulenSection">
+    <div class="card">
+      <h2><span class="step-badge">4</span> Notulen genereren</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;">Onderstaande documenten zijn gegenereerd op basis van jouw invoer. Je kunt de tekst nog aanpassen voor je kopieert of print.</p>
+
+      <div class="notulen-tabs">
+        <button class="ntab active" onclick="switchTab('ava')">AVA-besluit</button>
+        <button class="ntab" onclick="switchTab('bestuur')">Bestuursbesluit & Uitkeringstoets</button>
+      </div>
+
+      <div class="notulen-doc active" id="docAva">
+        <div class="doc-toolbar">
+          <button class="doc-btn" onclick="kopieer('ava')">📋 Kopieer</button>
+          <button class="doc-btn" onclick="printDoc('ava')">🖨️ Printen</button>
+        </div>
+        <div class="doc-text" id="tekstAva" contenteditable="true"></div>
+      </div>
+
+      <div class="notulen-doc" id="docBestuur">
+        <div class="doc-toolbar">
+          <button class="doc-btn" onclick="kopieer('bestuur')">📋 Kopieer</button>
+          <button class="doc-btn" onclick="printDoc('bestuur')">🖨️ Printen</button>
+        </div>
+        <div class="doc-text" id="tekstBestuur" contenteditable="true"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .content -->
+
+<script>
+function fmt(n) {
+  return '€ ' + Math.round(n).toLocaleString('nl-NL');
+}
+
+function fmtDatum(isoStr) {
+  if (!isoStr) return '…';
+  const d = new Date(isoStr);
+  if (isNaN(d)) return isoStr;
+  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.ntab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.notulen-doc').forEach(d => d.classList.remove('active'));
+  if (tab === 'ava') {
+    document.querySelectorAll('.ntab')[0].classList.add('active');
+    document.getElementById('docAva').classList.add('active');
+  } else {
+    document.querySelectorAll('.ntab')[1].classList.add('active');
+    document.getElementById('docBestuur').classList.add('active');
+  }
+}
+
+function kopieer(which) {
+  const el = document.getElementById(which === 'ava' ? 'tekstAva' : 'tekstBestuur');
+  const tekst = el.innerText;
+  navigator.clipboard.writeText(tekst).then(() => {
+    const btn = el.closest('.notulen-doc').querySelector('.doc-btn');
+    btn.classList.add('copied');
+    btn.textContent = '✓ Gekopieerd';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '📋 Kopieer'; }, 2000);
+  });
+}
+
+function printDoc(which) {
+  const el = document.getElementById(which === 'ava' ? 'tekstAva' : 'tekstBestuur');
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Notulen</title>
+    <style>body{font-family:'Courier New',monospace;font-size:13px;line-height:1.8;padding:40px;color:#111;}
+    @media print{body{padding:20px;}}</style></head>
+    <body><pre>${el.innerText}</pre><script>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+
+function bereken() {
+  const naamBV           = document.getElementById('naamBV').value.trim() || '[Naam BV]';
+  const boekjaar         = document.getElementById('boekjaar').value;
+  const naamAH           = document.getElementById('naamAandeelhouder').value.trim() || '[Naam aandeelhouder]';
+  const naamBest         = document.getElementById('naamBestuurder').value.trim() || naamAH;
+  const datumVerg        = document.getElementById('datumVergadering').value;
+  const datumUitk        = document.getElementById('datumUitkering').value;
+  const plaatsnaam       = document.getElementById('plaatsnaam').value.trim() || '[Plaatsnaam]';
+
+  const eigenVermogen    = parseFloat(document.getElementById('eigenVermogen').value) || 0;
+  const kapitaal         = parseFloat(document.getElementById('aandelenkapitaal').value) || 0;
+  const reserves         = parseFloat(document.getElementById('wettelijkeReserves').value) || 0;
+  const dividend         = parseFloat(document.getElementById('dividend').value) || 0;
+
+  const liquideMiddelen  = parseFloat(document.getElementById('liquideMiddelen').value) || 0;
+  const kortSchulden     = parseFloat(document.getElementById('kortlopendeSchulden').value) || 0;
+  const kasstroom12      = parseFloat(document.getElementById('kasstroom12').value) || 0;
+
+  // ---- BALANSTOETS ----
+  const vrijUitkeerbaar = eigenVermogen - kapitaal - reserves;
+  const balansOk = vrijUitkeerbaar >= dividend && dividend > 0;
+  const balansNegatief = vrijUitkeerbaar < 0;
+
+  document.getElementById('balansCalc').innerHTML = `
+    <div class="calc-row"><span class="calc-label">Eigen vermogen</span><span class="calc-val">${fmt(eigenVermogen)}</span></div>
+    <div class="calc-row"><span class="calc-label">Af: gestort aandelenkapitaal</span><span class="calc-val">− ${fmt(kapitaal)}</span></div>
+    <div class="calc-row"><span class="calc-label">Af: wettelijke/statutaire reserves</span><span class="calc-val">− ${fmt(reserves)}</span></div>
+    <div class="calc-row"><span class="calc-label">Vrij uitkeerbaar eigen vermogen</span><span class="calc-val" style="color:${vrijUitkeerbaar < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(vrijUitkeerbaar)}</span></div>
+    <div class="calc-row"><span class="calc-label">Gewenst dividend</span><span class="calc-val">${fmt(dividend)}</span></div>
+    <div class="calc-row"><span class="calc-label">Resterend vrij uitkeerbaar na uitkering</span><span class="calc-val" style="color:${vrijUitkeerbaar - dividend < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(vrijUitkeerbaar - dividend)}</span></div>
+  `;
+
+  let balansHTML = '';
+  if (dividend === 0) {
+    balansHTML = `<div class="toets-result neutral"><div class="tr-icon">ℹ️</div><div class="tr-body">Vul een dividendbedrag in om de balanstoets uit te voeren.</div></div>`;
+  } else if (balansNegatief) {
+    balansHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Balanstoets niet geslaagd:</strong> het eigen vermogen is al negatief (${fmt(eigenVermogen)}). Uitkering is wettelijk niet toegestaan.</div></div>`;
+  } else if (!balansOk) {
+    balansHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Balanstoets niet geslaagd:</strong> het vrij uitkeerbaar vermogen (${fmt(vrijUitkeerbaar)}) is lager dan het gewenste dividend (${fmt(dividend)}). Maximaal uitkeerbaar: <strong>${fmt(Math.max(0, vrijUitkeerbaar))}</strong>.</div></div>`;
+  } else {
+    balansHTML = `<div class="toets-result ok"><div class="tr-icon">✅</div><div class="tr-body"><strong>Balanstoets geslaagd.</strong> Er is voldoende vrij uitkeerbaar vermogen. Na uitkering resteert <strong>${fmt(vrijUitkeerbaar - dividend)}</strong> vrij uitkeerbaar eigen vermogen.</div></div>`;
+  }
+  document.getElementById('balansResultaat').innerHTML = balansHTML;
+
+  // ---- LIQUIDITEITSTOETS ----
+  const liqNaUitkering = liquideMiddelen + kasstroom12 - kortSchulden - dividend;
+  const liqOk = liqNaUitkering >= 0 && dividend > 0;
+
+  document.getElementById('liqCalc').innerHTML = `
+    <div class="calc-row"><span class="calc-label">Liquide middelen nu</span><span class="calc-val">${fmt(liquideMiddelen)}</span></div>
+    <div class="calc-row"><span class="calc-label">Verwachte netto kasstroom (12 mnd)</span><span class="calc-val">${kasstroom12 >= 0 ? '' : '− '}${fmt(Math.abs(kasstroom12))}</span></div>
+    <div class="calc-row"><span class="calc-label">Af: kortlopende schulden</span><span class="calc-val">− ${fmt(kortSchulden)}</span></div>
+    <div class="calc-row"><span class="calc-label">Af: dividend</span><span class="calc-val">− ${fmt(dividend)}</span></div>
+    <div class="calc-row"><span class="calc-label">Liquiditeitspositie na 12 maanden</span><span class="calc-val" style="color:${liqNaUitkering < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(liqNaUitkering)}</span></div>
+  `;
+
+  let liqHTML = '';
+  if (dividend === 0) {
+    liqHTML = `<div class="toets-result neutral"><div class="tr-icon">ℹ️</div><div class="tr-body">Vul een dividendbedrag in om de liquiditeitstoets uit te voeren.</div></div>`;
+  } else if (!liqOk) {
+    liqHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Liquiditeitstoets niet geslaagd:</strong> de verwachte kaspositie na 12 maanden is <strong>${fmt(liqNaUitkering)}</strong>. De BV kan na uitkering mogelijk haar opeisbare schulden niet voldoen.</div></div>`;
+  } else {
+    liqHTML = `<div class="toets-result ok"><div class="tr-icon">✅</div><div class="tr-body"><strong>Liquiditeitstoets geslaagd.</strong> De verwachte kaspositie na 12 maanden is <strong>${fmt(liqNaUitkering)}</strong>. De BV kan naar verwachting haar opeisbare schulden blijven voldoen.</div></div>`;
+  }
+  document.getElementById('liqResultaat').innerHTML = liqHTML;
+
+  // ---- CONCLUSIE ----
+  if (dividend === 0) {
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('notulenSection').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('resultSection').style.display = 'block';
+  const beidegoed = balansOk && liqOk;
+
+  const conclusieEl = document.getElementById('conclusieCard');
+  if (beidegoed) {
+    conclusieEl.className = 'conclusie-card ok';
+    conclusieEl.innerHTML = `
+      <div class="c-header"><div class="c-icon">✅</div><div class="c-title">Uitkeringstoets geslaagd — dividend mag worden uitgekeerd</div></div>
+      <div class="c-body">
+        Beide toetsen zijn doorstaan. Het bestuur kan de uitkering van <strong>${fmt(dividend)}</strong> goedkeuren.
+        <ul class="check-list">
+          <li><span class="ci">✅</span> Balanstoets: vrij uitkeerbaar vermogen voldoende (${fmt(vrijUitkeerbaar)})</li>
+          <li><span class="ci">✅</span> Liquiditeitstoets: positieve kaspositie na 12 maanden (${fmt(liqNaUitkering)})</li>
+        </ul>
+        <br>De notulen zijn hieronder klaargemaakt. Controleer en sla op als pdf.
+      </div>`;
+    document.getElementById('notulenSection').style.display = 'block';
+  } else {
+    conclusieEl.className = 'conclusie-card warn';
+    const items = [];
+    if (!balansOk) items.push(`<li><span class="ci">❌</span> Balanstoets: onvoldoende vrij uitkeerbaar vermogen (max. ${fmt(Math.max(0, vrijUitkeerbaar))})</li>`);
+    if (!liqOk)   items.push(`<li><span class="ci">❌</span> Liquiditeitstoets: verwachte kaspositie na 12 maanden negatief (${fmt(liqNaUitkering)})</li>`);
+    conclusieEl.innerHTML = `
+      <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Uitkeringstoets niet geslaagd</div></div>
+      <div class="c-body">
+        Het dividend van <strong>${fmt(dividend)}</strong> kan op basis van de huidige gegevens <strong>niet</strong> worden uitgekeerd.
+        <ul class="check-list">${items.join('')}</ul>
+        <br>Pas het dividendbedrag aan of herstel de financiële positie van de BV alvorens tot uitkering over te gaan.
+        <br><br><strong>Aansprakelijkheid:</strong> keert het bestuur toch uit, dan zijn bestuurders hoofdelijk aansprakelijk voor het tekort bij de crediteuren (art. 2:216 lid 3 BW).
+      </div>`;
+    document.getElementById('notulenSection').style.display = 'none';
+  }
+
+  // ---- NOTULEN GENEREREN ----
+  if (!beidegoed) return;
+
+  const dvStr  = fmtDatum(datumVerg);
+  const duStr  = fmtDatum(datumUitk);
+  const vNaamBV = naamBV.endsWith('B.V.') || naamBV.endsWith('BV') ? naamBV : naamBV + ' B.V.';
+
+  // AVA-notulen
+  const avaDoc = `NOTULEN VERGADERING VAN AANDEELHOUDERS
+${vNaamBV}
+${'='.repeat(Math.max(40, vNaamBV.length + 32))}
+
+Datum      : ${dvStr}
+Locatie    : [in te vullen]
+Aanwezig   : ${naamAH} (enig aandeelhouder)
+Voorzitter : ${naamBest}
+Notulist   : ${naamBest}
+
+De vergadering wordt geopend. Geconstateerd wordt dat alle aandelen in
+het kapitaal van de vennootschap vertegenwoordigd zijn, zodat rechtsgeldig
+besluiten kunnen worden genomen.
+
+AGENDAPUNT — Dividenduitkering boekjaar ${boekjaar}
+${'─'.repeat(48)}
+
+Aan de orde is het voorstel tot uitkering van dividend over boekjaar
+${boekjaar} ten laste van de vrije reserves.
+
+De vergadering stelt vast dat:
+
+  1. Het bestuur op grond van art. 2:216 BW de uitkeringstoets heeft
+     uitgevoerd en daarbij heeft geconstateerd dat:
+
+     a) het eigen vermogen na de uitkering niet daalt tot onder het
+        gestorte en opgevraagde aandelenkapitaal (balanstoets);
+
+     b) de vennootschap na de uitkering naar verwachting gedurende
+        ten minste twaalf maanden haar opeisbare schulden zal kunnen
+        blijven voldoen (liquiditeitstoets).
+
+  2. Het bestuur zijn goedkeuring heeft gehecht aan de uitkering.
+
+BESLUIT (unaniem aangenomen):
+
+  De vergadering besluit tot uitkering van een dividend van ${fmt(dividend)}
+  (zegge: ${bedragInWoorden(dividend)}) over boekjaar ${boekjaar},
+  te voldoen aan de aandeelhouder(s) op ${duStr}.
+
+Niets meer aan de orde zijnde, sluit de voorzitter de vergadering.
+
+Getekend te ${plaatsnaam}, ${dvStr}
+
+___________________________
+${naamBest}
+Voorzitter / Notulist`;
+
+  // Bestuursbesluit
+  const bestuurDoc = `BESTUURSBESLUIT / VERKLARING UITKERINGSTOETS
+${vNaamBV}
+${'='.repeat(Math.max(40, vNaamBV.length + 32))}
+
+Datum     : ${dvStr}
+Bestuurder: ${naamBest}
+
+Het bestuur van ${vNaamBV} heeft op ${dvStr} de uitkeringstoets
+uitgevoerd als bedoeld in art. 2:216 lid 2 Burgerlijk Wetboek, in
+verband met het voorgenomen besluit tot dividenduitkering van ${fmt(dividend)}
+over boekjaar ${boekjaar}.
+
+A. BALANSTOETS (art. 2:216 lid 1 BW)
+${'─'.repeat(40)}
+
+   Eigen vermogen (tussentijdse balans)         ${fmtR(fmt(eigenVermogen))}
+   Af: gestort en opgevraagd aandelenkapitaal   ${fmtR('− ' + fmt(kapitaal))}
+   Af: wettelijke en statutaire reserves        ${fmtR('− ' + fmt(reserves))}
+                                                ${'─'.repeat(18)}
+   Vrij uitkeerbaar eigen vermogen              ${fmtR(fmt(vrijUitkeerbaar))}
+   Voorgesteld dividend                         ${fmtR('− ' + fmt(dividend))}
+                                                ${'─'.repeat(18)}
+   Resterend vrij uitkeerbaar na uitkering      ${fmtR(fmt(vrijUitkeerbaar - dividend))}
+
+   Conclusie balanstoets: GESLAAGD
+   Na de uitkering daalt het eigen vermogen niet tot onder het gestorte
+   aandelenkapitaal.
+
+B. LIQUIDITEITSTOETS (art. 2:216 lid 2 BW)
+${'─'.repeat(40)}
+
+   Liquide middelen huidig                      ${fmtR(fmt(liquideMiddelen))}
+   Verwachte netto kasstroom (12 maanden)       ${fmtR((kasstroom12 >= 0 ? '+ ' : '− ') + fmt(Math.abs(kasstroom12)))}
+   Af: kortlopende schulden en verplichtingen   ${fmtR('− ' + fmt(kortSchulden))}
+   Af: dividend                                 ${fmtR('− ' + fmt(dividend))}
+                                                ${'─'.repeat(18)}
+   Verwachte liquiditeitspositie na 12 mnd      ${fmtR(fmt(liqNaUitkering))}
+
+   Conclusie liquiditeitstoets: GESLAAGD
+   Het bestuur is op basis van de beschikbare financiële gegevens van
+   oordeel dat de vennootschap na de uitkering gedurende ten minste
+   twaalf maanden haar opeisbare schulden kan blijven voldoen.
+
+C. BESLUIT BESTUUR
+${'─'.repeat(40)}
+
+   Op grond van het voorgaande geeft het bestuur zijn goedkeuring voor
+   de uitkering van ${fmt(dividend)} aan de aandeelhouder(s), te voldoen
+   op ${duStr}.
+
+   Het bestuur wijst op zijn aansprakelijkheid ex art. 2:216 lid 3 BW
+   en bevestigt dat de uitkering op basis van de bekende informatie
+   verantwoord is.
+
+Getekend te ${plaatsnaam}, ${dvStr}
+
+___________________________
+${naamBest}
+Bestuurder ${vNaamBV}`;
+
+  document.getElementById('tekstAva').innerText = avaDoc;
+  document.getElementById('tekstBestuur').innerText = bestuurDoc;
+}
+
+function fmtR(s) {
+  return s.padStart(18);
+}
+
+function bedragInWoorden(n) {
+  // Vereenvoudigde versie: geeft alleen het getal terug voor gebruiksgemak
+  return 'zie bedrag in cijfers';
+}
+
+// Init datum velden op vandaag
+(function() {
+  const nu = new Date();
+  const iso = nu.toISOString().split('T')[0];
+  document.getElementById('datumVergadering').value = iso;
+  const uitk = new Date(nu); uitk.setDate(uitk.getDate() + 14);
+  document.getElementById('datumUitkering').value = uitk.toISOString().split('T')[0];
+  bereken();
+})();
+</script>
+
+<style>
+.bt-nav-back{position:fixed;top:14px;left:14px;z-index:9999;display:inline-flex;align-items:center;gap:6px;background:#2C1A0E;color:#F5EBE0!important;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;text-decoration:none!important;opacity:.85;transition:opacity .2s;font-family:system-ui,-apple-system,sans-serif;}
+.bt-nav-back:hover{opacity:1;}
+.bt-page-footer{margin-top:40px;padding:14px 24px;border-top:1px solid #E8C4A8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-family:system-ui,-apple-system,sans-serif;background:#FDF6F0;}
+.bt-privacy{font-size:11px;color:#6B7280;display:flex;align-items:center;gap:7px;}
+.bt-privacy-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.bt-privacy-dot.green{background:#22c55e;}
+.bt-footerbrand{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#A07860;position:relative;cursor:default;}
+.bt-footerbrand .dot{width:6px;height:6px;border-radius:50%;background:#C0522A;flex-shrink:0;}
+.bt-footerbrand strong{color:#C0522A;font-weight:500;}
+.bt-footerbrand .tip{display:none;position:absolute;bottom:28px;right:0;background:#2C1A0E;color:#F5EBE0;font-size:11px;padding:6px 12px;border-radius:6px;white-space:nowrap;}
+.bt-footerbrand:hover .tip{display:block;}
+</style>
+<a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
+<footer class="bt-page-footer">
+  <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div>
+  <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 jul 2026, 19:45</div>
+</footer>
+<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
+<a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
+</body>
+</html>

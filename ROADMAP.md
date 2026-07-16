@@ -9,11 +9,12 @@ Wordt bijgehouden in overleg met Sylvain.
 
 | # | Tool | Omschrijving | Status |
 |---|------|--------------|--------|
-| 1 | Gebruikelijk loon calculator | DGA-loon toetsen: vergelijkingsloon, afroommethode, 75%-regel | Gepland |
-| 2 | Bewaarplicht checker | Welk document, hoe lang bewaren, uitzonderingen (7 vs 10 jaar) | Gepland |
-| 3 | Box 2 exit-calculator | Belastingdruk bij verkoop aandelen of emigratie, gestaffeld ab-tarief | Gepland |
-| 4 | BOR-quickscan | Bedrijfsopvolgingsregeling: bezitseis, voortzettingseis, beleggingstoets | Gepland |
-| 5 | Liquidatieverliesregeling | Wanneer aftrekbaar, hoe hoog, samenloop deelnemingsvrijstelling | Gepland |
+| 1 | Gebruikelijk loon calculator | DGA-loon toetsen: vergelijkingsloon, afroommethode, 75%-regel | ✅ Live |
+| 2 | Dividend & Uitkeringstoets | Balanstoets + liquiditeitstoets (art. 2:216 BW) + automatisch AVA-notulen en bestuursbesluit genereren | ✅ Live |
+| 3 | Bewaarplicht checker | Welk document, hoe lang bewaren, uitzonderingen (7 vs 10 jaar) | Gepland |
+| 4 | Box 2 exit-calculator | Belastingdruk bij verkoop aandelen of emigratie, gestaffeld ab-tarief | Gepland |
+| 5 | BOR-quickscan | Bedrijfsopvolgingsregeling: bezitseis, voortzettingseis, beleggingstoets | Gepland |
+| 6 | Liquidatieverliesregeling | Wanneer aftrekbaar, hoe hoog, samenloop deelnemingsvrijstelling | Gepland |
 
 ---
 
