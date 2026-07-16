@@ -1,6 +1,7 @@
 # bouwman.tools
 
 Portaal en deployment-repo voor alle interne tools van Bouwman.
+Alle tool-repos zitten in de GitHub-organisatie **bouwman-tools**.
 
 ## Architectuur
 
@@ -9,9 +10,9 @@ bouwman-tools (deze repo)          → gehost op bouwman.tools
 ├── portal.html                    ← portaalpagina
 ├── beheer.html                    ← gebruikersbeheer (alleen voor beheerder)
 ├── access-beheer-worker.js        ← Cloudflare Worker broncode
-├── betalingskenmerk.html
 ├── auto-fiscaal-2027.html
 ├── bv_janee_DK.html
+├── gebruikelijk-loon.html
 ├── herstructurering-assistent-v3.html
 ├── Join-jaarrekening-review.html
 ├── join-auto-rekenmodel.html
@@ -27,12 +28,9 @@ xaf-export-tool (aparte repo)      → gehost op xaf.bouwman.tools
 └── index.html
 ```
 
-Elke tool heeft een **eigen GitHub-repo** (privé). Bij elke push naar die repo
+Elke tool heeft een **eigen GitHub-repo** (privé) in de `bouwman-tools` org. Bij elke push
 kopieert een GitHub Action het HTML-bestand automatisch naar deze repo.
 Zo staat de tool binnen een minuut live op bouwman.tools.
-
-De XAF-export is de uitzondering: die heeft een eigen subdomein omdat de tool
-oorspronkelijk in deze repo zat en later is gesplitst.
 
 ## Actieve tool-repos en hun sync
 
@@ -41,6 +39,7 @@ oorspronkelijk in deze repo zat en later is gesplitst.
 | auto-fiscaal-2027 | main | auto-fiscaal-2027.html |
 | auto-van-de-zaak | main | join-auto-rekenmodel.html |
 | BV-Ja_Nee | main | bv_janee_DK.html |
+| gebruikelijk-loon | main | gebruikelijk-loon.html |
 | Herstructurering | main | herstructurering-assistent-v3.html |
 | Jaarrekening-review | master | Join-jaarrekening-review.html |
 | Facturatie | main | join-prijsafspraken.html |
@@ -49,27 +48,27 @@ oorspronkelijk in deze repo zat en later is gesplitst.
 | Sjablonen-DGA | main | join-bv-documenten.html |
 | Werkgeversverklaring | main | nhg-werkgeversverklaring-wizard.html |
 | WKR_agent | main | join-wkr-agent-intern.html + join-wkr-agent-extern.html |
-| betalingskenmerk-tool | master | betalingskenmerk.html |
 | xaf-export-tool | master | — (eigen subdomein xaf.bouwman.tools) |
 
 ## Een nieuwe tool toevoegen
 
-1. **Maak een nieuwe (privé) repo aan** op GitHub voor de tool
+1. **Maak een nieuwe (privé) repo aan** in de `bouwman-tools` org
 2. Zet het HTML-bestand erin en push
 3. **Voeg de sync-workflow toe** (zie kopje *Sync instellen*)
-4. **Voeg de tool toe aan `portal.html`** — voeg een item toe aan het `TOOLS`-array met `file`, `icon`, `name`, `desc` en `tags`
-5. **Voeg de tool toe aan `beheer.html`** — voeg een regel toe aan het `TOOLS`-array bovenaan het script
-6. Push — de tool is live op `bouwman.tools/mijn-tool.html`
-7. Geef gebruikers toegang via `bouwman.tools/beheer.html`
+4. **Stel de secret in** via `tr -d '\r\n' < ~/pat.txt | gh secret set BOUWMAN_TOOLS_PAT --repo bouwman-tools/<repo-naam>`
+5. **Voeg de tool toe aan `portal.html`** — voeg een item toe aan het `TOOLS`-array met `file`, `icon`, `name`, `desc` en `tags`
+6. **Voeg de tool toe aan `beheer.html`** — voeg een regel toe aan het `TOOLS`-array bovenaan het script
+7. Push — de tool is live op `bouwman.tools/mijn-tool.html`
+8. Geef gebruikers toegang via `bouwman.tools/beheer.html`
 
 ## Sync instellen voor een nieuwe repo
 
 ### Stap 1 — Secret toevoegen aan de tool-repo
 ```
-gh secret set BOUWMAN_TOOLS_PAT --body "<token>" --repo Sylvainbouwman/<repo-naam>
+tr -d '\r\n' < ~/pat.txt | gh secret set BOUWMAN_TOOLS_PAT --repo bouwman-tools/<repo-naam>
 ```
 De token (`bouwman-tools-sync`) staat in GitHub → Settings → Developer settings →
-Personal access tokens. Rechten: Contents read+write op bouwman-tools.
+Personal access tokens (classic). Rechten: `repo` (volledig).
 
 ### Stap 2 — Workflow aanmaken in de tool-repo
 Maak `.github/workflows/sync-to-bouwman-tools.yml` aan:
@@ -89,14 +88,14 @@ jobs:
 
       - name: Kopieer naar bouwman-tools
         run: |
-          git clone https://x-access-token:${{ secrets.BOUWMAN_TOOLS_PAT }}@github.com/Sylvainbouwman/bouwman-tools.git _bouwman
+          git clone https://x-access-token:${{ secrets.BOUWMAN_TOOLS_PAT }}@github.com/bouwman-tools/bouwman-tools.git _bouwman
           cp mijn-tool.html _bouwman/mijn-tool.html
           cd _bouwman
           git config user.email "s.bouwman@joinadministraties.nl"
           git config user.name "Sylvainbouwman"
           git add mijn-tool.html
-          git diff --staged --quiet || git commit -m "Sync mijn-tool.html vanuit <repo-naam>"
-          git pull origin main --rebase
+          git diff --staged --quiet || git commit -m "Sync vanuit <repo-naam>"
+          git pull origin master --rebase
           git push
 ```
 
