@@ -12,6 +12,7 @@ bouwman-tools (deze repo)          → gehost op bouwman.tools
 ├── access-beheer-worker.js        ← Cloudflare Worker broncode
 ├── auto-fiscaal-2027.html
 ├── bv_janee_DK.html
+├── dividend-uitkeringstoets.html
 ├── gebruikelijk-loon.html
 ├── herstructurering-assistent-v3.html
 ├── Join-jaarrekening-review.html
@@ -48,6 +49,7 @@ Zo staat de tool binnen een minuut live op bouwman.tools.
 | Sjablonen-DGA | main | join-bv-documenten.html |
 | Werkgeversverklaring | main | nhg-werkgeversverklaring-wizard.html |
 | WKR_agent | main | join-wkr-agent-intern.html + join-wkr-agent-extern.html |
+| dividend-uitkeringstoets | main | dividend-uitkeringstoets.html |
 | xaf-export-tool | master | — (eigen subdomein xaf.bouwman.tools) |
 
 ## Een nieuwe tool toevoegen
