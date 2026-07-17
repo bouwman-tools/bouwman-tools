@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bewaarplicht Checker — bouwman.tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #FDF6F0;
+      color: #2C1A0E;
+      min-height: 100vh;
+    }
+    header {
+      background: #2C1A0E;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header a {
+      color: #A07860;
+      text-decoration: none;
+      font-size: 0.82rem;
+    }
+    header a:hover { color: #F5EBE0; }
+    .logo { font-size: 1.1rem; font-weight: 700; color: #F5EBE0; }
+    .logo span { color: #E8784F; }
+    .sep { color: #4a2e1a; }
+
+    main {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #2C1A0E;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 0.88rem;
+      color: #A07860;
+      margin-bottom: 36px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #E8C4A8;
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #5a3825;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 0.76rem;
+      font-weight: 400;
+      color: #A07860;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select, input[type="date"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #E8C4A8;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      color: #2C1A0E;
+      background: #fff;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23A07860' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+    }
+    select:focus, input[type="date"]:focus {
+      outline: none;
+      border-color: #C0522A;
+    }
+    input[type="date"] { background-image: none; }
+
+    .field { margin-bottom: 20px; }
+
+    .optgroup-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #A07860;
+    }
+
+    /* Resultaat */
+    .result {
+      display: none;
+      background: #fff;
+      border: 2px solid #C0522A;
+      border-radius: 14px;
+      padding: 28px;
+      margin-top: 20px;
+    }
+    .result.groen { border-color: #16a34a; }
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .result-icon {
+      font-size: 2rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .result-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2C1A0E;
+      margin-bottom: 4px;
+    }
+    .result-until {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #C0522A;
+    }
+    .result.groen .result-until { color: #16a34a; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 500px) { .result-grid { grid-template-columns: 1fr; } }
+
+    .result-item {
+      background: #FDF6F0;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .result-item-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #A07860;
+      margin-bottom: 3px;
+    }
+    .result-item-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #2C1A0E;
+    }
+
+    .result-toelichting {
+      font-size: 0.83rem;
+      color: #5a3825;
+      line-height: 1.55;
+      padding-top: 16px;
+      border-top: 1px solid #E8C4A8;
+    }
+    .result-toelichting strong { color: #2C1A0E; }
+
+    .verlopen-badge {
+      display: inline-block;
+      background: #dcfce7;
+      color: #16a34a;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 3px 12px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    .basis-link {
+      font-size: 0.78rem;
+      color: #A07860;
+      margin-top: 10px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/portal.html">← Terug</a>
+  <span class="sep">|</span>
+  <span class="logo">bouwman<span>.tools</span></span>
+</header>
+
+<main>
+  <h1>📁 Bewaarplicht Checker</h1>
+  <p class="subtitle">
+    Bereken tot wanneer een document bewaard moet worden op basis van de fiscale bewaarplicht (AWR art. 52).<br>
+    Vul het documenttype en de relevante datum in — de tool berekent de wettelijke bewaartermijn.
+  </p>
+
+  <div class="card">
+    <div class="field">
+      <label for="doctype">Documenttype</label>
+      <select id="doctype" onchange="updateDatumLabel()">
+        <option value="">— Selecteer een documenttype —</option>
+
+        <optgroup label="📄 Facturen &amp; betalingen">
+          <option value="factuur-inkoop">Inkoopfactuur</option>
+          <option value="factuur-verkoop">Verkoopfactuur</option>
+          <option value="bankafschrift">Bankafschrift / rekeningafschrift</option>
+          <option value="kasadministratie">Kasadministratie / kassabon</option>
+          <option value="betalingsbewijs">Betalingsbewijs / kwitantie</option>
+        </optgroup>
+
+        <optgroup label="📊 Jaarrekening &amp; boekhouding">
+          <option value="jaarrekening">Jaarrekening / balans</option>
+          <option value="grootboek">Grootboek / journaalposten</option>
+          <option value="btw-aangifte">BTW-aangifte</option>
+          <option value="ib-aangifte">IB- of VPB-aangifte</option>
+          <option value="loonheffing-aangifte">Loonheffingenaangifte</option>
+          <option value="debiteuren-crediteuren">Debiteuren- / crediteurenadministratie</option>
+        </optgroup>
+
+        <optgroup label="📝 Contracten &amp; overeenkomsten">
+          <option value="huurcontract">Huurcontract (als huurder of verhuurder)</option>
+          <option value="arbeidsovereenkomst">Arbeidsovereenkomst</option>
+          <option value="overige-overeenkomst">Overige overeenkomst / contract</option>
+          <option value="offerte-order">Offerte / orderbevestiging</option>
+        </optgroup>
+
+        <optgroup label="👥 Personeel &amp; loon">
+          <option value="loonstrook">Loonstrook / loonbetaling</option>
+          <option value="personeelsdossier">Personeelsdossier (loongegevens)</option>
+          <option value="onkostendeclaratie">Onkostendeclaratie</option>
+        </optgroup>
+
+        <optgroup label="🏠 Onroerend goed">
+          <option value="og-aankoop">Aankoop- / verkoopakte onroerend goed</option>
+          <option value="og-onderhoud">Onderhoudsfactuur onroerend goed</option>
+          <option value="og-huurovereenkomst">Huurovereenkomst onroerend goed (verhuurder)</option>
+        </optgroup>
+
+        <optgroup label="📬 Correspondentie">
+          <option value="correspondentie-bd">Correspondentie Belastingdienst</option>
+          <option value="correspondentie-overig">Overige zakelijke correspondentie</option>
+        </optgroup>
+
+        <optgroup label="🎨 Bijzondere regelingen">
+          <option value="margegoederen">Margegoederen administratie (kunst / antiek)</option>
+          <option value="unieregeling">Unieregeling / Invoerregeling documenten</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="datum" id="datum-label">Relevante datum</label>
+      <span class="sub" id="datum-sub">Selecteer eerst een documenttype</span>
+      <input type="date" id="datum" oninput="bereken()">
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="result-header">
+      <div class="result-icon" id="result-icon">📁</div>
+      <div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-until" id="result-until"></div>
+      </div>
+    </div>
+    <div class="result-grid">
+      <div class="result-item">
+        <div class="result-item-label">Bewaartermijn</div>
+        <div class="result-item-value" id="result-termijn"></div>
+      </div>
+      <div class="result-item">
+        <div class="result-item-label">Relevante datum</div>
+        <div class="result-item-value" id="result-datum"></div>
+      </div>
+      <div class="result-item">
+        <div class="result-item-label">Termijn start</div>
+        <div class="result-item-value" id="result-start"></div>
+      </div>
+      <div class="result-item">
+        <div class="result-item-label">Wettelijke basis</div>
+        <div class="result-item-value" id="result-basis"></div>
+      </div>
+    </div>
+    <div class="result-toelichting" id="result-toelichting"></div>
+  </div>
+</main>
+
+<script>
+  const TYPES = {
+    'factuur-inkoop': {
+      naam: 'Inkoopfactuur',
+      termijn: 7,
+      datumLabel: 'Factuurdatum',
+      datumSub: 'Gebruik de factuurdatum (of betaaldatum als die later is)',
+      toelichting: 'Inkoopfacturen vallen onder de standaard fiscale bewaarplicht van <strong>7 jaar</strong>. De termijn start op 1 januari van het jaar volgend op het jaar van de factuurdatum.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'factuur-verkoop': {
+      naam: 'Verkoopfactuur',
+      termijn: 7,
+      datumLabel: 'Factuurdatum',
+      datumSub: 'Gebruik de factuurdatum',
+      toelichting: 'Verkoopfacturen (aan klanten verzonden) vallen onder de standaard fiscale bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'bankafschrift': {
+      naam: 'Bankafschrift',
+      termijn: 7,
+      datumLabel: 'Datum afschrift',
+      datumSub: 'Gebruik de datum van het afschrift',
+      toelichting: 'Bankafschriften en rekeningafschriften vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'kasadministratie': {
+      naam: 'Kasadministratie / kassabon',
+      termijn: 7,
+      datumLabel: 'Datum bon / journaalpost',
+      datumSub: 'Gebruik de datum van de kassabon of kasboekregel',
+      toelichting: 'Kasadministratie, kassabonnen en kasboekjournalen vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'betalingsbewijs': {
+      naam: 'Betalingsbewijs / kwitantie',
+      termijn: 7,
+      datumLabel: 'Datum betaling',
+      datumSub: 'Gebruik de datum waarop de betaling plaatsvond',
+      toelichting: 'Betalingsbewijzen en kwitanties vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'jaarrekening': {
+      naam: 'Jaarrekening / balans',
+      termijn: 7,
+      datumLabel: 'Datum van het boekjaar (31 december)',
+      datumSub: 'Vul de laatste dag van het boekjaar in waarop de jaarrekening betrekking heeft',
+      toelichting: 'Jaarrekeningen, balansen en resultatenrekeningen vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>. De termijn start op 1 januari van het jaar volgend op het boekjaar.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'grootboek': {
+      naam: 'Grootboek / journaalposten',
+      termijn: 7,
+      datumLabel: 'Datum boekjaar (31 december)',
+      datumSub: 'Vul de laatste dag van het boekjaar in',
+      toelichting: 'Grootboeken en journaalposten vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'btw-aangifte': {
+      naam: 'BTW-aangifte',
+      termijn: 7,
+      datumLabel: 'Einde van het aangiftetijdvak',
+      datumSub: 'Bijv. 31 december voor jaaraangifte, of de laatste dag van het kwartaal',
+      toelichting: 'BTW-aangiften en bijbehorende stukken vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'ib-aangifte': {
+      naam: 'IB- of VPB-aangifte',
+      termijn: 7,
+      datumLabel: 'Datum einde belastingjaar (31 december)',
+      datumSub: 'Vul de laatste dag in van het belastingjaar waarop de aangifte betrekking heeft',
+      toelichting: 'Aangiften inkomstenbelasting en vennootschapsbelasting (inclusief bijlagen) vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'loonheffing-aangifte': {
+      naam: 'Loonheffingenaangifte',
+      termijn: 7,
+      datumLabel: 'Einde van het aangiftetijdvak',
+      datumSub: 'Bijv. de laatste dag van het aangiftekwartaal of -maand',
+      toelichting: 'Loonheffingenaangiften en loonadministratie vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'debiteuren-crediteuren': {
+      naam: 'Debiteuren- / crediteurenadministratie',
+      termijn: 7,
+      datumLabel: 'Datum boekjaar (31 december)',
+      datumSub: 'Vul de laatste dag van het boekjaar in',
+      toelichting: 'De debiteuren- en crediteurenadministratie vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'huurcontract': {
+      naam: 'Huurcontract',
+      termijn: 7,
+      datumLabel: 'Einddatum huurcontract',
+      datumSub: 'Gebruik de datum waarop het huurcontract is geëindigd (niet de ingangsdatum)',
+      toelichting: 'De bewaarplicht voor een huurcontract begint pas na afloop van de huurperiode — de datum waarop het contract zijn <strong>actuele waarde verliest</strong>. Daarna geldt een termijn van <strong>7 jaar</strong>. Een huurcontract van 5 jaar dat eindigt op 31-12-2025 moet bewaard worden tot 31-12-2032.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'arbeidsovereenkomst': {
+      naam: 'Arbeidsovereenkomst',
+      termijn: 7,
+      datumLabel: 'Datum uitdiensttreding werknemer',
+      datumSub: 'Gebruik de datum waarop de arbeidsrelatie is beëindigd',
+      toelichting: 'Arbeidsovereenkomsten moeten <strong>7 jaar</strong> na het einde van het dienstverband bewaard worden. Let op: voor loongegevens geldt ook art. 7:653a BW. De AVG vereist verwijdering van persoonsgegevens zodra het doel is bereikt — bespreek dit met de klant.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'overige-overeenkomst': {
+      naam: 'Overige overeenkomst / contract',
+      termijn: 7,
+      datumLabel: 'Einddatum contract / overeenkomst',
+      datumSub: 'Gebruik de datum waarop het contract afliep of werd beëindigd',
+      toelichting: 'Contracten en overeenkomsten moeten <strong>7 jaar</strong> bewaard worden na het moment waarop ze hun actuele waarde verliezen — doorgaans de einddatum of ontbindingsdatum.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'offerte-order': {
+      naam: 'Offerte / orderbevestiging',
+      termijn: 7,
+      datumLabel: 'Datum offerte of orderbevestiging',
+      datumSub: 'Gebruik de datum van het document',
+      toelichting: 'Offertes en orderbevestigingen die deel uitmaken van de administratie vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'loonstrook': {
+      naam: 'Loonstrook / loonbetaling',
+      termijn: 7,
+      datumLabel: 'Datum van de loonbetaling',
+      datumSub: 'Gebruik de datum waarop het loon is uitbetaald',
+      toelichting: 'Loonstroken en loonbetalingsdocumenten vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'personeelsdossier': {
+      naam: 'Personeelsdossier (loongegevens)',
+      termijn: 7,
+      datumLabel: 'Datum uitdiensttreding werknemer',
+      datumSub: 'Gebruik de datum waarop het dienstverband is geëindigd',
+      toelichting: 'Loongegevens in personeelsdossiers moeten fiscaal <strong>7 jaar</strong> bewaard worden na uitdiensttreding. Let op: de AVG stelt dat overige persoonsgegevens (niet fiscaal verplicht) verwijderd moeten worden zodra ze niet meer nodig zijn. Bespreek dit met de klant — een beleid is aan te raden.',
+      basis: 'Art. 52 lid 4 AWR + AVG',
+    },
+    'onkostendeclaratie': {
+      naam: 'Onkostendeclaratie',
+      termijn: 7,
+      datumLabel: 'Datum van de declaratie',
+      datumSub: 'Gebruik de datum van de onkostendeclaratie',
+      toelichting: 'Onkostendeclaraties en bijbehorende bonnen vallen onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'og-aankoop': {
+      naam: 'Aankoop- / verkoopakte onroerend goed',
+      termijn: 10,
+      datumLabel: 'Datum van de leveringsakte (transportdatum)',
+      datumSub: 'Gebruik de datum van overdracht bij de notaris',
+      toelichting: 'Documenten betreffende onroerend goed — waaronder aankoop- en verkoopaktes — vallen onder de <strong>verlengde bewaarplicht van 10 jaar</strong>. De termijn start op 1 januari van het jaar volgend op de transactiedatum.',
+      basis: 'Art. 52 lid 4 AWR (verlengd voor o.g.)',
+    },
+    'og-onderhoud': {
+      naam: 'Onderhoudsfactuur onroerend goed',
+      termijn: 10,
+      datumLabel: 'Datum factuur',
+      datumSub: 'Gebruik de factuurdatum van de onderhoudswerkzaamheden',
+      toelichting: 'Facturen voor onderhoud, verbouwing of renovatie van onroerend goed vallen onder de <strong>verlengde bewaarplicht van 10 jaar</strong>, omdat ze voor de herzieningsperiode van de BTW relevant kunnen zijn.',
+      basis: 'Art. 52 lid 4 AWR + Art. 13 Uitv.besch. OB',
+    },
+    'og-huurovereenkomst': {
+      naam: 'Huurovereenkomst onroerend goed (verhuurder)',
+      termijn: 10,
+      datumLabel: 'Einddatum huurovereenkomst',
+      datumSub: 'Gebruik de datum waarop de huurovereenkomst is geëindigd',
+      toelichting: 'Als verhuurder van onroerend goed gelden de gegevens betreffende dat pand als onroerend goed-administratie. De <strong>verlengde termijn van 10 jaar</strong> is van toepassing na afloop van de huurovereenkomst.',
+      basis: 'Art. 52 lid 4 AWR (verlengd voor o.g.)',
+    },
+    'correspondentie-bd': {
+      naam: 'Correspondentie Belastingdienst',
+      termijn: 7,
+      datumLabel: 'Datum van het document of de beschikking',
+      datumSub: 'Gebruik de datum van de brief, aanslag of beschikking',
+      toelichting: 'Correspondentie met de Belastingdienst (aanslagen, bezwaarschriften, beschikkingen) valt onder de standaard bewaarplicht van <strong>7 jaar</strong>. Let op: voor navorderingsaanslagen kan de termijn oprekken — bewaar in twijfelgevallen langer.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'correspondentie-overig': {
+      naam: 'Zakelijke correspondentie',
+      termijn: 7,
+      datumLabel: 'Datum van het document',
+      datumSub: 'Gebruik de datum van de brief of e-mail',
+      toelichting: 'Zakelijke correspondentie die deel uitmaakt van de administratie (bijv. orderbevestigingen, klachtafhandeling, contractonderhandelingen) valt onder de standaard bewaarplicht van <strong>7 jaar</strong>.',
+      basis: 'Art. 52 lid 4 AWR',
+    },
+    'margegoederen': {
+      naam: 'Margegoederen administratie',
+      termijn: 7,
+      datumLabel: 'Datum van de transactie',
+      datumSub: 'Gebruik de datum van aankoop of verkoop van het margeproduct',
+      toelichting: 'Administratie bij handel in margegoederen (gebruikte goederen, kunst, antiek, verzamelobjecten) valt onder de standaard bewaarplicht van <strong>7 jaar</strong>. Let op: er gelden aanvullende eisen zoals aparte inkoop- en verkoopregisters en aankoopverklaringen bij aankopen ≥ €500.',
+      basis: 'Art. 52 lid 4 AWR + Art. 4a Uitv.besch. OB',
+    },
+    'unieregeling': {
+      naam: 'Unieregeling / Invoerregeling (OSS)',
+      termijn: 10,
+      datumLabel: 'Datum van de levering of dienst',
+      datumSub: 'Gebruik de datum van de relevante transactie',
+      toelichting: 'Documenten die vallen onder de Unieregeling of Invoerregeling (One Stop Shop / OSS) voor BTW zijn onderworpen aan een <strong>verlengde bewaarplicht van 10 jaar</strong>. Dit geldt voor alle grensoverschrijdende digitale diensten en afstandsverkopen binnen de EU.',
+      basis: 'Art. 52 lid 4 AWR + EU BTW-richtlijn art. 369k',
+    },
+  };
+
+  function updateDatumLabel() {
+    const type = document.getElementById('doctype').value;
+    const info = TYPES[type];
+    const label = document.getElementById('datum-label');
+    const sub = document.getElementById('datum-sub');
+
+    if (info) {
+      label.textContent = info.datumLabel;
+      sub.textContent = info.datumSub;
+    } else {
+      label.textContent = 'Relevante datum';
+      sub.textContent = 'Selecteer eerst een documenttype';
+    }
+
+    bereken();
+  }
+
+  function bereken() {
+    const type = document.getElementById('doctype').value;
+    const datumStr = document.getElementById('datum').value;
+    const result = document.getElementById('result');
+
+    if (!type || !datumStr) {
+      result.style.display = 'none';
+      return;
+    }
+
+    const info = TYPES[type];
+    if (!info) { result.style.display = 'none'; return; }
+
+    const datum = new Date(datumStr);
+    const jaar = datum.getFullYear();
+
+    // Termijn start: 1 januari van het jaar volgend op de relevante datum
+    const startJaar = jaar + 1;
+    // Bewaren tot en met: 31 december van het (start + termijn - 1) jaar
+    const eindJaar = startJaar + info.termijn - 1;
+    const bewarenTot = new Date(eindJaar, 11, 31); // 31 december
+
+    const nu = new Date();
+    const isVerlopen = bewarenTot < nu;
+
+    // Formateer datums
+    const fmtDatum = d => d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+    const fmtDatumKort = d => d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    result.style.display = 'block';
+    result.className = 'result' + (isVerlopen ? ' groen' : '');
+
+    document.getElementById('result-icon').textContent = isVerlopen ? '✅' : '📁';
+    document.getElementById('result-title').innerHTML =
+      info.naam + (isVerlopen ? '<span class="verlopen-badge">Mag vernietigd</span>' : '');
+    document.getElementById('result-until').textContent =
+      isVerlopen ? 'Bewaarplicht verstreken' : 'Bewaren t/m ' + fmtDatum(bewarenTot);
+
+    document.getElementById('result-termijn').textContent = info.termijn + ' jaar';
+    document.getElementById('result-datum').textContent = fmtDatumKort(datum);
+    document.getElementById('result-start').textContent = '1 januari ' + startJaar;
+    document.getElementById('result-basis').textContent = info.basis;
+
+    document.getElementById('result-toelichting').innerHTML =
+      info.toelichting +
+      (isVerlopen
+        ? '<br><br><strong>Dit document mag vernietigd worden</strong> — de wettelijke bewaartermijn is verstreken op 31 december ' + eindJaar + '.'
+        : '<br><br>Het document moet bewaard worden tot en met <strong>31 december ' + eindJaar + '</strong>.') +
+      '<span class="basis-link">Bron: ' + info.basis + ' — <a href="https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/btw/administratie_bijhouden/administratie_bewaren/" target="_blank" rel="noopener">belastingdienst.nl</a></span>';
+  }
+</script>
+</body>
+</html>
