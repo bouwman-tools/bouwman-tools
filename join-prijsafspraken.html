@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prijsafspraken v29 — Join Administraties</title>
+<title>Prijsafspraken — Join Administraties</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --navy: #24304A;
@@ -23,678 +24,225 @@
     --radius: 10px;
     --shadow: 0 2px 12px rgba(36,48,74,0.10);
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--surface);
-    color: var(--text);
-    min-height: 100vh;
-  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--surface); color: var(--text); min-height: 100vh; }
 
   /* HEADER */
-  header {
-    background: var(--navy);
-    padding: 0 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 56px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  }
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--white);
-    font-weight: 700;
-    font-size: 16px;
-    letter-spacing: 0.01em;
-  }
+  header { background: var(--navy); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .logo { display: flex; align-items: center; gap: 10px; color: var(--white); font-weight: 700; font-size: 16px; letter-spacing: 0.01em; }
   .logo-dot { width: 10px; height: 10px; background: var(--green); border-radius: 50%; }
-
   .header-right { display: flex; align-items: center; gap: 10px; }
-
-  .btn-update {
-    background: var(--green);
-    color: var(--navy-dark);
-    border: none;
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 0.15s;
-  }
+  .btn-update { background: var(--green); color: var(--navy-dark); border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
   .btn-update:hover { background: #55d490; }
   #file-input { display: none; }
+  .btn-planner { background: rgba(255,255,255,0.12); color: var(--white); border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+  .btn-planner:hover { background: rgba(255,255,255,0.22); }
+  .btn-concepten { background: var(--yellow); color: var(--navy-dark); border: none; border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .btn-concepten:hover { background: #ffe033; }
+
+  /* CONCEPTEN BANNER */
+  .concepten-banner { background: var(--yellow-dim); border-bottom: 2px solid var(--yellow); padding: 7px 20px; font-size: 12.5px; color: #7a6000; display: flex; align-items: center; gap: 10px; }
+  .cb-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; flex-shrink: 0; animation: pulse 1.5s infinite; }
+  .cb-dot.ok { background: #1a7a50; animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* CONCEPT INFOKAART */
+  .concept-card { background: var(--yellow-dim); border: 1.5px solid var(--yellow); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: flex-start; gap: 16px; }
+  .concept-card-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .concept-card-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9a7a00; margin-bottom: 4px; }
+  .concept-card-nr { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .concept-card-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 14px; flex-wrap: wrap; }
 
   /* MAIN LAYOUT */
   .app { display: flex; height: calc(100vh - 56px); }
 
   /* SIDEBAR */
-  .sidebar {
-    width: 320px;
-    min-width: 280px;
-    background: var(--white);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .search-box {
-    padding: 14px 14px 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .search-input-wrap {
-    position: relative;
-  }
-  .search-input-wrap svg {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-  }
-  #search {
-    width: 100%;
-    padding: 9px 9px 9px 34px;
-    border: 1.5px solid var(--border);
-    border-radius: 7px;
-    font-size: 14px;
-    color: var(--text);
-    background: var(--surface);
-    outline: none;
-    transition: border-color 0.15s;
-  }
+  .sidebar { width: 320px; min-width: 280px; background: var(--white); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .search-box { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+  .search-input-wrap { position: relative; }
+  .search-input-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+  #search { width: 100%; padding: 9px 9px 9px 34px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 14px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; }
   #search:focus { border-color: var(--navy); }
-  .search-count {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 5px;
-    padding-left: 2px;
-  }
-
-  .client-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 6px 0;
-  }
-  .client-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--surface2);
-    transition: background 0.1s;
-  }
+  .search-count { font-size: 11px; color: var(--text-muted); margin-top: 5px; padding-left: 2px; }
+  .client-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+  .client-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--surface2); transition: background 0.1s; }
   .client-item:hover { background: var(--surface); }
   .client-item.active { background: var(--green-dim); border-left: 3px solid var(--green); }
   .client-item.active .ci-name { color: var(--navy); font-weight: 700; }
+  .client-item.concept-match { background: rgba(255,207,0,0.10); border-left: 3px solid var(--yellow); }
   .ci-name { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3; }
   .ci-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
   .ci-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
 
   /* DETAIL PANEL */
-  .detail {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 28px;
-    background: var(--surface);
-  }
-
-  /* UPLOAD SCREEN */
-  .upload-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 20px;
-    text-align: center;
-  }
-  .upload-icon {
-    width: 72px; height: 72px;
-    background: var(--navy);
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--green);
-  }
+  .detail { flex: 1; overflow-y: auto; padding: 24px 28px; background: var(--surface); }
+  .upload-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 20px; text-align: center; }
+  .upload-icon { width: 72px; height: 72px; background: var(--navy); border-radius: 18px; display: flex; align-items: center; justify-content: center; color: var(--green); }
   .upload-screen h2 { color: var(--navy); font-size: 22px; }
   .upload-screen p { color: var(--text-muted); font-size: 14px; max-width: 340px; }
-  .btn-upload {
-    background: var(--navy);
-    color: var(--white);
-    border: none;
-    border-radius: 8px;
-    padding: 12px 24px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background 0.15s;
-  }
+  .btn-upload { background: var(--navy); color: var(--white); border: none; border-radius: 8px; padding: 12px 24px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
   .btn-upload:hover { background: var(--navy-light); }
-
-  /* EMPTY STATE */
-  .empty-detail {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 60%;
-    gap: 12px;
-    color: var(--text-muted);
-  }
+  .empty-detail { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60%; gap: 12px; color: var(--text-muted); }
   .empty-detail svg { opacity: 0.25; }
 
   /* CLIENT DETAIL */
-  .client-header {
-    background: var(--navy);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    color: var(--white);
-    margin-bottom: 20px;
-  }
+  .client-header { background: var(--navy); border-radius: var(--radius); padding: 20px 24px; color: var(--white); margin-bottom: 20px; }
   .ch-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
   .ch-meta { font-size: 13px; color: rgba(255,255,255,0.65); display: flex; gap: 16px; flex-wrap: wrap; }
   .ch-meta span { display: flex; align-items: center; gap: 4px; }
   .ch-badges { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* BADGES */
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10.5px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
   .badge-vaste { background: var(--yellow-dim); color: #9a7a00; border: 1px solid var(--yellow); }
   .badge-abo   { background: var(--green-dim); color: #1a7a50; border: 1px solid var(--green); }
   .badge-loon  { background: rgba(36,48,74,0.08); color: var(--navy); border: 1px solid var(--border); }
 
   /* SECTIONS */
-  .section {
-    background: var(--white);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 18px;
-    box-shadow: var(--shadow);
-  }
-  .section-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--white);
-    background: var(--navy);
-    padding: 11px 20px;
-    margin-bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+  .section { background: var(--white); border-radius: var(--radius); overflow: hidden; margin-bottom: 18px; box-shadow: var(--shadow); }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--white); background: var(--navy); padding: 11px 20px; margin-bottom: 0; display: flex; align-items: center; justify-content: space-between; }
   .section-title .row-count { color: rgba(255,255,255,0.55); }
   .section-body { padding: 16px 20px; }
-
-  /* FILTER BAR */
-  .filter-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .filter-select {
-    border: 1.5px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 13px;
-    color: var(--text);
-    background: var(--surface);
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .filter-select { border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; cursor: pointer; transition: border-color 0.15s; }
   .filter-select:focus { border-color: var(--navy); }
   .filter-label { font-size: 12px; color: var(--text-muted); }
-  .filter-clear {
-    background: none;
-    border: 1.5px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
+  .filter-clear { background: none; border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
   .filter-clear:hover { border-color: var(--navy); color: var(--navy); }
-
-  /* TABLE */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13.5px;
-  }
-  .data-table th {
-    background: var(--surface);
-    padding: 8px 10px;
-    text-align: left;
-    font-size: 11.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-  .data-table th.col-bedrag {
-    text-align: right;
-    background: var(--yellow-dim);
-    color: #7a6000;
-    min-width: 110px;
-  }
-  .data-table td {
-    padding: 10px 10px;
-    border-bottom: 1px solid var(--surface2);
-    vertical-align: middle;
-  }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .data-table th { background: var(--surface); padding: 8px 10px; text-align: left; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .data-table th.col-bedrag { text-align: right; background: var(--yellow-dim); color: #7a6000; min-width: 110px; }
+  .data-table td { padding: 10px 10px; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
   .data-table tbody tr:nth-child(even) td { background: rgba(36,48,74,0.035); }
-  .data-table tbody tr:nth-child(even):hover td { background: rgba(36,48,74,0.07); }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: rgba(36,48,74,0.06); }
-  .data-table tr.group-divider td { border-top: 2px solid var(--border); }
   .amount { font-weight: 700; font-size: 14.5px; text-align: right; white-space: nowrap; min-width: 110px; }
   .amount.pos { color: #1a7a50; }
-  .code-pill {
-    display: inline-block;
-    background: var(--surface2);
-    color: var(--text-muted);
-    border-radius: 4px;
-    padding: 1px 7px;
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-  }
+  .code-pill { display: inline-block; background: var(--surface2); color: var(--text-muted); border-radius: 4px; padding: 1px 7px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; }
+
   /* ACCORDION FACTUREN */
   .cat-block { margin-bottom: 4px; }
-  .cat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    background: rgba(36,48,74,0.05);
-    border-radius: 6px;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.15s;
-    border: 1px solid var(--border);
-  }
+  .cat-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(36,48,74,0.05); border-radius: 6px; cursor: pointer; user-select: none; transition: background 0.15s; border: 1px solid var(--border); }
   .cat-header:hover { background: rgba(36,48,74,0.10); }
   .cat-header.open { background: var(--green-dim); border-color: var(--green); border-radius: 6px 6px 0 0; }
   .cat-header-left { display: flex; align-items: center; gap: 10px; }
   .cat-header-total { font-size: 15px; font-weight: 700; color: #1a7a50; }
   .cat-header-count { font-size: 11.5px; color: var(--text-muted); }
   .cat-chevron { color: var(--text-muted); transition: transform 0.2s; font-size: 13px; }
+  .cat-header.open .cat-chevron { transform: rotate(180deg); }
+  .cat-body { display: none; border: 1px solid var(--green); border-top: none; border-radius: 0 0 6px 6px; overflow: hidden; }
+  .cat-body.open { display: block; }
+  .no-data { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+  .row-count { font-size: 11.5px; color: var(--text-muted); font-weight: 400; margin-left: 6px; }
   .clickable { cursor: pointer; }
   .clickable:hover td { background: rgba(107,224,161,0.10) !important; }
-  tr.cat-row.kb-focus td { background: rgba(107,224,161,0.18) !important; outline: none; }
-  .cat-header:focus { outline: none; }
-  .cat-header:focus-visible { outline: none; }
-  .cat-header:focus-within { outline: none; }
-  .cat-header.kb-focus {
-    box-shadow: 0 0 0 3px var(--green), inset 0 0 0 2px var(--navy);
-    border-radius: 6px;
-    position: relative;
-    z-index: 2;
-  }
-  .cat-header.open.kb-focus { border-radius: 6px 6px 0 0; }
-  .cat-header.open .cat-chevron { transform: rotate(180deg); }
-  .cat-body {
-    display: none;
-    border: 1px solid var(--green);
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    overflow: hidden;
-  }
-  .cat-body.open { display: block; }
 
-  .no-data {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
-    padding: 20px 0;
-  }
-  .row-count {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    font-weight: 400;
-    margin-left: 6px;
-  }
-
-  /* TOTAALREGEL */
-  .facturen-totaal {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 11px 16px;
-    background: var(--navy);
-    border-radius: 0 0 var(--radius) var(--radius);
-    margin-top: 6px;
-    font-size: 13px;
-    color: rgba(255,255,255,0.7);
-  }
+  /* FACTUREN TOTAAL */
+  .facturen-totaal { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--navy); border-radius: 0 0 var(--radius) var(--radius); margin-top: 6px; font-size: 13px; color: rgba(255,255,255,0.7); }
   .facturen-totaal strong { color: var(--green); font-size: 15px; }
   .facturen-jaar-totalen { display: flex; gap: 16px; flex-wrap: wrap; }
   .facturen-jaar-totalen span { font-size: 12px; }
   .facturen-jaar-totalen strong { font-size: 13px; }
-
-  /* JAAR FILTER FACTUREN */
-  .fact-filter-bar {
-    display: flex;
-    gap: 8px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  /* COPY BUTTON */
-  .copy-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text-muted);
-    font-size: 11px;
-    padding: 3px 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-  }
-  .copy-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--surface); }
-  .copy-btn.copied { color: #1a7a50; border-color: var(--green); background: var(--green-dim); }
-
-  /* KEYBOARD FOCUS */
-  .client-item:focus { outline: 2px solid var(--green); outline-offset: -2px; }
-
-  /* PLANNER BUTTON */
-  .btn-planner {
-    background: rgba(255,255,255,0.12);
-    color: var(--white);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 0.15s;
-  }
-  .btn-planner:hover { background: rgba(255,255,255,0.22); }
+  .fact-filter-bar { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
 
   /* STATUS SECTIE */
-  .status-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 14px 20px;
-  }
-  .status-card {
-    border-radius: 8px;
-    padding: 12px 14px;
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-  }
-  .status-card-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .status-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--surface2);
-    font-size: 13px;
-  }
+  .status-card { border-radius: 8px; padding: 12px 14px; border: 1.5px solid var(--border); background: var(--surface); }
+  .status-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .status-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--surface2); font-size: 13px; }
   .status-row:last-child { border-bottom: none; }
   .status-jaar { font-weight: 600; color: var(--navy); }
   .status-datum { font-size: 12px; color: var(--text-muted); }
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    white-space: nowrap;
-  }
+  .status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
   .sp-concept  { background: var(--yellow-dim); color: #9a7a00; border: 1px solid var(--yellow); }
   .sp-gereed   { background: rgba(107,224,161,0.15); color: #1a7a50; border: 1px solid var(--green); }
   .sp-dossier  { background: var(--navy); color: var(--white); }
   .sp-afgerond { background: var(--navy); color: var(--white); }
   .sp-bezig    { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
   .sp-factureren { background: var(--green); color: var(--navy-dark); font-weight: 800; }
+  .sp-nvt { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); font-style: italic; }
   .status-empty { font-size: 13px; color: var(--text-muted); font-style: italic; padding: 6px 0; }
 
-  /* PLANNER MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(26,35,54,0.55);
-    z-index: 200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal {
-    background: var(--white);
-    border-radius: 12px;
-    width: 820px;
-    max-width: 95vw;
-    max-height: 88vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.22);
-    overflow: hidden;
-  }
-  .modal-header {
-    background: var(--navy);
-    color: var(--white);
-    padding: 16px 22px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
+  /* TWEEKOLOMS */
+  .detail-top { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .detail-top .section { margin-bottom: 0; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,35,54,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--white); border-radius: 12px; width: 820px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.22); overflow: hidden; }
+  .modal-header { background: var(--navy); color: var(--white); padding: 16px 22px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .modal-header h2 { font-size: 16px; font-weight: 700; }
-  .modal-close {
-    background: none; border: none; color: rgba(255,255,255,0.7);
-    font-size: 22px; cursor: pointer; line-height: 1;
-  }
+  .modal-close { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 22px; cursor: pointer; line-height: 1; }
   .modal-close:hover { color: var(--white); }
-  .modal-toolbar {
-    padding: 12px 22px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
+  .modal-toolbar { padding: 12px 22px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
   .modal-body { overflow-y: auto; flex: 1; padding: 16px 22px; }
-  .planner-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--white);
-    background: var(--navy);
-    padding: 8px 14px;
-    border-radius: 6px 6px 0 0;
-    margin-top: 16px;
-    display: flex;
-    justify-content: space-between;
-  }
-  .planner-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    margin-bottom: 4px;
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    overflow: hidden;
-  }
-  .planner-table th {
-    background: var(--surface);
-    padding: 7px 10px;
-    text-align: left;
-    font-size: 11.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
-  }
-  .planner-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--surface2);
-    vertical-align: middle;
-  }
+  .modal-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .modal-tab { padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-muted); transition: all 0.15s; white-space: nowrap; }
+  .modal-tab:hover { color: var(--navy); }
+  .modal-tab.active { color: var(--navy); border-bottom-color: var(--green); }
+  .planner-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--white); background: var(--navy); padding: 8px 14px; border-radius: 6px 6px 0 0; margin-top: 16px; display: flex; justify-content: space-between; }
+  .planner-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; overflow: hidden; }
+  .planner-table th { background: var(--surface); padding: 7px 10px; text-align: left; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .planner-table td { padding: 8px 10px; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
   .planner-table tr:last-child td { border-bottom: none; }
   .planner-table tr:hover td { background: var(--surface); }
   .planner-empty { color: var(--text-muted); font-size: 13px; font-style: italic; padding: 10px 14px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; }
-
-  /* TWEEKOLOMS LAYOUT */
-  .detail-top {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 18px;
-  }
-  .detail-top .section { margin-bottom: 0; }
-  .detail-top-enkel { margin-bottom: 18px; }
-
-  /* WERKSTATUS BALK IN FACTUREN */
-  .fact-status-balk {
-    display: flex;
-    gap: 12px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    align-items: stretch;
-  }
-  .fact-status-jaar {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    min-width: 180px;
-    flex: 1;
-  }
-  .fact-status-jaar-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    margin-bottom: 2px;
-  }
-  .fact-status-regel {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 12.5px;
-  }
+  .status-overzicht-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .status-overzicht-table th { background: var(--surface); padding: 8px 10px; text-align: left; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 1; }
+  .status-overzicht-table td { padding: 8px 10px; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
+  .status-overzicht-table tr:hover td { background: var(--surface); cursor: pointer; }
+  .status-filter-bar { padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; flex-shrink: 0; }
+  .copy-btn { background: none; border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); font-size: 11px; padding: 3px 8px; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .copy-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--surface); }
+  .copy-btn.copied { color: #1a7a50; border-color: var(--green); background: var(--green-dim); }
+  .client-item:focus { outline: 2px solid var(--green); outline-offset: -2px; }
+  .cat-header:focus-visible { outline: none; }
+  .cat-header.kb-focus { box-shadow: 0 0 0 3px var(--green), inset 0 0 0 2px var(--navy); border-radius: 6px; position: relative; z-index: 2; }
+  .cat-header.open.kb-focus { border-radius: 6px 6px 0 0; }
+  tr.cat-row.kb-focus td { background: rgba(107,224,161,0.18) !important; outline: none; }
+  .fact-status-balk { display: flex; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: stretch; }
+  .fact-status-jaar { display: flex; flex-direction: column; gap: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-width: 180px; flex: 1; }
+  .fact-status-jaar-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .fact-status-regel { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; }
   .fact-status-type { color: var(--text-muted); font-weight: 500; min-width: 28px; }
   .fact-status-datum { font-size: 11.5px; color: var(--text-muted); }
-  .sp-nvt { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); font-style: italic; }
 
-  /* STATUS TABBLAD TABS */
-  .modal-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-  .modal-tab {
-    padding: 10px 20px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    color: var(--text-muted);
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .modal-tab:hover { color: var(--navy); }
-  .modal-tab.active { color: var(--navy); border-bottom-color: var(--green); }
+  /* ═══ PDF MODUS ═══ */
+  body.pdf-mode { background: #1e2640; }
+  .pdf-app { display: flex; flex-direction: column; height: 100vh; background: #1e2640; }
+  .pdf-header { background: var(--navy); height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .pdf-controls { background: var(--navy-dark); padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .pdf-klant-bar { padding: 10px 20px; font-size: 14px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 48px; border-bottom: 1px solid rgba(255,255,255,0.08); background: #252d45; color: rgba(255,255,255,0.85); transition: background 0.3s; }
+  .pdf-klant-bar.matched { background: #1c3828; }
+  .pdf-klant-bar.no-match { background: #3d2020; }
+  .pdf-canvas-wrap { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; background: #151b2e; }
+  .pdf-canvas-wrap canvas { box-shadow: 0 6px 32px rgba(0,0,0,0.6); display: block; }
+  .pdf-btn { background: rgba(255,255,255,0.12); color: var(--white); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .pdf-btn:hover { background: rgba(255,255,255,0.22); }
+  .pdf-btn:disabled { opacity: 0.35; cursor: default; }
+  .pdf-btn.green { background: var(--green); color: var(--navy-dark); font-weight: 700; border-color: var(--green); }
+  .pdf-btn.green:hover { background: #55d490; }
+  .pdf-page-input { width: 56px; text-align: center; padding: 5px 6px; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; font-size: 14px; font-weight: 700; background: rgba(255,255,255,0.1); color: var(--white); outline: none; }
+  .pdf-page-input:focus { border-color: var(--green); }
+  .pdf-sep { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 4px; flex-shrink: 0; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex-shrink: 0; }
+  .conn-dot.ok { background: var(--green); }
+  .conn-dot.searching { background: var(--yellow); animation: pulse 1.2s infinite; }
+  .klant-naam-big { font-size: 15px; font-weight: 700; color: var(--white); }
+  .klant-sub { font-size: 12px; color: rgba(255,255,255,0.5); }
+  .debit-pill { background: var(--green); color: var(--navy-dark); font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+  .concept-pill { background: var(--yellow); color: var(--navy-dark); font-size: 11.5px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+  .pdf-drop-overlay { position: absolute; inset: 0; background: rgba(107,224,161,0.15); border: 3px dashed var(--green); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--green); pointer-events: none; z-index: 10; }
 
-  /* STATUS OVERZICHT TABEL */
-  .status-overzicht-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-  .status-overzicht-table th {
-    background: var(--surface);
-    padding: 8px 10px;
-    text-align: left;
-    font-size: 11.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    border-bottom: 2px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-  .status-overzicht-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--surface2);
-    vertical-align: middle;
-  }
-  .status-overzicht-table tr:hover td { background: var(--surface); cursor: pointer; }
-  .status-filter-bar {
-    padding: 10px 16px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
+  /* HELP MODAL */
+  .help-btn { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 28px; height: 28px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .help-btn:hover { background: rgba(255,255,255,0.22); color: var(--white); }
+  .help-modal { background: var(--white); border-radius: 12px; width: 480px; max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,0.22); overflow: hidden; }
+  .help-steps { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .help-step { display: flex; gap: 14px; align-items: flex-start; }
+  .help-step-nr { width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: var(--white); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .help-step-body { font-size: 13.5px; color: var(--text); line-height: 1.5; }
+  .help-step-body strong { color: var(--navy); }
+  .help-tip { background: var(--green-dim); border: 1px solid var(--green); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #1a7a50; margin-top: 4px; }
 
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 5px; }
@@ -704,12 +252,20 @@
 </head>
 <body>
 
+<!-- ═══════════════════════════════════ NORMALE MODUS ═══════════════════════════════════ -->
+<div id="normal-app">
+
 <header>
   <div class="logo">
     <div class="logo-dot"></div>
     Join Administraties — Prijsafspraken
   </div>
   <div class="header-right">
+    <button class="btn-concepten" onclick="openConceptenVenster()" title="Open PDF-viewer in een nieuw venster">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Concepten PDF
+    </button>
+    <button class="help-btn" onclick="openHelp()" title="Hoe werkt de twee-schermen modus?">?</button>
     <button class="btn-planner" onclick="openStatus()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       Werkstatus
@@ -726,6 +282,12 @@
   </div>
 </header>
 
+<div id="concepten-banner" class="concepten-banner" style="display:none;">
+  <div class="cb-dot" id="banner-dot"></div>
+  <span id="banner-tekst">Concepten PDF-venster verbonden</span>
+  <span id="banner-concept" style="margin-left:auto;font-weight:700;"></span>
+</div>
+
 <div class="app">
   <div class="sidebar" id="sidebar">
     <div class="search-box">
@@ -741,35 +303,206 @@
   </div>
 
   <div class="detail" id="detail">
-    <!-- Upload screen -->
     <div class="upload-screen" id="upload-screen">
       <div class="upload-icon">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
       </div>
       <h2>Prijsafspraken laden</h2>
-      <p>Upload het Excel-bestand Prijsafspraken_v15.xlsx om te beginnen. De app leest de tabbladen Klanten Join, Prijzen en Facturen.</p>
+      <p>Upload het Excel-bestand om te beginnen. De app leest de tabbladen Klanten, Prijzen en Facturen.</p>
       <button class="btn-upload" onclick="document.getElementById('file-input').click()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Bestand uploaden
       </button>
     </div>
-
-    <!-- Empty selection -->
     <div class="empty-detail" id="empty-detail" style="display:none;">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       <span>Selecteer een klant in de lijst</span>
     </div>
-
-    <!-- Client detail -->
     <div id="client-detail" style="display:none;"></div>
   </div>
 </div>
 
+</div><!-- end #normal-app -->
+
+<!-- ═══════════════════════════════════ PDF MODUS ═══════════════════════════════════ -->
+<div id="pdf-app" class="pdf-app" style="display:none;">
+
+  <div class="pdf-header">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Concepten — PDF Viewer
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label" style="color:rgba(255,255,255,0.6);font-size:12px;">Klantpaneel niet verbonden</span>
+    </div>
+  </div>
+
+  <div class="pdf-controls">
+    <button class="pdf-btn green" onclick="document.getElementById('pdf-file-input').click()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      PDF laden
+    </button>
+    <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="loadPdf(this)">
+
+    <div class="pdf-sep"></div>
+
+    <button class="pdf-btn" id="btn-prev" onclick="prevPage()" disabled>← Vorige</button>
+    <input type="number" class="pdf-page-input" id="page-nr" min="1" value="1" onchange="goToPage(parseInt(this.value))">
+    <span id="page-total" style="color:rgba(255,255,255,0.5);font-size:13px;white-space:nowrap;">van —</span>
+    <button class="pdf-btn" id="btn-next" onclick="nextPage()" disabled>Volgende →</button>
+
+    <div class="pdf-sep"></div>
+
+    <button class="pdf-btn" onclick="changeZoom(-0.05)" title="Uitzoomen">−</button>
+    <span id="zoom-label" style="color:rgba(255,255,255,0.55);font-size:12px;min-width:36px;text-align:center;">100%</span>
+    <button class="pdf-btn" onclick="changeZoom(0.05)" title="Inzoomen">+</button>
+    <button class="pdf-btn" onclick="fitPage()" title="Aanpassen aan scherm">Fit</button>
+  </div>
+
+  <div class="pdf-klant-bar" id="pdf-klant-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <span style="color:rgba(255,255,255,0.4);font-size:13px;">Laad een PDF om te beginnen</span>
+  </div>
+
+  <div class="pdf-canvas-wrap" id="pdf-canvas-wrap">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:rgba(255,255,255,0.3);">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <div style="font-size:14px;">Nog geen PDF geladen</div>
+    </div>
+    <canvas id="pdf-canvas" style="display:none;"></canvas>
+  </div>
+
+</div><!-- end #pdf-app -->
+
 <script>
+// ═══════════════════ MODUS DETECTIE ═══════════════════
+const IS_PDF_MODE = new URLSearchParams(location.search).get('mode') === 'pdf';
+
+if (IS_PDF_MODE) {
+  document.getElementById('pdf-app').style.display = '';
+  document.getElementById('normal-app').style.display = 'none';
+  document.body.classList.add('pdf-mode');
+  document.title = 'Concepten PDF — Join Administraties';
+  initPdfViewer();
+} else {
+  document.getElementById('normal-app').style.display = '';
+}
+
+// ═══════════════════ BROADCASTCHANNEL ═══════════════════
+const channel = new BroadcastChannel('join-concepten-v30');
+let channelConnected = false;
+let _lastConceptInfo = null;
+
+if (!IS_PDF_MODE) {
+  // KLANTPANEEL: luistert naar berichten van PDF-viewer
+  channel.onmessage = e => {
+    const msg = e.data;
+    if (msg.type === 'ping') {
+      // PDF-viewer is actief
+      channelConnected = true;
+      updateBanner(true);
+      channel.postMessage({ type: 'pong', klanten: DATA.klanten.map(k => ({ id: k.id, naam: k.naam, oudNr: k.oudNr })) });
+    } else if (msg.type === 'debiteurnummer') {
+      handleConceptMatch(msg);
+    } else if (msg.type === 'disconnect') {
+      channelConnected = false;
+      updateBanner(false);
+    }
+  };
+
+  function updateBanner(connected) {
+    const banner = document.getElementById('concepten-banner');
+    const dot = document.getElementById('banner-dot');
+    const tekst = document.getElementById('banner-tekst');
+    if (connected) {
+      banner.style.display = '';
+      dot.classList.add('ok');
+      tekst.textContent = 'Concepten PDF-venster verbonden — navigeer in de PDF om klanten automatisch te selecteren';
+      // Verklein de app-hoogte om ruimte te maken voor de banner
+      const app = document.querySelector('.app');
+      if (app) app.style.height = 'calc(100vh - 56px - 34px)';
+    } else {
+      banner.style.display = 'none';
+      const app = document.querySelector('.app');
+      if (app) app.style.height = 'calc(100vh - 56px)';
+    }
+  }
+
+  function handleConceptMatch(msg) {
+    // msg: { type, debiteurnummer, conceptnr, naam, totaal, datum }
+    _lastConceptInfo = msg;
+
+    // Bijwerken banner
+    const bannerConcept = document.getElementById('banner-concept');
+    if (bannerConcept && msg.conceptnr) {
+      bannerConcept.textContent = msg.conceptnr + (msg.totaal ? ' · € ' + msg.totaal : '');
+    }
+
+    // Klant zoeken: VRCode → oudNr → naam
+    let klant = null;
+    if (msg.debiteurnummer) {
+      const nr = String(msg.debiteurnummer);
+      klant = DATA.klanten.find(k => k.id === nr)
+           || DATA.klanten.find(k => k.oudNr === nr);
+      console.log('[Concepten] debiteurnummer:', nr, '→', klant ? klant.naam : 'GEEN MATCH');
+    }
+    // Fallback: naam
+    if (!klant && msg.naam) {
+      const zoek = msg.naam.toLowerCase().trim();
+      klant = DATA.klanten.find(k => k.naam.toLowerCase() === zoek)
+           || DATA.klanten.find(k => k.naam.toLowerCase().includes(zoek.split(' ')[0]));
+    }
+
+    if (klant) {
+      selectClient(klant.id);
+      document.querySelector(`.client-item[data-id="${klant.id}"]`)?.scrollIntoView({ block: 'nearest' });
+      // Markeer als concept match
+      document.querySelectorAll('.client-item').forEach(el => el.classList.remove('concept-match'));
+      document.querySelector(`.client-item[data-id="${klant.id}"]`)?.classList.add('concept-match');
+    }
+  }
+} else {
+  // PDF-VIEWER: stuurt pings en debiteurnummers
+  channel.onmessage = e => {
+    const msg = e.data;
+    if (msg.type === 'pong') {
+      setPdfConnected(true);
+      if (msg.klanten) _pdfKlanten = msg.klanten;
+      // Stuur huidig debiteurnummer opnieuw — verbinding was er nog niet bij eerste render
+      if (_lastSentInfo) channel.postMessage({ type: 'debiteurnummer', ..._lastSentInfo });
+    }
+  };
+
+  // Stuur ping bij laden
+  setTimeout(() => {
+    channel.postMessage({ type: 'ping' });
+  }, 300);
+
+  window.addEventListener('beforeunload', () => {
+    channel.postMessage({ type: 'disconnect' });
+  });
+}
+
+// ═══════════════════ KLANTPANEEL: knop om PDF-venster te openen ═══════════════════
+function openConceptenVenster() {
+  const url = location.href.split('?')[0] + '?mode=pdf';
+  const popup = window.open(url, 'concepten-pdf', 'width=1000,height=900');
+  if (!popup) {
+    alert('Pop-up geblokkeerd. Sta pop-ups toe voor deze pagina en probeer opnieuw.');
+  }
+  // Na openen: stuur data als er al klanten geladen zijn
+  setTimeout(() => {
+    if (DATA.klanten.length) {
+      channel.postMessage({ type: 'data', klanten: DATA.klanten.map(k => ({ id: k.id, naam: k.naam, oudNr: k.oudNr })) });
+    }
+  }, 1000);
+}
+
+// ═══════════════════ DATA ═══════════════════
 let DATA = { klanten: [], prijzen: [], facturen: [], jaarrekening: [], ibvpb: [] };
 let selectedId = null;
 
-// ── FILE LOADING ────────────────────────────────────────────────────────────
 function loadFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -778,6 +511,10 @@ function loadFile(input) {
     const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
     parseWorkbook(wb);
     input.value = '';
+    // Stuur klanten naar eventueel open PDF-venster
+    if (DATA.klanten.length) {
+      channel.postMessage({ type: 'data', klanten: DATA.klanten.map(k => ({ id: k.id, naam: k.naam, oudNr: k.oudNr })) });
+    }
   };
   reader.readAsBinaryString(file);
 }
@@ -787,7 +524,7 @@ function isJaVeld(val) {
   if (typeof val === 'number') return !isNaN(val) && val !== 0;
   const s = String(val).trim().toLowerCase();
   if (s === '' || s === 'nan' || s === 'false' || s === '0') return false;
-  return true; // expliciet boolean true
+  return true;
 }
 
 function normId(val) {
@@ -803,101 +540,88 @@ function parseWorkbook(wb) {
   const fName   = wb.SheetNames.find(n => n.toLowerCase() === 'facturen');
   const jrName  = wb.SheetNames.find(n => n.toLowerCase() === 'jaarrekening');
   const ibName  = wb.SheetNames.find(n => n.toLowerCase() === 'ib_vpb');
+  const toRows  = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' }) : [];
 
-  const toRows = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' }) : [];
-
-  const rawK  = toRows(ksName);
-  const rawP  = toRows(pName);
-  const rawF  = toRows(fName);
-  const rawJR = toRows(jrName);
-  const rawIB = toRows(ibName);
-
-  // Normalize klanten
-  DATA.klanten = rawK.map(r => ({
-    id:          String(r['VRCode'] || '').trim(),
-    naam:        String(r['Naam'] || '').trim(),
-    rechtsvorm:  String(r['Rechtsvorm'] || '').trim(),
-    oudNr:       String(r['Oud klantnummer'] || '').trim(),
-    vasteprijs:  isJaVeld(r['Vaste Prijs']),
-    abonnement:  isJaVeld(r['Abonnement']),
-    loon:        isJaVeld(r['Loon']) || isJaVeld(r['Salaris']),
+  DATA.klanten = toRows(ksName).map(r => ({
+    id:         String(r['VRCode'] || '').trim(),
+    naam:       String(r['Naam'] || '').trim(),
+    rechtsvorm: String(r['Rechtsvorm'] || '').trim(),
+    oudNr:      String(r['Oud klantnummer'] || '').trim(),
+    vasteprijs: isJaVeld(r['Vaste Prijs']),
+    abonnement: isJaVeld(r['Abonnement']),
+    loon:       isJaVeld(r['Loon']) || isJaVeld(r['Salaris']),
   })).filter(r => r.id && r.naam);
 
-  // Normalize prijzen
-  DATA.prijzen = rawP.map(r => ({
-    klantId:    normId(r['VRCode']),
-    naam:       String(r['Naam'] || '').trim(),
-    begin:      formatDate(r['Begin']),
-    beginRaw:   parseRawDate(r['Begin']),
-    prijs:      parseFloat(r['Vrk.prijs']) || 0,
-    jaar:       String(r['Jaar'] || '').trim(),
-    code:       String(r['Code'] || '').trim(),
-    item:       String(r['Item'] || '').trim(),
+  DATA.prijzen = toRows(pName).map(r => ({
+    klantId:  normId(r['VRCode']),
+    naam:     String(r['Naam'] || '').trim(),
+    begin:    formatDate(r['Begin']),
+    beginRaw: parseRawDate(r['Begin']),
+    prijs:    parseFloat(r['Vrk.prijs']) || 0,
+    jaar:     String(r['Jaar'] || '').trim(),
+    code:     String(r['Code'] || '').trim(),
+    item:     String(r['Item'] || '').trim(),
   })).filter(r => r.klantId);
 
-  // Normalize facturen — only relevant categories
   const CATS = ['Jaar', 'IB', 'Vpb', 'Loon', 'Abonnement', 'Advies', 'Admin', 'Overig'];
-  DATA.facturen = rawF.map(r => ({
-    klantId:    normId(r['VRCode']),
-    factuurnr:  String(r['Factuurnr.'] || '').trim(),
-    datum:      formatDate(r['Datum']),
-    datumRaw:   parseRawDate(r['Datum']),
-    code:       String(r['Code'] || '').trim(),
+  DATA.facturen = toRows(fName).map(r => ({
+    klantId:     normId(r['VRCode']),
+    factuurnr:   String(r['Factuurnr.'] || '').trim(),
+    datum:       formatDate(r['Datum']),
+    datumRaw:    parseRawDate(r['Datum']),
+    code:        String(r['Code'] || '').trim(),
     omschrijving: String(r['Omschrijving'] || '').trim(),
-    jaar:       String(r['Jaar'] || '').trim(),
-    bedrag:     parseFloat(r['Bedrag']) || 0,
-    categorie:  String(r['Categorie'] || '').trim(),
+    jaar:        String(r['Jaar'] || '').trim(),
+    bedrag:      parseFloat(r['Bedrag']) || 0,
+    categorie:   String(r['Categorie'] || '').trim(),
   })).filter(r => r.klantId && CATS.includes(r.categorie));
 
-  // Normalize Jaarrekening
-  DATA.jaarrekening = rawJR.map(r => ({
-    klantId:            normId(r['VRCode']),
-    naam:               String(r['Naam'] || '').trim(),
-    jaar:               String(r['Jaar'] || '').trim(),
-    opgevraagd:         parseRawDate(r['Opgevraagd']),
-    herinnerd:          parseRawDate(r['Herinnerd']),
-    gebeld:             parseRawDate(r['Gebeld']),
-    toegezegd:          parseRawDate(r['Inleveren_toegezegd']),
-    ontvangen:          parseRawDate(r['Ontvangen']),
-    boekenStart:        parseRawDate(r['BoekenStart']),
-    boekenKlaar:        parseRawDate(r['BoekenKlaar']),
-    startJaarr:         parseRawDate(r['StartJaarr']),
-    concept:            parseRawDate(r['Concept']),
-    gereed:             parseRawDate(r['Gereed']),
-    dossier:            parseRawDate(r['Dossier']),
-    opgevraagdFmt:      formatDate(r['Opgevraagd']),
-    herinnerdFmt:       formatDate(r['Herinnerd']),
-    gebeldFmt:          formatDate(r['Gebeld']),
-    toegezegdFmt:       formatDate(r['Inleveren_toegezegd']),
-    ontvangenFmt:       formatDate(r['Ontvangen']),
-    boekenStartFmt:     formatDate(r['BoekenStart']),
-    boekenKlaarFmt:     formatDate(r['BoekenKlaar']),
-    startJarrFmt:       formatDate(r['StartJaarr']),
-    conceptFmt:         formatDate(r['Concept']),
-    gereedFmt:          formatDate(r['Gereed']),
-    dossierFmt:         formatDate(r['Dossier']),
+  DATA.jaarrekening = toRows(jrName).map(r => ({
+    klantId:        normId(r['VRCode']),
+    naam:           String(r['Naam'] || '').trim(),
+    jaar:           String(r['Jaar'] || '').trim(),
+    opgevraagd:     parseRawDate(r['Opgevraagd']),
+    herinnerd:      parseRawDate(r['Herinnerd']),
+    gebeld:         parseRawDate(r['Gebeld']),
+    toegezegd:      parseRawDate(r['Inleveren_toegezegd']),
+    ontvangen:      parseRawDate(r['Ontvangen']),
+    boekenStart:    parseRawDate(r['BoekenStart']),
+    boekenKlaar:    parseRawDate(r['BoekenKlaar']),
+    startJaarr:     parseRawDate(r['StartJaarr']),
+    concept:        parseRawDate(r['Concept']),
+    gereed:         parseRawDate(r['Gereed']),
+    dossier:        parseRawDate(r['Dossier']),
+    opgevraagdFmt:  formatDate(r['Opgevraagd']),
+    herinnerdFmt:   formatDate(r['Herinnerd']),
+    gebeldFmt:      formatDate(r['Gebeld']),
+    toegezegdFmt:   formatDate(r['Inleveren_toegezegd']),
+    ontvangenFmt:   formatDate(r['Ontvangen']),
+    boekenStartFmt: formatDate(r['BoekenStart']),
+    boekenKlaarFmt: formatDate(r['BoekenKlaar']),
+    startJarrFmt:   formatDate(r['StartJaarr']),
+    conceptFmt:     formatDate(r['Concept']),
+    gereedFmt:      formatDate(r['Gereed']),
+    dossierFmt:     formatDate(r['Dossier']),
   })).filter(r => r.klantId && r.jaar);
 
-  // Normalize IB_Vpb
-  DATA.ibvpb = rawIB.map(r => ({
-    klantId:            normId(r['VRCode']),
-    naam:               String(r['Naam'] || '').trim(),
-    jaar:               String(r['Jaar'] || '').trim(),
-    type:               String(r['IB/Vpb'] || '').trim(),
-    status:             String(r['Status aangifte'] || '').trim(),
-    gegevensOntvangen:  parseRawDate(r['Gegevens ontvangen']),
-    jaarrekeningGereed: parseRawDate(r['Jaarrekening gereed']),
-    gegevensCompleet:   parseRawDate(r['Gegevens compleet']),
-    verstuurdClient:    parseRawDate(r['Aangifte verstuurd aan cliënt']),
-    verstuurdBD:        parseRawDate(r['Aangifte verstuurd aan belastingdienst']),
-    gegevensOntvangenFmt:  formatDate(r['Gegevens ontvangen']),
-    jaarrekeningGereedFmt: formatDate(r['Jaarrekening gereed']),
-    gegevensCompleetFmt:   formatDate(r['Gegevens compleet']),
-    verstuurdClientFmt:    formatDate(r['Aangifte verstuurd aan cliënt']),
-    verstuurdBDFmt:        formatDate(r['Aangifte verstuurd aan belastingdienst']),
+  DATA.ibvpb = toRows(ibName).map(r => ({
+    klantId:              normId(r['VRCode']),
+    naam:                 String(r['Naam'] || '').trim(),
+    jaar:                 String(r['Jaar'] || '').trim(),
+    type:                 String(r['IB/Vpb'] || '').trim(),
+    status:               String(r['Status aangifte'] || '').trim(),
+    gegevensOntvangen:    parseRawDate(r['Gegevens ontvangen']),
+    jaarrekeningGereed:   parseRawDate(r['Jaarrekening gereed']),
+    gegevensCompleet:     parseRawDate(r['Gegevens compleet']),
+    verstuurdClient:      parseRawDate(r['Aangifte verstuurd aan cliënt']),
+    verstuurdBD:          parseRawDate(r['Aangifte verstuurd aan belastingdienst']),
+    gegevensOntvangenFmt:    formatDate(r['Gegevens ontvangen']),
+    jaarrekeningGereedFmt:   formatDate(r['Jaarrekening gereed']),
+    gegevensCompleetFmt:     formatDate(r['Gegevens compleet']),
+    verstuurdClientFmt:      formatDate(r['Aangifte verstuurd aan cliënt']),
+    verstuurdBDFmt:          formatDate(r['Aangifte verstuurd aan belastingdienst']),
   })).filter(r => r.klantId && r.jaar);
 
-  // Compute omzet per klant per jaar for sidebar (show last 3 years)
   const thisYear = new Date().getFullYear();
   const omzetMap = {};
   for (const f of DATA.facturen) {
@@ -921,20 +645,14 @@ function parseWorkbook(wb) {
   renderClientList(DATA.klanten);
 }
 
-function excelSerialToMs(n) {
-  return (n - 25569) * 86400000;
-}
-
+function excelSerialToMs(n) { return (n - 25569) * 86400000; }
 function parseDateStr(s) {
-  // dd-mm-yyyy or dd/mm/yyyy
   const m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
   if (m) return new Date(+m[3], +m[2]-1, +m[1]);
-  // yyyy-mm-dd
   const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
   return new Date(s);
 }
-
 function parseRawDate(val) {
   if (!val) return 0;
   if (val instanceof Date) return val.getTime();
@@ -943,7 +661,6 @@ function parseRawDate(val) {
   const d = parseDateStr(String(val));
   return isNaN(d) ? 0 : d.getTime();
 }
-
 function formatDate(val) {
   if (!val) return '';
   if (val instanceof Date) return val.toLocaleDateString('nl-NL');
@@ -954,7 +671,7 @@ function formatDate(val) {
   return String(val);
 }
 
-// ── CLIENT LIST ─────────────────────────────────────────────────────────────
+// ═══════════════════ CLIENT LIST ═══════════════════
 function renderClientList(clients) {
   const list = document.getElementById('client-list');
   const count = document.getElementById('search-count');
@@ -965,16 +682,16 @@ function renderClientList(clients) {
   }
   count.textContent = `${clients.length} klant${clients.length !== 1 ? 'en' : ''}`;
   list.innerHTML = clients.map(c => `
-    <div class="client-item${c.id === selectedId ? ' active' : ''}" onclick="selectClient('${c.id}')" data-id="${c.id}">
+    <div class="client-item${c.id === selectedId ? ' active' : ''}" onclick="selectClient('${c.id}')" data-id="${c.id}" tabindex="0">
       <div class="ci-name">${esc(c.naam)}</div>
       <div class="ci-meta">
         <span>${c.id}</span>
         ${c.oudNr ? `<span>· oud: ${c.oudNr}</span>` : ''}
       </div>
       <div class="ci-badges">
-        ${c.vasteprijs ? badgeHTML('vaste', 'Vaste prijs') : ''}
-        ${c.abonnement ? badgeHTML('abo', 'Abonnement') : ''}
-        ${c.loon ? badgeHTML('loon', 'Loon') : ''}
+        ${c.vasteprijs ? '<span class="badge badge-vaste">Vaste prijs</span>' : ''}
+        ${c.abonnement ? '<span class="badge badge-abo">Abonnement</span>' : ''}
+        ${c.loon ? '<span class="badge badge-loon">Loon</span>' : ''}
       </div>
       ${c._omzetJaren ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
         ${c._omzetJaren.map(o => `<span>${o.jaar}: <strong style="color:var(--navy);">€ ${fmtNum(o.bedrag)}</strong></span>`).join('')}
@@ -983,51 +700,97 @@ function renderClientList(clients) {
   `).join('');
 }
 
-function filterClients() { filterClients_extended(); }
-
-function badgeHTML(type, label) {
-  return `<span class="badge badge-${type}">${label}</span>`;
+let _filteredClients = [];
+function filterClients_extended() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  if (!q) {
+    _filteredClients = DATA.klanten;
+    renderClientList(_filteredClients);
+    return;
+  }
+  const factMatch = DATA.facturen.find(f => f.factuurnr.toLowerCase() === q);
+  if (factMatch) {
+    _filteredClients = DATA.klanten.filter(c => c.id === factMatch.klantId);
+    renderClientList(_filteredClients);
+    if (_filteredClients.length === 1) selectClient(_filteredClients[0].id);
+    return;
+  }
+  _filteredClients = DATA.klanten.filter(c =>
+    c.naam.toLowerCase().includes(q) || c.id.includes(q) || c.oudNr.includes(q)
+  );
+  renderClientList(_filteredClients);
+  if (_filteredClients.length === 1) selectClient(_filteredClients[0].id);
 }
 
-// ── CLIENT DETAIL ───────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('keydown', e => {
+  if (!DATA.klanten.length) return;
+  const list = _filteredClients.length ? _filteredClients : DATA.klanten;
+  const idx = list.findIndex(c => c.id === selectedId);
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = list[Math.min(idx + 1, list.length - 1)];
+    if (next) { selectClient(next.id); document.querySelector(`.client-item[data-id="${next.id}"]`)?.scrollIntoView({ block: 'nearest' }); }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const prev = list[Math.max(idx - 1, 0)];
+    if (prev) { selectClient(prev.id); document.querySelector(`.client-item[data-id="${prev.id}"]`)?.scrollIntoView({ block: 'nearest' }); }
+  } else if (e.key === 'Escape') {
+    document.getElementById('search').value = ''; filterClients_extended();
+  }
+});
+
+// ═══════════════════ CLIENT DETAIL ═══════════════════
 function selectClient(id) {
   selectedId = id;
-  // Update active state
   document.querySelectorAll('.client-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id);
+    if (el.dataset.id !== id) el.classList.remove('concept-match');
   });
 
   const k = DATA.klanten.find(c => c.id === id);
   if (!k) return;
 
   const prijzen = DATA.prijzen.filter(p => p.klantId === id).sort((a,b) => b.beginRaw - a.beginRaw);
-  const facturen = DATA.facturen
-    .filter(f => f.klantId === id)
-    .sort((a,b) => b.datumRaw - a.datumRaw)
-    ;
-
-  // Build unique filter options
+  const facturen = DATA.facturen.filter(f => f.klantId === id).sort((a,b) => b.datumRaw - a.datumRaw);
   const codes = [...new Set(prijzen.map(p => p.code).filter(Boolean))].sort();
   const jaren = [...new Set(prijzen.map(p => p.jaar).filter(Boolean))].sort((a,b) => b-a);
 
   document.getElementById('empty-detail').style.display = 'none';
   const det = document.getElementById('client-detail');
   det.style.display = '';
+
+  // Conceptinfokaart (alleen tonen als er een actief concept is voor dit debiteurnummer)
+  let conceptCardHtml = '';
+  if (_lastConceptInfo && k.oudNr && k.oudNr === String(_lastConceptInfo.debiteurnummer)) {
+    const ci = _lastConceptInfo;
+    conceptCardHtml = `
+      <div class="concept-card">
+        <div class="concept-card-icon">📄</div>
+        <div>
+          <div class="concept-card-label">Huidig concept in PDF</div>
+          <div class="concept-card-nr">${esc(ci.conceptnr || '—')}</div>
+          <div class="concept-card-meta">
+            ${ci.totaal ? `<span>Totaal: <strong>€ ${esc(ci.totaal)}</strong></span>` : ''}
+            ${ci.datum ? `<span>Datum: ${esc(ci.datum)}</span>` : ''}
+            ${ci.debiteurnummer ? `<span>Debiteur: ${esc(ci.debiteurnummer)}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
   det.innerHTML = `
+    ${conceptCardHtml}
     <div class="client-header">
       <div class="ch-name">${esc(k.naam)}</div>
       <div class="ch-meta">
-        <span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Klantnummer: <strong>${k.id}</strong>
-        </span>
+        <span>Klantnummer: <strong>${k.id}</strong></span>
         ${k.oudNr ? `<span>Oud nr: ${k.oudNr}</span>` : ''}
         ${k.rechtsvorm ? `<span>${esc(k.rechtsvorm)}</span>` : ''}
       </div>
       <div class="ch-badges">
-        ${k.vasteprijs === true ? `<span class="badge badge-vaste">Vaste prijs</span>` : ''}
-        ${k.abonnement === true ? `<span class="badge badge-abo">Abonnement</span>` : ''}
-        ${k.loon === true ? `<span class="badge badge-loon">Loon</span>` : ''}
+        ${k.vasteprijs ? '<span class="badge badge-vaste">Vaste prijs</span>' : ''}
+        ${k.abonnement ? '<span class="badge badge-abo">Abonnement</span>' : ''}
+        ${k.loon ? '<span class="badge badge-loon">Loon</span>' : ''}
       </div>
     </div>
 
@@ -1038,25 +801,22 @@ function selectClient(id) {
           <span class="row-count" id="prijzen-count">${prijzen.length} rij${prijzen.length!==1?'en':''}</span>
         </div>
         <div class="section-body">
-        <div class="filter-bar">
-          <span class="filter-label">Code</span>
-          <select class="filter-select" id="filter-code" onchange="applyPrijzenFilter('${id}')">
-            <option value="">Alle</option>
-            ${codes.map(c => `<option value="${c}">${c}</option>`).join('')}
-          </select>
-          <span class="filter-label">Jaar</span>
-          <select class="filter-select" id="filter-jaar" onchange="applyPrijzenFilter('${id}')">
-            <option value="">Alle</option>
-            ${jaren.map(j => `<option value="${j}">${j}</option>`).join('')}
-          </select>
-          <button class="filter-clear" onclick="clearFilters('${id}')">Wis filters</button>
-        </div>
-        <div id="prijzen-table">
-          ${renderPrijzenTable(prijzen)}
-        </div>
+          <div class="filter-bar">
+            <span class="filter-label">Code</span>
+            <select class="filter-select" id="filter-code" onchange="applyPrijzenFilter('${id}')">
+              <option value="">Alle</option>
+              ${codes.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <span class="filter-label">Jaar</span>
+            <select class="filter-select" id="filter-jaar" onchange="applyPrijzenFilter('${id}')">
+              <option value="">Alle</option>
+              ${jaren.map(j => `<option value="${j}">${j}</option>`).join('')}
+            </select>
+            <button class="filter-clear" onclick="clearFilters('${id}')">Wis</button>
+          </div>
+          <div id="prijzen-table">${renderPrijzenTable(prijzen)}</div>
         </div>
       </div>
-
       ${renderStatusSectie(id)}
     </div>
 
@@ -1069,16 +829,12 @@ function selectClient(id) {
         <span class="filter-label">Jaar</span>
         <select class="filter-select" id="filter-fact-jaar" onchange="applyFacturenFilter('${id}')">
           <option value="">Alle</option>
-          ${[...new Set(facturen.map(f => {
-            try { return String(Math.round(parseFloat(f.jaar))); } catch(e) { return ''; }
-          }).filter(Boolean))].sort((a,b) => b-a).map(j => `<option value="${j}">${j}</option>`).join('')}
+          ${[...new Set(facturen.map(f => { try { return String(Math.round(parseFloat(f.jaar))); } catch(e) { return ''; } }).filter(Boolean))].sort((a,b) => b-a).map(j => `<option value="${j}">${j}</option>`).join('')}
         </select>
         <button class="filter-clear" onclick="clearFacturenFilter('${id}')">Wis</button>
       </div>
       <div id="facturen-samenvatting">${renderFacturenSamenvatting(facturen)}</div>
-      <div class="section-body" id="facturen-body">
-      ${renderFacturenTable(facturen)}
-      </div>
+      <div class="section-body" id="facturen-body">${renderFacturenTable(facturen)}</div>
       <div id="facturen-totaal-balk">${renderFacturenTotaalBalk(facturen)}</div>
     </div>
   `;
@@ -1093,13 +849,11 @@ function applyPrijzenFilter(id) {
   document.getElementById('prijzen-table').innerHTML = renderPrijzenTable(prijzen);
   document.getElementById('prijzen-count').textContent = `${prijzen.length} rij${prijzen.length!==1?'en':''}`;
 }
-
 function clearFilters(id) {
   document.getElementById('filter-code').value = '';
   document.getElementById('filter-jaar').value = '';
   applyPrijzenFilter(id);
 }
-
 function applyFacturenFilter(id) {
   const jaar = document.getElementById('filter-fact-jaar').value;
   let facturen = DATA.facturen.filter(f => f.klantId === id).sort((a,b) => b.datumRaw - a.datumRaw);
@@ -1109,7 +863,6 @@ function applyFacturenFilter(id) {
   document.getElementById('facturen-totaal-balk').innerHTML = renderFacturenTotaalBalk(facturen);
   document.getElementById('fact-count').textContent = `${facturen.length} factuur${facturen.length!==1?'uren':''}`;
 }
-
 function clearFacturenFilter(id) {
   document.getElementById('filter-fact-jaar').value = '';
   applyFacturenFilter(id);
@@ -1151,117 +904,75 @@ function renderFacturenTotaalBalk(facturen) {
 
 function renderPrijzenTable(rows) {
   if (!rows.length) return '<div class="no-data">Geen prijsafspraken gevonden.</div>';
-  return `
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Jaar</th>
-          <th>Item</th>
-          <th>Ingangsdatum</th>
-          <th>Prijs</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td><span class="code-pill">${esc(r.code)}</span></td>
-            <td>${esc(r.jaar)}</td>
-            <td>${esc(r.item)}</td>
-            <td>${esc(r.begin)}</td>
-            <td class="amount pos">€ ${fmtNum(r.prijs)}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+  return `<table class="data-table"><thead><tr>
+    <th>Code</th><th>Jaar</th><th>Item</th><th>Ingangsdatum</th><th>Prijs</th>
+  </tr></thead><tbody>
+    ${rows.map(r => `<tr>
+      <td><span class="code-pill">${esc(r.code)}</span></td>
+      <td>${esc(r.jaar)}</td>
+      <td>${esc(r.item)}</td>
+      <td>${esc(r.begin)}</td>
+      <td class="amount pos">€ ${fmtNum(r.prijs)}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
 }
 
 function renderFacturenTable(rows) {
   if (!rows.length) return '<div class="no-data">Geen facturen gevonden.</div>';
-
-  // Level 1: group by factuurnr
   const byFact = {};
   for (const r of rows) {
-    if (!byFact[r.factuurnr]) {
-      byFact[r.factuurnr] = { factuurnr: r.factuurnr, datum: r.datum, datumRaw: r.datumRaw, regels: [] };
-    }
+    if (!byFact[r.factuurnr]) byFact[r.factuurnr] = { factuurnr: r.factuurnr, datum: r.datum, datumRaw: r.datumRaw, regels: [] };
     byFact[r.factuurnr].regels.push(r);
   }
-
-  // Sort facturen by date desc
-  const facturen = Object.values(byFact).sort((a, b) => b.datumRaw - a.datumRaw);
-
-  const CAT_ORDER = ['Jaar', 'IB', 'Vpb', 'Loon', 'Abonnement', 'Advies', 'Admin', 'Overig'];
-
+  const facturen = Object.values(byFact).sort((a,b) => b.datumRaw - a.datumRaw);
+  const CAT_ORDER = ['Jaar','IB','Vpb','Loon','Abonnement','Advies','Admin','Overig'];
   let html = '';
   facturen.forEach((f, fi) => {
-    const totaal = f.regels.reduce((s, r) => s + r.bedrag, 0);
+    const totaal = f.regels.reduce((s,r) => s + r.bedrag, 0);
     const factId = 'fact-' + fi + '-' + f.factuurnr;
-
-    // Level 2: group regels by categorie
     const byCat = {};
-    for (const r of f.regels) {
-      if (!byCat[r.categorie]) byCat[r.categorie] = [];
-      byCat[r.categorie].push(r);
-    }
-    const cats = CAT_ORDER.filter(c => byCat[c]).concat(
-      Object.keys(byCat).filter(c => !CAT_ORDER.includes(c))
-    );
-
+    for (const r of f.regels) { if (!byCat[r.categorie]) byCat[r.categorie] = []; byCat[r.categorie].push(r); }
+    const cats = CAT_ORDER.filter(c => byCat[c]).concat(Object.keys(byCat).filter(c => !CAT_ORDER.includes(c)));
     const catHtml = cats.map((cat, ci) => {
       const catRegels = byCat[cat];
-      const catTotaal = catRegels.reduce((s, r) => s + r.bedrag, 0);
+      const catTotaal = catRegels.reduce((s,r) => s + r.bedrag, 0);
       const catId = factId + '-cat-' + ci;
       const meerdere = catRegels.length > 1;
-
-      const subRows = catRegels.map(r => `
-        <tr style="background:rgba(107,224,161,0.06);">
-          <td style="padding-left:32px;font-size:12.5px;color:var(--text-muted);">${esc(r.omschrijving)}</td>
-          <td style="font-size:12.5px;color:var(--text-muted);">${esc(r.jaar)}</td>
-          <td class="amount" style="font-size:12.5px;color:var(--text-muted);">€ ${fmtNum(r.bedrag)}</td>
-        </tr>`).join('');
-
-      return `
-        <tr class="cat-row${meerdere ? ' clickable' : ''}" ${meerdere ? `onclick="toggleSub('${catId}')"` : ''} style="border-top:1px solid var(--surface2);">
-          <td style="padding-left:16px;">
-            <span class="code-pill">${esc(cat)}</span>
-            ${meerdere ? `<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">${catRegels.length} regels</span>` : `<span style="font-size:12.5px;color:var(--text-muted);margin-left:6px;">${esc(catRegels[0].omschrijving)}</span>`}
-          </td>
-          <td style="font-size:12.5px;">${esc(catRegels[0].jaar)}</td>
-          <td class="amount pos">€ ${fmtNum(catTotaal)}${meerdere ? ` <span id="${catId}-chev" style="font-size:10px;margin-left:4px;color:var(--text-muted);">▼</span>` : ''}</td>
-        </tr>
-        ${meerdere ? `<tbody id="${catId}" style="display:none;">${subRows}</tbody>` : ''}`;
+      const subRows = catRegels.map(r => `<tr style="background:rgba(107,224,161,0.06);">
+        <td style="padding-left:32px;font-size:12.5px;color:var(--text-muted);">${esc(r.omschrijving)}</td>
+        <td style="font-size:12.5px;color:var(--text-muted);">${esc(r.jaar)}</td>
+        <td class="amount" style="font-size:12.5px;color:var(--text-muted);">€ ${fmtNum(r.bedrag)}</td>
+      </tr>`).join('');
+      return `<tr class="cat-row${meerdere?' clickable':''}" ${meerdere?`onclick="toggleSub('${catId}')"`:''}  style="border-top:1px solid var(--surface2);">
+        <td style="padding-left:16px;">
+          <span class="code-pill">${esc(cat)}</span>
+          ${meerdere ? `<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">${catRegels.length} regels</span>`
+                     : `<span style="font-size:12.5px;color:var(--text-muted);margin-left:6px;">${esc(catRegels[0].omschrijving)}</span>`}
+        </td>
+        <td style="font-size:12.5px;">${esc(catRegels[0].jaar)}</td>
+        <td class="amount pos">€ ${fmtNum(catTotaal)}${meerdere?`<span id="${catId}-chev" style="font-size:10px;margin-left:4px;color:var(--text-muted);">▼</span>`:''}</td>
+      </tr>
+      ${meerdere ? `<tbody id="${catId}" style="display:none;">${subRows}</tbody>` : ''}`;
     }).join('');
-
-    html += `
-      <div class="cat-block" data-factid="${factId}">
-        <div class="cat-header" tabindex="0" data-factid="${factId}"
-          onclick="toggleCat('${factId}')"
-          onkeydown="handleFactuurKey(event,'${factId}')">
-          <div class="cat-header-left">
-            <span style="font-size:13px;font-weight:600;color:var(--navy)">${esc(f.datum)}</span>
-            <span class="code-pill">${esc(f.factuurnr)}</span>
-            <span class="cat-header-count">${f.regels.length} regel${f.regels.length !== 1 ? 's' : ''}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span class="cat-header-total">€ ${fmtNum(totaal)}</span>
-            <span class="cat-chevron">▼</span>
-          </div>
+    html += `<div class="cat-block" data-factid="${factId}">
+      <div class="cat-header" tabindex="0" data-factid="${factId}" onclick="toggleCat('${factId}')" onkeydown="handleFactuurKey(event,'${factId}')">
+        <div class="cat-header-left">
+          <span style="font-size:13px;font-weight:600;color:var(--navy)">${esc(f.datum)}</span>
+          <span class="code-pill">${esc(f.factuurnr)}</span>
+          <span class="cat-header-count">${f.regels.length} regel${f.regels.length !== 1 ? 's' : ''}</span>
         </div>
-        <div class="cat-body" id="${factId}">
-          <table class="data-table" style="margin:0;">
-            <thead>
-              <tr>
-                <th>Categorie / Omschrijving</th>
-                <th>Jaar</th>
-                <th class="col-bedrag">Bedrag</th>
-              </tr>
-            </thead>
-            ${catHtml}
-          </table>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="cat-header-total">€ ${fmtNum(totaal)}</span>
+          <span class="cat-chevron">▼</span>
         </div>
-      </div>`;
+      </div>
+      <div class="cat-body" id="${factId}">
+        <table class="data-table" style="margin:0;">
+          <thead><tr><th>Categorie / Omschrijving</th><th>Jaar</th><th class="col-bedrag">Bedrag</th></tr></thead>
+          ${catHtml}
+        </table>
+      </div>
+    </div>`;
   });
   return html;
 }
@@ -1272,7 +983,6 @@ function toggleCat(id) {
   body.classList.toggle('open');
   header.classList.toggle('open');
 }
-
 function toggleSub(id) {
   const tbody = document.getElementById(id);
   const chev = document.getElementById(id + '-chev');
@@ -1281,202 +991,24 @@ function toggleSub(id) {
   if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
 }
 
-// ── KEYBOARD NAVIGATION ────────────────────────────────────────────────────
-let _filteredClients = [];
-
-function filterClients_extended() {
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  if (!q) {
-    _filteredClients = DATA.klanten;
-    renderClientList(_filteredClients);
-    return;
-  }
-  // Check if query matches a factuurnummer
-  const factMatch = DATA.facturen.find(f => f.factuurnr.toLowerCase() === q);
-  if (factMatch) {
-    _filteredClients = DATA.klanten.filter(c => c.id === factMatch.klantId);
-    renderClientList(_filteredClients);
-    if (_filteredClients.length === 1) selectClient(_filteredClients[0].id);
-    return;
-  }
-  _filteredClients = DATA.klanten.filter(c =>
-    c.naam.toLowerCase().includes(q) || c.id.includes(q) || c.oudNr.includes(q)
-  );
-  renderClientList(_filteredClients);
-  if (_filteredClients.length === 1) selectClient(_filteredClients[0].id);
-}
-
-document.getElementById('search').addEventListener('keydown', e => {
-  if (!DATA.klanten.length) return;
-  const list = _filteredClients.length ? _filteredClients : DATA.klanten;
-  const idx = list.findIndex(c => c.id === selectedId);
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    const next = list[Math.min(idx + 1, list.length - 1)];
-    if (next) {
-      selectClient(next.id);
-      document.querySelector(`.client-item[data-id="${next.id}"]`)?.scrollIntoView({ block: 'nearest' });
-    }
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    const prev = list[Math.max(idx - 1, 0)];
-    if (prev) {
-      selectClient(prev.id);
-      document.querySelector(`.client-item[data-id="${prev.id}"]`)?.scrollIntoView({ block: 'nearest' });
-    }
-  } else if (e.key === 'Escape') {
-    document.getElementById('search').value = '';
-    filterClients_extended();
-  }
-});
-
-// ── Keyboard nav door factuurlijst ──────────────────────────────────────────
-let _kbFactId = null; // actief gefocuste factuur
-
-function kbFocusFactuur(factId) {
-  // Verwijder kb-focus van alle andere headers
-  document.querySelectorAll('.cat-header.kb-focus').forEach(h => h.classList.remove('kb-focus'));
-  if (!factId) { _kbFactId = null; return; }
-  const hdr = document.querySelector(`.cat-header[data-factid="${factId}"]`);
-  if (hdr) {
-    hdr.classList.add('kb-focus');
-    hdr.scrollIntoView({ block: 'nearest' });
-    _kbFactId = factId;
-  }
-}
-
-function handleFactuurKey(e, factId) {
-  const allHeaders = [...document.querySelectorAll('#facturen-body .cat-header')];
-  const idx = allHeaders.findIndex(h => h.dataset.factid === factId);
-  kbFocusFactuur(factId);
-
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    toggleCat(factId);
-
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    const body = document.getElementById(factId);
-    if (body && body.classList.contains('open')) {
-      // Ga naar eerste cat-rij
-      const firstCat = body.querySelector('tr.cat-row');
-      if (firstCat) { kbFocusCatRow(firstCat); return; }
-    }
-    // Ga naar volgende factuur
-    const next = allHeaders[idx + 1];
-    if (next) { next.focus(); kbFocusFactuur(next.dataset.factid); }
-
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    const prev = allHeaders[idx - 1];
-    if (prev) { prev.focus(); kbFocusFactuur(prev.dataset.factid); }
-    else { kbFocusFactuur(null); document.getElementById('search').focus(); }
-
-  } else if (e.key === 'Escape') {
-    const body = document.getElementById(factId);
-    if (body && body.classList.contains('open')) {
-      toggleCat(factId); // sluit factuur
-      kbFocusFactuur(factId); // behoud focus op header
-    } else {
-      kbFocusFactuur(null);
-      document.getElementById('search').focus();
-    }
-  }
-}
-
-// ── Keyboard nav door cat-rijen (niveau 2) ───────────────────────────────────
-let _kbCatRow = null;
-
-function kbFocusCatRow(tr) {
-  document.querySelectorAll('tr.cat-row.kb-focus').forEach(r => r.classList.remove('kb-focus'));
-  if (!tr) { _kbCatRow = null; return; }
-  tr.classList.add('kb-focus');
-  tr.scrollIntoView({ block: 'nearest' });
-  _kbCatRow = tr;
-}
-
-document.addEventListener('keydown', e => {
-  const focused = _kbCatRow;
-  if (!focused || !focused.classList.contains('cat-row')) return;
-
-  const allCats = [...focused.closest('table').querySelectorAll('tr.cat-row')];
-  const idx = allCats.indexOf(focused);
-
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    if (focused.classList.contains('clickable')) focused.click();
-
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (allCats[idx + 1]) kbFocusCatRow(allCats[idx + 1]);
-
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (allCats[idx - 1]) { kbFocusCatRow(allCats[idx - 1]); }
-    else {
-      // Terug naar factuurheader
-      kbFocusCatRow(null);
-      const catBody = focused.closest('.cat-body');
-      if (catBody) {
-        const hdr = catBody.previousElementSibling;
-        if (hdr) { hdr.focus(); kbFocusFactuur(hdr.dataset.factid); }
-      }
-    }
-
-  } else if (e.key === 'Escape') {
-    // Sluit factuur en ga terug naar header
-    kbFocusCatRow(null);
-    const catBody = focused.closest('.cat-body');
-    if (catBody) {
-      const hdr = catBody.previousElementSibling;
-      if (hdr) {
-        const factId = hdr.dataset.factid;
-        if (catBody.classList.contains('open')) toggleCat(factId);
-        hdr.focus();
-        kbFocusFactuur(factId);
-      }
-    }
-  }
-});
-
-// ── COPY ─────────────────────────────────────────────────────────────────────
-function copyFactuur(nr, datum, totaal, btnId) {
-  const k = DATA.klanten.find(c => c.id === selectedId);
-  const tekst = `${k ? k.naam : ''} | Factuurnr: ${nr} | Datum: ${datum} | Totaal: € ${fmtNum(totaal)}`;
-  navigator.clipboard.writeText(tekst).then(() => {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    btn.classList.add('copied');
-    btn.innerHTML = '✓ Gekopieerd';
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Kopieer';
-    }, 1800);
-  });
-}
-
-// ── STATUS SECTIE ──────────────────────────────────────────────────────────
+// ═══════════════════ STATUS SECTIE ═══════════════════
 function renderStatusSectie(klantId) {
   const normJ = r => String(Math.round(parseFloat(r.jaar)));
-  const jrItems = DATA.jaarrekening.filter(r => r.klantId === klantId)
-    .sort((a,b) => normJ(a).localeCompare(normJ(b)));
-  const ibItems = DATA.ibvpb.filter(r => r.klantId === klantId)
-    .sort((a,b) => normJ(a).localeCompare(normJ(b)));
-
+  const jrItems = DATA.jaarrekening.filter(r => r.klantId === klantId).sort((a,b) => normJ(a).localeCompare(normJ(b)));
+  const ibItems = DATA.ibvpb.filter(r => r.klantId === klantId).sort((a,b) => normJ(a).localeCompare(normJ(b)));
   if (!jrItems.length && !ibItems.length) return '';
 
   function jrStatus(r) {
-    if (r.dossier) return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.dossierFmt, factureren: true };
-    if (r.gereed)  return { cls: 'sp-gereed',  label: '✓ Gereed',     datum: r.gereedFmt,  factureren: true };
-    if (r.concept) return { cls: 'sp-concept', label: '◑ Concept',    datum: r.conceptFmt, factureren: true };
+    if (r.dossier)   return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.dossierFmt };
+    if (r.gereed)    return { cls: 'sp-gereed',   label: '✓ Gereed',   datum: r.gereedFmt };
+    if (r.concept)   return { cls: 'sp-concept',  label: '◑ Concept',  datum: r.conceptFmt };
+    if (r.boekenKlaar || r.startJaarr || r.boekenStart)
+                     return { cls: 'sp-bezig',    label: '⏳ Bezig',    datum: r.boekenStartFmt || r.boekenKlaarFmt || r.startJarrFmt };
     return null;
   }
-
   function ibStatus(r) {
-    if (r.status === 'Afgerond' || r.verstuurdClient)
-      return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.verstuurdClientFmt || '', factureren: true };
-    if (r.status && r.status !== 'Plannen')
-      return { cls: 'sp-bezig', label: r.status, datum: '', factureren: false };
+    if (r.status === 'Afgerond' || r.verstuurdClient) return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.verstuurdClientFmt || '' };
+    if (r.status && r.status !== 'Plannen') return { cls: 'sp-bezig', label: r.status, datum: '' };
     return null;
   }
 
@@ -1498,112 +1030,133 @@ function renderStatusSectie(klantId) {
     </div>`;
   }).join('');
 
-  if (!jrItems.length && !ibItems.length) return '<div style="display:none;"></div>';
-
-  return `
-    <div class="section">
-      <div class="section-title">Werkstatus</div>
-      <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 10px;">
-        ${jrHtml ? `<div class="status-card">
-          <div class="status-card-title">Jaarrekening</div>
-          ${jrHtml}
-        </div>` : ''}
-        ${ibHtml ? `<div class="status-card">
-          <div class="status-card-title">${[...new Set(ibItems.map(r => r.type === 'I' ? 'IB' : 'Vpb'))].join(' / ')}</div>
-          ${ibHtml}
-        </div>` : ''}
-      </div>
-    </div>`;
+  return `<div class="section">
+    <div class="section-title">Werkstatus</div>
+    <div style="padding:14px 20px;display:flex;flex-direction:column;gap:10px;">
+      ${jrHtml ? `<div class="status-card"><div class="status-card-title">Jaarrekening</div>${jrHtml}</div>` : ''}
+      ${ibHtml ? `<div class="status-card"><div class="status-card-title">${[...new Set(ibItems.map(r => r.type === 'I' ? 'IB' : 'Vpb'))].join(' / ')}</div>${ibHtml}</div>` : ''}
+    </div>
+  </div>`;
 }
 
-// ── FACTUURPLANNER ──────────────────────────────────────────────────────────
-// ── WERKSTATUS OVERZICHT ────────────────────────────────────────────────────
+// ═══════════════════ KEYBOARD NAV ═══════════════════
+let _kbFactId = null;
+function kbFocusFactuur(factId) {
+  document.querySelectorAll('.cat-header.kb-focus').forEach(h => h.classList.remove('kb-focus'));
+  if (!factId) { _kbFactId = null; return; }
+  const hdr = document.querySelector(`.cat-header[data-factid="${factId}"]`);
+  if (hdr) { hdr.classList.add('kb-focus'); hdr.scrollIntoView({ block: 'nearest' }); _kbFactId = factId; }
+}
+function handleFactuurKey(e, factId) {
+  const allHeaders = [...document.querySelectorAll('#facturen-body .cat-header')];
+  const idx = allHeaders.findIndex(h => h.dataset.factid === factId);
+  kbFocusFactuur(factId);
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCat(factId); }
+  else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = allHeaders[idx + 1];
+    if (next) { next.focus(); kbFocusFactuur(next.dataset.factid); }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const prev = allHeaders[idx - 1];
+    if (prev) { prev.focus(); kbFocusFactuur(prev.dataset.factid); }
+    else { kbFocusFactuur(null); document.getElementById('search').focus(); }
+  } else if (e.key === 'Escape') {
+    const body = document.getElementById(factId);
+    if (body && body.classList.contains('open')) { toggleCat(factId); kbFocusFactuur(factId); }
+    else { kbFocusFactuur(null); document.getElementById('search').focus(); }
+  }
+}
+
+let _kbCatRow = null;
+function kbFocusCatRow(tr) {
+  document.querySelectorAll('tr.cat-row.kb-focus').forEach(r => r.classList.remove('kb-focus'));
+  if (!tr) { _kbCatRow = null; return; }
+  tr.classList.add('kb-focus'); tr.scrollIntoView({ block: 'nearest' }); _kbCatRow = tr;
+}
+document.addEventListener('keydown', e => {
+  const focused = _kbCatRow;
+  if (!focused || !focused.classList.contains('cat-row')) return;
+  const allCats = [...focused.closest('table').querySelectorAll('tr.cat-row')];
+  const idx = allCats.indexOf(focused);
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (focused.classList.contains('clickable')) focused.click(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); if (allCats[idx + 1]) kbFocusCatRow(allCats[idx + 1]); }
+  else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (allCats[idx - 1]) { kbFocusCatRow(allCats[idx - 1]); }
+    else { kbFocusCatRow(null); const catBody = focused.closest('.cat-body'); if (catBody) { const hdr = catBody.previousElementSibling; if (hdr) { hdr.focus(); kbFocusFactuur(hdr.dataset.factid); } } }
+  } else if (e.key === 'Escape') {
+    kbFocusCatRow(null);
+    const catBody = focused.closest('.cat-body');
+    if (catBody) { const hdr = catBody.previousElementSibling; if (hdr) { const factId = hdr.dataset.factid; if (catBody.classList.contains('open')) toggleCat(factId); hdr.focus(); kbFocusFactuur(factId); } }
+  }
+});
+
+// ═══════════════════ MODALS: WERKSTATUS ═══════════════════
 function openStatus() {
   if (!DATA.klanten.length) { alert('Laad eerst een Excel-bestand.'); return; }
-
   const now = new Date().getFullYear();
-  const jaren = [...new Set([
-    ...DATA.jaarrekening.map(r => String(Math.round(parseFloat(r.jaar)))),
-    ...DATA.ibvpb.map(r => String(Math.round(parseFloat(r.jaar))))
-  ])].filter(Boolean).sort((a,b) => b-a);
-
+  const jaren = [...new Set([...DATA.jaarrekening.map(r => String(Math.round(parseFloat(r.jaar)))), ...DATA.ibvpb.map(r => String(Math.round(parseFloat(r.jaar))))])].filter(Boolean).sort((a,b) => b-a);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'status-overlay';
-  overlay.innerHTML = `
-    <div class="modal" style="width:1100px;">
-      <div class="modal-header">
-        <h2>Werkstatus overzicht</h2>
-        <button class="modal-close" onclick="closeStatus()">×</button>
-      </div>
-      <div class="modal-tabs">
-        <div class="modal-tab active" onclick="switchStatusTab('jr', this)">Jaarrekeningen</div>
-        <div class="modal-tab" onclick="switchStatusTab('ib', this)">IB / Vpb</div>
-      </div>
-      <div class="status-filter-bar">
-        <span class="filter-label">Jaar</span>
-        <select class="filter-select" id="status-filter-jaar" onchange="renderStatusTab()">
-          <option value="">Alle jaren</option>
-          ${jaren.map(j => `<option value="${j}"${j===String(now-1)?' selected':''}>${j}</option>`).join('')}
-        </select>
-        <span class="filter-label">Status</span>
-        <select class="filter-select" id="status-filter-status" onchange="renderStatusTab()">
-          <option value="">Alle statussen</option>
-          <option value="nietgestart">Niet gestart</option>
-          <option value="bezig">In behandeling</option>
-          <option value="afgerond">Afgerond</option>
-          <option value="gefactureerd">Gefactureerd</option>
-        </select>
-        <span id="status-result-count" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
-      </div>
-      <div class="modal-body" id="status-body" style="padding:0;"></div>
-    </div>`;
+  overlay.innerHTML = `<div class="modal" style="width:1100px;">
+    <div class="modal-header"><h2>Werkstatus overzicht</h2><button class="modal-close" onclick="closeStatus()">×</button></div>
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchStatusTab('jr', this)">Jaarrekeningen</div>
+      <div class="modal-tab" onclick="switchStatusTab('ib', this)">IB / Vpb</div>
+    </div>
+    <div class="status-filter-bar">
+      <span class="filter-label">Jaar</span>
+      <select class="filter-select" id="status-filter-jaar" onchange="renderStatusTab()">
+        <option value="">Alle jaren</option>
+        ${jaren.map(j => `<option value="${j}"${j===String(now-1)?' selected':''}>${j}</option>`).join('')}
+      </select>
+      <span class="filter-label">Status</span>
+      <select class="filter-select" id="status-filter-status" onchange="renderStatusTab()">
+        <option value="">Alle</option>
+        <option value="nietgestart">Niet gestart</option>
+        <option value="bezig">In behandeling</option>
+        <option value="afgerond">Afgerond</option>
+        <option value="gefactureerd">Gefactureerd</option>
+      </select>
+      <span id="status-result-count" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
+    </div>
+    <div class="modal-body" id="status-body" style="padding:0;"></div>
+  </div>`;
   document.body.appendChild(overlay);
   window._statusTab = 'jr';
   renderStatusTab();
 }
-
-function closeStatus() {
-  const el = document.getElementById('status-overlay');
-  if (el) el.remove();
-}
-
+function closeStatus() { document.getElementById('status-overlay')?.remove(); }
 function switchStatusTab(tab, el) {
   window._statusTab = tab;
   document.querySelectorAll('#status-overlay .modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   renderStatusTab();
 }
-
 function renderStatusTab() {
-  const tab   = window._statusTab || 'jr';
-  const jaar  = document.getElementById('status-filter-jaar').value;
+  const tab = window._statusTab || 'jr';
+  const jaar = document.getElementById('status-filter-jaar').value;
   const sfilt = document.getElementById('status-filter-status').value;
-  const body  = document.getElementById('status-body');
-
-  // Bouw set van gefactureerde klant+type+jaar
+  const body = document.getElementById('status-body');
   const gefact = new Set();
   for (const f of DATA.facturen) {
-    if (['Jaar','IB','Vpb'].includes(f.categorie)) {
-      gefact.add(`${f.klantId}|${f.categorie}|${String(Math.round(parseFloat(f.jaar)))}`);
-    }
+    if (['Jaar','IB','Vpb'].includes(f.categorie)) gefact.add(`${f.klantId}|${f.categorie}|${String(Math.round(parseFloat(f.jaar)))}`);
   }
-
   function jrStatusInfo(r) {
     if (r.dossier) return { label: 'Afgerond', cls: 'sp-afgerond', sort: 4 };
     if (r.gereed)  return { label: 'Gereed',   cls: 'sp-gereed',   sort: 3 };
     if (r.concept) return { label: 'Concept',  cls: 'sp-concept',  sort: 2 };
-    if (r.boekenKlaar || r.startJaarr) return { label: 'In behandeling', cls: 'sp-bezig', sort: 2 };
+    if (r.boekenKlaar || r.startJaarr || r.boekenStart) return { label: 'In behandeling', cls: 'sp-bezig', sort: 2 };
     if (r.ontvangen) return { label: 'Ontvangen', cls: 'sp-bezig', sort: 2 };
     return { label: 'Niet gestart', cls: 'sp-nvt', sort: 1 };
   }
-
   function ibStatusInfo(r) {
     if (r.status === 'Afgerond' || r.verstuurdClient) return { label: 'Afgerond', cls: 'sp-afgerond', sort: 4 };
     if (r.status && r.status !== 'Plannen') return { label: r.status, cls: 'sp-bezig', sort: 2 };
     return { label: 'Niet gestart', cls: 'sp-nvt', sort: 1 };
   }
-
   if (tab === 'jr') {
     let rows = DATA.jaarrekening.map(r => {
       const j = String(Math.round(parseFloat(r.jaar)));
@@ -1619,24 +1172,19 @@ function renderStatusTab() {
     else if (sfilt === 'gefactureerd') rows = rows.filter(r => r.isFact);
     rows.sort((a,b) => a.klantNaam.localeCompare(b.klantNaam));
     document.getElementById('status-result-count').textContent = `${rows.length} jaarrekeningen`;
-
     body.innerHTML = `<table class="status-overzicht-table">
-      <thead><tr>
-        <th>Klant</th><th>Jaar</th><th>Ontvangen</th><th>Boeken klaar</th><th>Concept</th><th>Gereed</th><th>Dossier</th><th>Status</th><th>Gefactureerd</th>
-      </tr></thead>
-      <tbody>${rows.map(r => `
-        <tr onclick="closeStatus();selectClient('${r.klantId}')">
-          <td style="font-weight:600;color:var(--navy);">${esc(r.klantNaam)}</td>
-          <td>${r.j}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.ontvangenFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.boekenKlaarFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.conceptFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.gereedFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.dossierFmt || '—'}</td>
-          <td><span class="status-pill ${r.st.cls}" style="font-size:11px;">${r.st.label}</span></td>
-          <td style="text-align:center;">${r.isFact ? '<span style="color:#1a7a50;font-weight:700;">✓</span>' : '<span style="color:var(--text-muted);">—</span>'}</td>
-        </tr>`).join('')}
-      </tbody>
+      <thead><tr><th>Klant</th><th>Jaar</th><th>Ontvangen</th><th>Boeken klaar</th><th>Concept</th><th>Gereed</th><th>Dossier</th><th>Status</th><th>Gefact.</th></tr></thead>
+      <tbody>${rows.map(r => `<tr onclick="closeStatus();selectClient('${r.klantId}')">
+        <td style="font-weight:600;color:var(--navy);">${esc(r.klantNaam)}</td>
+        <td>${r.j}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.ontvangenFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.boekenKlaarFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.conceptFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.gereedFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.dossierFmt||'—'}</td>
+        <td><span class="status-pill ${r.st.cls}" style="font-size:11px;">${r.st.label}</span></td>
+        <td style="text-align:center;">${r.isFact?'<span style="color:#1a7a50;font-weight:700;">✓</span>':'<span style="color:var(--text-muted);">—</span>'}</td>
+      </tr>`).join('')}</tbody>
     </table>`;
   } else {
     let rows = DATA.ibvpb.map(r => {
@@ -1654,31 +1202,25 @@ function renderStatusTab() {
     else if (sfilt === 'gefactureerd') rows = rows.filter(r => r.isFact);
     rows.sort((a,b) => a.klantNaam.localeCompare(b.klantNaam));
     document.getElementById('status-result-count').textContent = `${rows.length} aangiftes`;
-
     body.innerHTML = `<table class="status-overzicht-table">
-      <thead><tr>
-        <th>Klant</th><th>Type</th><th>Jaar</th><th>Gegevens ontvangen</th><th>Gegevens compleet</th><th>Verstuurd cliënt</th><th>Verstuurd BD</th><th>Status</th><th>Gefactureerd</th>
-      </tr></thead>
-      <tbody>${rows.map(r => `
-        <tr onclick="closeStatus();selectClient('${r.klantId}')">
-          <td style="font-weight:600;color:var(--navy);">${esc(r.klantNaam)}</td>
-          <td><span class="code-pill">${r.cat}</span></td>
-          <td>${r.j}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.gegevensOntvangenFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.gegevensCompleetFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.verstuurdClientFmt || '—'}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.verstuurdBDFmt || '—'}</td>
-          <td><span class="status-pill ${r.st.cls}" style="font-size:11px;">${r.st.label}</span></td>
-          <td style="text-align:center;">${r.isFact ? '<span style="color:#1a7a50;font-weight:700;">✓</span>' : '<span style="color:var(--text-muted);">—</span>'}</td>
-        </tr>`).join('')}
-      </tbody>
+      <thead><tr><th>Klant</th><th>Type</th><th>Jaar</th><th>Gegevens ontvangen</th><th>Gegevens compleet</th><th>Verstuurd cliënt</th><th>Status</th><th>Gefact.</th></tr></thead>
+      <tbody>${rows.map(r => `<tr onclick="closeStatus();selectClient('${r.klantId}')">
+        <td style="font-weight:600;color:var(--navy);">${esc(r.klantNaam)}</td>
+        <td><span class="code-pill">${r.cat}</span></td>
+        <td>${r.j}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.gegevensOntvangenFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.gegevensCompleetFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.verstuurdClientFmt||'—'}</td>
+        <td><span class="status-pill ${r.st.cls}" style="font-size:11px;">${r.st.label}</span></td>
+        <td style="text-align:center;">${r.isFact?'<span style="color:#1a7a50;font-weight:700;">✓</span>':'<span style="color:var(--text-muted);">—</span>'}</td>
+      </tr>`).join('')}</tbody>
     </table>`;
   }
 }
 
+// ═══════════════════ MODAL: FACTUURPLANNER ═══════════════════
 function openPlanner() {
   if (!DATA.klanten.length) { alert('Laad eerst een Excel-bestand.'); return; }
-
   const now = new Date();
   const maandOpties = [];
   for (let i = -2; i <= 4; i++) {
@@ -1688,68 +1230,43 @@ function openPlanner() {
     maandOpties.push({ val, label });
   }
   const huidigVal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'planner-overlay';
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Factuurplanner</h2>
-        <button class="modal-close" onclick="closePlanner()">×</button>
-      </div>
-      <div class="modal-toolbar">
-        <span class="filter-label">Factuurmaand</span>
-        <select class="filter-select" id="planner-maand" onchange="renderPlanner()">
-          ${maandOpties.map(o => `<option value="${o.val}"${o.val===huidigVal?' selected':''}>${o.label}</option>`).join('')}
-        </select>
-        <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">Toont werk dat klaar is maar nog niet gefactureerd</span>
-      </div>
-      <div class="modal-body" id="planner-body"></div>
-    </div>`;
+  overlay.innerHTML = `<div class="modal">
+    <div class="modal-header"><h2>Factuurplanner</h2><button class="modal-close" onclick="closePlanner()">×</button></div>
+    <div class="modal-toolbar">
+      <span class="filter-label">Factuurmaand</span>
+      <select class="filter-select" id="planner-maand" onchange="renderPlanner()">
+        ${maandOpties.map(o => `<option value="${o.val}"${o.val===huidigVal?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">Toont werk dat klaar is maar nog niet gefactureerd</span>
+    </div>
+    <div class="modal-body" id="planner-body"></div>
+  </div>`;
   document.body.appendChild(overlay);
   renderPlanner();
 }
-
-function closePlanner() {
-  const el = document.getElementById('planner-overlay');
-  if (el) el.remove();
-}
-
+function closePlanner() { document.getElementById('planner-overlay')?.remove(); }
 function renderPlanner() {
-  const maand = document.getElementById('planner-maand').value;
-  const [py, pm] = maand.split('-').map(Number);
   const body = document.getElementById('planner-body');
-
-  // Bepaal welke klanten iets te factureren hebben
-  // JR: concept/gereed/dossier gevuld, maar geen Jaar-factuur in dat boekjaar
-  // IB/Vpb: afgerond/verstuurd, maar geen IB of Vpb factuur in dat boekjaar
-
-  // Bouw set van bestaande facturen: klantId+type+jaar
   const gefact = new Set();
   for (const f of DATA.facturen) {
-    if (['Jaar','IB','Vpb'].includes(f.categorie)) {
-      const j = String(Math.round(parseFloat(f.jaar)));
-      gefact.add(`${f.klantId}|${f.categorie}|${j}`);
-    }
+    if (['Jaar','IB','Vpb'].includes(f.categorie)) gefact.add(`${f.klantId}|${f.categorie}|${String(Math.round(parseFloat(f.jaar)))}`);
   }
-
-  // JR kandidaten
   const jrKandidaten = [];
   for (const r of DATA.jaarrekening) {
     if (!r.concept && !r.gereed && !r.dossier) continue;
     const key = `${r.klantId}|Jaar|${r.jaar}`;
     if (gefact.has(key)) continue;
     let status, datum;
-    if (r.dossier)      { status = 'Afgerond'; datum = r.dossierFmt; }
-    else if (r.gereed)  { status = 'Gereed';     datum = r.gereedFmt; }
-    else if (r.concept) { status = 'Concept';    datum = r.conceptFmt; }
+    if (r.dossier) { status='Afgerond'; datum=r.dossierFmt; }
+    else if (r.gereed) { status='Gereed'; datum=r.gereedFmt; }
+    else if (r.concept) { status='Concept'; datum=r.conceptFmt; }
     const klant = DATA.klanten.find(k => k.id === r.klantId);
     jrKandidaten.push({ naam: klant?.naam || r.naam, klantId: r.klantId, jaar: r.jaar, status, datum });
   }
   jrKandidaten.sort((a,b) => a.naam.localeCompare(b.naam));
-
-  // IB/Vpb kandidaten
   const ibKandidaten = [];
   for (const r of DATA.ibvpb) {
     const klaar = r.status === 'Afgerond' || r.verstuurdClient;
@@ -1758,107 +1275,342 @@ function renderPlanner() {
     const key = `${r.klantId}|${cat}|${r.jaar}`;
     if (gefact.has(key)) continue;
     const klant = DATA.klanten.find(k => k.id === r.klantId);
-    ibKandidaten.push({ naam: klant?.naam || r.naam, klantId: r.klantId, jaar: r.jaar, type: cat, status: r.status, datum: r.verstuurdClientFmt || '' });
+    ibKandidaten.push({ naam: klant?.naam || r.naam, klantId: r.klantId, jaar: r.jaar, type: cat, datum: r.verstuurdClientFmt || '' });
   }
   ibKandidaten.sort((a,b) => a.naam.localeCompare(b.naam));
 
   const jrHtml = jrKandidaten.length ? `
-    <div class="planner-section-title">
-      <span>Jaarrekeningen — te factureren</span>
-      <span>${jrKandidaten.length} klanten</span>
-    </div>
-    <table class="planner-table">
-      <thead><tr><th>Klant</th><th>Boekjaar</th><th>Status</th><th>Datum</th></tr></thead>
-      <tbody>${jrKandidaten.map(r => `
-        <tr>
-          <td><a href="#" onclick="closePlanner();selectClient('${r.klantId}');return false;" style="color:var(--navy);font-weight:600;text-decoration:none;">${esc(r.naam)}</a></td>
-          <td>${r.jaar}</td>
-          <td><span class="status-pill ${r.status==='Afgerond'?'sp-afgerond':r.status==='Gereed'?'sp-gereed':'sp-concept'}">${r.status}</span></td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.datum}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>` : `
-    <div class="planner-section-title"><span>Jaarrekeningen</span></div>
-    <div class="planner-empty">Geen openstaande jaarrekeningen te factureren.</div>`;
+    <div class="planner-section-title"><span>Jaarrekeningen — te factureren</span><span>${jrKandidaten.length} klanten</span></div>
+    <table class="planner-table"><thead><tr><th>Klant</th><th>Boekjaar</th><th>Status</th><th>Datum</th></tr></thead>
+    <tbody>${jrKandidaten.map(r => `<tr>
+      <td><a href="#" onclick="closePlanner();selectClient('${r.klantId}');return false;" style="color:var(--navy);font-weight:600;text-decoration:none;">${esc(r.naam)}</a></td>
+      <td>${r.jaar}</td>
+      <td><span class="status-pill ${r.status==='Afgerond'?'sp-afgerond':r.status==='Gereed'?'sp-gereed':'sp-concept'}">${r.status}</span></td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.datum}</td>
+    </tr>`).join('')}</tbody></table>` :
+    `<div class="planner-section-title"><span>Jaarrekeningen</span></div><div class="planner-empty">Geen openstaande jaarrekeningen te factureren.</div>`;
 
   const ibHtml = ibKandidaten.length ? `
-    <div class="planner-section-title">
-      <span>IB / Vpb — te factureren</span>
-      <span>${ibKandidaten.length} aangiftes</span>
-    </div>
-    <table class="planner-table">
-      <thead><tr><th>Klant</th><th>Type</th><th>Jaar</th><th>Verstuurd cliënt</th></tr></thead>
-      <tbody>${ibKandidaten.map(r => `
-        <tr>
-          <td><a href="#" onclick="closePlanner();selectClient('${r.klantId}');return false;" style="color:var(--navy);font-weight:600;text-decoration:none;">${esc(r.naam)}</a></td>
-          <td><span class="code-pill">${r.type === 'I' ? 'IB' : 'Vpb'}</span></td>
-          <td>${r.jaar}</td>
-          <td style="font-size:12px;color:var(--text-muted);">${r.datum}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>` : `
-    <div class="planner-section-title"><span>IB / Vpb</span></div>
-    <div class="planner-empty">Geen openstaande IB/Vpb-aangiftes te factureren.</div>`;
+    <div class="planner-section-title"><span>IB / Vpb — te factureren</span><span>${ibKandidaten.length} aangiftes</span></div>
+    <table class="planner-table"><thead><tr><th>Klant</th><th>Type</th><th>Jaar</th><th>Verstuurd cliënt</th></tr></thead>
+    <tbody>${ibKandidaten.map(r => `<tr>
+      <td><a href="#" onclick="closePlanner();selectClient('${r.klantId}');return false;" style="color:var(--navy);font-weight:600;text-decoration:none;">${esc(r.naam)}</a></td>
+      <td><span class="code-pill">${r.type}</span></td>
+      <td>${r.jaar}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.datum}</td>
+    </tr>`).join('')}</tbody></table>` :
+    `<div class="planner-section-title"><span>IB / Vpb</span></div><div class="planner-empty">Geen openstaande IB/Vpb-aangiftes te factureren.</div>`;
 
   body.innerHTML = jrHtml + ibHtml;
 }
 
-// ── WERKSTATUS BALK IN FACTUREN ────────────────────────────────────────────
-function renderFactuurStatusBalk(klantId) {
-  // Altijd twee meest recente boekjaren: huidig kalenderjaar - 1 en - 2
-  const nu = new Date().getFullYear();
-  const boekjaren = [String(nu - 1), String(nu - 2)]; // bijv. 2025, 2024
+// ═══════════════════ PDF VIEWER ═══════════════════
+let _pdfDoc = null;
+let _pdfPage = 1;
+let _pdfTotal = 0;
+let _pdfScale = 1.2;
+let _pdfRendering = false;
+let _pdfKlanten = [];
+let _pdfPendingPage = null;
+let _lastSentInfo = null;
 
-  function jrStatusLabel(r) {
-    if (!r) return { cls: 'sp-nvt', label: '—', datum: '' };
-    if (r.dossier)      return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.dossierFmt };
-    if (r.gereed)       return { cls: 'sp-gereed',  label: 'Gereed',     datum: r.gereedFmt };
-    if (r.concept)      return { cls: 'sp-concept', label: 'Concept',    datum: r.conceptFmt };
-    return { cls: 'sp-nvt', label: 'Niet gestart', datum: '' };
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function initPdfViewer() {
+  // Drag & drop
+  const wrap = document.getElementById('pdf-canvas-wrap');
+  if (wrap) {
+    wrap.addEventListener('dragover', e => e.preventDefault());
+    wrap.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') loadPdfFile(file);
+    });
   }
-
-  function ibStatusLabel(r) {
-    if (!r) return { cls: 'sp-nvt', label: '—', datum: '' };
-    if (r.status === 'Afgerond' || r.verstuurdClient)
-      return { cls: 'sp-afgerond', label: 'Afgerond', datum: r.verstuurdClientFmt || '' };
-    if (r.status && r.status !== 'Plannen')
-      return { cls: 'sp-bezig', label: r.status, datum: '' };
-    return { cls: 'sp-nvt', label: 'Niet gestart', datum: '' };
-  }
-
-  return boekjaren.map(jaar => {
-    const normJaar = r => String(Math.round(parseFloat(r.jaar)));
-    const jr  = DATA.jaarrekening.find(r => r.klantId === klantId && normJaar(r) === jaar);
-    const ib  = DATA.ibvpb.find(r => r.klantId === klantId && normJaar(r) === jaar && r.type === 'I');
-    const vpb = DATA.ibvpb.find(r => r.klantId === klantId && normJaar(r) === jaar && r.type === 'V');
-
-    const jrSt  = jrStatusLabel(jr);
-    const ibSt  = ibStatusLabel(ib);
-    const vpbSt = ibStatusLabel(vpb);
-
-    // Toon alleen rijen die relevant zijn voor deze klant
-    const heeftJr  = jr  !== undefined;
-    const heeftIb  = ib  !== undefined;
-    const heeftVpb = vpb !== undefined;
-    if (!heeftJr && !heeftIb && !heeftVpb) return '';
-
-    const row = (type, st) => `
-      <div class="fact-status-regel">
-        <span class="fact-status-type">${type}</span>
-        <span class="status-pill ${st.cls}" style="font-size:10.5px;padding:1px 7px;">${st.label}</span>
-        <span class="fact-status-datum">${st.datum}</span>
-      </div>`;
-
-    return `<div class="fact-status-jaar">
-      <div class="fact-status-jaar-label">Boekjaar ${jaar}</div>
-      ${heeftJr  ? row('Jr.',  jrSt)  : ''}
-      ${heeftIb  ? row('IB',   ibSt)  : ''}
-      ${heeftVpb ? row('Vpb',  vpbSt) : ''}
-    </div>`;
-  }).join('');
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextPage();
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevPage();
+  });
 }
 
-// ── UTILS ───────────────────────────────────────────────────────────────────
+function loadPdf(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  loadPdfFile(file);
+}
+
+function loadPdfFile(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const typedArray = new Uint8Array(e.target.result);
+    try {
+      _pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+      _pdfTotal = _pdfDoc.numPages;
+      _pdfPage = 1;
+      document.getElementById('page-total').textContent = `van ${_pdfTotal}`;
+      document.getElementById('page-nr').max = _pdfTotal;
+      document.getElementById('btn-prev').disabled = true;
+      document.getElementById('btn-next').disabled = _pdfTotal <= 1;
+      // Toon canvas
+      document.getElementById('pdf-canvas').style.display = '';
+      const wrap = document.getElementById('pdf-canvas-wrap');
+      const placeholder = wrap.querySelector('div');
+      if (placeholder) placeholder.remove();
+      // Fit to window
+      fitPage();
+    } catch(err) {
+      alert('Fout bij laden van PDF: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function renderPdfPage(num) {
+  if (!_pdfDoc) return;
+  if (_pdfRendering) { _pdfPendingPage = num; return; }
+  _pdfRendering = true;
+
+  const page = await _pdfDoc.getPage(num);
+  const viewport = page.getViewport({ scale: _pdfScale });
+  const canvas = document.getElementById('pdf-canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Render op hogere resolutie voor scherpe tekst op hoge-DPI-schermen
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(viewport.width * dpr);
+  canvas.height = Math.floor(viewport.height * dpr);
+  canvas.style.width = viewport.width + 'px';
+  canvas.style.height = viewport.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  _pdfRendering = false;
+
+  if (_pdfPendingPage !== null) {
+    const p = _pdfPendingPage;
+    _pdfPendingPage = null;
+    renderPdfPage(p);
+    return;
+  }
+
+  // Update UI
+  document.getElementById('page-nr').value = num;
+  document.getElementById('btn-prev').disabled = num <= 1;
+  document.getElementById('btn-next').disabled = num >= _pdfTotal;
+
+  // Extraheer tekst en stuur naar klantpaneel
+  try {
+    const textContent = await page.getTextContent();
+    const text = textContent.items.map(i => i.str).join('\n');
+
+    // Debiteurnummer staat altijd direct onder het label "DEBITEURENNUMMER".
+    // Zoek dat label (let op dubbel-N), pak het getal op dezelfde of iets lagere Y.
+    const labelItem = textContent.items.find(item => /debiteurenn?ummer/i.test(item.str));
+    let positionalNr = null;
+    if (labelItem) {
+      const labelY = labelItem.transform[5];
+      // Zoek getallen binnen 40 eenheden onder (of op gelijke hoogte van) het label
+      positionalNr = textContent.items
+        .filter(item => {
+          const dy = labelY - item.transform[5]; // positief = lager op de pagina
+          return dy >= -5 && dy <= 40 && /^\d{4,8}$/.test(item.str.trim());
+        })
+        .sort((a, b) => a.transform[5] - b.transform[5])
+        .map(item => item.str.trim())[0] || null;
+    }
+    // Fallback: laagste getal dat matcht met een bekende klant
+    if (!positionalNr && _pdfKlanten.length) {
+      const kandidaten = textContent.items
+        .filter(item => /^\d{4,8}$/.test(item.str.trim()))
+        .sort((a, b) => a.transform[5] - b.transform[5])
+        .map(item => item.str.trim());
+      positionalNr = kandidaten.find(nr =>
+        _pdfKlanten.some(k => k.id === nr || k.oudNr === nr)
+      ) || null;
+    }
+    console.log('[PDF] label gevonden:', !!labelItem, '| debitnr:', positionalNr);
+
+    const conceptInfo = extractConceptInfo(text, positionalNr);
+    updatePdfKlantBar(conceptInfo);
+    if (conceptInfo && conceptInfo.debiteurnummer) {
+      _lastSentInfo = conceptInfo;
+      channel.postMessage({ type: 'debiteurnummer', ...conceptInfo });
+    }
+  } catch(err) {
+    console.error('[PDF] extractie fout:', err);
+  }
+}
+
+function extractConceptInfo(text, positionalDebitnr = null) {
+  // Debiteurnummer: positionale extractie is primair (label-gebaseerd in renderPdfPage).
+  // Regex op "DEBITEURENNUMMER" als fallback (let op: dubbel-N in de PDF).
+  let debiteurnummer = positionalDebitnr;
+  if (!debiteurnummer) {
+    const debitMatch = text.match(/DEBITEURENN?UMMER[\s\S]{0,60}?(\d{4,8})/i);
+    debiteurnummer = debitMatch ? debitMatch[1] : null;
+  }
+
+  // Conceptnummer: C gevolgd door 7-10 cijfers
+  const conceptMatch = text.match(/\b(C\d{7,10})\b/);
+  const conceptnr = conceptMatch ? conceptMatch[1] : null;
+
+  // Totaalbedrag: EUR gevolgd door bedrag
+  const totaalMatch = text.match(/EUR\s+([\d.,]+)/);
+  const totaal = totaalMatch ? totaalMatch[1] : null;
+
+  // Datum: DD-MM-YYYY patroon (na EUR bedrag)
+  const datumMatch = text.match(/(\d{2}-\d{2}-\d{4})/);
+  const datum = datumMatch ? datumMatch[1] : null;
+
+  // Klantnaam: zoek op "Conceptfactuur" → naam erboven of op de pagina
+  // De naam staat als vetgedrukte tekst; we pakken de eerste substantiële regel
+  let naam = null;
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Zoek naar een regel die eruitziet als een naam (meerdere woorden, niet alleen cijfers)
+  for (const line of lines.slice(0, 15)) {
+    if (/^[A-Z]/.test(line) && line.length > 3 && !/^\d/.test(line) && !/^(EUR|C0|Join|Conc)/.test(line)) {
+      naam = line;
+      break;
+    }
+  }
+
+  if (!debiteurnummer && !conceptnr) return null;
+  return { debiteurnummer, conceptnr, totaal, datum, naam };
+}
+
+function _debugPdfText(text) {
+  const idx = text.toUpperCase().indexOf('DEBITEURENNUMMER');
+  if (idx >= 0) console.log('[PDF debug] context rond DEBITEURENNUMMER:', JSON.stringify(text.slice(Math.max(0,idx-20), idx+80)));
+  else console.log('[PDF debug] DEBITEURENNUMMER NIET gevonden. Eerste 500 tekens:', JSON.stringify(text.slice(0, 500)));
+}
+
+function updatePdfKlantBar(info) {
+  const bar = document.getElementById('pdf-klant-bar');
+  if (!info) {
+    bar.className = 'pdf-klant-bar';
+    bar.innerHTML = `<span style="color:rgba(255,255,255,0.4);font-size:13px;">Geen klantgegevens op deze pagina</span>`;
+    return;
+  }
+
+  // Zoek klant in lokale data (indien beschikbaar via pong)
+  let klantNaam = null;
+  if (info.debiteurnummer && _pdfKlanten.length) {
+    const nr = String(info.debiteurnummer);
+    const k = _pdfKlanten.find(k => k.id === nr) || _pdfKlanten.find(k => k.oudNr === nr);
+    if (k) klantNaam = k.naam;
+  }
+
+  const geenMatch = !klantNaam;
+  bar.className = 'pdf-klant-bar' + (geenMatch ? '' : ' matched');
+  bar.innerHTML = `
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${geenMatch ? 'rgba(255,255,255,0.4)' : 'var(--green)'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span class="klant-naam-big" style="${geenMatch ? 'color:rgba(255,255,255,0.5);font-size:13px;' : ''}">${esc(klantNaam || (info.naam || '—'))}</span>
+    ${info.debiteurnummer ? `<span class="debit-pill" style="${geenMatch ? 'background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);' : ''}">Debiteur ${info.debiteurnummer}</span>` : ''}
+    ${info.conceptnr ? `<span class="concept-pill">${esc(info.conceptnr)}</span>` : ''}
+    ${info.totaal ? `<span class="klant-sub">€ ${esc(info.totaal)}</span>` : ''}
+    ${info.datum ? `<span class="klant-sub">${esc(info.datum)}</span>` : ''}
+    ${geenMatch && info.debiteurnummer ? `<span style="font-size:11px;color:rgba(255,150,150,0.8);margin-left:auto;">⚠ niet gevonden in Excel</span>` : ''}
+  `;
+}
+
+function setPdfConnected(ok) {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  if (ok) {
+    dot.className = 'conn-dot ok';
+    label.textContent = 'Klantpaneel verbonden';
+    label.style.color = 'rgba(107,224,161,0.8)';
+  } else {
+    dot.className = 'conn-dot';
+    label.textContent = 'Klantpaneel niet verbonden';
+    label.style.color = 'rgba(255,255,255,0.6)';
+  }
+}
+
+function prevPage() {
+  if (!_pdfDoc || _pdfPage <= 1) return;
+  _pdfPage--;
+  renderPdfPage(_pdfPage);
+}
+function nextPage() {
+  if (!_pdfDoc || _pdfPage >= _pdfTotal) return;
+  _pdfPage++;
+  renderPdfPage(_pdfPage);
+}
+function goToPage(n) {
+  if (!_pdfDoc) return;
+  n = Math.max(1, Math.min(_pdfTotal, n));
+  _pdfPage = n;
+  renderPdfPage(_pdfPage);
+}
+function changeZoom(delta) {
+  _pdfScale = Math.max(0.4, Math.min(3.0, _pdfScale + delta));
+  document.getElementById('zoom-label').textContent = Math.round(_pdfScale * 100) + '%';
+  if (_pdfDoc) renderPdfPage(_pdfPage);
+}
+async function fitPage() {
+  if (!_pdfDoc) return;
+  try {
+    const page = await _pdfDoc.getPage(_pdfPage);
+    const wrap = document.getElementById('pdf-canvas-wrap');
+    const vp = page.getViewport({ scale: 1 });
+    const availW = wrap.clientWidth - 48;
+    _pdfScale = Math.min(availW / vp.width, 0.95);
+    document.getElementById('zoom-label').textContent = Math.round(_pdfScale * 100) + '%';
+    renderPdfPage(_pdfPage);
+  } catch(e) {}
+}
+
+// Ping opnieuw sturen als klantpaneel nog niet gereageerd heeft
+if (IS_PDF_MODE) {
+  setInterval(() => {
+    if (!document.getElementById('conn-dot')?.classList.contains('ok')) {
+      channel.postMessage({ type: 'ping' });
+    }
+  }, 5000);
+}
+
+// ═══════════════════ HELP ═══════════════════
+function openHelp() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'help-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="help-modal">
+      <div class="modal-header" style="padding:14px 22px;">
+        <h2>Concepten PDF — twee schermen</h2>
+        <button class="modal-close" onclick="document.getElementById('help-overlay').remove()">×</button>
+      </div>
+      <div class="help-steps">
+        <div class="help-step">
+          <div class="help-step-nr">1</div>
+          <div class="help-step-body">Laad het <strong>Excel-bestand</strong> via "Update data" in dit venster.</div>
+        </div>
+        <div class="help-step">
+          <div class="help-step-nr">2</div>
+          <div class="help-step-body">Klik op <strong>"Concepten PDF"</strong> — er opent een tweede venster. Sleep dat venster naar het andere scherm.</div>
+        </div>
+        <div class="help-step">
+          <div class="help-step-nr">3</div>
+          <div class="help-step-body">Klik in het PDF-venster op <strong>"PDF laden"</strong> en selecteer het Rapport.pdf uit AFAS/Profit. Je kunt de PDF ook <strong>drag &amp; droppen</strong>.</div>
+        </div>
+        <div class="help-step">
+          <div class="help-step-nr">4</div>
+          <div class="help-step-body">Navigeer door de PDF met de <strong>pijltjestoetsen</strong> of de knoppen. Dit venster springt automatisch naar de juiste klant.</div>
+        </div>
+        <div class="help-tip">
+          De groene stip in het PDF-venster geeft aan of de verbinding actief is. Werkt het niet? Ververs het PDF-venster en wacht tot de stip groen wordt.
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ═══════════════════ UTILS ═══════════════════
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1866,23 +1618,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<style>
-.bt-nav-back{position:fixed;top:14px;left:14px;z-index:9999;display:inline-flex;align-items:center;gap:6px;background:#2C1A0E;color:#F5EBE0!important;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;text-decoration:none!important;opacity:.85;transition:opacity .2s;font-family:system-ui,-apple-system,sans-serif;}
-.bt-nav-back:hover{opacity:1;}
-.bt-page-footer{margin-top:40px;padding:14px 24px;border-top:1px solid #E8C4A8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-family:system-ui,-apple-system,sans-serif;background:#FDF6F0;}
-.bt-privacy{font-size:11px;color:#6B7280;display:flex;align-items:center;gap:7px;}
-.bt-privacy-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.bt-privacy-dot.green{background:#22c55e;}
-.bt-privacy-dot.orange{background:#f59e0b;}
-.bt-footerbrand{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#A07860;position:relative;cursor:default;}
-.bt-footerbrand .dot{width:6px;height:6px;border-radius:50%;background:#C0522A;flex-shrink:0;}
-.bt-footerbrand strong{color:#C0522A;font-weight:500;}
-.bt-footerbrand .tip{display:none;position:absolute;bottom:28px;right:0;background:#2C1A0E;color:#F5EBE0;font-size:11px;padding:6px 12px;border-radius:6px;white-space:nowrap;}
-.bt-footerbrand:hover .tip{display:block;}
-</style>
-<a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 jul 2026, 23:45</div></footer>
-<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
-<a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 13:25</div>
 </body>
 </html>
