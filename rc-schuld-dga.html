@@ -758,6 +758,49 @@
       font-weight: 800;
       font-size: 16px;
     }
+
+    /* ── Mode toggle ── */
+    .mode-toggle {
+      display: inline-flex;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(30,45,78,0.06);
+    }
+
+    .mode-btn {
+      padding: 11px 28px;
+      border: none;
+      border-right: 1.5px solid var(--border);
+      background: #f8f9fc;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: background 0.15s, color 0.15s;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .mode-btn:last-child { border-right: none; }
+    .mode-btn::after { display: none; }
+    .mode-btn.active { background: var(--navy); color: #fff; }
+    .mode-btn:hover:not(.active) { background: var(--mint-light); color: var(--navy); transform: none; }
+
+    /* ── Omgekeerde berekening ── */
+    .omgekeerd-table tr:last-child td {
+      background: transparent;
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: none;
+    }
+    .omgekeerd-table tr.row-min td {
+      background: var(--mint-light);
+      font-weight: 800;
+      color: var(--navy);
+    }
   </style>
 </head>
 <body>
@@ -852,8 +895,21 @@
   </div>
 </div>
 
+<div id="cardModeToggle" style="display:none; text-align:center; margin-bottom:16px;">
+  <div class="mode-toggle">
+    <button type="button" class="mode-btn active" id="btnModeKosten" onclick="setMode('kosten')">Wat kan ik doen?</button>
+    <button type="button" class="mode-btn" id="btnModeNodig" onclick="setMode('nodig')">Wat heb ik nodig?</button>
+  </div>
+</div>
+
 <div id="cardAdvies" style="display:none; margin-bottom:16px;">
   <div id="advies"></div>
+</div>
+
+<div class="card" id="cardOmgekeerd" style="display:none; margin-bottom:16px;">
+  <div class="card-title">Wat heb je nodig?</div>
+  <p class="blok-intro">Minimale jaarlijkse inleg (box 2) om de schuld volledig af te lossen binnen het lage tarief — per gewenste looptijd.</p>
+  <div id="omgekeerd"></div>
 </div>
 
 <div class="blokken-grid" id="blokkenGrid" style="display:none;">
@@ -1317,6 +1373,130 @@ function loadScenario(key) {
 }
 
 
+// ─── omgekeerde berekening ───────────────────────────────────────────────────
+
+/**
+ * Omgekeerde berekening:
+ * - Snelste route: jaar-voor-jaar plan met max benutting lage schijf.
+ *   Niet-laatste jaren: bruto = lowBracket. Laatste jaar: bruto = restschuld
+ *   (zodat netto dividend + storting precies op nul uitkomt, geen overschot).
+ * - Langzamere varianten: annuïteitsformule voor gelijke jaarlijkse betalingen.
+ */
+function berekenOmgekeerd(rcDebt, lowBracket, lowRate, rcInterestRate) {
+  if (rcDebt <= 0 || lowRate <= 0 || lowBracket <= 0) return { feasible: false };
+
+  // Minimum looptijd via simulatie
+  let simDebt = rcDebt;
+  let minYears = 0;
+  while (simDebt > 0.005 && minYears < 100) {
+    minYears++;
+    const debtNaRente = simDebt * (1 + rcInterestRate);
+    const grossDiv = Math.min(lowBracket, debtNaRente / (1 - lowRate));
+    simDebt = Math.max(0, debtNaRente - grossDiv);
+  }
+  if (minYears >= 100) return { feasible: false };
+
+  // Jaar-voor-jaar plan snelste route
+  const kpiRows = [];
+  let debt = rcDebt;
+  let kpiTotalBox2 = 0;
+  for (let y = 1; y <= minYears; y++) {
+    const beginDebt  = r2(debt);
+    const rente      = r2(debt * rcInterestRate);
+    const debtNaRente = r2(debt + rente);
+    const isLastYear = y === minYears;
+    // Laatste jaar: exact wat nodig is (G = schuld → reductie = G, geen overschot)
+    // Overige jaren: volle lage schijf
+    const grossDiv   = r2(isLastYear ? debtNaRente : lowBracket);
+    const deposit    = r2(grossDiv * lowRate);
+    const endDebt    = r2(Math.max(0, debtNaRente - grossDiv));
+    kpiRows.push({ year: y, beginDebt, rente, grossDiv, deposit, endDebt });
+    kpiTotalBox2 += deposit;
+    debt = endDebt;
+  }
+
+  // Langzamere varianten: gelijke jaarlijkse betalingen (annuïteit), minYears+1 t/m minYears+5
+  const tableRows = [];
+  const maxN = Math.min(minYears + 5, 20);
+  for (let n = minYears + 1; n <= maxN; n++) {
+    let G;
+    if (rcInterestRate < 0.0001) {
+      G = rcDebt / n;
+    } else {
+      const r = rcInterestRate;
+      const f = Math.pow(1 + r, n);
+      G = rcDebt * r * f / (f - 1);
+    }
+    const depositPerYear = r2(G * lowRate);
+    const grossPerYear   = r2(G);
+    const totalBox2      = r2(depositPerYear * n);
+    tableRows.push({ years: n, depositPerYear, grossPerYear, totalBox2 });
+  }
+
+  return { feasible: true, minYears, kpiRows, kpiTotalBox2: r2(kpiTotalBox2), tableRows };
+}
+
+function renderOmgekeerd(b0) {
+  if (!b0 || !b0.feasible || !b0.kpiRows.length) return '';
+  const hasRente = b0.kpiRows.some(r => r.rente > 0.005);
+  let html = '';
+
+  // ── Snelste route: jaar-voor-jaar ──
+  html += `<div class="block-title">Snelste route — ${b0.minYears} jaar</div>`;
+  html += `<table class="omgekeerd-table" style="margin-bottom:20px;">
+    <thead><tr>
+      <th>Jaar</th>
+      <th>RC-stand begin</th>
+      ${hasRente ? '<th>Rente</th>' : ''}
+      <th>Box 2-inleg</th>
+      <th>Bruto dividend</th>
+      <th>RC-stand eind</th>
+    </tr></thead><tbody>`;
+
+  for (const r of b0.kpiRows) {
+    html += `<tr>
+      <td>Jaar ${r.year}</td>
+      <td>${euro(r.beginDebt)}</td>
+      ${hasRente ? `<td>${euro(r.rente)}</td>` : ''}
+      <td>${euro(r.deposit)}</td>
+      <td>${euro(r.grossDiv)}</td>
+      <td>${r.endDebt < 0.05 ? '€ 0' : euro(r.endDebt)}</td>
+    </tr>`;
+  }
+
+  html += `<tr>
+    <td>Totaal</td>
+    <td></td>
+    ${hasRente ? '<td></td>' : ''}
+    <td>${euro(b0.kpiTotalBox2)}</td>
+    <td></td>
+    <td></td>
+  </tr></tbody></table>`;
+
+  // ── Langzamere varianten ──
+  if (b0.tableRows.length) {
+    html += `<div class="block-title">Meer spreiding — gelijke jaarlijkse betalingen</div>`;
+    html += `<table class="omgekeerd-table">
+      <thead><tr>
+        <th>Looptijd</th>
+        <th>Inleg per jaar</th>
+        <th>Bruto div. per jaar</th>
+        <th>Totale box 2</th>
+      </tr></thead><tbody>`;
+    for (const r of b0.tableRows) {
+      html += `<tr>
+        <td>${r.years} jaar</td>
+        <td>${euro(r.depositPerYear)}</td>
+        <td>${euro(r.grossPerYear)}</td>
+        <td>${euro(r.totalBox2)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  return html;
+}
+
 // ─── solve: alles samen ──────────────────────────────────────────────────────
 
 function solve(input) {
@@ -1646,6 +1826,14 @@ function renderJaarplan(b3) {
   return `<table><thead>${th}</thead><tbody>${tbody}</tbody></table>`;
 }
 
+function setMode(mode) {
+  document.getElementById('btnModeKosten').classList.toggle('active', mode === 'kosten');
+  document.getElementById('btnModeNodig').classList.toggle('active', mode === 'nodig');
+  const kostenEls = ['cardAdvies', 'blokkenGrid', 'cardLegende', 'cardJaarplan'];
+  kostenEls.forEach(id => { document.getElementById(id).style.display = mode === 'kosten' ? '' : 'none'; });
+  document.getElementById('cardOmgekeerd').style.display = mode === 'nodig' ? '' : 'none';
+}
+
 function calculate() {
   const result = solve({
     rcDebt: document.getElementById('rcDebt').value,
@@ -1664,13 +1852,15 @@ function calculate() {
   const hide = id => document.getElementById(id).style.display = 'none';
 
   if (!result.ok) {
+    hide('cardModeToggle');
     document.getElementById('cardAdvies').style.display = '';
     document.getElementById('advies').innerHTML = signal('warn', `<strong>Niet haalbaar:</strong> ${result.error}`);
-    hide('blokkenGrid'); hide('cardLegende'); hide('cardJaarplan');
+    hide('blokkenGrid'); hide('cardLegende'); hide('cardJaarplan'); hide('cardOmgekeerd');
     return;
   }
 
   const { blok1, blok2, blok3, input } = result;
+  const blok0 = berekenOmgekeerd(input.rcDebt, input.lowBracket, input.lowRate, input.rcInterestRate);
 
   // Directe route vermindert de schuld meer dan de meerjarenroute wanneer rente de schuld
   // sneller laat groeien dan Blok 3 hem per jaar kan terugbrengen.
@@ -1744,14 +1934,15 @@ function calculate() {
     blok2BeterDanBlok3 ? 'Blok 3 — Meerjarenroute' : 'Blok 3 — Optimale route';
 
   document.getElementById('advies').innerHTML = adviesHtml;
-
+  document.getElementById('omgekeerd').innerHTML = renderOmgekeerd(blok0);
   document.getElementById('blok1').innerHTML = renderBlok1(blok1, input.rcDebt);
   document.getElementById('blok2').innerHTML = renderBlok2(blok2, input.rcDebt, input.rcInterestRate);
   document.getElementById('blok3').innerHTML = renderBlok3(blok3, input.privateAvailable, input.bvCashAvailable);
   document.getElementById('jaarplan').innerHTML = renderJaarplan(blok3);
-  show('blokkenGrid');
-  show('cardLegende');
-  show('cardJaarplan');
+
+  const geenGeldBeschikbaar = input.privateAvailable <= 0 && input.bvCashAvailable <= 0;
+  show('cardModeToggle');
+  setMode(geenGeldBeschikbaar ? 'nodig' : 'kosten');
 }
 
 calculate();
@@ -1774,23 +1965,6 @@ function toggleDebug() {
 }
 </script>
 </div><!-- .content -->
-<style>
-.bt-nav-back{position:fixed;top:14px;left:14px;z-index:9999;display:inline-flex;align-items:center;gap:6px;background:#2C1A0E;color:#F5EBE0!important;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;text-decoration:none!important;opacity:.85;transition:opacity .2s;font-family:system-ui,-apple-system,sans-serif;}
-.bt-nav-back:hover{opacity:1;}
-.bt-page-footer{margin-top:40px;padding:14px 24px;border-top:1px solid #E8C4A8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-family:system-ui,-apple-system,sans-serif;background:#FDF6F0;}
-.bt-privacy{font-size:11px;color:#6B7280;display:flex;align-items:center;gap:7px;}
-.bt-privacy-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.bt-privacy-dot.green{background:#22c55e;}
-.bt-privacy-dot.orange{background:#f59e0b;}
-.bt-footerbrand{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:#A07860;position:relative;cursor:default;}
-.bt-footerbrand .dot{width:6px;height:6px;border-radius:50%;background:#C0522A;flex-shrink:0;}
-.bt-footerbrand strong{color:#C0522A;font-weight:500;}
-.bt-footerbrand .tip{display:none;position:absolute;bottom:28px;right:0;background:#2C1A0E;color:#F5EBE0;font-size:11px;padding:6px 12px;border-radius:6px;white-space:nowrap;}
-.bt-footerbrand:hover .tip{display:block;}
-</style>
-<a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 jul 2026, 23:45</div></footer>
-<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
-<a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 13:25</div>
 </body>
 </html>
