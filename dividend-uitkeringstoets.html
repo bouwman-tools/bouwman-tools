@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
@@ -245,6 +245,12 @@
       <div>
         <label>Verwachte uitkeringsdatum
           <input type="date" id="datumUitkering" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label>Naam secretaris / notulist AVA
+          <span class="sub">Persoon die de notulen ondertekent — laat leeg als gelijk aan bestuurder</span>
+          <input type="text" id="naamSecretaris" placeholder="Zelfde als bestuurder" oninput="bereken()" />
         </label>
       </div>
       <div>
@@ -514,118 +520,130 @@ function bereken() {
   const dvStr  = fmtDatum(datumVerg);
   const duStr  = fmtDatum(datumUitk);
   const vNaamBV = naamBV.endsWith('B.V.') || naamBV.endsWith('BV') ? naamBV : naamBV + ' B.V.';
+  const rawSec = document.getElementById('naamSecretaris').value.trim();
+  const naamSec = rawSec || naamBest;
 
   // AVA-notulen
-  const avaDoc = `NOTULEN VERGADERING VAN AANDEELHOUDERS
-${vNaamBV}
-${'='.repeat(Math.max(40, vNaamBV.length + 32))}
+  const avaDoc = `NOTULEN
+van de buitengewone vergadering van aandeelhouders van de besloten
+vennootschap met beperkte aansprakelijkheid:
 
-Datum      : ${dvStr}
-Locatie    : [in te vullen]
-Aanwezig   : ${naamAH} (enig aandeelhouder)
-Voorzitter : ${naamBest}
-Notulist   : ${naamBest}
+${vNaamBV.toUpperCase()}
 
-De vergadering wordt geopend. Geconstateerd wordt dat alle aandelen in
-het kapitaal van de vennootschap vertegenwoordigd zijn, zodat rechtsgeldig
-besluiten kunnen worden genomen.
+gehouden te ${plaatsnaam} op ${dvStr}.
 
-AGENDAPUNT — Dividenduitkering boekjaar ${boekjaar}
-${'─'.repeat(48)}
 
-Aan de orde is het voorstel tot uitkering van dividend over boekjaar
-${boekjaar} ten laste van de vrije reserves.
+PRESENTIELIJST
 
-De vergadering stelt vast dat:
+Aandeelhouder : ${naamAH}, 100% van de stemmen.           paraaf: ________
+Voorzitter    : ${naamBest}
+Secretaris    : ${naamSec}
 
-  1. Het bestuur op grond van art. 2:216 BW de uitkeringstoets heeft
-     uitgevoerd en daarbij heeft geconstateerd dat:
 
-     a) het eigen vermogen na de uitkering niet daalt tot onder het
-        gestorte en opgevraagde aandelenkapitaal (balanstoets);
+I. OPENING
 
-     b) de vennootschap na de uitkering naar verwachting gedurende
-        ten minste twaalf maanden haar opeisbare schulden zal kunnen
-        blijven voldoen (liquiditeitstoets).
+De voorzitter constateert dat blijkens de presentielijst het gehele
+geplaatste kapitaal ter vergadering vertegenwoordigd is.
+Er is geen recht van vruchtgebruik of pandrecht op de aandelen van de
+vennootschap gevestigd.
+Er zijn geen certificaten van aandelen met medewerking van de vennootschap
+uitgegeven.
+Alle besluiten kunnen rechtsgeldig worden genomen, mits met algemene
+stemmen, nu niet alle formaliteiten voor het bijeenroepen van deze
+vergadering in acht zijn genomen.
+Het bestuur is in de gelegenheid gesteld een raadgevende stem uit te brengen.
 
-  2. Het bestuur zijn goedkeuring heeft gehecht aan de uitkering.
 
-BESLUIT (unaniem aangenomen):
+II. VOORSTELLEN
 
-  De vergadering besluit tot uitkering van een dividend van ${fmt(dividend)}
-  (zegge: ${bedragInWoorden(dividend)}) over boekjaar ${boekjaar},
-  te voldoen aan de aandeelhouder(s) op ${duStr}.
+De voorzitter stelt aan de orde: het uitkeren van een (interim) dividend
+ad ${fmt(dividend)}.
 
-Niets meer aan de orde zijnde, sluit de voorzitter de vergadering.
 
-Getekend te ${plaatsnaam}, ${dvStr}
+III. BESLUITEN
 
-___________________________
-${naamBest}
-Voorzitter / Notulist`;
+1. Op grond van de statuten haar machtiging te verlenen tot de uitkering
+   van een (interim) dividend ad ${fmt(dividend)}.
+
+
+IV. SLUITING
+
+Niets meer aan de orde zijnde sluit de voorzitter de vergadering nadat
+de notulen nog zijn goedgekeurd.
+
+Getekend in tweevoud te ${plaatsnaam} op ${dvStr}.
+
+
+De voorzitter:                    De secretaris:
+
+
+___________________________       ___________________________
+${naamBest}                       ${naamSec}`;
 
   // Bestuursbesluit
-  const bestuurDoc = `BESTUURSBESLUIT / VERKLARING UITKERINGSTOETS
-${vNaamBV}
-${'='.repeat(Math.max(40, vNaamBV.length + 32))}
+  const bestuurDoc = `BESTUURSBESLUIT
 
-Datum     : ${dvStr}
-Bestuurder: ${naamBest}
 
-Het bestuur van ${vNaamBV} heeft op ${dvStr} de uitkeringstoets
-uitgevoerd als bedoeld in art. 2:216 lid 2 Burgerlijk Wetboek, in
-verband met het voorgenomen besluit tot dividenduitkering van ${fmt(dividend)}
-over boekjaar ${boekjaar}.
+De ondergetekende:
 
-A. BALANSTOETS (art. 2:216 lid 1 BW)
-${'─'.repeat(40)}
+${naamBest}
 
-   Eigen vermogen (tussentijdse balans)         ${fmtR(fmt(eigenVermogen))}
-   Af: gestort en opgevraagd aandelenkapitaal   ${fmtR('− ' + fmt(kapitaal))}
-   Af: wettelijke en statutaire reserves        ${fmtR('− ' + fmt(reserves))}
-                                                ${'─'.repeat(18)}
-   Vrij uitkeerbaar eigen vermogen              ${fmtR(fmt(vrijUitkeerbaar))}
-   Voorgesteld dividend                         ${fmtR('− ' + fmt(dividend))}
-                                                ${'─'.repeat(18)}
-   Resterend vrij uitkeerbaar na uitkering      ${fmtR(fmt(vrijUitkeerbaar - dividend))}
+in aanmerking nemende dat:
 
-   Conclusie balanstoets: GESLAAGD
-   Na de uitkering daalt het eigen vermogen niet tot onder het gestorte
-   aandelenkapitaal.
+- ondergetekende bestuurder is van de besloten vennootschap met beperkte
+  aansprakelijkheid ${vNaamBV} en als zodanig bevoegd de vennootschap
+  rechtsgeldig te vertegenwoordigen, deze vennootschap hierna ook te
+  noemen: "de vennootschap";
 
-B. LIQUIDITEITSTOETS (art. 2:216 lid 2 BW)
-${'─'.repeat(40)}
+- aan de orde is, het uitkeren van een (interim) dividend ad ${fmt(dividend)};
 
-   Liquide middelen huidig                      ${fmtR(fmt(liquideMiddelen))}
-   Verwachte netto kasstroom (12 maanden)       ${fmtR((kasstroom12 >= 0 ? '+ ' : '− ') + fmt(Math.abs(kasstroom12)))}
-   Af: kortlopende schulden en verplichtingen   ${fmtR('− ' + fmt(kortSchulden))}
-   Af: dividend                                 ${fmtR('− ' + fmt(dividend))}
-                                                ${'─'.repeat(18)}
-   Verwachte liquiditeitspositie na 12 mnd      ${fmtR(fmt(liqNaUitkering))}
+- in verband met het uitkeren van dit dividend heeft de ondergetekende het
+  voorgenomen besluit getoetst aan de voor de vennootschap bekende
+  verplichtingen die de vennootschap het komend jaar, gerekend vanaf
+  vandaag, heeft of is aangegaan en de verwachte baten van de vennootschap
+  voor het komend jaar kan verwachten;
 
-   Conclusie liquiditeitstoets: GESLAAGD
-   Het bestuur is op basis van de beschikbare financiële gegevens van
-   oordeel dat de vennootschap na de uitkering gedurende ten minste
-   twaalf maanden haar opeisbare schulden kan blijven voldoen.
+- de volgende uitkeringstoets is uitgevoerd als bedoeld in art. 2:216
+  lid 2 Burgerlijk Wetboek:
 
-C. BESLUIT BESTUUR
-${'─'.repeat(40)}
+  Balanstoets (art. 2:216 lid 1 BW):
 
-   Op grond van het voorgaande geeft het bestuur zijn goedkeuring voor
-   de uitkering van ${fmt(dividend)} aan de aandeelhouder(s), te voldoen
-   op ${duStr}.
+  Eigen vermogen (tussentijdse balans)         ${ fmtR(fmt(eigenVermogen))}
+  Af: gestort en opgevraagd aandelenkapitaal   ${fmtR('- ' + fmt(kapitaal))}
+  Af: wettelijke en statutaire reserves        ${fmtR('- ' + fmt(reserves))}
+                                               ${'─'.repeat(18)}
+  Vrij uitkeerbaar eigen vermogen              ${fmtR(fmt(vrijUitkeerbaar))}
+  Voorgesteld dividend                         ${fmtR('- ' + fmt(dividend))}
+                                               ${'─'.repeat(18)}
+  Resterend vrij uitkeerbaar na uitkering      ${fmtR(fmt(vrijUitkeerbaar - dividend))}
 
-   Het bestuur wijst op zijn aansprakelijkheid ex art. 2:216 lid 3 BW
-   en bevestigt dat de uitkering op basis van de bekende informatie
-   verantwoord is.
+  Liquiditeitstoets (art. 2:216 lid 2 BW):
 
-Getekend te ${plaatsnaam}, ${dvStr}
+  Liquide middelen huidig                      ${fmtR(fmt(liquideMiddelen))}
+  Verwachte netto kasstroom (12 maanden)       ${fmtR((kasstroom12 >= 0 ? '+ ' : '- ') + fmt(Math.abs(kasstroom12)))}
+  Af: kortlopende schulden en verplichtingen   ${fmtR('- ' + fmt(kortSchulden))}
+  Af: dividend                                 ${fmtR('- ' + fmt(dividend))}
+                                               ${'─'.repeat(18)}
+  Verwachte liquiditeitspositie na 12 mnd      ${fmtR(fmt(liqNaUitkering))}
+
+- hij constateert dat de vennootschap kan voortgaan met het betalen van
+  de opeisbare schulden in deze periode;
+
+
+besluit:
+
+goedkeuring als bedoeld in artikel 2:216 lid 2 boek 2 van het Burgerlijk
+Wetboek te geven aan het uitkeren van een (interim) dividend ad ${fmt(dividend)}.
+
+
+Getekend te ${plaatsnaam} op ${dvStr}
+
 
 ___________________________
 ${naamBest}
 Bestuurder ${vNaamBV}`;
 
-  document.getElementById('tekstAva').innerText = avaDoc;
+    document.getElementById('tekstAva').innerText = avaDoc;
   document.getElementById('tekstBestuur').innerText = bestuurDoc;
 }
 
@@ -666,7 +684,7 @@ function bedragInWoorden(n) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 jul 2026, 23:45</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 13:18</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
