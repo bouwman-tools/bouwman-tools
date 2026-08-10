@@ -584,14 +584,13 @@ function parseWorkbook(wb) {
   })).filter(r => r.klantId);
 
   const CATS = ['Jaar', 'IB', 'Vpb', 'Loon', 'Abonnement', 'Advies', 'Admin', 'Overig'];
+  const CATS_MAP = Object.fromEntries(CATS.map(c => [c.toLowerCase(), c]));
   const _onbekendeCats = new Set();
   DATA.facturen = toRows(fName).map(r => {
     const rawCat = String(r['Categorie'] || '').trim();
-    let categorie = rawCat;
-    if (rawCat && !CATS.includes(rawCat)) {
-      categorie = 'Overig';
-      _onbekendeCats.add(rawCat);
-    }
+    const normCat = CATS_MAP[rawCat.toLowerCase()];
+    let categorie = normCat || (rawCat ? 'Overig' : '');
+    if (rawCat && !normCat) _onbekendeCats.add(rawCat);
     return {
       klantId:     normId(r['VRCode']),
       factuurnr:   String(r['Factuurnr.'] || '').trim(),
@@ -1348,26 +1347,13 @@ function renderStatusTab() {
 // ═══════════════════ MODAL: FACTUURPLANNER ═══════════════════
 function openPlanner() {
   if (!DATA.klanten.length) { alert('Laad eerst een Excel-bestand.'); return; }
-  const now = new Date();
-  const maandOpties = [];
-  for (let i = -2; i <= 4; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const label = d.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
-    maandOpties.push({ val, label });
-  }
-  const huidigVal = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'planner-overlay';
   overlay.innerHTML = `<div class="modal">
     <div class="modal-header"><h2>Factuurplanner</h2><button class="modal-close" onclick="closePlanner()">×</button></div>
     <div class="modal-toolbar">
-      <span class="filter-label">Factuurmaand</span>
-      <select class="filter-select" id="planner-maand" onchange="renderPlanner()">
-        ${maandOpties.map(o => `<option value="${o.val}"${o.val===huidigVal?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">Toont werk dat klaar is maar nog niet gefactureerd</span>
+      <span style="font-size:12px;color:var(--text-muted);">Werk dat klaar is maar nog niet gefactureerd</span>
     </div>
     <div class="modal-body" id="planner-body"></div>
   </div>`;
@@ -1859,6 +1845,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 00:05</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 00:07</div>
 </body>
 </html>
