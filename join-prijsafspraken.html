@@ -223,6 +223,10 @@
   .pdf-canvas-wrap { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; background: #151b2e; }
   .pdf-canvas-wrap canvas { box-shadow: 0 6px 32px rgba(0,0,0,0.6); display: block; }
   .pdf-btn { background: rgba(255,255,255,0.12); color: var(--white); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .pdf-search-input { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 5px 10px; color: var(--white); font-size: 13px; width: 155px; outline: none; }
+  .pdf-search-input:focus { border-color: var(--green); background: rgba(255,255,255,0.13); }
+  .pdf-search-input::placeholder { color: rgba(255,255,255,0.3); }
+  .pdf-search-status { color: rgba(255,255,255,0.5); font-size: 12px; min-width: 52px; text-align: center; white-space: nowrap; }
   .pdf-btn:hover { background: rgba(255,255,255,0.22); }
   .pdf-btn:disabled { opacity: 0.35; cursor: default; }
   .pdf-btn.green { background: var(--green); color: var(--navy-dark); font-weight: 700; border-color: var(--green); }
@@ -364,6 +368,18 @@
     <span id="zoom-label" style="color:rgba(255,255,255,0.55);font-size:12px;min-width:36px;text-align:center;">100%</span>
     <button class="pdf-btn" onclick="changeZoom(0.05)" title="Inzoomen">+</button>
     <button class="pdf-btn" onclick="fitPage()" title="Aanpassen aan scherm">Fit</button>
+
+    <div class="pdf-sep"></div>
+
+    <input type="text" class="pdf-search-input" id="pdf-search" placeholder="Zoeken in PDF…"
+      onkeydown="if(event.key==='Enter') searchPdfExecute(); if(event.key==='Escape') clearPdfSearch();">
+    <button class="pdf-btn" onclick="searchPdfExecute()" title="Zoeken (Enter)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="pdf-btn" id="pdf-srch-prev" onclick="navSearchMatch(-1)" disabled title="Vorige treffer">↑</button>
+    <span class="pdf-search-status" id="pdf-search-status"></span>
+    <button class="pdf-btn" id="pdf-srch-next" onclick="navSearchMatch(1)" disabled title="Volgende treffer">↓</button>
+    <button class="pdf-btn" id="pdf-srch-clear" onclick="clearPdfSearch()" style="display:none;" title="Zoekopdracht wissen">✕</button>
   </div>
 
   <div class="pdf-klant-bar" id="pdf-klant-bar">
@@ -1341,6 +1357,74 @@ let _pdfDoc = null;
 let _pdfPage = 1;
 let _pdfTotal = 0;
 let _pdfScale = 1.2;
+
+// Zoekstatus
+let _searchTerm = '';
+let _searchResults = []; // [{pageNum, matchItems}]
+let _searchResultIdx = -1;
+let _searchRunning = false;
+
+async function searchPdfExecute() {
+  if (!_pdfDoc || _searchRunning) return;
+  const term = document.getElementById('pdf-search').value.trim().toLowerCase();
+  if (!term) { clearPdfSearch(); return; }
+
+  _searchTerm = term;
+  _searchResults = [];
+  _searchResultIdx = -1;
+  _searchRunning = true;
+  document.getElementById('pdf-search-status').textContent = 'Zoeken…';
+  document.getElementById('pdf-srch-prev').disabled = true;
+  document.getElementById('pdf-srch-next').disabled = true;
+  document.getElementById('pdf-srch-clear').style.display = '';
+
+  for (let i = 1; i <= _pdfTotal; i++) {
+    const page = await _pdfDoc.getPage(i);
+    const tc = await page.getTextContent();
+    const matchItems = tc.items.filter(item => item.str.toLowerCase().includes(term));
+    if (matchItems.length) _searchResults.push({ pageNum: i, matchItems });
+  }
+
+  _searchRunning = false;
+
+  if (!_searchResults.length) {
+    document.getElementById('pdf-search-status').textContent = 'Niet gevonden';
+    renderPdfPage(_pdfPage);
+    return;
+  }
+
+  _searchResultIdx = 0;
+  updatePdfSearchStatus();
+  document.getElementById('pdf-srch-prev').disabled = false;
+  document.getElementById('pdf-srch-next').disabled = false;
+  renderPdfPage(_searchResults[0].pageNum);
+}
+
+function navSearchMatch(dir) {
+  if (!_searchResults.length) return;
+  _searchResultIdx = ((_searchResultIdx + dir) % _searchResults.length + _searchResults.length) % _searchResults.length;
+  updatePdfSearchStatus();
+  renderPdfPage(_searchResults[_searchResultIdx].pageNum);
+}
+
+function updatePdfSearchStatus() {
+  const el = document.getElementById('pdf-search-status');
+  if (!_searchResults.length) { el.textContent = ''; return; }
+  el.textContent = `${_searchResultIdx + 1} / ${_searchResults.length}`;
+}
+
+function clearPdfSearch() {
+  _searchTerm = '';
+  _searchResults = [];
+  _searchResultIdx = -1;
+  _searchRunning = false;
+  document.getElementById('pdf-search').value = '';
+  document.getElementById('pdf-search-status').textContent = '';
+  document.getElementById('pdf-srch-prev').disabled = true;
+  document.getElementById('pdf-srch-next').disabled = true;
+  document.getElementById('pdf-srch-clear').style.display = 'none';
+  if (_pdfDoc) renderPdfPage(_pdfPage);
+}
 let _pdfRendering = false;
 let _pdfKlanten = [];
 let _pdfPendingPage = null;
@@ -1361,6 +1445,11 @@ function initPdfViewer() {
   }
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
+    if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      document.getElementById('pdf-search').focus();
+      return;
+    }
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextPage();
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevPage();
@@ -1430,6 +1519,26 @@ async function renderPdfPage(num) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   await page.render({ canvasContext: ctx, viewport }).promise;
+
+  // Teken zoekmarkeringen
+  if (_searchTerm) {
+    const matchResult = _searchResults.find(r => r.pageNum === num);
+    if (matchResult) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 210, 0, 0.38)';
+      ctx.strokeStyle = 'rgba(200, 140, 0, 0.7)';
+      ctx.lineWidth = 1;
+      for (const item of matchResult.matchItems) {
+        const [vx, vy] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+        const h = Math.max(item.height * viewport.scale, 8);
+        const w = item.width * viewport.scale || 40;
+        ctx.fillRect(vx, vy - h, w, h);
+        ctx.strokeRect(vx, vy - h, w, h);
+      }
+      ctx.restore();
+    }
+  }
+
   _pdfRendering = false;
 
   if (_pdfPendingPage !== null) {
@@ -1661,6 +1770,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:23</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:28</div>
 </body>
 </html>
