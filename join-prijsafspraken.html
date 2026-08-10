@@ -766,14 +766,14 @@ const STOP_WORDS = new Set(['de','van','den','der','het','en','bv','nv','vof','c
   'groep','group','beheer','advies','administratie','administraties','management','nederland']);
 
 function findRelatedClients(klant) {
-  // Haal betekenisvolle woorden uit de naam (min. 3 tekens, geen stopwoorden, geen initialen)
+  if (!klant.naam) return [];
   const words = klant.naam.toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(w => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
   if (!words.length) return [];
   return DATA.klanten.filter(c => {
-    if (c.id === klant.id) return false;
+    if (c.id === klant.id || !c.naam) return false;
     const naam = c.naam.toLowerCase();
     return words.some(w => naam.includes(w));
   });
@@ -818,7 +818,8 @@ function selectClient(id) {
       </div>`;
   }
 
-  const related = findRelatedClients(k);
+  let related = [];
+  try { related = findRelatedClients(k); } catch(e) { console.warn('[Gerelateerd]', e); }
   const relatedHtml = related.length ? `
     <div class="related-bar">
       <span class="related-label">Zie ook:</span>
@@ -1776,6 +1777,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:34</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:42</div>
 </body>
 </html>
