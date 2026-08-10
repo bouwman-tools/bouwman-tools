@@ -1397,14 +1397,16 @@ async function searchPdfExecute() {
   updatePdfSearchStatus();
   document.getElementById('pdf-srch-prev').disabled = false;
   document.getElementById('pdf-srch-next').disabled = false;
-  renderPdfPage(_searchResults[0].pageNum);
+  _pdfPage = _searchResults[0].pageNum;
+  renderPdfPage(_pdfPage);
 }
 
 function navSearchMatch(dir) {
   if (!_searchResults.length) return;
   _searchResultIdx = ((_searchResultIdx + dir) % _searchResults.length + _searchResults.length) % _searchResults.length;
   updatePdfSearchStatus();
-  renderPdfPage(_searchResults[_searchResultIdx].pageNum);
+  _pdfPage = _searchResults[_searchResultIdx].pageNum;
+  renderPdfPage(_pdfPage);
 }
 
 function updatePdfSearchStatus() {
@@ -1519,27 +1521,31 @@ async function renderPdfPage(num) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   await page.render({ canvasContext: ctx, viewport }).promise;
-
-  // Teken zoekmarkeringen
-  if (_searchTerm) {
-    const matchResult = _searchResults.find(r => r.pageNum === num);
-    if (matchResult) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(255, 210, 0, 0.38)';
-      ctx.strokeStyle = 'rgba(200, 140, 0, 0.7)';
-      ctx.lineWidth = 1;
-      for (const item of matchResult.matchItems) {
-        const [vx, vy] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
-        const h = Math.max(item.height * viewport.scale, 8);
-        const w = item.width * viewport.scale || 40;
-        ctx.fillRect(vx, vy - h, w, h);
-        ctx.strokeRect(vx, vy - h, w, h);
-      }
-      ctx.restore();
-    }
-  }
-
   _pdfRendering = false;
+
+  // Teken zoekmarkeringen (in try-catch zodat een fout de viewer niet bevriest)
+  try {
+    if (_searchTerm) {
+      const matchResult = _searchResults.find(r => r.pageNum === num);
+      if (matchResult) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 210, 0, 0.38)';
+        ctx.strokeStyle = 'rgba(200, 140, 0, 0.7)';
+        ctx.lineWidth = 1;
+        for (const item of matchResult.matchItems) {
+          if (!item.transform) continue;
+          const [vx, vy] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+          const h = Math.max((item.height || 10) * viewport.scale, 8);
+          const w = (item.width || 40) * viewport.scale || 40;
+          ctx.fillRect(vx, vy - h, w, h);
+          ctx.strokeRect(vx, vy - h, w, h);
+        }
+        ctx.restore();
+      }
+    }
+  } catch(e) {
+    console.warn('[PDF] Zoekmarkering fout:', e);
+  }
 
   if (_pdfPendingPage !== null) {
     const p = _pdfPendingPage;
@@ -1770,6 +1776,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:28</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:34</div>
 </body>
 </html>
