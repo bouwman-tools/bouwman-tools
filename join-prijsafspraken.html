@@ -472,8 +472,8 @@ if (!IS_PDF_MODE) {
     // Fallback: naam
     if (!klant && msg.naam) {
       const zoek = msg.naam.toLowerCase().trim();
-      klant = DATA.klanten.find(k => k.naam.toLowerCase() === zoek)
-           || DATA.klanten.find(k => k.naam.toLowerCase().includes(zoek.split(' ')[0]));
+      klant = DATA.klanten.find(k => k.naam && k.naam.toLowerCase() === zoek)
+           || DATA.klanten.find(k => k.naam && k.naam.toLowerCase().includes(zoek.split(' ')[0]));
     }
 
     if (klant) {
@@ -1432,6 +1432,7 @@ let _pdfRendering = false;
 let _pdfKlanten = [];
 let _pdfPendingPage = null;
 let _lastSentInfo = null;
+let _extractDebounceTimer = null;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -1548,6 +1549,51 @@ async function renderPdfPage(num) {
     console.warn('[PDF] Zoekmarkering fout:', e);
   }
 
+  // Plan tekst-extractie voor de huidige pagina — altijd, ook als er een pending page is.
+  // De debounce zorgt dat alleen de LAATSTE gestopte pagina daadwerkelijk verwerkt wordt.
+  clearTimeout(_extractDebounceTimer);
+  _extractDebounceTimer = setTimeout(async () => {
+    if (!_pdfDoc) return;
+    const pageNum = _pdfPage;
+    try {
+      const p = await _pdfDoc.getPage(pageNum);
+      const textContent = await p.getTextContent();
+      const text = textContent.items.map(i => i.str).join('\n');
+
+      const labelItem = textContent.items.find(item => /debiteurenn?ummer/i.test(item.str));
+      let positionalNr = null;
+      if (labelItem) {
+        const labelY = labelItem.transform[5];
+        positionalNr = textContent.items
+          .filter(item => {
+            const dy = labelY - item.transform[5];
+            return dy >= -5 && dy <= 40 && /^\d{4,8}$/.test(item.str.trim());
+          })
+          .sort((a, b) => a.transform[5] - b.transform[5])
+          .map(item => item.str.trim())[0] || null;
+      }
+      if (!positionalNr && _pdfKlanten.length) {
+        const kandidaten = textContent.items
+          .filter(item => /^\d{4,8}$/.test(item.str.trim()))
+          .sort((a, b) => a.transform[5] - b.transform[5])
+          .map(item => item.str.trim());
+        positionalNr = kandidaten.find(nr =>
+          _pdfKlanten.some(k => k.id === nr || k.oudNr === nr)
+        ) || null;
+      }
+      console.log('[PDF] label gevonden:', !!labelItem, '| debitnr:', positionalNr);
+
+      const conceptInfo = extractConceptInfo(text, positionalNr);
+      updatePdfKlantBar(conceptInfo);
+      if (conceptInfo && conceptInfo.debiteurnummer) {
+        _lastSentInfo = conceptInfo;
+        channel.postMessage({ type: 'debiteurnummer', ...conceptInfo });
+      }
+    } catch(err) {
+      console.error('[PDF] extractie fout:', err);
+    }
+  }, 120);
+
   if (_pdfPendingPage !== null) {
     const p = _pdfPendingPage;
     _pdfPendingPage = null;
@@ -1559,48 +1605,6 @@ async function renderPdfPage(num) {
   document.getElementById('page-nr').value = num;
   document.getElementById('btn-prev').disabled = num <= 1;
   document.getElementById('btn-next').disabled = num >= _pdfTotal;
-
-  // Extraheer tekst en stuur naar klantpaneel
-  try {
-    const textContent = await page.getTextContent();
-    const text = textContent.items.map(i => i.str).join('\n');
-
-    // Debiteurnummer staat altijd direct onder het label "DEBITEURENNUMMER".
-    // Zoek dat label (let op dubbel-N), pak het getal op dezelfde of iets lagere Y.
-    const labelItem = textContent.items.find(item => /debiteurenn?ummer/i.test(item.str));
-    let positionalNr = null;
-    if (labelItem) {
-      const labelY = labelItem.transform[5];
-      // Zoek getallen binnen 40 eenheden onder (of op gelijke hoogte van) het label
-      positionalNr = textContent.items
-        .filter(item => {
-          const dy = labelY - item.transform[5]; // positief = lager op de pagina
-          return dy >= -5 && dy <= 40 && /^\d{4,8}$/.test(item.str.trim());
-        })
-        .sort((a, b) => a.transform[5] - b.transform[5])
-        .map(item => item.str.trim())[0] || null;
-    }
-    // Fallback: laagste getal dat matcht met een bekende klant
-    if (!positionalNr && _pdfKlanten.length) {
-      const kandidaten = textContent.items
-        .filter(item => /^\d{4,8}$/.test(item.str.trim()))
-        .sort((a, b) => a.transform[5] - b.transform[5])
-        .map(item => item.str.trim());
-      positionalNr = kandidaten.find(nr =>
-        _pdfKlanten.some(k => k.id === nr || k.oudNr === nr)
-      ) || null;
-    }
-    console.log('[PDF] label gevonden:', !!labelItem, '| debitnr:', positionalNr);
-
-    const conceptInfo = extractConceptInfo(text, positionalNr);
-    updatePdfKlantBar(conceptInfo);
-    if (conceptInfo && conceptInfo.debiteurnummer) {
-      _lastSentInfo = conceptInfo;
-      channel.postMessage({ type: 'debiteurnummer', ...conceptInfo });
-    }
-  } catch(err) {
-    console.error('[PDF] extractie fout:', err);
-  }
 }
 
 function extractConceptInfo(text, positionalDebitnr = null) {
@@ -1777,6 +1781,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:42</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:55</div>
 </body>
 </html>
