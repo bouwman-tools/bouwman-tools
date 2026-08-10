@@ -545,15 +545,13 @@ function isJaVeld(val) {
   if (val === undefined || val === null || val === '') return false;
   if (typeof val === 'number') return !isNaN(val) && val !== 0;
   const s = String(val).trim().toLowerCase();
-  if (s === '' || s === 'nan' || s === 'false' || s === '0') return false;
-  return true;
+  return ['ja', 'yes', 'true', '1', 'x'].includes(s);
 }
 
 function normId(val) {
   if (val === undefined || val === null || val === '') return '';
-  const n = parseFloat(val);
-  if (!isNaN(n)) return String(Math.round(n));
-  return String(val).trim();
+  // Verwijder alleen het .0-suffix dat Excel soms toevoegt; voorloopnullen blijven intact.
+  return String(val).trim().replace(/\.0+$/, '');
 }
 
 function parseWorkbook(wb) {
@@ -565,10 +563,10 @@ function parseWorkbook(wb) {
   const toRows  = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' }) : [];
 
   DATA.klanten = toRows(ksName).map(r => ({
-    id:         String(r['VRCode'] || '').trim(),
+    id:         normId(r['VRCode']),
     naam:       String(r['Naam'] || '').trim(),
     rechtsvorm: String(r['Rechtsvorm'] || '').trim(),
-    oudNr:      String(r['Oud klantnummer'] || '').trim(),
+    oudNr:      normId(r['Oud klantnummer']),
     vasteprijs: isJaVeld(r['Vaste Prijs']),
     abonnement: isJaVeld(r['Abonnement']),
     loon:       isJaVeld(r['Loon']) || isJaVeld(r['Salaris']),
@@ -586,17 +584,26 @@ function parseWorkbook(wb) {
   })).filter(r => r.klantId);
 
   const CATS = ['Jaar', 'IB', 'Vpb', 'Loon', 'Abonnement', 'Advies', 'Admin', 'Overig'];
-  DATA.facturen = toRows(fName).map(r => ({
-    klantId:     normId(r['VRCode']),
-    factuurnr:   String(r['Factuurnr.'] || '').trim(),
-    datum:       formatDate(r['Datum']),
-    datumRaw:    parseRawDate(r['Datum']),
-    code:        String(r['Code'] || '').trim(),
-    omschrijving: String(r['Omschrijving'] || '').trim(),
-    jaar:        String(r['Jaar'] || '').trim(),
-    bedrag:      parseFloat(r['Bedrag']) || 0,
-    categorie:   String(r['Categorie'] || '').trim(),
-  })).filter(r => r.klantId && CATS.includes(r.categorie));
+  const _onbekendeCats = new Set();
+  DATA.facturen = toRows(fName).map(r => {
+    const rawCat = String(r['Categorie'] || '').trim();
+    let categorie = rawCat;
+    if (rawCat && !CATS.includes(rawCat)) {
+      categorie = 'Overig';
+      _onbekendeCats.add(rawCat);
+    }
+    return {
+      klantId:     normId(r['VRCode']),
+      factuurnr:   String(r['Factuurnr.'] || '').trim(),
+      datum:       formatDate(r['Datum']),
+      datumRaw:    parseRawDate(r['Datum']),
+      code:        String(r['Code'] || '').trim(),
+      omschrijving: String(r['Omschrijving'] || '').trim(),
+      jaar:        String(r['Jaar'] || '').trim(),
+      bedrag:      parseFloat(r['Bedrag']) || 0,
+      categorie,
+    };
+  }).filter(r => r.klantId && r.categorie);
 
   DATA.jaarrekening = toRows(jrName).map(r => ({
     klantId:        normId(r['VRCode']),
@@ -660,11 +667,77 @@ function parseWorkbook(wb) {
     return { ...k, _omzetJaren: jaren.length ? jaren : null };
   });
 
+  // Importvalidatie
+  const _klantIds = new Set(DATA.klanten.map(k => k.id));
+  const _factZonderKlant = DATA.facturen.filter(f => !_klantIds.has(f.klantId)).length;
+  const _prijsZonderKlant = DATA.prijzen.filter(p => !_klantIds.has(p.klantId)).length;
+
   document.getElementById('upload-screen').style.display = 'none';
   document.getElementById('empty-detail').style.display = '';
   document.getElementById('client-detail').style.display = 'none';
   selectedId = null;
   renderClientList(DATA.klanten);
+
+  showImportRapport({
+    sheets:    { Klanten: !!ksName, Prijzen: !!pName, Facturen: !!fName, Jaarrekening: !!jrName, 'IB_VPB': !!ibName },
+    aantallen: { klanten: DATA.klanten.length, prijzen: DATA.prijzen.length, facturen: DATA.facturen.length,
+                 jaarrekening: DATA.jaarrekening.length, ibvpb: DATA.ibvpb.length },
+    factZonderKlant: _factZonderKlant,
+    prijsZonderKlant: _prijsZonderKlant,
+    onbekendeCats: [..._onbekendeCats],
+  });
+}
+
+function showImportRapport(r) {
+  const ontbrekend = Object.entries(r.sheets).filter(([,v]) => !v).map(([k]) => k);
+  const heeftWaarsch = ontbrekend.length || r.factZonderKlant || r.prijsZonderKlant || r.onbekendeCats.length;
+
+  const tellenHtml = [
+    ['klanten',      r.aantallen.klanten],
+    ['prijsafspraken', r.aantallen.prijzen],
+    ['factuurregels', r.aantallen.facturen],
+    ['jaarrekeningen', r.aantallen.jaarrekening],
+    ['IB/Vpb-regels', r.aantallen.ibvpb],
+  ].map(([lbl, n]) =>
+    `<div style="display:flex;gap:8px;align-items:center;padding:3px 0">
+       <span style="color:var(--green);font-weight:600">✓</span>
+       <span style="color:var(--text-muted);font-size:13px">${n.toLocaleString('nl-NL')} ${lbl}</span>
+     </div>`
+  ).join('');
+
+  const waarschHtml = [
+    ...ontbrekend.map(s => `Tabblad '${s}' niet gevonden`),
+    r.factZonderKlant  ? `${r.factZonderKlant} factuurregels zonder bekende klant` : '',
+    r.prijsZonderKlant ? `${r.prijsZonderKlant} prijsafspraken zonder bekende klant` : '',
+    r.onbekendeCats.length ? `Onbekende categorieën als 'Overig' ingeladen: ${r.onbekendeCats.join(', ')}` : '',
+  ].filter(Boolean).map(msg =>
+    `<div style="display:flex;gap:8px;align-items:flex-start;padding:3px 0">
+       <span style="color:#f59e0b;font-weight:600;flex-shrink:0">⚠</span>
+       <span style="color:var(--text-muted);font-size:13px">${msg}</span>
+     </div>`
+  ).join('');
+
+  const el = document.createElement('div');
+  el.className = 'modal-overlay';
+  el.id = 'import-rapport-overlay';
+  el.innerHTML = `
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header">
+        <h2>Excel geladen</h2>
+        <button class="modal-close" onclick="document.getElementById('import-rapport-overlay').remove()">×</button>
+      </div>
+      <div class="modal-body" style="padding:14px 20px">
+        ${tellenHtml}
+        ${heeftWaarsch ? `<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">${waarschHtml}</div>` : ''}
+      </div>
+      <div style="padding:8px 20px 14px;text-align:right">
+        <button onclick="document.getElementById('import-rapport-overlay').remove()"
+                style="background:var(--green);color:#000;border:none;border-radius:6px;padding:6px 18px;font-size:13px;font-weight:600;cursor:pointer">
+          OK
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
 }
 
 function excelSerialToMs(n) { return (n - 25569) * 86400000; }
@@ -1056,7 +1129,10 @@ function renderStatusSectie(klantId) {
     return null;
   }
   function ibStatus(r) {
-    if (r.status === 'Afgerond' || r.verstuurdClient) return { cls: 'sp-afgerond', label: '✓ Afgerond', datum: r.verstuurdClientFmt || '' };
+    if (r.status === 'Afgerond' || r.verstuurdBD)
+      return { cls: 'sp-afgerond', label: '✓ Ingediend BD', datum: r.verstuurdBDFmt || '' };
+    if (r.verstuurdClient)
+      return { cls: 'sp-bezig', label: '→ Naar cliënt', datum: r.verstuurdClientFmt || '' };
     if (r.status && r.status !== 'Plannen') return { cls: 'sp-bezig', label: r.status, datum: '' };
     return null;
   }
@@ -1202,7 +1278,8 @@ function renderStatusTab() {
     return { label: 'Niet gestart', cls: 'sp-nvt', sort: 1 };
   }
   function ibStatusInfo(r) {
-    if (r.status === 'Afgerond' || r.verstuurdClient) return { label: 'Afgerond', cls: 'sp-afgerond', sort: 4 };
+    if (r.status === 'Afgerond' || r.verstuurdBD) return { label: 'Ingediend BD', cls: 'sp-afgerond', sort: 4 };
+    if (r.verstuurdClient) return { label: 'Naar cliënt', cls: 'sp-bezig', sort: 3 };
     if (r.status && r.status !== 'Plannen') return { label: r.status, cls: 'sp-bezig', sort: 2 };
     return { label: 'Niet gestart', cls: 'sp-nvt', sort: 1 };
   }
@@ -1246,13 +1323,13 @@ function renderStatusTab() {
     });
     if (jaar) rows = rows.filter(r => r.j === jaar);
     if (sfilt === 'nietgestart') rows = rows.filter(r => r.st.sort === 1);
-    else if (sfilt === 'bezig') rows = rows.filter(r => r.st.sort === 2);
+    else if (sfilt === 'bezig') rows = rows.filter(r => r.st.sort === 2 || r.st.sort === 3);
     else if (sfilt === 'afgerond') rows = rows.filter(r => r.st.sort === 4);
     else if (sfilt === 'gefactureerd') rows = rows.filter(r => r.isFact);
     rows.sort((a,b) => a.klantNaam.localeCompare(b.klantNaam));
     document.getElementById('status-result-count').textContent = `${rows.length} aangiftes`;
     body.innerHTML = `<table class="status-overzicht-table">
-      <thead><tr><th>Klant</th><th>Type</th><th>Jaar</th><th>Gegevens ontvangen</th><th>Gegevens compleet</th><th>Verstuurd cliënt</th><th>Status</th><th>Gefact.</th></tr></thead>
+      <thead><tr><th>Klant</th><th>Type</th><th>Jaar</th><th>Gegevens ontvangen</th><th>Gegevens compleet</th><th>Naar cliënt</th><th>Ingediend BD</th><th>Status</th><th>Gefact.</th></tr></thead>
       <tbody>${rows.map(r => `<tr onclick="closeStatus();selectClient('${r.klantId}')">
         <td style="font-weight:600;color:var(--navy);">${esc(r.klantNaam)}</td>
         <td><span class="code-pill">${r.cat}</span></td>
@@ -1260,6 +1337,7 @@ function renderStatusTab() {
         <td style="font-size:12px;color:var(--text-muted);">${r.gegevensOntvangenFmt||'—'}</td>
         <td style="font-size:12px;color:var(--text-muted);">${r.gegevensCompleetFmt||'—'}</td>
         <td style="font-size:12px;color:var(--text-muted);">${r.verstuurdClientFmt||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${r.verstuurdBDFmt||'—'}</td>
         <td><span class="status-pill ${r.st.cls}" style="font-size:11px;">${r.st.label}</span></td>
         <td style="text-align:center;">${r.isFact?'<span style="color:#1a7a50;font-weight:700;">✓</span>':'<span style="color:var(--text-muted);">—</span>'}</td>
       </tr>`).join('')}</tbody>
@@ -1781,6 +1859,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 aug 2026, 23:55</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 00:05</div>
 </body>
 </html>
