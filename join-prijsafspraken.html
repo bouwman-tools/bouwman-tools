@@ -172,6 +172,27 @@
   .detail-top { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
   .detail-top .section { margin-bottom: 0; }
 
+  /* PRIJSADVIES */
+  .pa-block { background: var(--white); border-radius: var(--radius); overflow: hidden; margin-bottom: 18px; box-shadow: var(--shadow); }
+  .pa-header { background: var(--navy); padding: 11px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .pa-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--white); }
+  .pa-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .pa-body { padding: 14px 20px; }
+  .pa-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 13px; color: var(--text); }
+  .pa-row span:first-child { color: var(--text-muted); }
+  .pa-row-advies { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; font-weight: 700; font-size: 14px; }
+  .pa-row-advies span:first-child { color: var(--text); }
+  .pa-row-diff { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; font-weight: 600; }
+  .pa-status { margin-top: 6px; font-size: 12.5px; font-weight: 600; }
+  .pa-status-ok   { color: #1a7a50; }
+  .pa-status-laag { color: #b45309; }
+  .pa-status-hoog { color: var(--text-muted); }
+  .pa-afspraak { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; font-size: 12.5px; flex-wrap: wrap; }
+  .pa-afspraak-label { font-weight: 600; color: var(--text-muted); }
+  .pa-afspraak-diff  { color: var(--text-muted); }
+  .pa-geen { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+  .pa-footer { font-size: 11px; color: var(--text-muted); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,35,54,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; }
   .modal { background: var(--white); border-radius: 12px; width: 820px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.22); overflow: hidden; }
@@ -525,6 +546,13 @@ function openConceptenVenster() {
 let DATA = { klanten: [], prijzen: [], facturen: [], jaarrekening: [], ibvpb: [] };
 let selectedId = null;
 
+// Indexatiepercentages per boekjaar. Sleutel = het boekjaar waarvoor het advies wordt berekend;
+// factuurJaar = het jaar waarin de factuur verstuurd wordt.
+// Voeg volgend jaar simpelweg een nieuwe regel toe.
+const INDEXATIE_PER_BOEKJAAR = {
+  2025: { percentage: 0.033, factuurJaar: 2026, label: 'Indexatie 2026' }
+};
+
 function loadFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -852,6 +880,109 @@ function findRelatedClients(klant) {
 }
 
 // ═══════════════════ CLIENT DETAIL ═══════════════════
+// ═══════════════════ PRIJSADVIES ═══════════════════
+function getPrijsAdvies(klantId, targetJaar) {
+  const cfg = INDEXATIE_PER_BOEKJAAR[targetJaar];
+  if (!cfg) return null;
+
+  const bronJaar   = targetJaar - 1;
+  const strBron    = String(bronJaar);
+  const strTarget  = String(targetJaar);
+
+  // Bronbedrag: factuurregels categorie 'Jaar' vorig boekjaar
+  const bronRegels = DATA.facturen.filter(f =>
+    f.klantId === klantId &&
+    f.categorie === 'Jaar' &&
+    String(Math.round(parseFloat(f.jaar))) === strBron
+  );
+  if (!bronRegels.length) {
+    return { targetJaar, bronJaar, bronBedrag: null, ...cfg,
+             adviesBedrag: null, werkelijkGefactureerd: null, verschil: null, afspraak: null };
+  }
+
+  const bronBedrag    = bronRegels.reduce((s, f) => s + f.bedrag, 0);
+  const adviesBedrag  = Math.round(bronBedrag * (1 + cfg.percentage) * 100) / 100;
+
+  // Werkelijk gefactureerd voor targetJaar, categorie 'Jaar'
+  const werkelijkRegels = DATA.facturen.filter(f =>
+    f.klantId === klantId &&
+    f.categorie === 'Jaar' &&
+    String(Math.round(parseFloat(f.jaar))) === strTarget
+  );
+  const werkelijkGefactureerd = werkelijkRegels.length
+    ? werkelijkRegels.reduce((s, f) => s + f.bedrag, 0) : null;
+  const verschil = werkelijkGefactureerd !== null ? werkelijkGefactureerd - adviesBedrag : null;
+
+  // Bestaande prijsafspraak: eerst jaar-veld, daarna jaar afgeleid uit beginRaw
+  let afspraak = DATA.prijzen
+    .filter(p => p.klantId === klantId && p.jaar === strTarget)
+    .sort((a, b) => b.beginRaw - a.beginRaw)[0] || null;
+  if (!afspraak) {
+    afspraak = DATA.prijzen
+      .filter(p => p.klantId === klantId && p.beginRaw &&
+                   new Date(p.beginRaw).getFullYear() === targetJaar)
+      .sort((a, b) => b.beginRaw - a.beginRaw)[0] || null;
+  }
+
+  return { targetJaar, bronJaar, bronBedrag, percentage: cfg.percentage,
+           factuurJaar: cfg.factuurJaar, label: cfg.label, adviesBedrag,
+           werkelijkGefactureerd, verschil, afspraak };
+}
+
+function renderPrijsAdvies(klantId) {
+  const targetJaar = new Date().getFullYear() - 1;
+  const adv = getPrijsAdvies(klantId, targetJaar);
+  if (!adv) return '';
+
+  let bodyHtml;
+  if (!adv.bronBedrag) {
+    bodyHtml = `<div class="pa-geen">Geen prijsadvies beschikbaar — geen jaarrekeningbedrag voor ${adv.bronJaar} gevonden.</div>`;
+  } else if (adv.werkelijkGefactureerd !== null) {
+    const v    = adv.verschil;
+    const absV = Math.abs(v);
+    let statusLabel, statusCls;
+    if (absV < 1)   { statusLabel = '✓ Conform advies';                  statusCls = 'pa-status-ok'; }
+    else if (v < 0) { statusLabel = `⚠ € ${fmtNum(absV)} onder advies`; statusCls = 'pa-status-laag'; }
+    else            { statusLabel = `€ ${fmtNum(absV)} boven advies`;    statusCls = 'pa-status-hoog'; }
+    bodyHtml = `
+      <div class="pa-row"><span>Advies op basis van ${adv.bronJaar}</span><span>€ ${fmtNum(adv.adviesBedrag)}</span></div>
+      <div class="pa-row"><span>Werkelijk gefactureerd</span><span>€ ${fmtNum(adv.werkelijkGefactureerd)}</span></div>
+      <div class="pa-row pa-row-diff"><span>Verschil</span><span>${v >= 0 ? '+' : '−'} € ${fmtNum(absV)}</span></div>
+      <div class="pa-status ${statusCls}">${statusLabel}</div>`;
+  } else {
+    bodyHtml = `
+      <div class="pa-row"><span>Vorig boekjaar gefactureerd (${adv.bronJaar})</span><span>€ ${fmtNum(adv.bronBedrag)}</span></div>
+      <div class="pa-row"><span>${adv.label}</span><span>${(adv.percentage * 100).toFixed(1)}%</span></div>
+      <div class="pa-row pa-row-advies"><span>Advies ${adv.targetJaar}</span><span>€ ${fmtNum(adv.adviesBedrag)}</span></div>`;
+  }
+
+  let afspraakHtml = '';
+  if (adv.afspraak) {
+    const diff = adv.afspraak.prijs - adv.adviesBedrag;
+    const afwijkLabel = Math.abs(diff) < 1 ? '' :
+      `<span class="pa-afspraak-diff">${diff >= 0 ? '+' : '−'} € ${fmtNum(Math.abs(diff))} t.o.v. advies</span>`;
+    afspraakHtml = `
+      <div class="pa-afspraak">
+        <span class="pa-afspraak-label">Vastgelegde afspraak:</span>
+        <span>€ ${fmtNum(adv.afspraak.prijs)}</span>
+        ${afwijkLabel}
+      </div>`;
+  }
+
+  return `
+    <div class="pa-block">
+      <div class="pa-header">
+        <span class="pa-title">Prijsadvies</span>
+        <span class="pa-sub">Jaarrekening ${adv.targetJaar}</span>
+      </div>
+      <div class="pa-body">
+        ${bodyHtml}
+        ${afspraakHtml}
+        <div class="pa-footer">Gebaseerd op gefactureerd bedrag vorig boekjaar + indexatie.</div>
+      </div>
+    </div>`;
+}
+
 function selectClient(id) {
   selectedId = id;
   document.querySelectorAll('.client-item').forEach(el => {
@@ -940,6 +1071,8 @@ function selectClient(id) {
       </div>
       ${renderStatusSectie(id)}
     </div>
+
+    ${renderPrijsAdvies(id)}
 
     <div class="section">
       <div class="section-title">
@@ -1845,6 +1978,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 00:07</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 00:29</div>
 </body>
 </html>
