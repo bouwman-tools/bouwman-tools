@@ -314,49 +314,61 @@
               <div class="admin-card">
                 <h3>👤 Nieuwe gebruiker toevoegen</h3>
                 <ol>
-                  <li>Open <code>portal.html</code> in de bouwman-tools repo</li>
-                  <li>Zoek het <code>TOEGANG</code>-object bovenaan het script</li>
-                  <li>Voeg een regel toe:<br>
-                    <code>'email@kantoor.nl': 'all'</code><br>
-                    of beperkt:<br>
-                    <code>'email@kantoor.nl': ['auto-fiscaal-2027.html']</code>
-                  </li>
-                  <li>Sla op en push naar GitHub</li>
-                  <li>Nodig de gebruiker uit via Cloudflare (zie kaart rechts)</li>
+                  <li>Open <a href="beheer.html">beheer.html</a></li>
+                  <li>Vul onder <em>Nieuwe gebruiker toevoegen</em> het e-mailadres in</li>
+                  <li>Kies bij <em>Toegang tot tools</em> één of meer tools, of vink
+                    <em>Alle tools</em> aan</li>
+                  <li>Klik <em>Opslaan</em>. De rechten gaan naar de worker; die werkt
+                    Cloudflare Access automatisch bij</li>
+                  <li>De gebruiker krijgt bij het eerste bezoek een OTP per mail</li>
                 </ol>
               </div>
 
               <div class="admin-card">
-                <h3>☁️ Uitnodigen via Cloudflare</h3>
-                <ol>
-                  <li>Ga naar <strong>one.dash.cloudflare.com</strong></li>
-                  <li>Zero Trust → Access → Applications</li>
-                  <li>Klik op de juiste app (bijv. <em>bouwman.tools</em>)</li>
-                  <li>Edit → Policies → voeg e-mailadres toe onder <em>Include</em></li>
-                  <li>De gebruiker ontvangt een OTP per mail bij eerste bezoek</li>
-                </ol>
+                <h3>☁️ Cloudflare Access</h3>
+                <ul>
+                  <li>Voor <strong>gebruikers</strong> hoef je hier niets te doen: na elke
+                    wijziging in beheer.html zet de worker de e-mailadressen zelf in de
+                    policies van elke app</li>
+                  <li>Handmatig werk is alleen nodig bij een <strong>nieuwe pagina</strong>
+                    op bouwman.tools: maak in Zero Trust → Access → Applications een
+                    Application aan en zet het app-id in <code>APP_IDS</code> in
+                    <code>access-beheer-worker.js</code> — daarna de worker opnieuw
+                    uitrollen</li>
+                  <li>Externe tools op een eigen domein (Streamlit) vallen niet onder
+                    Cloudflare Access; die zijn bereikbaar voor wie de URL heeft</li>
+                </ul>
               </div>
 
               <div class="admin-card">
                 <h3>🔧 Toegang tot specifieke tools</h3>
                 <ul>
-                  <li>Gebruik <code>'all'</code> voor volledige toegang</li>
-                  <li>Gebruik een array voor beperkte toegang</li>
-                  <li>Bestandsnaam = de <code>file</code>-waarde uit de TOOLS-lijst</li>
-                  <li>Externe tools (andere subdomeinen) gebruik je als volledige URL:<br>
-                    <code>'https://xaf.bouwman.tools/'</code></li>
-                  <li>Onbekende e-mails zien standaard <strong>alle</strong> tools — voeg ze toe aan TOEGANG om te beperken</li>
+                  <li>Per gebruiker geldt óf <code>all</code>, óf een lijst met tools</li>
+                  <li>Een tool wordt aangeduid met de <code>file</code>-waarde uit de
+                    TOOLS-lijst in <code>portal.html</code></li>
+                  <li>Externe tools staan er met hun volledige URL:<br>
+                    <code>https://xaf.bouwman.tools/</code></li>
+                  <li>Een tool is alleen toe te kennen als hij ook in de TOOLS-lijst van
+                    <code>beheer.html</code> staat</li>
+                  <li>Een e-mailadres dat niet in de lijst staat ziet <strong>geen enkele</strong>
+                    tool. De worker geeft dan een lege lijst terug en dit portaal toont
+                    niets — nieuwe collega's moet je dus eerst toevoegen</li>
                 </ul>
               </div>
 
               <div class="admin-card">
                 <h3>🛠️ Nieuwe tool toevoegen aan portal</h3>
                 <ol>
-                  <li>Maak een nieuwe repo aan met <code>index.html</code> en <code>CNAME</code></li>
-                  <li>Push naar GitHub, Pages aanzetten</li>
-                  <li>DNS CNAME toevoegen in Cloudflare (DNS only voor GitHub Pages)</li>
-                  <li>Voeg de tool toe aan het <code>TOOLS</code>-object in <code>portal.html</code></li>
-                  <li>Voeg het Cloudflare Access toe als aparte Application voor het subdomein</li>
+                  <li>Maak een privé-repo in de org <code>bouwman-tools</code>, zet het
+                    HTML-bestand erin en push</li>
+                  <li>Voeg de sync-workflow en de secret <code>BOUWMAN_TOOLS_PAT</code> toe
+                    — zie de README. Een Action kopieert het bestand hierheen en binnen een
+                    minuut staat het live</li>
+                  <li>Voeg de tool toe aan de <code>TOOLS</code>-lijst in
+                    <code>portal.html</code> én in <code>beheer.html</code></li>
+                  <li>Bescherm de pagina: Application aanmaken in Cloudflare Access en het
+                    app-id opnemen in <code>APP_IDS</code> van de worker</li>
+                  <li>Geef gebruikers toegang via <a href="beheer.html">beheer.html</a></li>
                 </ol>
               </div>
 
