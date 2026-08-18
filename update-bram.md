@@ -1,5 +1,5 @@
 # bouwman.tools — overzicht voor Bram
-**Datum:** 17 juli 2026
+**Datum:** 18 augustus 2026
 
 ---
 
@@ -77,6 +77,9 @@ Begeleidt het proces van BTW-teruggaaf in andere EU-landen via de 13e richtlijnp
 ---
 
 ## Belastingdienst
+
+**Belastingtool JoinDK** — belastingtooljoindk.streamlit.app *(Streamlit — extern)*
+Zes tools in één app: een betalingskenmerk van de Belastingdienst decoderen, de belastingrente bij een aanslag IB of VpB berekenen, en via het kenteken de BTW-correctie en bijtelling van een zakelijke auto bepalen. Daarnaast een controle van Europese BTW-nummers via VIES en het opzoeken van een bedrijf of SBI-code via de KvK. De rekenregels zijn tegen de bron getoetst; komt er uit een kenmerk een BSN, dan wordt dat wel getoond maar niet naar de KvK gestuurd.
 
 **Kennisgroepen-zoeker** — bouwman.tools/kennisgroepen-zoeker.html
 Doorzoekt kennisgroepstandpunten van de Belastingdienst via AI. Geeft relevante standpunten terug op basis van een zoekvraag, inclusief bronvermelding. Werkt via de Anthropic API.
