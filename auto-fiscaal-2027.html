@@ -780,6 +780,7 @@ footer a:hover { color: var(--mint); }
             <option value="2025">2025</option>
             <option value="2026" selected>2026</option>
             <option value="2027">2027</option>
+            <option value="2028">2028</option>
           </select>
         </div>
         <div class="field" style="justify-content:center;">
@@ -822,17 +823,22 @@ footer a:hover { color: var(--mint); }
         <div><div class="card-title">Hoe werkt de bijtelling?</div><div class="card-sub">Percentages, 60-maanden regel en youngtimerregeling</div></div>
       </div>
       <div style="font-size:13px;color:var(--dim);line-height:1.75;">
-        <p style="margin-bottom:10px;">Het <strong style="color:var(--white);">algemene percentage</strong> hangt af van de <strong style="color:var(--white);">datum eerste toelating</strong>: 22% vanaf 01-01-2017, 25% daarvóór (art. 10a.4 Wet IB 2001). De <strong style="color:var(--white);">EV-korting</strong> daarop hangt af van de <strong style="color:var(--white);">datum eerste tenaamstelling in Nederland</strong> en is <strong style="color:var(--white);">60 maanden gelocked</strong>. Daarna geldt het tarief van het lopende jaar.</p>
+        <p style="margin-bottom:10px;">Het <strong style="color:var(--white);">algemene percentage</strong> hangt af van de <strong style="color:var(--white);">datum eerste toelating</strong>: 22% vanaf 01-01-2017, 25% daarvóór (art. 10a.4 Wet IB 2001). De <strong style="color:var(--white);">verlaging voor nulemissie</strong> staat <strong style="color:var(--white);">60 maanden vast</strong>, gerekend vanaf de eerste dag van de maand ná de ankerdatum — datum eerste toelating vanaf 2017, eerste tenaamstelling bij toelating t/m 2016 (art. 3.20 lid 11 resp. art. 10a.4 lid 2).</p>
+        <p style="margin-bottom:10px;">Ná die 60 maanden wordt het percentage <strong style="color:var(--yellow);">opnieuw vastgesteld volgens de regels van dat moment</strong>, en daarna elk kalenderjaar opnieuw — er ontstaat géén nieuwe vaste periode. Loopt de termijn ín het jaar af, dan rekent deze tool de maanden apart: het oude regime t/m de maand waarin de 60 maanden verstrijken, daarna het regime van het lopende jaar.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;">
-            <div style="font-weight:800;color:var(--white);margin-bottom:6px;">EV-tarieven (jaar tenaamstelling)</div>
-            <div>2020: <strong>8%</strong> (t/m €45.000)</div>
-            <div>2021: <strong>12%</strong> (t/m €40.000)</div>
-            <div>2022: <strong>16%</strong> (t/m €35.000)</div>
-            <div>2023–2024: <strong>16%</strong> (t/m €30.000)</div>
-            <div>2025: <strong>17%</strong> (t/m €30.000)</div>
-            <div>2026: <strong>18%</strong> (t/m €30.000)</div>
-            <div style="margin-top:4px;color:var(--muted);">Daarboven altijd 22% · Waterstof: geen cap</div>
+            <div style="font-weight:800;color:var(--white);margin-bottom:6px;">Verlaging nulemissie (jaar 1e toelating)</div>
+            <div>2017–2018: <strong>18%</strong> — géén plafond</div>
+            <div>2019: <strong>18%</strong> (max € 9.000)</div>
+            <div>2020: <strong>14%</strong> (max € 6.300)</div>
+            <div>2021: <strong>10%</strong> (max € 4.000)</div>
+            <div>2022: <strong>6%</strong> (max € 2.100)</div>
+            <div>2023–2024: <strong>6%</strong> (max € 1.800)</div>
+            <div>2025: <strong>5%</strong> (max € 1.500)</div>
+            <div>2026: <strong>4%</strong> (max € 1.200)</div>
+            <div>2027: <strong>2%</strong> (max € 600)</div>
+            <div style="margin-top:4px;color:var(--yellow);">Vanaf 2028: geen korting meer</div>
+            <div style="margin-top:4px;color:var(--muted);">De wet maximeert de verlaging in euro's, niet de cataloguswaarde. Waterstof: geen plafond (vanaf 2019); zonnecelauto's vanaf 2021.</div>
           </div>
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;">
             <div style="font-weight:800;color:var(--white);margin-bottom:6px;">Overige regels</div>
@@ -1241,6 +1247,127 @@ function bepaalPseudoEindheffing({ jaar, startdatum, einddatum, privegebruik,
   };
 }
 
+// ─── Nulemissie: korting op het algemeen bijtellingspercentage ────────────────
+//
+// De wet formuleert de korting NIET als "laag percentage tot een grensbedrag",
+// maar als een verlaging in procentpunten met een plafond in EURO'S:
+// art. 3.20 lid 2 Wet IB 2001 / art. 13bis lid 2 Wet LB 1964. De cap-bedragen
+// die de toelichting noemt zijn daaruit afgeleid (max / pct):
+//   € 9.000 / 18% = € 50.000 (2019) · € 6.300 / 14% = € 45.000 (2020) · enz.
+// 2017 en 2018 kenden GEEN plafond: de verlaging gold over de hele grondslag.
+// Een tabel op grensbedragen kan dat niet uitdrukken — vandaar deze vorm.
+const EV_VERLAGING = {
+  2017: { pct: 0.18, max: null },   // geen plafond
+  2018: { pct: 0.18, max: null },   // geen plafond
+  2019: { pct: 0.18, max: 9000 },   // toelichting: t/m € 50.000
+  2020: { pct: 0.14, max: 6300 },   // t/m € 45.000
+  2021: { pct: 0.10, max: 4000 },   // t/m € 40.000
+  2022: { pct: 0.06, max: 2100 },   // t/m € 35.000
+  2023: { pct: 0.06, max: 1800 },   // t/m € 30.000
+  2024: { pct: 0.06, max: 1800 },   // t/m € 30.000
+  2025: { pct: 0.05, max: 1500 },   // t/m € 30.000
+  2026: { pct: 0.04, max: 1200 },   // t/m € 30.000
+  2027: { pct: 0.02, max:  600 },   // t/m € 30.000
+};
+// Per 1 januari 2028 vervalt de korting; dan geldt het algemeen percentage.
+const EV_KORTING_LAATSTE_JAAR = 2027;
+// Waterstof is uitgezonderd van het plafond vanaf 2019 (toen het plafond ontstond);
+// zonnecelauto's pas vanaf 2021 (Belastingplan 2021).
+const EV_ZONNECEL_VANAF = 2021;
+
+// Ankerdatum voor het 60-maandenregime:
+//   · datum eerste toelating vanaf 01-01-2017   — art. 3.20 lid 11 Wet IB 2001
+//   · eerste tenaamstelling bij toelating t/m 31-12-2016 — art. 10a.4 lid 2
+function evAnkerdatum(datumToelating, datumTenaamstelling) {
+  const det = parseDatum(datumToelating);
+  if (!det) return null;
+  return isPre2017(det) ? (parseDatum(datumTenaamstelling) || null) : det;
+}
+
+// Maandindex (jaar*12 + maand) van de LAATSTE maand binnen de 60-maandentermijn.
+// De termijn begint op de eerste dag van de maand ná de ankerdatum en loopt
+// 60 maanden, dus hij eindigt altijd op de laatste dag van een maand.
+function termijnEindeMaandIndex(ankerdatum) {
+  const d = parseDatum(ankerdatum);
+  if (!d) return null;
+  return (d.getFullYear() * 12 + d.getMonth() + 1) + 59;
+}
+
+// Laatste dag van de termijn, als Date — voor weergave.
+function termijnEindeDatum(ankerdatum) {
+  const idx = termijnEindeMaandIndex(ankerdatum);
+  if (idx === null) return null;
+  return new Date(Math.floor(idx / 12), (idx % 12) + 1, 0);
+}
+
+// Het regime van één kalenderjaar: verlagingspercentage plus plafond in euro's.
+// Retourneert null als het jaar onbekend is — dan liever bijten dan gokken.
+function evRegime(jaar, { isWaterstof = false, isZonnecel = false } = {}) {
+  if (jaar > EV_KORTING_LAATSTE_JAAR) return { pct: 0, max: 0, geenKorting: true };
+  const v = EV_VERLAGING[jaar];
+  if (!v) return null;
+  const geenPlafond = v.max === null || isWaterstof ||
+    (isZonnecel && jaar >= EV_ZONNECEL_VANAF);
+  return { pct: v.pct, max: geenPlafond ? null : v.max };
+}
+
+function bijtellingMetVerlaging(waarde, basisPct, regime) {
+  const bruto = waarde * basisPct;
+  if (!regime || regime.geenKorting) return bruto;
+  const verlaging = regime.max === null
+    ? waarde * regime.pct
+    : Math.min(waarde * regime.pct, regime.max);
+  return Math.max(0, bruto - verlaging);
+}
+
+// Bijtelling nulemissie-auto voor één kalenderjaar, tijdsevenredig per maand.
+//
+// Systematiek (art. 3.20 lid 11 Wet IB 2001, Handboek Loonheffingen § 23.3.4):
+//   1. binnen de 60 maanden staan percentage ÉN plafond van het ankerjaar vast;
+//   2. direct na afloop wordt het percentage opnieuw vastgesteld volgens de
+//      regels die op dat moment gelden;
+//   3. elk volgend kalenderjaar opnieuw — er ontstaat GEEN nieuwe termijn.
+// Belastingdienst over een auto uit 2020 in 2025: "In 2025 geldt de bijtelling van
+// 2020 tot en met de maand waarin de 60 maanden zijn verstreken. De resterende
+// maanden geldt de bijtelling van 2025." Daarom splitsen we per kalendermaand.
+function bijtellingNulemissie(jaar, auto) {
+  const { cataloguswaarde, datumToelating, datumTenaamstelling,
+          isWaterstof = false, isZonnecel = false } = auto;
+  if (!parseDatum(datumToelating)) return { fout: 'ongeldige-datum' };
+  const waarde = Number(cataloguswaarde);
+  if (!(waarde > 0)) return { fout: 'geen-cataloguswaarde' };
+
+  const anker = evAnkerdatum(datumToelating, datumTenaamstelling);
+  if (!anker) return { fout: 'geen-ankerdatum' };
+
+  const eindIdx = termijnEindeMaandIndex(anker);
+  const binnen  = Math.max(0, Math.min(12, eindIdx - jaar * 12 + 1));
+  const na      = 12 - binnen;
+
+  const opts     = { isWaterstof, isZonnecel };
+  const basisPct = regulierBijtellingPct(datumToelating);
+  const ankerJaar = parseDatum(anker).getFullYear();
+
+  const regimeBinnen = binnen > 0 ? evRegime(ankerJaar, opts) : null;
+  const regimeNa     = na     > 0 ? evRegime(jaar, opts)      : null;
+  if (binnen > 0 && !regimeBinnen) return { fout: 'regime-onbekend', onbekendJaar: ankerJaar };
+  if (na     > 0 && !regimeNa)     return { fout: 'regime-onbekend', onbekendJaar: jaar };
+
+  const jaarBedragBinnen = binnen > 0 ? bijtellingMetVerlaging(waarde, basisPct, regimeBinnen) : 0;
+  const jaarBedragNa     = na     > 0 ? bijtellingMetVerlaging(waarde, basisPct, regimeNa)     : 0;
+  const bedrag = jaarBedragBinnen * (binnen / 12) + jaarBedragNa * (na / 12);
+
+  return {
+    bedrag, waarde, basisPct, ankerJaar, binnen, na,
+    ankerdatum: anker,
+    termijnEinde: termijnEindeDatum(anker),
+    termijnLooptAf: binnen > 0 && na > 0,
+    volledigBinnen: binnen === 12,
+    regimeBinnen, regimeNa, jaarBedragBinnen, jaarBedragNa,
+    effectiefPct: bedrag / waarde,
+  };
+}
+
 // ─── Invoerhulp ───────────────────────────────────────────────────────────────
 
 // Bedragen moeten strikt positief zijn: "0" is geen geldige cataloguswaarde of
@@ -1266,6 +1393,9 @@ if (typeof module !== 'undefined' && module.exports) {
     schijventarief, algemeneHeffingskorting, arbeidskorting, tariefsaanpassing,
     berekenJaarIB, berekenJaarDGA, maandenTerBeschikking, bepaalPseudoEindheffing,
     positiefBedrag, percentage,
+    EV_VERLAGING, EV_KORTING_LAATSTE_JAAR, EV_ZONNECEL_VANAF,
+    evAnkerdatum, termijnEindeMaandIndex, termijnEindeDatum, evRegime,
+    bijtellingMetVerlaging, bijtellingNulemissie,
   };
 }
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1954,18 +2084,8 @@ function printModel() {
 }
 
 // ─── BIJTELLING CONTROLE ───
-// EV-korting op het algemeen bijtellingspercentage, per jaar van eerste
-// tenaamstelling (Cijferbijlage: de EV-korting hangt aan de tenaamstelling,
-// het algemeen percentage 22%/25% aan de datum eerste toelating).
-const BC_EV_TARIEVEN = {
-  2020: { pct: 0.08, cap: 45000 },
-  2021: { pct: 0.12, cap: 40000 },
-  2022: { pct: 0.16, cap: 35000 },
-  2023: { pct: 0.16, cap: 30000 },
-  2024: { pct: 0.16, cap: 30000 },
-  2025: { pct: 0.17, cap: 30000 },
-  2026: { pct: 0.18, cap: 30000 },
-};
+// De EV-korting komt uit bijtellingNulemissie() in de fiscale kern: die kent het
+// 60-maandenregime per maand en volgt na afloop het lopende kalenderjaar.
 
 function bcPlaceholder(icon, html) {
   return `<div class="placeholder"><div class="ph-icon">${icon}</div><p>${html}</p></div>`;
@@ -2002,8 +2122,6 @@ function bcBereken() {
   }
 
   const pre2017 = isPre2017(datumToelating);
-  const tenJaar = datumTenaamstelling ? datumTenaamstelling.getFullYear() : null;
-  const tenMaand = datumTenaamstelling ? datumTenaamstelling.getMonth() + 1 : null;
 
   let percentagePct, cap = null, isGelocked = false, lockUitleg = '', bijtellingJaar, berekeningUitleg;
 
@@ -2028,64 +2146,58 @@ function bcBereken() {
       ? `Datum eerste toelating t/m 31-12-2016 — permanent 25% (art. 10a.4 Wet IB 2001)`
       : `Datum eerste toelating vanaf 01-01-2017 — algemeen percentage 22%`;
 
-  } else if (pre2017) {
-    resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-waarschuwing">
-      <strong>Emissievrij met datum eerste toelating vóór 2017 — handmatige controle</strong><br>
-      Voor deze auto's geldt een korting op het algemeen percentage van 25%, afhankelijk van de datum eerste tenaamstelling. De 60-maandentermijn is doorgaans verstreken.
-      Raadpleeg <a href="https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/inkomstenbelasting_voor_ondernemers/privegebruik_auto/privegebruik_auto" target="_blank" style="color:var(--mint);">belastingdienst.nl</a> voor het exacte percentage.
-    </div></div>`;
-    return;
-
-  } else if (controleJaar >= 2027) {
-    resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-info">
-      <strong>${controleJaar} EV-tarief nog niet bekend</strong><br>
-      De bijtellingstarieven voor emissievrije voertuigen vanaf 2027 worden gepubliceerd via het Belastingplan ${controleJaar}. Het 2026-tarief (18% t/m € 30.000) geldt als indicatie.
-    </div></div>`;
-    return;
-
   } else {
-    if (!tenJaar) {
-      resultEl.innerHTML = bcPlaceholder('⚠️', 'Datum eerste tenaamstelling niet beschikbaar in RDW. Handmatige controle nodig.');
-      return;
-    }
-    let basisJaar;
-    if (tenJaar < 2020) {
-      basisJaar = controleJaar;
-      lockUitleg = `Eerste tenaamstelling in ${tenJaar} — 60-maandentermijn verstreken, ${controleJaar}-tarief van toepassing`;
-    } else {
-      let lsm = tenMaand + 1, lsj = tenJaar;
-      if (lsm > 12) { lsm = 1; lsj++; }
-      const lockEind = new Date(lsj + 5, lsm - 1, 1);
-      const lockEindStr = `${String(lsm).padStart(2, '0')}-${lsj + 5}`;
-      if (new Date(controleJaar, 0, 1) < lockEind) {
-        basisJaar = tenJaar; isGelocked = true;
-        lockUitleg = `Tarief van ${tenJaar} gelocked t/m ${lockEindStr} (60-maandenregel)`;
-        if (lockEind.getFullYear() === controleJaar) {
-          lockUitleg += ` — let op: de termijn loopt ín ${controleJaar} af, daarna geldt het ${controleJaar}-tarief. De tool rekent het hele jaar met het gelockte tarief.`;
-        }
-      } else {
-        basisJaar = controleJaar;
-        lockUitleg = `60-maandentermijn verstreken (1-${lockEindStr}) — ${controleJaar}-tarief van toepassing`;
-      }
-    }
-    const tarief = BC_EV_TARIEVEN[basisJaar] || BC_EV_TARIEVEN[controleJaar];
-    if (!tarief) {
-      resultEl.innerHTML = bcPlaceholder('⚠️', 'Tarief niet beschikbaar voor dit jaar. Raadpleeg belastingdienst.nl.');
-      return;
-    }
+    // Emissievrij: laat de fiscale kern het 60-maandenregime per maand bepalen.
     if (!catalogusprijs) {
       resultEl.innerHTML = bcPlaceholder('⚠️', 'Catalogusprijs niet beschikbaar in RDW.');
       return;
     }
-    percentagePct = tarief.pct;
-    cap = isWaterstof ? null : tarief.cap;  // waterstof: geen maximumcataloguswaarde
-    if (cap && catalogusprijs > cap) {
-      bijtellingJaar = cap * percentagePct + (catalogusprijs - cap) * TARIEVEN.bijtellingRegulier;
-      berekeningUitleg = `${(percentagePct * 100).toFixed(0)}% × ${fmtE(cap)} + 22% × ${fmtE(catalogusprijs - cap)} = ${fmtE(bijtellingJaar)} per jaar`;
-    } else {
-      bijtellingJaar = catalogusprijs * percentagePct;
-      berekeningUitleg = `${(percentagePct * 100).toFixed(0)}% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+    if (pre2017 && !datumTenaamstelling) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Datum eerste tenaamstelling niet beschikbaar in RDW. Voor auto\'s met toelating t/m 31-12-2016 is die nodig als ankerdatum voor de 60-maandentermijn.');
+      return;
     }
+    const ev = bijtellingNulemissie(controleJaar, {
+      cataloguswaarde: catalogusprijs, datumToelating, datumTenaamstelling,
+      isWaterstof, isZonnecel: false,
+    });
+    if (ev.fout === 'regime-onbekend') {
+      resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-waarschuwing">
+        <strong>Korting voor ${esc(String(ev.onbekendJaar))} niet in de tool opgenomen — handmatige controle</strong><br>
+        De verlaging op het algemeen bijtellingspercentage is voor dit jaar niet vastgelegd. De tool vult hier bewust niets in.
+        Raadpleeg <a href="https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/inkomstenbelasting_voor_ondernemers/privegebruik_auto/privegebruik_auto" target="_blank" style="color:var(--mint);">belastingdienst.nl</a>.
+      </div></div>`;
+      return;
+    }
+    if (ev.fout) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'De bijtelling kon niet worden bepaald. Controleer de RDW-gegevens.');
+      return;
+    }
+
+    bijtellingJaar = ev.bedrag;
+    percentagePct  = ev.effectiefPct;
+    isGelocked     = ev.binnen > 0;
+    const omschrijf = (r, jaar) => r.geenKorting
+      ? `geen korting meer, ${fmtPct(ev.basisPct, 0)} over de hele grondslag`
+      : `${fmtPct(ev.basisPct, 0)} min ${fmtPct(r.pct, 0)}` +
+        (r.max === null ? ' over de hele grondslag' : ` tot ${fmtE(r.max / r.pct)}`) +
+        ` (regime ${jaar})`;
+
+    if (ev.termijnLooptAf) {
+      lockUitleg = `60-maandentermijn loopt af op ${formatDatumNl(ev.termijnEinde)} — ` +
+        `${ev.binnen} ${ev.binnen === 1 ? 'maand' : 'maanden'} ${omschrijf(ev.regimeBinnen, ev.ankerJaar)}, ` +
+        `daarna ${ev.na} ${ev.na === 1 ? 'maand' : 'maanden'} ${omschrijf(ev.regimeNa, controleJaar)}`;
+      berekeningUitleg =
+        `${ev.binnen}/12 × ${fmtE(ev.jaarBedragBinnen)} + ${ev.na}/12 × ${fmtE(ev.jaarBedragNa)} = ${fmtE(bijtellingJaar)} per jaar`;
+    } else if (ev.volledigBinnen) {
+      lockUitleg = `Regime ${ev.ankerJaar} staat vast t/m ${formatDatumNl(ev.termijnEinde)} (60-maandentermijn) — ${omschrijf(ev.regimeBinnen, ev.ankerJaar)}`;
+      berekeningUitleg = `${fmtE(catalogusprijs)} × ${fmtPct(ev.basisPct, 0)} − verlaging = ${fmtE(bijtellingJaar)} per jaar (effectief ${fmtPct(percentagePct, 1)})`;
+    } else {
+      lockUitleg = `60-maandentermijn verstreken op ${formatDatumNl(ev.termijnEinde)} — het percentage volgt sindsdien elk kalenderjaar opnieuw. Voor ${controleJaar}: ${omschrijf(ev.regimeNa, controleJaar)}`;
+      berekeningUitleg = `${fmtE(catalogusprijs)} × ${fmtPct(ev.basisPct, 0)} − verlaging = ${fmtE(bijtellingJaar)} per jaar (effectief ${fmtPct(percentagePct, 1)})`;
+    }
+    cap = (ev.regimeNa && ev.regimeNa.max) ? ev.regimeNa.max / ev.regimeNa.pct
+        : (ev.regimeBinnen && ev.regimeBinnen.max) ? ev.regimeBinnen.max / ev.regimeBinnen.pct
+        : null;
   }
 
   const bijtellingMaand = bijtellingJaar / 12;
@@ -2102,7 +2214,9 @@ function bcBereken() {
   const brandstofType = isEmissievrij ? (isWaterstof ? 'Waterstof' : 'Elektrisch') : 'Fossiel (incl. hybride)';
   const pctLabel = yt.isYoungtimer
     ? '35% (youngtimer, grondslag waarde economisch verkeer)'
-    : `${(percentagePct * 100).toFixed(0)}%` + (cap ? ` t/m ${fmtE(cap)}, daarboven 22%` : '');
+    : isEmissievrij
+      ? `effectief ${fmtPct(percentagePct, 1)}` + (cap ? ` — verlaging tot ${fmtE(cap)}` : '')
+      : fmtPct(percentagePct, 0);
 
   resultEl.innerHTML = `
     <div style="padding:14px 16px 0;">
@@ -2213,6 +2327,6 @@ setBrief('signaal');
 setEhCatalogusprijsStatus('-', 'We proberen de catalogusprijs automatisch op te halen via RDW.', 'leeg', 'Nog niet bepaald');
 berekenEindheffing();
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 17:45</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 21:43</div>
 </body>
 </html>
