@@ -145,6 +145,7 @@ input.req-missing { border-color: rgba(255,107,107,0.6) !important; background: 
 .calc-mode-tabs { display: flex; gap: 0; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
 .cmt { flex: 1; padding: 9px 14px; font-family: 'Nunito Sans', sans-serif; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: none; cursor: pointer; transition: all 0.18s; }
 .cmt.active { background: var(--mint); color: var(--navy); }
+.cmt:disabled { opacity: 0.4; cursor: not-allowed; }
 
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .field-note { font-size: 11px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
@@ -342,7 +343,7 @@ footer a:hover { color: var(--mint); }
     <div class="card">
       <div class="card-header">
         <div class="card-icon ci-yellow">💶</div>
-        <div><div class="card-title">Eindheffing zakelijke auto 2027</div><div class="card-sub">12% van cataloguswaarde voor nieuwe auto's verstrekt vanaf 2027</div></div>
+        <div><div class="card-title">Pseudo-eindheffing zakelijke auto 2027</div><div class="card-sub">12% per jaar over de cataloguswaarde, tijdsevenredig per kalendermaand — hybrides vallen er wél onder</div></div>
       </div>
 
       <div class="fg" style="margin-bottom:12px;">
@@ -363,9 +364,28 @@ footer a:hover { color: var(--mint); }
 
       <div class="fg" style="margin-bottom:12px;">
         <div class="field">
-          <label class="field-label">Startdatum gebruik door werkgever <span class="req">*</span></label>
+          <label class="field-label">Startdatum terbeschikkingstelling <span class="req">*</span></label>
           <input type="date" id="eh_startdatum">
-          <div class="field-note">Datum waarop werkgever de auto voor het eerst verstrekt</div>
+          <div class="field-note">Datum waarop de werkgever de auto voor het eerst verstrekt</div>
+        </div>
+        <div class="field">
+          <label class="field-label">Einddatum (optioneel)</label>
+          <input type="date" id="eh_einddatum">
+          <div class="field-note">Laat leeg bij doorlopende terbeschikkingstelling</div>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-bottom:12px;">
+        <div class="field">
+          <label class="field-label">Heffingsjaar <span class="req">*</span></label>
+          <select id="eh_jaar">
+            <option value="2027" selected>2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+            <option value="2031">2031</option>
+          </select>
+          <div class="field-note">De heffing wordt per kalendermaand van dit jaar berekend</div>
         </div>
         <div class="field">
           <label class="field-label">Privégebruik of woon-werkverkeer? <span class="req">*</span></label>
@@ -374,13 +394,36 @@ footer a:hover { color: var(--mint); }
             <option value="ja">Ja</option>
             <option value="nee">Nee</option>
           </select>
+          <div class="field-note">Woon-werkverkeer geldt hier als privégebruik</div>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-bottom:12px;">
+        <div class="field">
+          <label class="field-label">Brandstof</label>
+          <input type="text" id="eh_brandstof" placeholder="Wordt ingevuld na RDW-lookup" readonly style="opacity:0.7;">
+        </div>
+        <div class="field">
+          <label class="field-label">Volledig emissievrij? <span class="req">*</span></label>
+          <select id="eh_emissievrij">
+            <option value="">Maak een keuze</option>
+            <option value="ja">Ja — elektrisch of waterstof</option>
+            <option value="nee">Nee — fossiel of hybride</option>
+          </select>
+          <div class="field-note">Een hybride is fossiel en valt wél onder de heffing</div>
         </div>
       </div>
 
       <div class="fg">
         <div class="field">
-          <label class="field-label">Brandstof</label>
-          <input type="text" id="eh_brandstof" placeholder="Wordt ingevuld na RDW-lookup" readonly style="opacity:0.7;">
+          <label class="field-label">Datum eerste toelating</label>
+          <input type="text" id="eh_datum_toelating" placeholder="DD-MM-JJJJ">
+          <div class="field-note">Bepaalt of de grondslag de cataloguswaarde is of de waarde economisch verkeer (ouder dan 25 jaar)</div>
+        </div>
+        <div class="field" id="eh_dagwaarde_wrap" style="display:none;">
+          <label class="field-label">Waarde economisch verkeer <span class="req">*</span></label>
+          <div class="pw"><span class="af">€</span><input type="number" id="eh_dagwaarde" placeholder="7.500" step="250" min="1"></div>
+          <div class="field-note">Auto ouder dan 25 jaar — grondslag is dan de waarde economisch verkeer</div>
         </div>
       </div>
     </div>
@@ -396,17 +439,20 @@ footer a:hover { color: var(--mint); }
             <div style="font-weight:800;color:var(--white);margin-bottom:6px;">Wanneer van toepassing?</div>
             <div>Auto verstrekt door werkgever <strong style="color:var(--yellow);">vanaf 1-1-2027</strong></div>
             <div style="margin-top:4px;">Én: privégebruik of woon-werkverkeer</div>
-            <div style="margin-top:4px;">Én: <strong style="color:var(--yellow);">niet volledig elektrisch</strong></div>
+            <div style="margin-top:4px;">Én: <strong style="color:var(--yellow);">niet emissievrij</strong> — een <strong style="color:var(--red);">hybride valt er wél onder</strong></div>
           </div>
           <div style="background:rgba(255,107,107,0.05);border:1px solid rgba(255,107,107,0.15);border-radius:10px;padding:14px;">
             <div style="font-weight:800;color:var(--yellow);margin-bottom:6px;">Heffing</div>
-            <div><strong style="color:var(--yellow);">12%</strong> van de catalogusprijs</div>
-            <div style="margin-top:4px;">Per jaar, te betalen door de <strong>werkgever</strong></div>
-            <div style="margin-top:4px;">Bovenop de bestaande bijtelling bij werknemer</div>
+            <div><strong style="color:var(--yellow);">12%</strong> per jaar van de grondslag</div>
+            <div style="margin-top:4px;">T/m 25 jaar: cataloguswaarde · ouder: waarde economisch verkeer</div>
+            <div style="margin-top:4px;"><strong style="color:var(--yellow);">Tijdsevenredig</strong>: elke kalendermaand met ≥ 1 dag privégebruik telt als 1/12</div>
           </div>
         </div>
-        <div style="font-size:12px;padding:10px 14px;background:rgba(61,217,160,0.06);border-radius:8px;">
-          Let op: de eindheffing geldt voor de <strong style="color:var(--dim);">werkgever</strong>, niet de werknemer. De bijtelling bij de werknemer blijft gewoon bestaan.
+        <div style="font-size:12px;padding:10px 14px;background:rgba(61,217,160,0.06);border-radius:8px;margin-bottom:8px;">
+          Let op: de heffing is voor rekening van de <strong style="color:var(--dim);">werkgever</strong> en mag niet worden doorbelast aan de werknemer. De bijtelling bij de werknemer blijft gewoon bestaan.
+        </div>
+        <div style="font-size:12px;padding:10px 14px;background:rgba(255,209,0,0.06);border:1px solid rgba(255,209,0,0.2);border-radius:8px;">
+          <strong style="color:var(--yellow);">Overgangsrecht:</strong> auto's die vóór 1-1-2027 al ter beschikking waren gesteld vallen onder een overgangstermijn tot <strong style="color:var(--yellow);">17-09-2030</strong>; daarna is de heffing wel verschuldigd. Het kabinet heeft aangekondigd deze datum te willen verlengen naar 01-01-2031 — zolang die wetswijziging niet is aangenomen rekent deze tool met 17-09-2030.
         </div>
       </div>
     </div>
@@ -455,24 +501,35 @@ footer a:hover { color: var(--mint); }
         </div>
         <div class="field">
           <label class="field-label" for="cataloguswaarde">Cataloguswaarde <span class="req">*</span></label>
-          <div class="pw" id="w_cat"><span class="af">€</span><input type="number" id="cataloguswaarde" placeholder="45.000" step="500" oninput="checkCatalogus()"></div>
+          <div class="pw" id="w_cat"><span class="af">€</span><input type="number" id="cataloguswaarde" placeholder="45.000" step="500" min="1" oninput="checkCatalogus()"></div>
           <div class="cat-warning" id="cat_warning">
             ⚠️ Cataloguswaarde niet ingevuld of niet beschikbaar via RDW.
             Zoek de oorspronkelijke cataloguswaarde op via
-            <a href="https://www.independer.nl/autoverzekering/info/cataloguswaarde-berekenen" id="independer_link" target="_blank">Independer.nl →</a>
+            <a href="https://www.independer.nl/autoverzekering/info/cataloguswaarde-berekenen" target="_blank">Independer.nl →</a>
           </div>
         </div>
       </div>
-      <div class="fg">
+      <div class="fg" style="margin-bottom:12px;">
         <div class="field">
           <label class="field-label" for="dagwaarde">Waarde economisch verkeer <span class="req">*</span></label>
-          <div class="pw" id="w_dag"><span class="af">€</span><input type="number" id="dagwaarde" placeholder="7.500" step="250"></div>
+          <div class="pw" id="w_dag"><span class="af">€</span><input type="number" id="dagwaarde" placeholder="7.500" step="250" min="1"></div>
           <div class="field-note">Handmatig invullen — staat niet in RDW. Grondslag youngtimer-bijtelling (35%).</div>
         </div>
         <div class="field" style="justify-content:flex-end;">
           <div style="font-size:11px;color:var(--muted);line-height:1.6;padding:6px 0;">
             <span style="color:var(--yellow);font-weight:700;">*</span> Verplicht veld voor berekening
           </div>
+        </div>
+      </div>
+      <hr class="sep">
+      <div class="field" id="terb2025_wrap">
+        <label class="field-label">Stond de auto in 2025 al ter beschikking aan dezelfde persoon?</label>
+        <div class="rg" style="margin-top:2px;">
+          <label class="rb"><input type="radio" name="terb2025" value="ja"> Ja</label>
+          <label class="rb"><input type="radio" name="terb2025" value="nee"> Nee</label>
+        </div>
+        <div class="field-note">
+          Bepaalt of het <strong style="color:var(--dim);">overgangsrecht 2026</strong> geldt: was de auto op 31-12-2025 al 15 jaar of ouder én stond hij toen al ter beschikking aan dezelfde persoon, dan blijft de youngtimerbehandeling heel 2026 gelden — ook als de auto pas in 2026 zestien wordt.
         </div>
       </div>
     </div>
@@ -490,7 +547,7 @@ footer a:hover { color: var(--mint); }
         <div class="field">
           <label class="field-label">Zelfstandigenaftrek</label>
           <div class="rg" style="margin-top:2px;">
-            <label class="rb"><input type="radio" name="zelf" value="ja" checked> Ja (€ 3.750)</label>
+            <label class="rb"><input type="radio" name="zelf" value="ja" checked> Ja (<span id="zelf_label_bedrag">€ 1.200</span>)</label>
             <label class="rb"><input type="radio" name="zelf" value="nee"> Nee</label>
           </div>
         </div>
@@ -498,14 +555,12 @@ footer a:hover { color: var(--mint); }
       <div class="fg3">
         <div class="field">
           <label class="field-label">MKB-winstvrijstelling</label>
-          <div class="sw"><input type="number" id="mkb" value="14" step="0.1" min="0" max="100"><span class="af">%</span></div>
-          <div class="field-note">Standaard 14%</div>
+          <div class="sw"><input type="number" id="mkb" value="12.7" step="0.1" min="0" max="100"><span class="af">%</span></div>
+          <div class="field-note">2026: 12,7%</div>
         </div>
       </div>
       <hr class="sep">
-      <div style="font-size:11px;color:var(--muted);line-height:1.6;">
-        Tarieven box 1: schijf 1 t/m €38.883 (35,75%) · schijf 2 t/m €78.426 (37,56%) · schijf 3 (49,5%) · Zvw 4,85% tot €79.409
-      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;" id="tarief_voetnoot_ib"></div>
     </div>
 
     <div class="card" id="card-dga" style="display:none;">
@@ -516,26 +571,26 @@ footer a:hover { color: var(--mint); }
       <div class="fg" style="margin-bottom:12px;">
         <div class="field">
           <label class="field-label" for="loon_dga">Fiscaal loon (€/jaar) <span class="req">*</span></label>
-          <div class="pw" id="w_loon_dga"><span class="af">€</span><input type="number" id="loon_dga" placeholder="75.000" step="1000"></div>
-          <div class="field-note">Gebruikelijk loon inclusief bijtelling</div>
+          <div class="pw" id="w_loon_dga"><span class="af">€</span><input type="number" id="loon_dga" placeholder="75.000" step="1000" min="1"></div>
+          <div class="field-note">Gebruikelijk loon exclusief bijtelling — de bijtelling wordt hier bovenop geteld</div>
         </div>
         <div class="field">
-          <label class="field-label">Loonheffingskorting</label>
+          <label class="field-label">Loonheffingskorting toepassen</label>
           <div class="rg" style="margin-top:2px;">
             <label class="rb"><input type="radio" name="lhk" value="ja" checked> Ja</label>
             <label class="rb"><input type="radio" name="lhk" value="nee"> Nee</label>
           </div>
+          <div class="field-note">Algemene heffingskorting én arbeidskorting, mét inkomensafhankelijke afbouw</div>
         </div>
       </div>
       <hr class="sep">
-      <div style="font-size:11px;color:var(--muted);line-height:1.6;">
-        Loonheffing progressief: schijf 1 t/m €38.883 (35,75%) · schijf 2 t/m €78.426 (37,56%) · schijf 3 (49,5%). Loonheffingskorting 2026: €3.362 (indicatief).
-      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;" id="tarief_voetnoot_dga"></div>
     </div>
 
     <div class="disclaimer">
       <strong>ℹ️ Reikwijdte van deze berekening</strong><br>
-      Dit model berekent uitsluitend het effect van de bijtelling op de verschuldigde inkomstenbelasting of loonheffing. Heffingskortingen, eigen woning, persoonsgebonden aftrek, dividenduitkering en VPB worden buiten beschouwing gelaten. Indicatief — geen rechten aan te ontlenen.
+      Dit model berekent het effect van de bijtelling op de verschuldigde inkomstenbelasting of loonheffing, <strong>inclusief</strong> de tariefsaanpassing van de grondslagverminderende posten (11,94% boven € 78.426) en de inkomensafhankelijke afbouw van de algemene heffingskorting en de arbeidskorting. Die afbouw verhoogt de marginale druk en is daarom meegenomen.<br><br>
+      De berekening gaat uit van <strong>uitsluitend de ingevoerde inkomensgegevens</strong>. Andere box 1-componenten — eigen woning, persoonsgebonden aftrek, ander loon of andere winstbestanddelen — kunnen de uiteindelijke heffing beïnvloeden. Dividenduitkering en VPB blijven buiten beschouwing. Tarieven 2026; controleer jaarlijks. Indicatief — geen rechten aan te ontlenen.
     </div>
 
     <div class="card">
@@ -548,17 +603,22 @@ footer a:hover { color: var(--mint); }
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">
             <div style="font-weight:800;color:var(--white);margin-bottom:8px;">2026 (huidig)</div>
             <div>Auto ≥ <strong style="color:var(--mint);">16 jaar</strong> oud → youngtimer</div>
-            <div style="margin-top:4px;">Bijtelling: <strong style="color:var(--mint);">35%</strong> van dagwaarde</div>
+            <div style="margin-top:4px;">Bijtelling: <strong style="color:var(--mint);">35%</strong> van waarde economisch verkeer</div>
+            <div style="margin-top:6px;font-size:12px;color:var(--muted);">Overgangsrecht: was de auto op 31-12-2025 al ≥ 15 jaar én stond hij toen al ter beschikking aan dezelfde persoon, dan blijft 35% heel 2026 gelden.</div>
           </div>
           <div style="background:rgba(255,209,0,0.05);border:1px solid rgba(255,209,0,0.15);border-radius:10px;padding:14px;">
             <div style="font-weight:800;color:var(--yellow);margin-bottom:8px;">2027 (nieuw)</div>
             <div>Auto ≥ <strong style="color:var(--yellow);">25 jaar</strong> oud → youngtimer</div>
-            <div style="margin-top:4px;">Bijtelling: <strong style="color:var(--yellow);">35%</strong> van dagwaarde</div>
+            <div style="margin-top:4px;">Bijtelling: <strong style="color:var(--yellow);">35%</strong> van waarde economisch verkeer</div>
+            <div style="margin-top:6px;font-size:12px;color:var(--muted);">Daaronder: regulier — 22% van de cataloguswaarde, of <strong style="color:var(--yellow);">25%</strong> bij datum eerste toelating t/m 31-12-2016.</div>
           </div>
         </div>
         <div style="font-size:12px;padding:10px 14px;background:rgba(61,217,160,0.06);border-radius:8px;">
-          Auto's die in 2026 nog youngtimer zijn maar in 2027 niet meer aan de grens van 25 jaar voldoen, schakelen over naar reguliere bijtelling (22% cataloguswaarde). Heretikettering naar privé per 1 jan 2027 kan dan aantrekkelijk zijn.
+          Auto's die in 2026 nog youngtimer zijn maar in 2027 niet meer aan de grens van 25 jaar voldoen, schakelen over naar de reguliere bijtelling. Heretikettering naar privé per 1 jan 2027 kan dan aantrekkelijk zijn.
           <a href="https://kennisgroepen.belastingdienst.nl/publicaties/kg21320261-heretikettering-bij-wetswijziging-privegebruik-auto/" target="_blank" style="color:var(--mint);font-weight:700;display:inline-block;margin-top:4px;">Standpunt Belastingdienst →</a>
+        </div>
+        <div style="font-size:12px;padding:10px 14px;background:rgba(255,209,0,0.06);border:1px solid rgba(255,209,0,0.2);border-radius:8px;margin-top:8px;">
+          <strong style="color:var(--yellow);">Afwijking van KG:213:2026:1.</strong> Dat standpunt noemt voor een pre-2017-auto 22% van de cataloguswaarde vanaf 2027. Deze tool houdt <strong style="color:var(--yellow);">25%</strong> aan bij een datum eerste toelating t/m 31-12-2016, op grond van art. 10a.4 Wet IB 2001, de Cijferbijlage 2026 bij de Nieuwsbrief Loonheffingen en de toelichting van de staatssecretaris van 15-01-2026.
         </div>
       </div>
     </div>
@@ -589,6 +649,8 @@ footer a:hover { color: var(--mint); }
             <div class="jc-row"><span>Bijtelling</span><span id="r26_bijtelling">—</span></div>
             <div class="jc-row"><span>Soort</span><span id="r26_soort">—</span></div>
             <div class="jc-row"><span id="r26_grondslag_lbl">Belastbare winst</span><span id="r26_bw">—</span></div>
+            <div class="jc-row" id="r26_ta_row"><span>Tariefsaanpassing</span><span id="r26_ta">—</span></div>
+            <div class="jc-row"><span>Heffingskortingen</span><span id="r26_kort">—</span></div>
             <div class="jc-row"><span id="r26_heffing_lbl">IB</span><span id="r26_ib">—</span></div>
             <div class="jc-row" id="r26_zvw_row"><span>Zvw</span><span id="r26_zvw">—</span></div>
             <div class="jc-row"><span>Totale druk</span><span id="r26_totaal" style="color:var(--mint);">—</span></div>
@@ -598,6 +660,8 @@ footer a:hover { color: var(--mint); }
             <div class="jc-row"><span>Bijtelling</span><span id="r27_bijtelling">—</span></div>
             <div class="jc-row"><span>Soort</span><span id="r27_soort">—</span></div>
             <div class="jc-row"><span id="r27_grondslag_lbl">Belastbare winst</span><span id="r27_bw">—</span></div>
+            <div class="jc-row" id="r27_ta_row"><span>Tariefsaanpassing</span><span id="r27_ta">—</span></div>
+            <div class="jc-row"><span>Heffingskortingen</span><span id="r27_kort">—</span></div>
             <div class="jc-row"><span id="r27_heffing_lbl">IB</span><span id="r27_ib">—</span></div>
             <div class="jc-row" id="r27_zvw_row"><span>Zvw</span><span id="r27_zvw">—</span></div>
             <div class="jc-row"><span>Totale druk</span><span id="r27_totaal" style="color:var(--yellow);">—</span></div>
@@ -608,6 +672,7 @@ footer a:hover { color: var(--mint); }
           <div class="vb-row">
             <span class="vb-main" id="vb_jaar">—</span>
             <span class="vb-sub">per maand: <strong id="vb_maand">—</strong></span>
+            <span class="vb-sub">marginale druk: <strong id="vb_marginaal">—</strong></span>
           </div>
         </div>
         <div class="rs">
@@ -631,9 +696,12 @@ footer a:hover { color: var(--mint); }
 <div id="tab-content-klantbrief" style="display:none;">
 <div class="brief-main">
   <div>
-    <div class="calc-mode-tabs" style="margin-bottom:20px;">
+    <div class="calc-mode-tabs" style="margin-bottom:12px;">
       <button class="cmt active" id="cmt-mail1" onclick="setBrief('signaal')">📨 Eerste mail — signalering</button>
       <button class="cmt"        id="cmt-mail2" onclick="setBrief('conclusie')">📋 Conclusiebrief — na berekening</button>
+    </div>
+    <div class="notice-box" id="brief_lock_notice" style="margin-bottom:20px;margin-top:0;">
+      🔒 De conclusiebrief is nog niet beschikbaar. Voer eerst een berekening uit op het <strong>Youngtimer</strong>-tabblad; anders zou de brief zonder bedragen naar de klant gaan.
     </div>
 
     <div id="brief_signaal">
@@ -642,7 +710,8 @@ footer a:hover { color: var(--mint); }
         <div class="brief-subject">Jouw youngtimer op de zaak — let op deze wetswijziging</div>
         <p id="brief_aanhef_s">Beste,</p>
         <p>We nemen even contact op omdat we zien dat je een youngtimer op de zaak hebt staan. Per <strong>1 januari 2027</strong> verandert de youngtimerregeling ingrijpend en dat kan gevolgen hebben voor jouw fiscale situatie.</p>
-        <p>De leeftijdsgrens voor de youngtimerregeling gaat van 15 naar 25 jaar. Auto's die nu nog onder de gunstige youngtimer-bijtelling vallen, kunnen in 2027 overgaan naar de reguliere bijtelling van 22 procent van de cataloguswaarde. Afhankelijk van de waarde van je auto en je belastbaar inkomen kan dat per jaar flink schelen.</p>
+        <p>De leeftijdsgrens voor de youngtimerregeling schuift in twee stappen op. Per 1 januari 2026 ging die van 15 naar 16 jaar, en per 1 januari 2027 gaat hij naar 25 jaar. Voor auto's die op 31 december 2025 al vijftien jaar of ouder waren en toen al aan dezelfde persoon ter beschikking stonden, geldt in 2026 nog een overgangsregeling.</p>
+        <p>Auto's die nu nog onder de gunstige youngtimer-bijtelling van 35 procent van de waarde in het economische verkeer vallen, gaan in 2027 over naar de reguliere bijtelling: 22 procent van de cataloguswaarde, of 25 procent als de auto voor 1 januari 2017 voor het eerst is toegelaten. Afhankelijk van de waarde van je auto en je belastbaar inkomen kan dat per jaar flink schelen.</p>
         <p>We kunnen de gevolgen voor jouw specifieke situatie doorrekenen en je adviseren over de beste aanpak. Denk bijvoorbeeld aan heretikettering van de auto naar privé, waarbij de Belastingdienst heeft aangegeven dat deze wetswijziging als bijzondere omstandigheid kan gelden.</p>
         <p id="brief_extra_s" style="display:none;"></p>
         <p>Wil je dat we dit voor je uitzoeken? Geef even een seintje en we gaan aan de slag.</p>
@@ -720,17 +789,29 @@ footer a:hover { color: var(--mint); }
         </div>
       </div>
 
+      <div id="bc_overgang_wrap" style="display:none;margin-bottom:12px;">
+        <div class="field">
+          <label class="field-label">Stond de auto in 2025 al ter beschikking aan dezelfde persoon?</label>
+          <select id="bc_terb2025">
+            <option value="">Maak een keuze</option>
+            <option value="ja">Ja</option>
+            <option value="nee">Nee</option>
+          </select>
+          <div class="field-note">Bepaalt of het overgangsrecht 2026 geldt (op 31-12-2025 al ≥ 15 jaar én toen al ter beschikking)</div>
+        </div>
+      </div>
+
       <div id="bc_dagwaarde_wrap" style="display:none;margin-bottom:12px;">
         <div class="field">
-          <label class="field-label">Waarde economisch verkeer (dagwaarde) <span class="req">*</span></label>
-          <div class="pw"><span class="af">€</span><input type="number" id="bc_dagwaarde" placeholder="7.500" step="250" oninput="bcBereken()"></div>
+          <label class="field-label">Waarde economisch verkeer <span class="req">*</span></label>
+          <div class="pw"><span class="af">€</span><input type="number" id="bc_dagwaarde" placeholder="7.500" step="250" min="1" oninput="bcBereken()"></div>
           <div class="field-note">Vereist voor youngtimer — staat niet in RDW</div>
         </div>
       </div>
 
       <div class="field">
         <label class="field-label">Bijtelling op de loonstrook (per maand)</label>
-        <div class="pw"><span class="af">€</span><input type="number" id="bc_loonstrook" placeholder="bijv. 550" step="10" oninput="bcBereken()"></div>
+        <div class="pw"><span class="af">€</span><input type="number" id="bc_loonstrook" placeholder="bijv. 550" step="10" min="1" oninput="bcBereken()"></div>
         <div class="field-note">Optioneel — laat leeg om alleen de verwachte bijtelling te berekenen</div>
       </div>
     </div>
@@ -741,7 +822,7 @@ footer a:hover { color: var(--mint); }
         <div><div class="card-title">Hoe werkt de bijtelling?</div><div class="card-sub">Percentages, 60-maanden regel en youngtimerregeling</div></div>
       </div>
       <div style="font-size:13px;color:var(--dim);line-height:1.75;">
-        <p style="margin-bottom:10px;">Het bijtellingspercentage wordt vastgesteld bij de <strong style="color:var(--white);">eerste tenaamstelling in Nederland</strong> en is voor EV's <strong style="color:var(--white);">60 maanden gelocked</strong> (vanaf 2020). Daarna geldt het tarief van het lopende jaar. Reguliere auto's zijn altijd 22%.</p>
+        <p style="margin-bottom:10px;">Het <strong style="color:var(--white);">algemene percentage</strong> hangt af van de <strong style="color:var(--white);">datum eerste toelating</strong>: 22% vanaf 01-01-2017, 25% daarvóór (art. 10a.4 Wet IB 2001). De <strong style="color:var(--white);">EV-korting</strong> daarop hangt af van de <strong style="color:var(--white);">datum eerste tenaamstelling in Nederland</strong> en is <strong style="color:var(--white);">60 maanden gelocked</strong>. Daarna geldt het tarief van het lopende jaar.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;">
             <div style="font-weight:800;color:var(--white);margin-bottom:6px;">EV-tarieven (jaar tenaamstelling)</div>
@@ -755,11 +836,11 @@ footer a:hover { color: var(--mint); }
           </div>
           <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;">
             <div style="font-weight:800;color:var(--white);margin-bottom:6px;">Overige regels</div>
-            <div>Regulier: <strong style="color:var(--mint);">22%</strong> van catalogusprijs</div>
-            <div>Kenteken vóór 2017: <strong style="color:var(--yellow);">25%</strong> permanent</div>
-            <div style="margin-top:6px;">Youngtimer <strong style="color:var(--yellow);">35%</strong> van dagwaarde:</div>
+            <div>Toelating vanaf 2017: <strong style="color:var(--mint);">22%</strong> van catalogusprijs</div>
+            <div>Toelating t/m 2016: <strong style="color:var(--yellow);">25%</strong> permanent</div>
+            <div style="margin-top:6px;">Youngtimer <strong style="color:var(--yellow);">35%</strong> van waarde econ. verkeer:</div>
             <div>≥15 jaar t/m 2025</div>
-            <div>≥16 jaar in 2026</div>
+            <div>≥16 jaar in 2026 <span style="color:var(--muted);">(+ overgangsrecht)</span></div>
             <div>≥25 jaar vanaf 2027</div>
           </div>
         </div>
@@ -788,600 +869,1055 @@ footer a:hover { color: var(--mint); }
 </div>
 </div>
 
-<!-- PRINT: rekenmodel -->
-<div class="print-model-area" id="print_model_area" style="display:none;"></div>
-
 <footer>
   <p>© 2026 Join Administraties — Auto Fiscaal 2027</p>
   <p>Tarieven 2026/2027 — controleer jaarlijks &nbsp;·&nbsp; <a href="https://joinadministraties.nl" target="_blank">joinadministraties.nl</a></p>
 </footer>
 
 <script>
-// ─── TARIEVEN CONFIG — controleer en update jaarlijks ───
+// ══════════════════════════════════════════════════════════════════════════════
+// FISCALE KERN — BEGIN
+//
+// Alles tussen de BEGIN/EINDE-markers is puur: geen DOM, geen globale state,
+// geen datums-uit-het-niets. tests/fiscaal.test.mjs snijdt dit blok uit dit
+// bestand en test het met node:test. Houd het blok daarom vrij van UI-code.
+//
+// Tarieven en bedragen zijn 2026 en geverifieerd tegen de Cijferbijlage 2026
+// bij de Nieuwsbrief Loonheffingen (Belastingdienst) en belastingdienst.nl.
+// CONTROLEER JAARLIJKS.
+// ══════════════════════════════════════════════════════════════════════════════
+
 const TARIEVEN = {
-  eindheffingPct:          0.12,
-  bijtellingYoungtimer:    0.35,
-  bijtellingRegulieer:     0.22,
-  youngtimerLeeftijd2026:  16,
-  youngtimerLeeftijd2027:  25,
-  ibSchijf1Grens:          38883,
-  ibSchijf2Grens:          78426,
-  ibSchijf1Tarief:         0.3575,
-  ibSchijf2Tarief:         0.3756,
-  ibSchijf3Tarief:         0.495,
-  zvwMaxLoon:              79409,
-  zvwPremie:               0.0485,
-  lhk:                     3362,
-  zelfstandigenAftrek:     3750,
-  mkbVrijstellingDefault:  14,
+  // ── Pseudo-eindheffing privégebruik auto (Belastingplan 2026, per 2027) ──
+  eindheffingPct:            0.12,
+  eindheffingStartJaar:      2027,
+  // Auto's die vóór 2027 al ter beschikking waren gesteld vallen onder een
+  // overgangstermijn. Wettelijke einddatum: 17-09-2030. Het kabinet heeft
+  // aangekondigd dit te willen verlengen naar 01-01-2031; zolang die
+  // wetswijziging niet is aangenomen is dat aangekondigd beleid en géén
+  // geldend recht, dus rekenen we met 17-09-2030.
+  eindheffingOvergangEinde:  '2030-09-17',
+  // T/m 25 jaar cataloguswaarde, ouder dan 25 jaar waarde economisch verkeer.
+  eindheffingWevBovenLeeftijd: 25,
+
+  // ── Bijtelling privégebruik auto ──
+  bijtellingYoungtimer:      0.35,
+  bijtellingRegulier:        0.22,  // datum 1e toelating vanaf 01-01-2017
+  bijtellingPre2017:         0.25,  // datum 1e toelating t/m 31-12-2016
+  pre2017Grens:              '2016-12-31',
+
+  // Youngtimergrens per belastingjaar (leeftijd in jaren).
+  youngtimerLeeftijd:        { 2024: 15, 2025: 15, 2026: 16, 2027: 25 },
+  youngtimerLeeftijdVanaf2027: 25,
+  // Overgangsrecht 2026: auto die op 31-12-2025 al 15 jaar of ouder was ÉN in
+  // 2025 al ter beschikking stond aan dezelfde persoon, houdt heel 2026 de
+  // youngtimerbehandeling — ook als hij in 2026 pas 16 wordt.
+  youngtimerOvergang2026:    { peildatum: '2025-12-31', minLeeftijd: 15 },
+
+  // ── Box 1 / loonheffing 2026, jonger dan AOW-leeftijd ──
+  ibSchijf1Grens:            38883,
+  ibSchijf2Grens:            78426,
+  ibSchijf1Tarief:           0.3575,
+  ibSchijf2Tarief:           0.3756,
+  ibSchijf3Tarief:           0.495,
+
+  // ── Zvw 2026: lage inkomensafhankelijke bijdrage (IB-ondernemer) ──
+  zvwMaxLoon:                79409,
+  zvwPremie:                 0.0485,
+
+  // ── Ondernemersfaciliteiten 2026 ──
+  zelfstandigenAftrek:       1200,
+  mkbVrijstellingDefault:    12.7,
+
+  // ── Tariefsaanpassing grondslagverminderende posten (art. 2.10 lid 2 Wet IB) ──
+  // Raakt o.a. zelfstandigenaftrek en mkb-winstvrijstelling. Boven de drempel
+  // is het voordeel van die posten beperkt tot 37,56%; het verschil met 49,5%
+  // (= 11,94%) wordt bijgeteld.
+  tariefsaanpassingPct:      0.1194,
+  tariefsaanpassingDrempel:  78426,
+
+  // ── Heffingskortingen 2026, jonger dan AOW-leeftijd ──
+  ahkMax:                    3115,
+  ahkAfbouwPct:              0.06398,
+  ahkAfbouwVanaf:            29736,
+  akOpbouw: [
+    { tot: 11965, pct: 0.08324 },
+    { tot: 25845, pct: 0.31009 },
+    { tot: 45592, pct: 0.01950 },
+  ],
+  akMax:                     5685,
+  akAfbouwPct:               0.0651,
+  akAfbouwVanaf:             45592,
 };
 
-// ─── GLOBALS ───
-let calcMode = 'ib';
-let g = {};
-let rdwKenteken = '';
-let rdwData = null; // opgeslagen RDW-data voor beide tabs
+// ─── Datums ───────────────────────────────────────────────────────────────────
 
-// Eindheffing status state
-let ehCatalogusprijsHerkomst = '-';
-let ehCatalogusprijsToelichting = 'We proberen de catalogusprijs automatisch op te halen via RDW.';
-let ehCatalogusprijsStatus = 'leeg';
-let ehCatalogusprijsStatusLabel = 'Nog niet bepaald';
-
-// ─── TAB SWITCHING ───
-function switchTab(tab) {
-  ['eindheffing','youngtimer','klantbrief','bijtelling-controle'].forEach(t => {
-    document.getElementById('tab-content-' + t).style.display = t === tab ? '' : 'none';
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-  });
-  document.getElementById('kenteken-bar').style.display = tab === 'klantbrief' ? 'none' : '';
-  if (tab === 'bijtelling-controle') bcBereken();
-}
-
-function naarBrief() { switchTab('klantbrief'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-
-// ─── CALC MODE (youngtimer) ───
-function setMode(mode) {
-  calcMode = mode;
-  document.getElementById('cmt-ib').classList.toggle('active', mode === 'ib');
-  document.getElementById('cmt-dga').classList.toggle('active', mode === 'dga');
-  document.getElementById('card-ib').style.display  = mode === 'ib'  ? '' : 'none';
-  document.getElementById('card-dga').style.display = mode === 'dga' ? '' : 'none';
-  document.getElementById('r26_zvw_row').style.display = mode === 'ib' ? '' : 'none';
-  document.getElementById('r27_zvw_row').style.display = mode === 'ib' ? '' : 'none';
-  const gl = mode === 'dga' ? 'Belastbaar loon' : 'Belastbare winst';
-  const hl = mode === 'dga' ? 'Loonheffing'     : 'IB';
-  ['r26','r27'].forEach(p => {
-    document.getElementById(p + '_grondslag_lbl').textContent = gl;
-    document.getElementById(p + '_heffing_lbl').textContent   = hl;
-  });
-  document.getElementById('results-subtitle').textContent =
-    mode === 'dga' ? 'DGA — loonheffing 2026 vs 2027' : 'Vergelijking fiscale druk 2026 vs 2027';
-}
-
-// ─── HELPERS ───
-function fmtE(n) {
-  if (isNaN(n) || n === null) return '—';
-  const s = Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return (n < 0 ? '− ' : '') + '€ ' + s;
-}
-
-function formatDatum(datum) {
-  if (!datum || datum.length < 8) return '-';
-  return datum.substring(6,8) + '-' + datum.substring(4,6) + '-' + datum.substring(0,4);
-}
-
-function setRdwStatus(type, html) {
-  const el = document.getElementById('rdw_status');
-  el.className = 'rdw-status ' + type;
-  el.innerHTML = html;
-}
-
-function setFilled(wrapId, inputId, val) {
-  if (val === null || val === undefined) return;
-  const inp = document.getElementById(inputId);
-  if (!inp) return;
-  inp.value = val;
-  inp.classList.add('rdw-filled');
-  const wrap = wrapId ? document.getElementById(wrapId) : null;
-  if (wrap) wrap.classList.add('rdw-filled');
-}
-
-// ─── GEDEELDE RDW FETCH ───
-async function rdwFetch(endpoint, kenteken) {
-  const url = `https://opendata.rdw.nl/resource/${endpoint}.json?kenteken=${encodeURIComponent(kenteken)}&$limit=5`;
-  const r = await fetch(url);
-  return r.json();
-}
-
-async function zoekKenteken() {
-  const raw = document.getElementById('kenteken_input').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (raw.length < 4) { setRdwStatus('error', '⚠️ Voer een geldig kenteken in.'); return; }
-  const btn = document.getElementById('rdw_btn');
-  btn.disabled = true;
-  document.getElementById('rdw_car_info').style.display = 'none';
-  setRdwStatus('loading', '<div class="spinner"></div>&nbsp; Gegevens ophalen bij RDW…');
-
-  try {
-    const [voertuigen, brandstofData, catalogusData] = await Promise.all([
-      rdwFetch('m9d7-ebf2', raw),
-      rdwFetch('8ys7-d773', raw),
-      rdwFetch('aq35-ccn7', raw)
-    ]);
-
-    if (!voertuigen || voertuigen.length === 0) {
-      setRdwStatus('error', '❌ Kenteken niet gevonden. Controleer de invoer.');
-      btn.disabled = false; return;
-    }
-
-    const v = voertuigen[0];
-    const b = brandstofData?.[0] || null;
-    const merk      = (v.merk || '').trim();
-    const model     = (v.handelsbenaming || v.type || '').trim();
-    const datumRaw  = v.datum_eerste_toelating || v.datum_eerste_afgifte_nederland || '';
-    const datumTxt  = formatDatum(datumRaw);
-    const tenaamstellingRaw = v.datum_eerste_tenaamstelling_in_nederland || '';
-    const brandstoffenLijst = brandstofData && brandstofData.length > 0
-      ? [...new Set(brandstofData.map(i => i.brandstof_omschrijving).filter(Boolean))]
-      : [];
-    const brandstofStr = brandstoffenLijst.join(' + ') || (b?.brandstof_omschrijving || '').trim() || '—';
-    const isElektrisch = brandstoffenLijst.length === 1 && brandstoffenLijst.includes('Elektriciteit');
-    const isWaterstof  = brandstoffenLijst.some(b => /waterstof/i.test(b));
-
-    // Catalogusprijs uit RDW catalogus-endpoint
-    const catEntry = catalogusData?.[0] || {};
-    const catPrijs = catEntry.catalogusprijs ? Math.round(+catEntry.catalogusprijs) : null;
-    // Fallback: soms staat prijs in voertuig-endpoint
-    const catFallback = v.catalogusprijs ? Math.round(+v.catalogusprijs) : null;
-    const catalogusprijs = catPrijs || catFallback || null;
-
-    rdwKenteken = raw;
-    rdwData = { merk, model, datumTxt, brandstofStr, brandstoffenLijst, isElektrisch, isWaterstof, catalogusprijs, datumTenaamstellingRaw: tenaamstellingRaw };
-
-    // Vul youngtimer tab
-    if (datumTxt && datumTxt !== '-') {
-      setFilled(null, 'datum_reg', datumTxt);
-      updateLeeftijd();
-    }
-    if (catalogusprijs) {
-      setFilled('w_cat', 'cataloguswaarde', catalogusprijs);
-      document.getElementById('cat_warning').classList.remove('visible');
-    } else {
-      document.getElementById('cat_warning').classList.add('visible');
-    }
-
-    // Vul eindheffing tab
-    if (catalogusprijs) {
-      document.getElementById('eh_catalogusprijs').value = catalogusprijs;
-      setEhCatalogusprijsStatus('RDW', 'Catalogusprijs automatisch opgehaald via RDW.', 'auto', 'Automatisch opgehaald');
-    } else {
-      setEhCatalogusprijsStatus('Fallback handmatig', 'Geen catalogusprijs gevonden in RDW. Vul handmatig in.', 'fallback', 'Handmatig invullen nodig');
-    }
-    document.getElementById('eh_brandstof').value = brandstofStr;
-
-    // Toon auto-info bar
-    const ci = document.getElementById('rdw_car_info');
-    ci.style.display = 'flex';
-    ci.innerHTML = `
-      <div class="car-detail"><span class="cd-label">Voertuig</span><span class="cd-val car-name">${merk} ${model}</span></div>
-      ${catalogusprijs ? `<div class="car-detail"><span class="cd-label">Cataloguswaarde</span><span class="cd-val">${fmtE(catalogusprijs)}</span></div>` : `<div class="car-detail"><span class="cd-label">Cataloguswaarde</span><span class="cd-val" style="color:var(--red);">Niet beschikbaar</span></div>`}
-      <div class="car-detail"><span class="cd-label">Brandstof</span><span class="cd-val">${brandstofStr}</span></div>
-      ${datumTxt && datumTxt !== '-' ? `<div class="car-detail"><span class="cd-label">Eerste toelating</span><span class="cd-val">${datumTxt}</span></div>` : ''}
-      ${isElektrisch ? `<div class="car-detail"><span class="cd-label">Eindheffing 2027</span><span class="cd-val" style="color:var(--mint);">Niet van toepassing (EV)</span></div>` : ''}
-    `;
-
-    setRdwStatus('success', catalogusprijs
-      ? '✅ Voertuiggegevens ingevuld vanuit RDW'
-      : '⚠️ Datum en merk opgehaald — catalogusprijs niet beschikbaar in RDW');
-
-    // Update eindheffing resultaat
-    berekenEindheffing();
-    bcBereken();
-
-  } catch(err) {
-    setRdwStatus('error', '❌ RDW niet bereikbaar. Probeer het opnieuw.');
-    console.error(err);
+// Strikte parser voor DD-MM-JJJJ en JJJJ-MM-DD. Weigert onbestaande datums
+// (31-02-2010) in plaats van ze stil door te laten rollen naar 3 maart.
+function parseDatum(str) {
+  // Duck-typing i.p.v. instanceof: dat werkt niet over realms heen (de tests
+  // evalueren de kern in een vm-context met een eigen Date-constructor).
+  if (Object.prototype.toString.call(str) === '[object Date]') {
+    return isNaN(str.getTime()) ? null : str;
   }
-  btn.disabled = false;
+  if (typeof str !== 'string') return null;
+  const s = str.trim();
+  if (!s) return null;
+  let d, m, j;
+  let mm = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (mm) { d = +mm[1]; m = +mm[2]; j = +mm[3]; }
+  else {
+    mm = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (!mm) return null;
+    j = +mm[1]; m = +mm[2]; d = +mm[3];
+  }
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(j, m - 1, d);
+  // Rollover-detectie: 31-02 wordt 03-03 en valt hier af.
+  if (dt.getFullYear() !== j || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return dt;
 }
 
-// ─── EINDHEFFING LOGICA ───
-function setEhCatalogusprijsStatus(herkomst, toelichting, statusClass, statusLabel) {
-  ehCatalogusprijsHerkomst  = herkomst;
-  ehCatalogusprijsToelichting = toelichting;
-  ehCatalogusprijsStatus      = statusClass;
-  ehCatalogusprijsStatusLabel = statusLabel;
-  document.getElementById('eh_catalogusprijsBron').innerText = toelichting;
-  document.getElementById('eh_catalogusprijsStatus').className  = 'status-badge ' + statusClass;
-  document.getElementById('eh_catalogusprijsStatus').innerText  = statusLabel;
+// RDW levert JJJJMMDD.
+function parseRdwDatum(str) {
+  if (typeof str !== 'string' || !/^\d{8}$/.test(str)) return null;
+  return parseDatum(`${str.slice(0, 4)}-${str.slice(4, 6)}-${str.slice(6, 8)}`);
 }
 
-function berekenEindheffing() {
-  const catalogusprijsInput = document.getElementById('eh_catalogusprijs').value;
-  const catalogusprijs      = Number(catalogusprijsInput);
-  const startdatum          = document.getElementById('eh_startdatum').value;
-  const privegebruik        = document.getElementById('eh_privegebruik').value;
-  const brandstof           = (document.getElementById('eh_brandstof').value || '').toLowerCase();
-  const isElektrisch        = brandstof.includes('elektr');
-
-  const heeftCatalogusprijs = catalogusprijsInput !== '' && !isNaN(catalogusprijs) && catalogusprijs > 0;
-  const datumVanaf2027      = startdatum ? startdatum >= '2027-01-01' : false;
-  const heeftPrivegebruik   = privegebruik === 'ja';
-  const geenPrivegebruik    = privegebruik === 'nee';
-
-  let heffing = 0;
-  let heffingVanToepassing = false;
-  if (heeftCatalogusprijs && !isElektrisch && datumVanaf2027 && heeftPrivegebruik) {
-    heffing = catalogusprijs * TARIEVEN.eindheffingPct;
-    heffingVanToepassing = true;
-  }
-
-  const resultaatEl = document.getElementById('eh_resultaat');
-
-  if (!heeftCatalogusprijs || !startdatum || !privegebruik) {
-    resultaatEl.innerHTML = `
-      <div class="placeholder">
-        <div class="ph-icon">💶</div>
-        <p>Vul alle velden in voor een berekening. Gebruik de RDW-lookup voor automatische invulling.</p>
-      </div>`;
-    return;
-  }
-
-  let meldingClass, meldingTitel, meldingTekst, bedrag;
-
-  if (isElektrisch) {
-    meldingClass = 'm-goed'; meldingTitel = 'Volledig elektrisch — geen eindheffing';
-    meldingTekst = 'Elektrische auto\'s zijn vrijgesteld van de eindheffing in 2027.';
-    bedrag = fmtE(0);
-  } else if (!datumVanaf2027) {
-    meldingClass = 'm-goed'; meldingTitel = 'Geen eindheffing';
-    meldingTekst = 'De startdatum ligt vóór 1 januari 2027. De eindheffing is alleen van toepassing op auto\'s verstrekt vanaf 2027.';
-    bedrag = fmtE(0);
-  } else if (geenPrivegebruik) {
-    meldingClass = 'm-goed'; meldingTitel = 'Geen eindheffing';
-    meldingTekst = 'Geen privégebruik of woon-werkverkeer. Daardoor is er geen eindheffing verschuldigd.';
-    bedrag = fmtE(0);
-  } else if (heffingVanToepassing) {
-    meldingClass = 'm-waarschuwing'; meldingTitel = 'Indicatieve eindheffing 2027';
-    meldingTekst = `12% van de catalogusprijs van ${fmtE(catalogusprijs)} per jaar. De eindheffing is voor rekening van de werkgever.`;
-    bedrag = fmtE(heffing);
-  } else {
-    meldingClass = 'm-info'; meldingTitel = 'Geen eindheffing';
-    meldingTekst = 'Op basis van de ingevulde gegevens is er geen eindheffing verschuldigd.';
-    bedrag = fmtE(0);
-  }
-
-  resultaatEl.innerHTML = `
-    <div style="padding:14px 16px 0;">
-      <div class="eh-kaart">
-        <div class="eh-kaart-titel">Voertuig & invoer</div>
-        <div class="gegevens-grid">
-          <div class="gegeven">
-            <span class="gegeven-label">Catalogusprijs</span>
-            <span class="gegeven-waarde">${heeftCatalogusprijs ? fmtE(catalogusprijs) : '—'}</span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Bron</span>
-            <span class="gegeven-waarde">
-              ${ehCatalogusprijsHerkomst}
-              <div class="status-badge ${ehCatalogusprijsStatus}">${ehCatalogusprijsStatusLabel}</div>
-            </span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Startdatum</span>
-            <span class="gegeven-waarde">${startdatum ? startdatum.split('-').reverse().join('-') : '—'}</span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Privégebruik</span>
-            <span class="gegeven-waarde">${privegebruik === 'ja' ? 'Ja' : privegebruik === 'nee' ? 'Nee' : '—'}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="verdict ${heffingVanToepassing ? 'v-warn' : 'v-ok'}" style="margin:0 14px 14px;">
-      <div class="v-lbl">Indicatieve eindheffing per jaar</div>
-      <div class="v-main">${bedrag}</div>
-      <div class="v-sub">${meldingTitel}</div>
-    </div>
-    <div style="padding:0 16px 16px;">
-      <div class="melding ${meldingClass}">
-        <strong>${meldingTitel}</strong><br>${meldingTekst}
-      </div>
-      <div class="small-note">
-        Indicatieve berekening. De eindheffing (${TARIEVEN.eindheffingPct * 100}%) is voor rekening van de werkgever, bovenop de bijtelling bij de werknemer. Geen rechten aan te ontlenen.
-      </div>
-    </div>`;
+function formatDatumNl(d) {
+  const dt = parseDatum(d);
+  if (!dt) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(dt.getDate())}-${p(dt.getMonth() + 1)}-${dt.getFullYear()}`;
 }
 
-// Eindheffing tab event listeners
-document.getElementById('eh_catalogusprijs').addEventListener('input', function() {
-  if (this.value.trim()) {
-    setEhCatalogusprijsStatus('Handmatig', 'Catalogusprijs handmatig ingevuld.', 'handmatig', 'Handmatig ingevuld');
-  }
-  berekenEindheffing();
-});
-document.getElementById('eh_catalogusprijsBronKeuze').addEventListener('change', function() {
-  if (this.value === 'handmatig') {
-    setEhCatalogusprijsStatus('Handmatig', 'Handmatige invoer actief.', 'handmatig', 'Handmatige invoer actief');
-  } else if (rdwData?.catalogusprijs) {
-    document.getElementById('eh_catalogusprijs').value = rdwData.catalogusprijs;
-    setEhCatalogusprijsStatus('RDW', 'Catalogusprijs automatisch opgehaald via RDW.', 'auto', 'Automatisch opgehaald');
-  }
-  berekenEindheffing();
-});
-document.getElementById('eh_startdatum').addEventListener('change', berekenEindheffing);
-document.getElementById('eh_privegebruik').addEventListener('change', berekenEindheffing);
-
-// ─── YOUNGTIMER LOGICA ───
-function checkCatalogus(showWarning) {
-  const val = parseFloat(document.getElementById('cataloguswaarde').value);
-  const missing = !val || val <= 0;
-  const warn = document.getElementById('cat_warning');
-  if (missing && showWarning) {
-    warn.classList.add('visible');
-  } else if (!missing) {
-    warn.classList.remove('visible');
-  }
-}
-
-function leeftijdOp(datumStr, peildatum) {
-  const p = datumStr.split('-');
-  if (p.length !== 3 || p[2].length !== 4) return null;
-  const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
-  if (isNaN(d)) return null;
-  const ref = new Date(peildatum);
+// Volledige jaren tussen twee datums.
+function leeftijdOp(datum, peildatum) {
+  const d = parseDatum(datum), ref = parseDatum(peildatum);
+  if (!d || !ref) return null;
   let age = ref.getFullYear() - d.getFullYear();
   const m = ref.getMonth() - d.getMonth();
   if (m < 0 || (m === 0 && ref.getDate() < d.getDate())) age--;
   return age;
 }
 
+function isPre2017(datumToelating) {
+  const d = parseDatum(datumToelating);
+  if (!d) return null;
+  return d <= parseDatum(TARIEVEN.pre2017Grens);
+}
+
+// ─── Bijtelling ───────────────────────────────────────────────────────────────
+
+function youngtimerGrens(jaar) {
+  if (jaar >= 2027) return TARIEVEN.youngtimerLeeftijdVanaf2027;
+  return TARIEVEN.youngtimerLeeftijd[jaar] ?? 15;
+}
+
+// Bepaalt of de auto in `jaar` onder de youngtimerregeling valt, inclusief het
+// overgangsrecht 2026.
+function bepaalYoungtimer(jaar, datumToelating, terBeschikking2025) {
+  const grens   = youngtimerGrens(jaar);
+  const leeftijd = leeftijdOp(datumToelating, new Date(jaar, 0, 1));
+  if (leeftijd === null) return null;
+
+  if (leeftijd >= grens) {
+    return { isYoungtimer: true, leeftijd, grens, viaOvergangsrecht: false };
+  }
+
+  if (jaar === 2026 && terBeschikking2025 === true) {
+    const o = TARIEVEN.youngtimerOvergang2026;
+    const leeftijdPeil = leeftijdOp(datumToelating, o.peildatum);
+    if (leeftijdPeil !== null && leeftijdPeil >= o.minLeeftijd) {
+      return { isYoungtimer: true, leeftijd, grens, viaOvergangsrecht: true };
+    }
+  }
+
+  return { isYoungtimer: false, leeftijd, grens, viaOvergangsrecht: false };
+}
+
+// Reguliere bijtellingspercentage: 25% voor auto's met datum eerste toelating
+// t/m 31-12-2016, anders 22%.
+//
+// LET OP — bewust afwijkend van een Kennisgroepstandpunt.
+// KG:213:2026:1 ("Heretikettering bij wetswijziging privégebruik auto") stelt
+// voor een auto uit ±2009 dat de bijtelling vanaf 2027 "22% van de
+// cataloguswaarde" wordt, en noemt de 25% niet. Dat lijkt in strijd met:
+//   - art. 10a.4 Wet IB 2001, dat 25% voorschrijft bij datum eerste toelating
+//     uiterlijk 31-12-2016;
+//   - de Cijferbijlage 2026 bij de Nieuwsbrief Loonheffingen, die 22% / 25% /
+//     35% expliciet naast elkaar noemt met "datum 1e toelating vóór 1 januari
+//     2017 → 25%";
+//   - de toelichting van de staatssecretaris van 15-01-2026.
+// Op grond van wettekst en toelichting houden wij 25% aan. Wijkt de
+// Belastingdienst hier later alsnog van af, dan is dit de plek om het terug te
+// zetten — en pas dan.
+function regulierBijtellingPct(datumToelating) {
+  const pre = isPre2017(datumToelating);
+  if (pre === null) return TARIEVEN.bijtellingRegulier;
+  return pre ? TARIEVEN.bijtellingPre2017 : TARIEVEN.bijtellingRegulier;
+}
+
+// Bijtelling voor één belastingjaar. Retourneert ook waaróm, zodat de UI en de
+// klantbrief dezelfde onderbouwing gebruiken.
+function bepaalBijtelling(jaar, auto) {
+  const { datumToelating, cataloguswaarde, dagwaarde, terBeschikking2025 } = auto;
+  const yt = bepaalYoungtimer(jaar, datumToelating, terBeschikking2025);
+  if (!yt) return { fout: 'ongeldige-datum' };
+
+  if (yt.isYoungtimer) {
+    const grondslag = Number(dagwaarde);
+    if (!(grondslag > 0)) {
+      return { fout: 'geen-dagwaarde', isYoungtimer: true, ...yt };
+    }
+    return {
+      ...yt,
+      pct: TARIEVEN.bijtellingYoungtimer,
+      grondslag,
+      grondslagSoort: 'dagwaarde',
+      bedrag: grondslag * TARIEVEN.bijtellingYoungtimer,
+      soort: yt.viaOvergangsrecht
+        ? 'Youngtimer (35%, overgangsrecht 2026)'
+        : 'Youngtimer (35%)',
+    };
+  }
+
+  const pct = regulierBijtellingPct(datumToelating);
+  const grondslag = Number(cataloguswaarde);
+  if (!(grondslag > 0)) {
+    return { fout: 'geen-cataloguswaarde', isYoungtimer: false, ...yt, pct };
+  }
+  return {
+    ...yt,
+    pct,
+    grondslag,
+    grondslagSoort: 'cataloguswaarde',
+    bedrag: grondslag * pct,
+    soort: `Regulier (${(pct * 100).toFixed(0)}%)`,
+  };
+}
+
+// ─── Heffing box 1 ────────────────────────────────────────────────────────────
+
+function schijventarief(bedrag) {
+  const { ibSchijf1Grens: s1, ibSchijf2Grens: s2,
+          ibSchijf1Tarief: t1, ibSchijf2Tarief: t2, ibSchijf3Tarief: t3 } = TARIEVEN;
+  if (bedrag <= 0) return 0;
+  if (bedrag <= s1) return bedrag * t1;
+  if (bedrag <= s2) return s1 * t1 + (bedrag - s1) * t2;
+  return s1 * t1 + (s2 - s1) * t2 + (bedrag - s2) * t3;
+}
+
+function algemeneHeffingskorting(inkomen) {
+  const { ahkMax, ahkAfbouwPct, ahkAfbouwVanaf } = TARIEVEN;
+  if (inkomen <= ahkAfbouwVanaf) return ahkMax;
+  return Math.max(0, ahkMax - (inkomen - ahkAfbouwVanaf) * ahkAfbouwPct);
+}
+
+function arbeidskorting(arbeidsinkomen) {
+  const { akOpbouw, akMax, akAfbouwPct, akAfbouwVanaf } = TARIEVEN;
+  if (arbeidsinkomen <= 0) return 0;
+  if (arbeidsinkomen > akAfbouwVanaf) {
+    return Math.max(0, akMax - (arbeidsinkomen - akAfbouwVanaf) * akAfbouwPct);
+  }
+  let korting = 0, ondergrens = 0;
+  for (const schijf of akOpbouw) {
+    const inSchijf = Math.min(arbeidsinkomen, schijf.tot) - ondergrens;
+    if (inSchijf > 0) korting += inSchijf * schijf.pct;
+    ondergrens = schijf.tot;
+    if (arbeidsinkomen <= schijf.tot) break;
+  }
+  return Math.min(korting, akMax);
+}
+
+// Tariefsaanpassing: 11,94% over de grondslagverminderende posten, voor zover
+// het inkomen vóór die posten boven de drempel uitkomt.
+function tariefsaanpassing(inkomenVoorAftrek, aftrekposten) {
+  if (!(aftrekposten > 0)) return 0;
+  const boven = inkomenVoorAftrek - TARIEVEN.tariefsaanpassingDrempel;
+  if (boven <= 0) return 0;
+  return Math.min(aftrekposten, boven) * TARIEVEN.tariefsaanpassingPct;
+}
+
+// IB-ondernemer: één belastingjaar.
+//
+// Modelkeuze: de afbouw van algemene heffingskorting en arbeidskorting wordt
+// toegepast op de belastbare winst. De wettelijke grondslagen lopen iets
+// anders (arbeidsinkomen voor de arbeidskorting, inkomen uit werk en woning
+// voor de AHK) en er zijn geen andere box 1-componenten meegenomen. De
+// uitkomst is daarom een indicatie op basis van uitsluitend de ingevoerde
+// inkomensgegevens.
+function berekenJaarIB({ winst, bijtelling, zelfstandigenAftrek, mkbPct, metKortingen = true }) {
+  const inkomenVoorAftrek = Math.max(0, winst + bijtelling);
+  const naZelf   = Math.max(0, inkomenVoorAftrek - zelfstandigenAftrek);
+  const zelfBenut = inkomenVoorAftrek - naZelf;
+  const mkbBedrag = naZelf * (mkbPct / 100);
+  const bw        = Math.max(0, naZelf - mkbBedrag);
+
+  const ibSchijven = schijventarief(bw);
+  const ta         = tariefsaanpassing(inkomenVoorAftrek, zelfBenut + mkbBedrag);
+  const ahk        = metKortingen ? algemeneHeffingskorting(bw) : 0;
+  const ak         = metKortingen ? arbeidskorting(bw) : 0;
+  const ib         = Math.max(0, ibSchijven + ta - ahk - ak);
+  const zvw        = Math.min(Math.max(0, bw), TARIEVEN.zvwMaxLoon) * TARIEVEN.zvwPremie;
+
+  return { bijtelling, bw, ibSchijven, tariefsaanpassing: ta, ahk, ak,
+           kortingen: ahk + ak, mkbBedrag, zelfstandigenAftrek: zelfBenut,
+           ib, zvw, totaal: ib + zvw };
+}
+
+// DGA: loon uit dienstbetrekking bij de eigen BV.
+function berekenJaarDGA({ loon, bijtelling, metKortingen = true }) {
+  const bw = Math.max(0, loon + bijtelling);
+  const lhSchijven = schijventarief(bw);
+  const ahk = metKortingen ? algemeneHeffingskorting(bw) : 0;
+  const ak  = metKortingen ? arbeidskorting(bw) : 0;
+  const lh  = Math.max(0, lhSchijven - ahk - ak);
+  return { bijtelling, bw, ibSchijven: lhSchijven, tariefsaanpassing: 0,
+           ahk, ak, kortingen: ahk + ak, ib: lh, zvw: 0, totaal: lh };
+}
+
+// ─── Pseudo-eindheffing ───────────────────────────────────────────────────────
+
+// Iedere kalendermaand waarin de auto ten minste één dag voor privédoeleinden
+// ter beschikking staat, telt volledig mee.
+function maandenTerBeschikking(jaar, van, tot) {
+  const start = parseDatum(van);
+  if (!start) return 0;
+  const eind  = parseDatum(tot);
+  const jaarStart = new Date(jaar, 0, 1);
+  const jaarEind  = new Date(jaar, 11, 31);
+  const vanEff = start > jaarStart ? start : jaarStart;
+  const totEff = eind && eind < jaarEind ? eind : jaarEind;
+  if (vanEff > totEff) return 0;
+  const idx = (d) => d.getFullYear() * 12 + d.getMonth();
+  return idx(totEff) - idx(vanEff) + 1;
+}
+
+function bepaalPseudoEindheffing({ jaar, startdatum, einddatum, privegebruik,
+                                   isEmissievrij, cataloguswaarde, dagwaarde,
+                                   datumToelating }) {
+  const nul = (reden, extra = {}) =>
+    ({ vanToepassing: false, bedrag: 0, maanden: 0, reden, ...extra });
+
+  if (isEmissievrij === true)  return nul('emissievrij');
+  if (privegebruik === false)  return nul('geen-privegebruik');
+  if (privegebruik !== true)   return nul('privegebruik-onbekend');
+  if (isEmissievrij !== false) return nul('brandstof-onbekend');
+
+  const start = parseDatum(startdatum);
+  if (!start) return nul('geen-startdatum');
+
+  // Vóór 2027 al ter beschikking gesteld → overgangstermijn.
+  const grensStart = new Date(TARIEVEN.eindheffingStartJaar, 0, 1);
+  const valtOnderOvergangsrecht = start < grensStart;
+  const overgangEinde = parseDatum(TARIEVEN.eindheffingOvergangEinde);
+  const heffingVanaf  = valtOnderOvergangsrecht ? overgangEinde : start;
+
+  if (jaar < heffingVanaf.getFullYear()) {
+    return nul(valtOnderOvergangsrecht ? 'overgangsrecht' : 'voor-startjaar',
+               { valtOnderOvergangsrecht, heffingVanaf });
+  }
+
+  const maanden = maandenTerBeschikking(jaar, heffingVanaf, einddatum);
+  if (maanden <= 0) return nul('geen-maanden', { valtOnderOvergangsrecht, heffingVanaf });
+
+  const leeftijd = leeftijdOp(datumToelating, new Date(jaar, 0, 1));
+  const gebruikWev = leeftijd !== null && leeftijd > TARIEVEN.eindheffingWevBovenLeeftijd;
+  const grondslag = Number(gebruikWev ? dagwaarde : cataloguswaarde);
+  if (!(grondslag > 0)) {
+    return nul(gebruikWev ? 'geen-dagwaarde' : 'geen-cataloguswaarde',
+               { gebruikWev, maanden, valtOnderOvergangsrecht, heffingVanaf });
+  }
+
+  const jaarBedrag = grondslag * TARIEVEN.eindheffingPct;
+  return {
+    vanToepassing: true,
+    bedrag: jaarBedrag * (maanden / 12),
+    jaarBedrag, maanden, grondslag,
+    grondslagSoort: gebruikWev ? 'waarde economisch verkeer' : 'cataloguswaarde',
+    gebruikWev, leeftijd, valtOnderOvergangsrecht, heffingVanaf,
+    reden: 'verschuldigd',
+  };
+}
+
+// ─── Invoerhulp ───────────────────────────────────────────────────────────────
+
+// Bedragen moeten strikt positief zijn: "0" is geen geldige cataloguswaarde of
+// dagwaarde, en mag niet stil als nul doorrekenen.
+function positiefBedrag(v) {
+  if (v === null || v === undefined || String(v).trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// Percentage 0 t/m 100; 0 is een geldige keuze en mag niet naar de default vallen.
+function percentage(v, fallback) {
+  if (v === null || v === undefined || String(v).trim() === '') return fallback;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return fallback;
+  return n;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    TARIEVEN, parseDatum, parseRdwDatum, formatDatumNl, leeftijdOp, isPre2017,
+    youngtimerGrens, bepaalYoungtimer, regulierBijtellingPct, bepaalBijtelling,
+    schijventarief, algemeneHeffingskorting, arbeidskorting, tariefsaanpassing,
+    berekenJaarIB, berekenJaarDGA, maandenTerBeschikking, bepaalPseudoEindheffing,
+    positiefBedrag, percentage,
+  };
+}
+// ══════════════════════════════════════════════════════════════════════════════
+// FISCALE KERN — EINDE
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UI-LAAG — leest de DOM, roept de fiscale kern aan, schrijft de DOM.
+// ══════════════════════════════════════════════════════════════════════════════
+
+let calcMode = 'ib';
+let g = {};
+let rdwKenteken = '';
+let rdwData = null;
+
+let ehCatalogusprijsHerkomst   = '-';
+let ehCatalogusprijsStatus     = 'leeg';
+let ehCatalogusprijsStatusLabel = 'Nog niet bepaald';
+
+const $ = (id) => document.getElementById(id);
+
+// ─── HELPERS ───
+function fmtE(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const s = Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (n < 0 ? '− ' : '') + '€ ' + s;
+}
+function fmtSigned(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return (n > 0 ? '+' : n < 0 ? '− ' : '') + '€ ' +
+    Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+// Percentage met Nederlandse decimaalkomma.
+function fmtPct(fractie, decimalen = 2) {
+  return (fractie * 100).toFixed(decimalen).replace('.', ',') + '%';
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function setRdwStatus(type, html) {
+  const el = $('rdw_status');
+  el.className = 'rdw-status ' + type;
+  el.innerHTML = html;
+}
+function setFilled(wrapId, inputId, val) {
+  if (val === null || val === undefined) return;
+  const inp = $(inputId);
+  if (!inp) return;
+  inp.value = val;
+  inp.classList.add('rdw-filled');
+  if (wrapId && $(wrapId)) $(wrapId).classList.add('rdw-filled');
+}
+// Opent een printvenster; geeft null terug als de popup geblokkeerd is.
+function openPrintVenster(html) {
+  let w = null;
+  try { w = window.open('', '_blank'); } catch (e) { w = null; }
+  if (!w || !w.document) {
+    alert('Het afdrukvenster kon niet worden geopend. Sta pop-ups toe voor deze pagina en probeer het opnieuw.');
+    return null;
+  }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  // Niet via onload: na document.close() kan het load-event al gevuurd zijn.
+  setTimeout(() => { try { w.print(); } catch (e) {} }, 250);
+  return w;
+}
+
+// ─── TAB SWITCHING ───
+function switchTab(tab) {
+  ['eindheffing', 'youngtimer', 'klantbrief', 'bijtelling-controle'].forEach(t => {
+    $('tab-content-' + t).style.display = t === tab ? '' : 'none';
+    $('tab-' + t).classList.toggle('active', t === tab);
+  });
+  $('kenteken-bar').style.display = tab === 'klantbrief' ? 'none' : '';
+  if (tab === 'bijtelling-controle') bcBereken();
+}
+function naarBrief() {
+  switchTab('klantbrief');
+  setBrief('conclusie');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─── CALC MODE (youngtimer) ───
+function setMode(mode) {
+  if (mode === calcMode) return;
+  calcMode = mode;
+  $('cmt-ib').classList.toggle('active', mode === 'ib');
+  $('cmt-dga').classList.toggle('active', mode === 'dga');
+  $('card-ib').style.display  = mode === 'ib'  ? '' : 'none';
+  $('card-dga').style.display = mode === 'dga' ? '' : 'none';
+  $('r26_zvw_row').style.display = mode === 'ib' ? '' : 'none';
+  $('r27_zvw_row').style.display = mode === 'ib' ? '' : 'none';
+  const gl = mode === 'dga' ? 'Belastbaar loon' : 'Belastbare winst';
+  const hl = mode === 'dga' ? 'Loonheffing'     : 'IB';
+  ['r26', 'r27'].forEach(p => {
+    $(p + '_grondslag_lbl').textContent = gl;
+    $(p + '_heffing_lbl').textContent   = hl;
+  });
+  $('results-subtitle').textContent =
+    mode === 'dga' ? 'DGA — loonheffing 2026 vs 2027' : 'Vergelijking fiscale druk 2026 vs 2027';
+  // Resultaten van de vorige modus zijn niet meer geldig.
+  invalideerResultaat();
+}
+
+// Verbergt een verouderd resultaat zodra invoer of modus wijzigt, zodat er nooit
+// cijfers van de ene berekening onder de labels van een andere staan.
+function invalideerResultaat() {
+  if (!g.r26) return;
+  g = {};
+  $('rc').style.display = 'none';
+  $('ph').style.display = '';
+  $('ph').innerHTML = '<div class="ph-icon">📊</div><p>De invoer is gewijzigd. Klik opnieuw op <strong style="color:var(--white);">Bereken fiscale impact</strong>.</p>';
+  $('brief_samenvatting').innerHTML = 'Nog geen geldige berekening. Ga naar het Youngtimer-tabblad, vul de gegevens in en klik op berekenen.';
+  $('bh_bedrag').textContent = '—';
+  $('bh_maand').textContent  = '—';
+  $('brief_conclusie_tekst').textContent = 'Vul eerst de gegevens in het rekenmodel in en klik op berekenen.';
+  vergrendelConclusiebrief();
+}
+
+// ─── GEDEELDE RDW FETCH ───
+async function rdwFetch(endpoint, kenteken, signal) {
+  const url = `https://opendata.rdw.nl/resource/${endpoint}.json?kenteken=${encodeURIComponent(kenteken)}&$limit=5`;
+  const r = await fetch(url, { signal });
+  if (!r.ok) throw new Error(`RDW ${endpoint} gaf status ${r.status}`);
+  const data = await r.json();
+  if (!Array.isArray(data)) throw new Error(`RDW ${endpoint} gaf geen lijst terug`);
+  return data;
+}
+
+async function zoekKenteken() {
+  const raw = $('kenteken_input').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (raw.length < 4) { setRdwStatus('error', '⚠️ Voer een geldig kenteken in.'); return; }
+  const btn = $('rdw_btn');
+  btn.disabled = true;
+  $('rdw_car_info').style.display = 'none';
+  setRdwStatus('loading', '<div class="spinner"></div>&nbsp; Gegevens ophalen bij RDW…');
+
+  // Timeout, anders blijft de knop bij een hangende verbinding voor altijd uit.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 15000);
+
+  try {
+    // catalogusprijs staat óók op m9d7-ebf2; een aparte call daarvoor is niet nodig.
+    const [voertuigen, brandstofData] = await Promise.all([
+      rdwFetch('m9d7-ebf2', raw, ac.signal),
+      rdwFetch('8ys7-d773', raw, ac.signal),
+    ]);
+
+    if (voertuigen.length === 0) {
+      setRdwStatus('error', '❌ Kenteken niet gevonden. Controleer de invoer.');
+      return;
+    }
+
+    const v = voertuigen[0];
+    const merk  = (v.merk || '').trim();
+    const model = (v.handelsbenaming || v.type || '').trim();
+    const datumToelatingRaw = v.datum_eerste_toelating || v.datum_eerste_afgifte_nederland || '';
+    const datumToelating    = parseRdwDatum(datumToelatingRaw);
+    const datumTenaamstelling = parseRdwDatum(v.datum_eerste_tenaamstelling_in_nederland || '');
+
+    const brandstoffenLijst = [...new Set((brandstofData || [])
+      .map(i => i.brandstof_omschrijving).filter(Boolean))];
+    const brandstofStr = brandstoffenLijst.join(' + ') || '—';
+    // Emissievrij = uitsluitend elektriciteit of waterstof. Een hybride
+    // ("Benzine + Elektriciteit") is fossiel en dus NIET vrijgesteld.
+    const isEmissievrij = brandstoffenLijst.length > 0 &&
+      brandstoffenLijst.every(b => /^(elektriciteit|waterstof)$/i.test(b.trim()));
+    const isWaterstof = brandstoffenLijst.some(b => /waterstof/i.test(b));
+
+    const catalogusprijs = v.catalogusprijs ? Math.round(+v.catalogusprijs) || null : null;
+
+    rdwKenteken = raw;
+    rdwData = { merk, model, datumToelating, datumTenaamstelling, brandstofStr,
+                brandstoffenLijst, isEmissievrij, isWaterstof, catalogusprijs };
+
+    // ── Youngtimer-tab vullen ──
+    if (datumToelating) {
+      setFilled(null, 'datum_reg', formatDatumNl(datumToelating));
+      updateLeeftijd();
+    }
+    if (catalogusprijs) {
+      setFilled('w_cat', 'cataloguswaarde', catalogusprijs);
+      $('cat_warning').classList.remove('visible');
+    } else {
+      $('cat_warning').classList.add('visible');
+    }
+
+    // ── Eindheffing-tab vullen ──
+    if (catalogusprijs) {
+      $('eh_catalogusprijs').value = catalogusprijs;
+      setEhCatalogusprijsStatus('RDW', 'Catalogusprijs automatisch opgehaald via RDW.', 'auto', 'Automatisch opgehaald');
+    } else {
+      setEhCatalogusprijsStatus('Fallback handmatig', 'Geen catalogusprijs gevonden in RDW. Vul handmatig in.', 'fallback', 'Handmatig invullen nodig');
+    }
+    $('eh_brandstof').value   = brandstofStr;
+    $('eh_emissievrij').value = isEmissievrij ? 'ja' : 'nee';
+
+    // ── Info-balk ──
+    const ci = $('rdw_car_info');
+    ci.style.display = 'flex';
+    ci.innerHTML = `
+      <div class="car-detail"><span class="cd-label">Voertuig</span><span class="cd-val car-name">${esc(merk + ' ' + model)}</span></div>
+      ${catalogusprijs
+        ? `<div class="car-detail"><span class="cd-label">Cataloguswaarde</span><span class="cd-val">${fmtE(catalogusprijs)}</span></div>`
+        : `<div class="car-detail"><span class="cd-label">Cataloguswaarde</span><span class="cd-val" style="color:var(--red);">Niet beschikbaar</span></div>`}
+      <div class="car-detail"><span class="cd-label">Brandstof</span><span class="cd-val">${esc(brandstofStr)}</span></div>
+      ${datumToelating ? `<div class="car-detail"><span class="cd-label">Eerste toelating</span><span class="cd-val">${esc(formatDatumNl(datumToelating))}</span></div>` : ''}
+      <div class="car-detail"><span class="cd-label">Pseudo-eindheffing</span><span class="cd-val" style="color:${isEmissievrij ? 'var(--mint)' : 'var(--yellow)'};">${isEmissievrij ? 'Niet van toepassing (emissievrij)' : 'Mogelijk van toepassing (fossiel)'}</span></div>
+    `;
+
+    setRdwStatus('success', catalogusprijs
+      ? '✅ Voertuiggegevens ingevuld vanuit RDW'
+      : '⚠️ Datum en merk opgehaald — catalogusprijs niet beschikbaar in RDW');
+
+    berekenEindheffing();
+    bcBereken();
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      setRdwStatus('error', '❌ RDW reageerde niet binnen 15 seconden. Probeer het opnieuw.');
+    } else {
+      setRdwStatus('error', '❌ Ophalen bij RDW mislukt: ' + esc(err.message));
+    }
+    console.error(err);
+  } finally {
+    clearTimeout(timer);
+    btn.disabled = false;
+  }
+}
+
+// ─── EINDHEFFING ───
+function setEhCatalogusprijsStatus(herkomst, toelichting, statusClass, statusLabel) {
+  ehCatalogusprijsHerkomst    = herkomst;
+  ehCatalogusprijsStatus      = statusClass;
+  ehCatalogusprijsStatusLabel = statusLabel;
+  $('eh_catalogusprijsBron').innerText   = toelichting;
+  $('eh_catalogusprijsStatus').className = 'status-badge ' + statusClass;
+  $('eh_catalogusprijsStatus').innerText = statusLabel;
+}
+
+const EH_REDEN_TEKST = {
+  'emissievrij':            ['m-goed', 'Emissievrij — geen pseudo-eindheffing', 'Volledig elektrische en waterstofauto\'s zijn uitgezonderd. Let op: een hybride is fossiel en valt wél onder de heffing.'],
+  'geen-privegebruik':      ['m-goed', 'Geen pseudo-eindheffing', 'Zonder privégebruik of woon-werkverkeer is er geen heffing verschuldigd.'],
+  'privegebruik-onbekend':  ['m-info', 'Vul het privégebruik in', 'Geef aan of de auto voor privédoeleinden of woon-werkverkeer ter beschikking staat.'],
+  'brandstof-onbekend':     ['m-info', 'Brandstof onbekend', 'Geef aan of de auto volledig emissievrij is, of haal de gegevens op via RDW.'],
+  'geen-startdatum':        ['m-info', 'Vul de startdatum in', 'De heffing wordt per kalendermaand berekend; daarvoor is de startdatum nodig.'],
+  'overgangsrecht':         ['m-goed', 'Overgangsrecht van toepassing', ''],
+  'voor-startjaar':         ['m-goed', 'Nog geen pseudo-eindheffing', ''],
+  'geen-maanden':           ['m-info', 'Geen maanden in dit jaar', 'In het gekozen jaar staat de auto volgens de ingevoerde periode niet ter beschikking.'],
+  'geen-cataloguswaarde':   ['m-fout', 'Cataloguswaarde ontbreekt', 'Zonder cataloguswaarde kan de heffing niet worden berekend. Vul deze handmatig in.'],
+  'geen-dagwaarde':         ['m-fout', 'Waarde economisch verkeer ontbreekt', 'Deze auto is ouder dan 25 jaar; de heffing gaat dan over de waarde economisch verkeer.'],
+};
+
+function berekenEindheffing() {
+  const jaar        = parseInt($('eh_jaar').value, 10);
+  const privInput   = $('eh_privegebruik').value;
+  const emisInput   = $('eh_emissievrij').value;
+  const res = bepaalPseudoEindheffing({
+    jaar,
+    startdatum:      $('eh_startdatum').value,
+    einddatum:       $('eh_einddatum').value,
+    privegebruik:    privInput === 'ja' ? true : privInput === 'nee' ? false : null,
+    isEmissievrij:   emisInput === 'ja' ? true : emisInput === 'nee' ? false : null,
+    cataloguswaarde: positiefBedrag($('eh_catalogusprijs').value),
+    dagwaarde:       positiefBedrag($('eh_dagwaarde').value),
+    datumToelating:  rdwData?.datumToelating ?? parseDatum($('eh_datum_toelating').value),
+  });
+
+  // Waarde economisch verkeer alleen tonen als die nodig is.
+  $('eh_dagwaarde_wrap').style.display =
+    (res.gebruikWev || res.reden === 'geen-dagwaarde') ? '' : 'none';
+
+  const el = $('eh_resultaat');
+  const [meldingClass, titel, basisTekst] = EH_REDEN_TEKST[res.reden] || ['m-info', 'Geen uitkomst', ''];
+
+  let tekst = basisTekst;
+  if (res.reden === 'overgangsrecht') {
+    tekst = `De auto is vóór 1 januari ${TARIEVEN.eindheffingStartJaar} ter beschikking gesteld. Daarvoor geldt een overgangstermijn tot ${formatDatumNl(TARIEVEN.eindheffingOvergangEinde)}; vanaf die datum is de heffing wel verschuldigd. Het kabinet heeft aangekondigd deze datum te willen verlengen naar 01-01-2031 — zolang die wetswijziging niet is aangenomen rekenen we met ${formatDatumNl(TARIEVEN.eindheffingOvergangEinde)}.`;
+  } else if (res.reden === 'voor-startjaar') {
+    tekst = `De heffing geldt vanaf ${formatDatumNl(res.heffingVanaf)}. In ${jaar} is nog niets verschuldigd.`;
+  } else if (res.vanToepassing) {
+    tekst = `${(TARIEVEN.eindheffingPct * 100).toFixed(0)}% van de ${res.grondslagSoort} van ${fmtE(res.grondslag)} = ${fmtE(res.jaarBedrag)} op jaarbasis, naar rato van ${res.maanden} van de 12 kalendermaanden. De heffing is voor rekening van de werkgever en mag niet worden doorbelast aan de werknemer.`;
+  }
+
+  const startTxt = $('eh_startdatum').value ? formatDatumNl($('eh_startdatum').value) : '—';
+  const eindTxt  = $('eh_einddatum').value  ? formatDatumNl($('eh_einddatum').value)  : 'doorlopend';
+
+  el.innerHTML = `
+    <div style="padding:14px 16px 0;">
+      <div class="eh-kaart">
+        <div class="eh-kaart-titel">Voertuig &amp; invoer</div>
+        <div class="gegevens-grid">
+          <div class="gegeven">
+            <span class="gegeven-label">Grondslag</span>
+            <span class="gegeven-waarde">${res.grondslag ? fmtE(res.grondslag) : '—'}
+              <div class="source-note">${esc(res.grondslagSoort || (res.gebruikWev ? 'waarde economisch verkeer' : 'cataloguswaarde'))}</div>
+            </span>
+          </div>
+          <div class="gegeven">
+            <span class="gegeven-label">Bron catalogusprijs</span>
+            <span class="gegeven-waarde">${esc(ehCatalogusprijsHerkomst)}
+              <div class="status-badge ${esc(ehCatalogusprijsStatus)}">${esc(ehCatalogusprijsStatusLabel)}</div>
+            </span>
+          </div>
+          <div class="gegeven">
+            <span class="gegeven-label">Periode ${jaar}</span>
+            <span class="gegeven-waarde">${esc(startTxt)} → ${esc(eindTxt)}</span>
+          </div>
+          <div class="gegeven">
+            <span class="gegeven-label">Meetellende maanden</span>
+            <span class="gegeven-waarde">${res.maanden ? res.maanden + ' / 12' : '—'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="verdict ${res.vanToepassing ? 'v-warn' : 'v-ok'}" style="margin:0 14px 14px;">
+      <div class="v-lbl">Pseudo-eindheffing ${jaar}</div>
+      <div class="v-main">${fmtE(res.bedrag)}</div>
+      <div class="v-sub">${esc(titel)}</div>
+    </div>
+    <div style="padding:0 16px 16px;">
+      <div class="melding ${meldingClass}">
+        <strong>${esc(titel)}</strong><br>${esc(tekst)}
+      </div>
+      ${res.vanToepassing ? `
+      <div class="rs" style="padding:0;">
+        <div class="rrow"><span class="rl">Op jaarbasis (12 maanden)</span><span class="rv">${fmtE(res.jaarBedrag)}</span></div>
+        <div class="rrow"><span class="rl">Meetellende kalendermaanden</span><span class="rv">${res.maanden}</span></div>
+        <div class="rrow"><span class="rl">Verschuldigd in ${jaar}</span><span class="rv yellow">${fmtE(res.bedrag)}</span></div>
+        <div class="rrow"><span class="rl">Per maand</span><span class="rv">${fmtE(res.jaarBedrag / 12)}</span></div>
+      </div>` : ''}
+      <div class="small-note">
+        Iedere kalendermaand waarin de auto ten minste één dag voor privédoeleinden ter beschikking staat, telt volledig mee als 1/12. Indicatieve berekening — geen rechten aan te ontlenen.
+      </div>
+    </div>`;
+}
+
+// ─── YOUNGTIMER ───
+function checkCatalogus() {
+  const val = positiefBedrag($('cataloguswaarde').value);
+  $('cat_warning').classList.toggle('visible', val === null);
+  invalideerResultaat();
+}
+
 function updateLeeftijd() {
-  const datumStr = document.getElementById('datum_reg').value.trim();
-  const badge = document.getElementById('leeftijd_badge');
-  const l26 = leeftijdOp(datumStr, '2026-01-01');
-  const l27 = leeftijdOp(datumStr, '2027-01-01');
-  if (l26 === null) { badge.style.display = 'none'; return; }
+  const datumStr = $('datum_reg').value.trim();
+  const badge = $('leeftijd_badge');
+  const d = parseDatum(datumStr);
+
+  if (!d) {
+    badge.style.display = datumStr ? 'block' : 'none';
+    if (datumStr) {
+      badge.className = 'lb lb-err';
+      badge.textContent = '❌ Ongeldige datum. Gebruik DD-MM-JJJJ.';
+    }
+    invalideerResultaat();
+    return;
+  }
+
+  const terB = terBeschikking2025();
+  const y26 = bepaalYoungtimer(2026, d, terB);
+  const y27 = bepaalYoungtimer(2027, d, terB);
   badge.style.display = 'block';
-  const yt26 = l26 >= TARIEVEN.youngtimerLeeftijd2026;
-  const yt27 = l27 >= TARIEVEN.youngtimerLeeftijd2027;
+
   let cls, txt;
-  if      ( yt26 &&  yt27) { cls = 'lb-ok';   txt = `✅ Youngtimer in 2026 (${l26} jr) én 2027 (${l27} jr)`; }
-  else if ( yt26 && !yt27) { cls = 'lb-warn';  txt = `⚠️ Youngtimer 2026 (${l26} jr) — NIET in 2027 (${l27} jr, < 25)`; }
-  else if (!yt26 &&  yt27) { cls = 'lb-warn';  txt = `⚠️ Geen youngtimer 2026 (${l26} jr) — wél in 2027 (${l27} jr)`; }
-  else                     { cls = 'lb-err';   txt = `❌ Geen youngtimer in 2026 (${l26} jr) en niet in 2027 (${l27} jr)`; }
+  if (y26.isYoungtimer && y27.isYoungtimer) {
+    cls = 'lb-ok';
+    txt = `✅ Youngtimer in 2026 (${y26.leeftijd} jr) én 2027 (${y27.leeftijd} jr)`;
+  } else if (y26.isYoungtimer && !y27.isYoungtimer) {
+    cls = 'lb-warn';
+    txt = y26.viaOvergangsrecht
+      ? `⚠️ Youngtimer 2026 via overgangsrecht (${y26.leeftijd} jr) — NIET in 2027 (${y27.leeftijd} jr, grens 25)`
+      : `⚠️ Youngtimer 2026 (${y26.leeftijd} jr) — NIET in 2027 (${y27.leeftijd} jr, grens 25)`;
+  } else if (!y26.isYoungtimer && y27.isYoungtimer) {
+    cls = 'lb-warn';
+    txt = `⚠️ Geen youngtimer 2026 (${y26.leeftijd} jr) — wél in 2027 (${y27.leeftijd} jr)`;
+  } else {
+    cls = 'lb-err';
+    const hint = (y26.leeftijd === 15 && terB !== true)
+      ? ' — check het overgangsrecht 2026'
+      : '';
+    txt = `❌ Geen youngtimer in 2026 (${y26.leeftijd} jr, grens ${y26.grens}) en niet in 2027 (${y27.leeftijd} jr)${hint}`;
+  }
   badge.className = 'lb ' + cls;
   badge.textContent = txt;
+  invalideerResultaat();
 }
 
-function berekenIBZvw(bw) {
-  const s1 = TARIEVEN.ibSchijf1Grens, s2 = TARIEVEN.ibSchijf2Grens;
-  let ib = 0;
-  if      (bw <= 0)  { ib = 0; }
-  else if (bw <= s1) { ib = bw * TARIEVEN.ibSchijf1Tarief; }
-  else if (bw <= s2) { ib = s1 * TARIEVEN.ibSchijf1Tarief + (bw - s1) * TARIEVEN.ibSchijf2Tarief; }
-  else               { ib = s1 * TARIEVEN.ibSchijf1Tarief + (s2 - s1) * TARIEVEN.ibSchijf2Tarief + (bw - s2) * TARIEVEN.ibSchijf3Tarief; }
-  const zvw = Math.min(Math.max(0, bw), TARIEVEN.zvwMaxLoon) * TARIEVEN.zvwPremie;
-  return { ib, zvw, totaal: ib + zvw };
-}
-
-function berekenLoonheffing(loon, lhk) {
-  const s1 = TARIEVEN.ibSchijf1Grens, s2 = TARIEVEN.ibSchijf2Grens;
-  let lh = 0;
-  if      (loon <= 0)  { lh = 0; }
-  else if (loon <= s1) { lh = loon * TARIEVEN.ibSchijf1Tarief; }
-  else if (loon <= s2) { lh = s1 * TARIEVEN.ibSchijf1Tarief + (loon - s1) * TARIEVEN.ibSchijf2Tarief; }
-  else                 { lh = s1 * TARIEVEN.ibSchijf1Tarief + (s2 - s1) * TARIEVEN.ibSchijf2Tarief + (loon - s2) * TARIEVEN.ibSchijf3Tarief; }
-  if (lhk) lh = Math.max(0, lh - TARIEVEN.lhk);
-  return { lh, totaal: lh };
-}
-
-function berekenJaarIB(winst, zelf, mkbPct, bijtelling) {
-  const wNaBijt = winst + bijtelling;
-  const wNaZelf = Math.max(0, wNaBijt - zelf);
-  const bw = Math.max(0, wNaZelf - wNaZelf * (mkbPct / 100));
-  const { ib, zvw, totaal } = berekenIBZvw(bw);
-  return { bijtelling, bw, ib, zvw, totaal };
-}
-
-function berekenJaarDGA(loon, bijtelling, lhk) {
-  const belLoon = Math.max(0, loon + bijtelling);
-  const { lh, totaal } = berekenLoonheffing(belLoon, lhk);
-  return { bijtelling, bw: belLoon, ib: lh, zvw: 0, totaal };
+function terBeschikking2025() {
+  const el = document.querySelector('input[name="terb2025"]:checked');
+  if (!el) return null;
+  return el.value === 'ja' ? true : el.value === 'nee' ? false : null;
 }
 
 function bereken() {
-  const datumStr  = document.getElementById('datum_reg').value.trim();
-  const catalogus = parseFloat(document.getElementById('cataloguswaarde').value) || 0;
-  const dagwaarde = parseFloat(document.getElementById('dagwaarde').value) || 0;
+  const datumStr = $('datum_reg').value.trim();
+  const datum    = parseDatum(datumStr);
+  const catalogus = positiefBedrag($('cataloguswaarde').value);
+  const dagwaarde = positiefBedrag($('dagwaarde').value);
+  const terB      = terBeschikking2025();
 
-  let ok = true;
-  const reqFields = [
-    { id: 'datum_reg', wrap: null },
-    { id: 'cataloguswaarde', wrap: 'w_cat' },
-    { id: 'dagwaarde', wrap: 'w_dag' },
-  ];
-  if (calcMode === 'ib') reqFields.push({ id: 'winst_ib', wrap: 'w_winst_ib' });
-  else reqFields.push({ id: 'loon_dga', wrap: 'w_loon_dga' });
+  // ── Validatie: bedragen moeten strikt positief zijn, "0" is niet geldig. ──
+  const fouten = [];
+  const markeer = (wrapId, inputId, ok) => {
+    const el = wrapId ? $(wrapId) : $(inputId);
+    if (el) el.classList.toggle('req-missing', !ok);
+  };
+  markeer(null, 'datum_reg', !!datum);
+  markeer('w_cat', 'cataloguswaarde', catalogus !== null);
+  markeer('w_dag', 'dagwaarde', dagwaarde !== null);
 
-  reqFields.forEach(f => {
-    const inp = document.getElementById(f.id);
-    const val = inp.value.trim();
-    const missing = !val || val === '';
-    if (f.wrap) document.getElementById(f.wrap).classList.toggle('req-missing', missing);
-    else inp.classList.toggle('req-missing', missing);
-    if (missing) ok = false;
-  });
+  if (!datum)            fouten.push('Vul een geldige datum eerste registratie in (DD-MM-JJJJ).');
+  if (catalogus === null) fouten.push('Vul een cataloguswaarde groter dan € 0 in.');
+  if (dagwaarde === null) fouten.push('Vul een waarde economisch verkeer groter dan € 0 in.');
 
-  checkCatalogus(!catalogus);
-  if (!ok || !datumStr) { alert('Vul alle verplichte velden in (gemarkeerd met kader).'); return; }
+  let winst = null, loon = null;
+  if (calcMode === 'ib') {
+    winst = positiefBedrag($('winst_ib').value);
+    markeer('w_winst_ib', 'winst_ib', winst !== null);
+    if (winst === null) fouten.push('Vul een fiscale winst groter dan € 0 in.');
+  } else {
+    loon = positiefBedrag($('loon_dga').value);
+    markeer('w_loon_dga', 'loon_dga', loon !== null);
+    if (loon === null) fouten.push('Vul een fiscaal loon groter dan € 0 in.');
+  }
 
-  const l26 = leeftijdOp(datumStr, '2026-01-01');
-  const l27 = leeftijdOp(datumStr, '2027-01-01');
-  if (l26 === null) { alert('Ongeldige datum. Gebruik DD-MM-JJJJ.'); return; }
+  $('cat_warning').classList.toggle('visible', catalogus === null);
 
-  const yt26 = l26 >= TARIEVEN.youngtimerLeeftijd2026;
-  const yt27 = l27 >= TARIEVEN.youngtimerLeeftijd2027;
-  const bj26 = yt26 ? dagwaarde * TARIEVEN.bijtellingYoungtimer : catalogus * TARIEVEN.bijtellingRegulieer;
-  const bj27 = yt27 ? dagwaarde * TARIEVEN.bijtellingYoungtimer : catalogus * TARIEVEN.bijtellingRegulieer;
+  if (datum && terB === null) {
+    const l = leeftijdOp(datum, TARIEVEN.youngtimerOvergang2026.peildatum);
+    // Het overgangsrecht is alleen relevant rond de grens; anders niet blokkeren.
+    if (l !== null && l >= 15 && l < 16) {
+      fouten.push('Geef aan of de auto in 2025 al ter beschikking stond aan dezelfde persoon — dat bepaalt of het overgangsrecht 2026 geldt.');
+      markeer(null, 'terb2025_wrap', false);
+    }
+  } else {
+    markeer(null, 'terb2025_wrap', true);
+  }
+
+  if (fouten.length) { alert('Kan nog niet rekenen:\n\n• ' + fouten.join('\n• ')); return; }
+
+  const auto = { datumToelating: datum, cataloguswaarde: catalogus, dagwaarde, terBeschikking2025: terB };
+  const b26 = bepaalBijtelling(2026, auto);
+  const b27 = bepaalBijtelling(2027, auto);
+  if (b26.fout || b27.fout) { alert('De bijtelling kon niet worden bepaald. Controleer de invoer.'); return; }
 
   let r26, r27;
   if (calcMode === 'ib') {
-    const winst  = parseFloat(document.getElementById('winst_ib').value) || 0;
-    const zelfJa = document.querySelector('input[name="zelf"]:checked').value === 'ja';
-    const zelf   = zelfJa ? TARIEVEN.zelfstandigenAftrek : 0;
-    const mkbPct = parseFloat(document.getElementById('mkb').value) || TARIEVEN.mkbVrijstellingDefault;
-    r26 = berekenJaarIB(winst, zelf, mkbPct, bj26);
-    r27 = berekenJaarIB(winst, zelf, mkbPct, bj27);
+    const zelf   = document.querySelector('input[name="zelf"]:checked').value === 'ja'
+      ? TARIEVEN.zelfstandigenAftrek : 0;
+    const mkbPct = percentage($('mkb').value, TARIEVEN.mkbVrijstellingDefault);
+    r26 = berekenJaarIB({ winst, bijtelling: b26.bedrag, zelfstandigenAftrek: zelf, mkbPct });
+    r27 = berekenJaarIB({ winst, bijtelling: b27.bedrag, zelfstandigenAftrek: zelf, mkbPct });
   } else {
-    const loon = parseFloat(document.getElementById('loon_dga').value) || 0;
-    const lhk  = document.querySelector('input[name="lhk"]:checked').value === 'ja';
-    r26 = berekenJaarDGA(loon, bj26, lhk);
-    r27 = berekenJaarDGA(loon, bj27, lhk);
+    const metK = document.querySelector('input[name="lhk"]:checked').value === 'ja';
+    r26 = berekenJaarDGA({ loon, bijtelling: b26.bedrag, metKortingen: metK });
+    r27 = berekenJaarDGA({ loon, bijtelling: b27.bedrag, metKortingen: metK });
   }
 
   const diff = r27.totaal - r26.totaal;
   const diffMnd = diff / 12;
+  const marginaal = (b27.bedrag - b26.bedrag) !== 0
+    ? diff / (b27.bedrag - b26.bedrag) * 100 : null;
 
-  document.getElementById('r26_bijtelling').textContent = fmtE(r26.bijtelling);
-  document.getElementById('r26_soort').textContent = yt26 ? 'Youngtimer (35%)' : 'Regulier (22%)';
-  document.getElementById('r26_bw').textContent    = fmtE(r26.bw);
-  document.getElementById('r26_ib').textContent    = fmtE(r26.ib);
-  document.getElementById('r26_zvw').textContent   = fmtE(r26.zvw);
-  document.getElementById('r26_totaal').textContent = fmtE(r26.totaal);
+  const vul = (p, b, r) => {
+    $(p + '_bijtelling').textContent = fmtE(r.bijtelling);
+    $(p + '_soort').textContent      = b.soort;
+    $(p + '_bw').textContent         = fmtE(r.bw);
+    $(p + '_ib').textContent         = fmtE(r.ib);
+    $(p + '_zvw').textContent        = fmtE(r.zvw);
+    $(p + '_ta').textContent         = fmtE(r.tariefsaanpassing);
+    $(p + '_kort').textContent       = fmtE(r.kortingen);
+    $(p + '_totaal').textContent     = fmtE(r.totaal);
+  };
+  vul('r26', b26, r26);
+  vul('r27', b27, r27);
+  $('r26_ta_row').style.display   = calcMode === 'ib' ? '' : 'none';
+  $('r27_ta_row').style.display   = calcMode === 'ib' ? '' : 'none';
 
-  document.getElementById('r27_bijtelling').textContent = fmtE(r27.bijtelling);
-  document.getElementById('r27_soort').textContent = yt27 ? 'Youngtimer (35%)' : 'Regulier (22%)';
-  document.getElementById('r27_bw').textContent    = fmtE(r27.bw);
-  document.getElementById('r27_ib').textContent    = fmtE(r27.ib);
-  document.getElementById('r27_zvw').textContent   = fmtE(r27.zvw);
-  document.getElementById('r27_totaal').textContent = fmtE(r27.totaal);
+  const vbJaar = $('vb_jaar');
+  vbJaar.textContent = fmtSigned(diff);
+  vbJaar.className   = 'vb-main ' + (diff > 0 ? 'pos' : diff < 0 ? 'neg' : '');
+  $('vb_maand').textContent = fmtSigned(diffMnd);
+  $('vb_marginaal').textContent = marginaal === null ? '—' : marginaal.toFixed(1).replace('.', ',') + '%';
 
-  const vbJaar = document.getElementById('vb_jaar');
-  vbJaar.textContent = (diff >= 0 ? '+' : '') + fmtE(Math.abs(diff));
-  vbJaar.className   = 'vb-main ' + (diff > 0 ? 'pos' : 'neg');
-  document.getElementById('vb_maand').textContent = (diffMnd >= 0 ? '+' : '') + fmtE(Math.abs(diffMnd));
-
+  const soortHeffing = calcMode === 'dga' ? 'loonheffing' : 'fiscale druk';
   let vClass, vMain, vSub, conclusie;
-  if (!yt26 && !yt27) {
-    vClass = 'v-ok'; vMain = 'Geen impact'; vSub = 'Buiten youngtimerregeling in beide jaren';
-    conclusie = 'Deze auto valt in 2026 én 2027 buiten de youngtimerregeling. De bijtelling blijft regulier (22% van cataloguswaarde). Er is geen fiscale impact van de wetswijziging.';
-  } else if (yt26 && !yt27) {
-    vClass = 'v-bad';
-    vMain  = (diff >= 0 ? '+' : '') + fmtE(Math.abs(diff));
-    vSub   = 'Auto valt in 2027 buiten youngtimer → overweeg heretikettering';
-    const soort = calcMode === 'dga' ? 'loonheffing' : 'fiscale druk';
-    conclusie = `Deze auto is in 2026 nog youngtimer (${l26} jaar oud), maar voldoet in 2027 niet meer aan de nieuwe grens van 25 jaar. De bijtelling schakelt over naar 22% van de cataloguswaarde. Dat leidt tot een extra ${soort} van ${fmtE(diff)} per jaar. Het is zinvol om heretikettering naar privé per 1 januari 2027 te overwegen.`;
-  } else if (yt26 && yt27) {
-    vClass = diff > 200 ? 'v-warn' : 'v-ok';
-    vMain  = diff > 0 ? '+' + fmtE(diff) : fmtE(0);
-    vSub   = 'Auto blijft youngtimer in 2027';
-    conclusie = `De auto blijft in 2027 een youngtimer (${l27} jaar oud). De situatie wijzigt niet door de wetswijziging. Wel is het verstandig de dagwaarde periodiek te laten beoordelen.`;
+
+  if (!b26.isYoungtimer && !b27.isYoungtimer) {
+    vClass = 'v-ok'; vMain = 'Geen impact';
+    vSub = 'Buiten de youngtimerregeling in beide jaren';
+    conclusie = `Deze auto valt in 2026 én 2027 buiten de youngtimerregeling. De bijtelling blijft ${(b26.pct * 100).toFixed(0)}% van de cataloguswaarde. De wetswijziging heeft voor deze auto geen gevolgen.`;
+  } else if (b26.isYoungtimer && !b27.isYoungtimer) {
+    vClass = 'v-bad'; vMain = fmtSigned(diff);
+    vSub = 'Auto valt in 2027 buiten youngtimer → overweeg heretikettering';
+    const via = b26.viaOvergangsrecht
+      ? ` De youngtimerbehandeling in 2026 berust op het overgangsrecht: de auto was op 31-12-2025 al 15 jaar of ouder en stond toen al ter beschikking aan dezelfde persoon.`
+      : '';
+    conclusie = `Deze auto is in 2026 nog youngtimer (${b26.leeftijd} jaar, grens ${b26.grens}), maar voldoet in 2027 niet meer aan de nieuwe grens van 25 jaar.${via} De bijtelling schakelt over van 35% van de waarde economisch verkeer naar ${(b27.pct * 100).toFixed(0)}% van de cataloguswaarde. Dat leidt tot een extra ${soortHeffing} van ${fmtE(Math.abs(diff))} per jaar (${fmtE(Math.abs(diffMnd))} per maand). Het is zinvol om heretikettering naar privé per 1 januari 2027 te overwegen.`;
+  } else if (b26.isYoungtimer && b27.isYoungtimer) {
+    vClass = Math.abs(diff) > 200 ? 'v-warn' : 'v-ok';
+    vMain = fmtSigned(diff);
+    vSub = 'Auto blijft youngtimer in 2027';
+    conclusie = `De auto blijft in 2027 een youngtimer (${b27.leeftijd} jaar). De wetswijziging verandert de behandeling niet. Wel is het verstandig de waarde economisch verkeer periodiek te laten beoordelen, omdat die de grondslag vormt.`;
   } else {
-    vClass = 'v-warn'; vMain = 'Nader bekijken'; vSub = 'Bijzondere situatie — was geen youngtimer in 2026 maar wél in 2027';
-    conclusie = 'Bijzondere situatie: de auto voldeed in 2026 niet aan de grens maar in 2027 wél aan de nieuwe grens van 25 jaar. Nader onderzoek is zinvol.';
+    vClass = 'v-warn'; vMain = fmtSigned(diff);
+    vSub = 'Bijzondere situatie — geen youngtimer in 2026, wél in 2027';
+    conclusie = `Bijzondere situatie: de auto voldeed in 2026 niet aan de grens van ${b26.grens} jaar, maar in 2027 wél aan de nieuwe grens van 25 jaar. Nader onderzoek is zinvol.`;
   }
 
-  document.getElementById('verd').className  = 'verdict ' + vClass;
-  document.getElementById('v_main').textContent = vMain;
-  document.getElementById('v_sub').textContent  = vSub;
-  document.getElementById('r_conclusie').textContent = conclusie;
+  const voorbehoud = ' De berekening gaat uit van uitsluitend de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden.';
+  conclusie += voorbehoud;
 
-  document.getElementById('ph').style.display = 'none';
-  const rc = document.getElementById('rc');
+  $('verd').className = 'verdict ' + vClass;
+  $('v_main').textContent = vMain;
+  $('v_sub').textContent  = vSub;
+  $('r_conclusie').textContent = conclusie;
+
+  $('ph').style.display = 'none';
+  const rc = $('rc');
   rc.style.display = 'block';
   rc.classList.remove('reveal'); void rc.offsetWidth; rc.classList.add('reveal');
 
-  g = { diff, diffMnd, yt26, yt27, l26, l27, r26, r27, conclusie, calcMode };
+  g = { diff, diffMnd, marginaal, b26, b27, r26, r27, conclusie, calcMode };
 
-  document.getElementById('brief_samenvatting').innerHTML = `
+  $('brief_samenvatting').innerHTML = `
     <strong style="color:var(--white);">Resultaat (${calcMode === 'dga' ? 'DGA' : 'IB-ondernemer'})</strong><br>
+    Bijtelling 2026: <strong>${fmtE(b26.bedrag)}</strong> — ${esc(b26.soort)}<br>
+    Bijtelling 2027: <strong>${fmtE(b27.bedrag)}</strong> — ${esc(b27.soort)}<br>
     Fiscale druk 2026: <strong style="color:var(--mint);">${fmtE(r26.totaal)}</strong><br>
     Fiscale druk 2027: <strong style="color:var(--yellow);">${fmtE(r27.totaal)}</strong><br>
-    Extra last per jaar: <strong style="color:${diff > 0 ? 'var(--red)' : 'var(--mint)'};">${(diff >= 0 ? '+' : '')}${fmtE(diff)}</strong><br>
-    Per maand: <strong>${(diffMnd >= 0 ? '+' : '')}${fmtE(Math.abs(diffMnd))}</strong>
+    Extra last per jaar: <strong style="color:${diff > 0 ? 'var(--red)' : 'var(--mint)'};">${fmtSigned(diff)}</strong><br>
+    Per maand: <strong>${fmtSigned(diffMnd)}</strong>
   `;
 
-  document.getElementById('bh_bedrag').textContent = (diff >= 0 ? '+' : '') + fmtE(Math.abs(diff));
-  document.getElementById('bh_maand').textContent  = (diffMnd >= 0 ? '+' : '') + fmtE(Math.abs(diffMnd));
-  if (document.getElementById('brief_conclusie_tekst')) {
-    document.getElementById('brief_conclusie_tekst').textContent = conclusie;
-  }
+  $('bh_bedrag').textContent = fmtSigned(diff);
+  $('bh_maand').textContent  = fmtSigned(diffMnd);
+  $('brief_conclusie_tekst').textContent = conclusie;
+  ontgrendelConclusiebrief();
   updateBrief();
 }
 
 // ─── KLANTBRIEF ───
 let briefModus = 'signaal';
 
+function vergrendelConclusiebrief() {
+  $('cmt-mail2').disabled = true;
+  $('cmt-mail2').title = 'Voer eerst een berekening uit op het Youngtimer-tabblad.';
+  $('brief_lock_notice').style.display = '';
+  if (briefModus === 'conclusie') setBrief('signaal');
+}
+function ontgrendelConclusiebrief() {
+  $('cmt-mail2').disabled = false;
+  $('cmt-mail2').title = '';
+  $('brief_lock_notice').style.display = 'none';
+}
+
 function setBrief(modus) {
+  if (modus === 'conclusie' && !g.r26) {
+    alert('Voer eerst een berekening uit op het Youngtimer-tabblad. Zonder berekening bevat de conclusiebrief geen bedragen.');
+    return;
+  }
   briefModus = modus;
-  document.getElementById('cmt-mail1').classList.toggle('active', modus === 'signaal');
-  document.getElementById('cmt-mail2').classList.toggle('active', modus === 'conclusie');
-  document.getElementById('brief_signaal').style.display   = modus === 'signaal'   ? '' : 'none';
-  document.getElementById('brief_conclusie').style.display = modus === 'conclusie' ? '' : 'none';
-  document.getElementById('brief_samenvatting_card').style.display = modus === 'conclusie' ? '' : 'none';
+  $('cmt-mail1').classList.toggle('active', modus === 'signaal');
+  $('cmt-mail2').classList.toggle('active', modus === 'conclusie');
+  $('brief_signaal').style.display   = modus === 'signaal'   ? '' : 'none';
+  $('brief_conclusie').style.display = modus === 'conclusie' ? '' : 'none';
+  $('brief_samenvatting_card').style.display = modus === 'conclusie' ? '' : 'none';
   updateBrief();
 }
 
 function updateBrief() {
-  const naam      = document.getElementById('bc_naam').value.trim();
-  const opmerking = document.getElementById('bc_opmerking').value.trim();
+  const naam      = $('bc_naam').value.trim();
+  const opmerking = $('bc_opmerking').value.trim();
   const datum = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
   const aanhef = naam ? 'Beste ' + naam + ',' : 'Beste,';
   const meta = 'Join Administraties · ' + datum;
-  ['s','c'].forEach(sfx => {
-    const metaEl = document.getElementById('brief_meta_' + sfx);
-    const aanhefEl = document.getElementById('brief_aanhef_' + sfx);
-    const extraEl = document.getElementById('brief_extra_' + sfx);
-    if (metaEl)  metaEl.textContent  = meta;
+  ['s', 'c'].forEach(sfx => {
+    const metaEl = $('brief_meta_' + sfx), aanhefEl = $('brief_aanhef_' + sfx), extraEl = $('brief_extra_' + sfx);
+    if (metaEl) metaEl.textContent = meta;
     if (aanhefEl) aanhefEl.textContent = aanhef;
     if (extraEl) {
       if (opmerking) { extraEl.textContent = opmerking; extraEl.style.display = ''; }
       else extraEl.style.display = 'none';
     }
   });
-  if (g.conclusie && document.getElementById('brief_conclusie_tekst')) {
-    document.getElementById('brief_conclusie_tekst').textContent = g.conclusie;
-  }
+  if (g.conclusie) $('brief_conclusie_tekst').textContent = g.conclusie;
 }
 
 function kopieerBrief() {
+  if (briefModus === 'conclusie' && !g.r26) {
+    alert('Voer eerst een berekening uit voordat je de conclusiebrief kopieert.');
+    return;
+  }
   const id = briefModus === 'signaal' ? 'brief_preview_signaal' : 'brief_preview_conclusie';
-  const txt = document.getElementById(id).innerText;
-  navigator.clipboard.writeText(txt).then(() => {
-    const btn = document.getElementById('copy_btn');
+  const txt = $(id).innerText;
+  const btn = $('copy_btn');
+  const gelukt = () => {
     btn.textContent = '✅ Gekopieerd!';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = '📋 Kopieer naar klembord'; btn.classList.remove('copied'); }, 2500);
-  });
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(txt).then(gelukt).catch(() => {
+      alert('Kopiëren naar het klembord is niet gelukt. Selecteer de tekst en kopieer handmatig (Ctrl+C).');
+    });
+  } else {
+    alert('Deze browser staat kopiëren naar het klembord niet toe. Selecteer de tekst en kopieer handmatig (Ctrl+C).');
+  }
 }
 
-function printBrief() {
-  const id = briefModus === 'signaal' ? 'brief_preview_signaal' : 'brief_preview_conclusie';
-  const brief = document.getElementById(id);
-  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
-  <title>Klantbrief Youngtimerregeling 2027</title>
-  <style>
+const PRINT_CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;800&display=swap');
     body { font-family: 'Nunito Sans', sans-serif; padding: 32mm 28mm; font-size: 11pt; line-height: 1.75; color: #000; }
     p { color: #111; margin-bottom: 12pt; }
     .brief-subject { font-weight: 800; font-size: 13pt; color: #1E2D4E; margin-bottom: 16pt; padding-bottom: 8pt; border-bottom: 1.5pt solid #3DD9A0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .brief-meta { font-size: 9pt; color: #666; margin-bottom: 16pt; }
     .brief-highlight { background: #f0fdf8; border-left: 3pt solid #3DD9A0; padding: 10pt 14pt; margin: 14pt 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .brief-footer { border-top: 1pt solid #ccc; padding-top: 10pt; margin-top: 24pt; font-size: 9.5pt; color: #444; line-height: 1.7; }
-  </style></head><body>${brief.innerHTML}</body></html>`;
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-  w.onload = () => { w.print(); };
+    .brief-footer { border-top: 1pt solid #ccc; padding-top: 10pt; margin-top: 24pt; font-size: 9.5pt; color: #444; line-height: 1.7; }`;
+
+function printBrief() {
+  if (briefModus === 'conclusie' && !g.r26) {
+    alert('Voer eerst een berekening uit voordat je de conclusiebrief afdrukt.');
+    return;
+  }
+  const id = briefModus === 'signaal' ? 'brief_preview_signaal' : 'brief_preview_conclusie';
+  openPrintVenster(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+  <title>Klantbrief Youngtimerregeling 2027</title>
+  <style>${PRINT_CSS}</style></head><body>${$(id).innerHTML}</body></html>`);
 }
 
 function printModel() {
   if (!g.r26) { alert('Voer eerst een berekening uit.'); return; }
   const isDGA = g.calcMode === 'dga';
   const datum = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-  const diff = g.diff, diffMnd = g.diffMnd;
-  const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+  const { diff, diffMnd, marginaal, b26, b27, r26, r27 } = g;
+  const rij = (l, v) => `<div class="row"><span>${l}</span><span>${v}</span></div>`;
+  const kaart = (titel, b, r) => `
+    <div class="card"><div class="card-title">${titel}</div>
+      ${rij('Bijtelling', fmtE(r.bijtelling))}
+      ${rij('Soort', b.soort)}
+      ${rij(isDGA ? 'Belastbaar loon' : 'Belastbare winst', fmtE(r.bw))}
+      ${isDGA ? '' : rij('Tariefsaanpassing', fmtE(r.tariefsaanpassing))}
+      ${rij('Heffingskortingen', '− ' + fmtE(r.kortingen).replace('€ ', '€ '))}
+      ${rij(isDGA ? 'Loonheffing' : 'IB', fmtE(r.ib))}
+      ${isDGA ? '' : rij('Zvw', fmtE(r.zvw))}
+      <div class="row total"><span>Totale fiscale druk</span><span>${fmtE(r.totaal)}</span></div>
+    </div>`;
+
+  openPrintVenster(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
   <title>Berekening Youngtimerregeling 2027</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;700;800&display=swap');
@@ -1397,49 +1933,30 @@ function printModel() {
     .verschil { background: #1E2D4E; color: #fff; border-radius: 4pt; padding: 10pt 14pt; margin-bottom: 12pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .v-lbl { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5pt; color: rgba(255,255,255,0.55); margin-bottom: 3pt; }
     .v-main { font-size: 18pt; font-weight: 800; color: #3DD9A0; }
-    .v-sub  { font-size: 9pt; color: rgba(255,255,255,0.6); margin-top: 2pt; }
+    .v-sub { font-size: 9pt; color: rgba(255,255,255,0.6); margin-top: 2pt; }
     .conclusie { font-size: 10pt; color: #2a3a5a; line-height: 1.65; padding: 8pt 12pt; background: #f0fdf8; border-left: 3pt solid #3DD9A0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-bottom: 12pt; }
     .footer { font-size: 8.5pt; color: #999; border-top: 0.5pt solid #e0e8f0; padding-top: 8pt; }
   </style></head><body>
   <h1>Youngtimerregeling 2027 — Berekening</h1>
   <div class="sub">Join Administraties · ${isDGA ? 'DGA (loonheffing)' : 'IB-ondernemer'} · ${datum}</div>
   <div class="grid">
-    <div class="card"><div class="card-title">2026 — Huidig</div>
-      <div class="row"><span>Bijtelling</span><span>${document.getElementById('r26_bijtelling').textContent}</span></div>
-      <div class="row"><span>Soort</span><span>${document.getElementById('r26_soort').textContent}</span></div>
-      <div class="row"><span>${isDGA ? 'Belastbaar loon' : 'Belastbare winst'}</span><span>${document.getElementById('r26_bw').textContent}</span></div>
-      <div class="row"><span>${isDGA ? 'Loonheffing' : 'IB'}</span><span>${document.getElementById('r26_ib').textContent}</span></div>
-      ${isDGA ? '' : `<div class="row"><span>Zvw</span><span>${document.getElementById('r26_zvw').textContent}</span></div>`}
-      <div class="row total"><span>Totale fiscale druk</span><span>${document.getElementById('r26_totaal').textContent}</span></div>
-    </div>
-    <div class="card"><div class="card-title">2027 — Nieuwe regels</div>
-      <div class="row"><span>Bijtelling</span><span>${document.getElementById('r27_bijtelling').textContent}</span></div>
-      <div class="row"><span>Soort</span><span>${document.getElementById('r27_soort').textContent}</span></div>
-      <div class="row"><span>${isDGA ? 'Belastbaar loon' : 'Belastbare winst'}</span><span>${document.getElementById('r27_bw').textContent}</span></div>
-      <div class="row"><span>${isDGA ? 'Loonheffing' : 'IB'}</span><span>${document.getElementById('r27_ib').textContent}</span></div>
-      ${isDGA ? '' : `<div class="row"><span>Zvw</span><span>${document.getElementById('r27_zvw').textContent}</span></div>`}
-      <div class="row total"><span>Totale fiscale druk</span><span>${document.getElementById('r27_totaal').textContent}</span></div>
-    </div>
+    ${kaart('2026 — Huidig', b26, r26)}
+    ${kaart('2027 — Nieuwe regels', b27, r27)}
   </div>
   <div class="verschil">
     <div class="v-lbl">Extra fiscale druk per jaar (2027 t.o.v. 2026)</div>
-    <div class="v-main">${(diff >= 0 ? '+' : '') + fmtE(Math.abs(diff))}</div>
-    <div class="v-sub">Per maand: ${(diffMnd >= 0 ? '+' : '') + fmtE(Math.abs(diffMnd))}</div>
+    <div class="v-main">${fmtSigned(diff)}</div>
+    <div class="v-sub">Per maand: ${fmtSigned(diffMnd)}${marginaal === null ? '' : ' · marginale druk op de extra bijtelling: ' + marginaal.toFixed(1).replace('.', ',') + '%'}</div>
   </div>
-  <div class="conclusie">${g.conclusie}</div>
-  <div class="footer">Join Administraties — joinadministraties.nl — Indicatieve berekening. Tarieven 2026/2027 — controleer jaarlijks. Geen rechten aan te ontlenen.</div>
-  </body></html>`;
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-  w.onload = () => { w.print(); };
+  <div class="conclusie">${esc(g.conclusie)}</div>
+  <div class="footer">Join Administraties — joinadministraties.nl — Indicatieve berekening op basis van tarieven 2026, inclusief tariefsaanpassing en afbouw van algemene heffingskorting en arbeidskorting. Uitsluitend gebaseerd op de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden. Controleer de tarieven jaarlijks. Geen rechten aan te ontlenen.</div>
+</body></html>`);
 }
 
 // ─── BIJTELLING CONTROLE ───
-
-// EV-bijtellingstarieven per jaar van eerste tenaamstelling in NL
-// Lock-in gold vanaf 2020; vóór 2020: geen lock, lopend tarief geldt
-// Waterstof: zelfde percentage, GEEN maximumcataloguswaarde
+// EV-korting op het algemeen bijtellingspercentage, per jaar van eerste
+// tenaamstelling (Cijferbijlage: de EV-korting hangt aan de tenaamstelling,
+// het algemeen percentage 22%/25% aan de datum eerste toelating).
 const BC_EV_TARIEVEN = {
   2020: { pct: 0.08, cap: 45000 },
   2021: { pct: 0.12, cap: 40000 },
@@ -1450,194 +1967,171 @@ const BC_EV_TARIEVEN = {
   2026: { pct: 0.18, cap: 30000 },
 };
 
+function bcPlaceholder(icon, html) {
+  return `<div class="placeholder"><div class="ph-icon">${icon}</div><p>${html}</p></div>`;
+}
+
 function bcBereken() {
-  const resultEl = document.getElementById('bc_resultaat');
+  const resultEl = $('bc_resultaat');
   if (!resultEl) return;
 
   if (!rdwData) {
-    resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">🧾</div><p>Zoek eerst een kenteken op via de balk hierboven.</p></div>';
+    resultEl.innerHTML = bcPlaceholder('🧾', 'Zoek eerst een kenteken op via de balk hierboven.');
     return;
   }
 
-  const controleJaar = parseInt(document.getElementById('bc_controle_jaar').value);
-  const { catalogusprijs, isElektrisch, isWaterstof, datumTxt, datumTenaamstellingRaw, brandstofStr } = rdwData;
+  const controleJaar = parseInt($('bc_controle_jaar').value, 10);
+  const { catalogusprijs, isEmissievrij, isWaterstof, datumToelating, datumTenaamstelling } = rdwData;
+  const terB = $('bc_terb2025').value === 'ja' ? true : $('bc_terb2025').value === 'nee' ? false : null;
 
-  // ── Youngtimer check (leeftijd op basis van datum_eerste_toelating) ──
-  const youngtimerLeeftijd = controleJaar >= 2027 ? 25 : controleJaar === 2026 ? 16 : 15;
-  const leeftijdToelating  = leeftijdOp(datumTxt, `${controleJaar}-01-01`);
-  const isYoungtimer       = leeftijdToelating !== null && leeftijdToelating >= youngtimerLeeftijd;
-
-  document.getElementById('bc_dagwaarde_wrap').style.display = isYoungtimer ? '' : 'none';
-
-  const dagwaarde = parseFloat(document.getElementById('bc_dagwaarde').value) || 0;
-  if (isYoungtimer && !dagwaarde) {
-    resultEl.innerHTML = `<div class="placeholder"><div class="ph-icon">⚠️</div><p>Auto is in ${controleJaar} een <strong style="color:var(--white);">youngtimer</strong> (${leeftijdToelating} jaar oud, grens ${youngtimerLeeftijd} jaar).<br>Vul de <strong style="color:var(--white);">waarde economisch verkeer</strong> in.</p></div>`;
+  const yt = bepaalYoungtimer(controleJaar, datumToelating, terB);
+  if (!yt) {
+    resultEl.innerHTML = bcPlaceholder('⚠️', 'Datum eerste toelating niet beschikbaar in RDW. Handmatige controle nodig.');
     return;
   }
 
-  // ── Tenaamstelling (voor lock-in) ──
-  const tenJaar  = datumTenaamstellingRaw ? parseInt(datumTenaamstellingRaw.substring(0, 4)) : 0;
-  const tenMaand = datumTenaamstellingRaw ? parseInt(datumTenaamstellingRaw.substring(4, 6)) : 0;
-  const datumTenFormatted = datumTenaamstellingRaw && datumTenaamstellingRaw.length >= 8
-    ? `${datumTenaamstellingRaw.substring(6, 8)}-${datumTenaamstellingRaw.substring(4, 6)}-${tenJaar}`
-    : '—';
+  $('bc_overgang_wrap').style.display =
+    (controleJaar === 2026 && yt.leeftijd === 15) ? '' : 'none';
+  $('bc_dagwaarde_wrap').style.display = yt.isYoungtimer ? '' : 'none';
 
-  if (!isYoungtimer && (!datumTenaamstellingRaw || !tenJaar)) {
-    resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">⚠️</div><p>Datum eerste tenaamstelling niet beschikbaar in RDW. Handmatige controle nodig.</p></div>';
+  const dagwaarde = positiefBedrag($('bc_dagwaarde').value);
+  if (yt.isYoungtimer && dagwaarde === null) {
+    resultEl.innerHTML = bcPlaceholder('⚠️',
+      `Auto is in ${controleJaar} een <strong style="color:var(--white);">youngtimer</strong> (${yt.leeftijd} jaar, grens ${yt.grens}${yt.viaOvergangsrecht ? ', via overgangsrecht' : ''}).<br>Vul de <strong style="color:var(--white);">waarde economisch verkeer</strong> in.`);
     return;
   }
 
-  // ── Percentage bepalen ──
-  let percentage, cap, isGelocked = false, lockUitleg = '', percentageBasisJaar;
-  let bijtellingJaar, bijtellingMaand, berekeningUitleg;
+  const pre2017 = isPre2017(datumToelating);
+  const tenJaar = datumTenaamstelling ? datumTenaamstelling.getFullYear() : null;
+  const tenMaand = datumTenaamstelling ? datumTenaamstelling.getMonth() + 1 : null;
 
-  if (isYoungtimer) {
-    // 35% van dagwaarde
-    bijtellingJaar   = dagwaarde * 0.35;
-    bijtellingMaand  = bijtellingJaar / 12;
-    berekeningUitleg = `35% × dagwaarde ${fmtE(dagwaarde)} = ${fmtE(bijtellingJaar)} per jaar`;
-    percentage = 0.35;
+  let percentagePct, cap = null, isGelocked = false, lockUitleg = '', bijtellingJaar, berekeningUitleg;
 
-  } else if (tenJaar < 2017 && !isElektrisch && !isWaterstof) {
-    // Pre-2017 regulier: permanent 25%
-    percentage = 0.25; cap = null; isGelocked = true;
-    lockUitleg = `Kenteken van ${tenJaar} — reguliere auto, permanent 25%`;
-    if (!catalogusprijs) { resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">⚠️</div><p>Catalogusprijs niet beschikbaar in RDW.</p></div>'; return; }
-    bijtellingJaar   = catalogusprijs * 0.25;
-    bijtellingMaand  = bijtellingJaar / 12;
-    berekeningUitleg = `25% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+  if (yt.isYoungtimer) {
+    percentagePct = TARIEVEN.bijtellingYoungtimer;
+    bijtellingJaar = dagwaarde * percentagePct;
+    berekeningUitleg = `35% × waarde economisch verkeer ${fmtE(dagwaarde)} = ${fmtE(bijtellingJaar)} per jaar`;
+    lockUitleg = yt.viaOvergangsrecht
+      ? `Overgangsrecht 2026: op 31-12-2025 al 15 jaar of ouder én toen al ter beschikking gesteld`
+      : `Youngtimer: ${yt.leeftijd} jaar, grens ${yt.grens} jaar in ${controleJaar}`;
 
-  } else if (tenJaar < 2017 && (isElektrisch || isWaterstof)) {
-    // Pre-2017 EV: 60-maanden lock allang verlopen, lopend tarief geldt
-    const huidigTarief = BC_EV_TARIEVEN[controleJaar];
-    resultEl.innerHTML = `
-      <div style="padding:14px 16px;">
-        <div class="melding m-waarschuwing">
-          <strong>Pre-2017 elektrisch voertuig — handmatige controle</strong><br>
-          Historisch verlaagd tarief (ca. 4–7%). De 60-maanden lock-periode is allang verlopen.<br>
-          Lopend ${controleJaar}-tarief: <strong>${huidigTarief ? (huidigTarief.pct*100).toFixed(0) : '?'}%</strong> over eerste ${huidigTarief ? fmtE(huidigTarief.cap) : '?'}, daarboven 22%.
-          Raadpleeg <a href="https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/inkomstenbelasting_voor_ondernemers/privegebruik_auto/privegebruik_auto" target="_blank" style="color:var(--mint);">belastingdienst.nl</a> voor het exacte historische percentage.
-        </div>
-      </div>`;
+  } else if (!isEmissievrij) {
+    // Regulier: 25% bij datum eerste toelating t/m 31-12-2016, anders 22%.
+    percentagePct = regulierBijtellingPct(datumToelating);
+    if (!catalogusprijs) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Catalogusprijs niet beschikbaar in RDW.');
+      return;
+    }
+    bijtellingJaar = catalogusprijs * percentagePct;
+    berekeningUitleg = `${(percentagePct * 100).toFixed(0)}% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+    lockUitleg = pre2017
+      ? `Datum eerste toelating t/m 31-12-2016 — permanent 25% (art. 10a.4 Wet IB 2001)`
+      : `Datum eerste toelating vanaf 01-01-2017 — algemeen percentage 22%`;
+
+  } else if (pre2017) {
+    resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-waarschuwing">
+      <strong>Emissievrij met datum eerste toelating vóór 2017 — handmatige controle</strong><br>
+      Voor deze auto's geldt een korting op het algemeen percentage van 25%, afhankelijk van de datum eerste tenaamstelling. De 60-maandentermijn is doorgaans verstreken.
+      Raadpleeg <a href="https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/inkomstenbelasting_voor_ondernemers/privegebruik_auto/privegebruik_auto" target="_blank" style="color:var(--mint);">belastingdienst.nl</a> voor het exacte percentage.
+    </div></div>`;
     return;
 
-  } else if (!isElektrisch && !isWaterstof) {
-    // Regulier 2017+: altijd 22%, lock heeft geen effect
-    percentage = 0.22; cap = null; isGelocked = false;
-    lockUitleg = 'Reguliere auto — bijtelling altijd 22%';
-    if (!catalogusprijs) { resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">⚠️</div><p>Catalogusprijs niet beschikbaar in RDW.</p></div>'; return; }
-    bijtellingJaar   = catalogusprijs * 0.22;
-    bijtellingMaand  = bijtellingJaar / 12;
-    berekeningUitleg = `22% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
-
-  } else if (controleJaar === 2027 && (isElektrisch || isWaterstof)) {
-    // 2027 EV-tarief nog niet gepubliceerd
-    resultEl.innerHTML = `
-      <div style="padding:14px 16px;">
-        <div class="melding m-info">
-          <strong>2027 EV-tarief nog niet bekend</strong><br>
-          De bijtellingstarieven voor elektrische voertuigen in 2027 worden gepubliceerd via het Belastingplan 2027. Zodra deze bekend zijn, kan de controle worden uitgevoerd. Het 2026-tarief (18% t/m €30.000) geldt als indicatie.
-        </div>
-      </div>`;
+  } else if (controleJaar >= 2027) {
+    resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-info">
+      <strong>${controleJaar} EV-tarief nog niet bekend</strong><br>
+      De bijtellingstarieven voor emissievrije voertuigen vanaf 2027 worden gepubliceerd via het Belastingplan ${controleJaar}. Het 2026-tarief (18% t/m € 30.000) geldt als indicatie.
+    </div></div>`;
     return;
 
   } else {
-    // EV of waterstof, 2017+
+    if (!tenJaar) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Datum eerste tenaamstelling niet beschikbaar in RDW. Handmatige controle nodig.');
+      return;
+    }
+    let basisJaar;
     if (tenJaar < 2020) {
-      // 2017-2019: geen lock-mechanisme van toepassing → lopend jaartarief
-      percentageBasisJaar = controleJaar;
-      isGelocked = false;
-      lockUitleg = `Eerste tenaamstelling in ${tenJaar} — 60-maanden lock geldt pas vanaf 2020, ${controleJaar}-tarief van toepassing`;
+      basisJaar = controleJaar;
+      lockUitleg = `Eerste tenaamstelling in ${tenJaar} — 60-maandentermijn verstreken, ${controleJaar}-tarief van toepassing`;
     } else {
-      // 2020+: 60-maanden lock
       let lsm = tenMaand + 1, lsj = tenJaar;
       if (lsm > 12) { lsm = 1; lsj++; }
       const lockEind = new Date(lsj + 5, lsm - 1, 1);
-      const lockEindStr = `${String(lsm).padStart(2,'0')}-${lsj + 5}`;
+      const lockEindStr = `${String(lsm).padStart(2, '0')}-${lsj + 5}`;
       if (new Date(controleJaar, 0, 1) < lockEind) {
-        percentageBasisJaar = tenJaar; isGelocked = true;
-        lockUitleg = `Tarief van ${tenJaar} gelocked t/m ${lockEindStr} (60-maanden regel)`;
+        basisJaar = tenJaar; isGelocked = true;
+        lockUitleg = `Tarief van ${tenJaar} gelocked t/m ${lockEindStr} (60-maandenregel)`;
+        if (lockEind.getFullYear() === controleJaar) {
+          lockUitleg += ` — let op: de termijn loopt ín ${controleJaar} af, daarna geldt het ${controleJaar}-tarief. De tool rekent het hele jaar met het gelockte tarief.`;
+        }
       } else {
-        percentageBasisJaar = controleJaar; isGelocked = false;
-        lockUitleg = `60-maanden periode verstreken (1-${lockEindStr}) — ${controleJaar}-tarief van toepassing`;
+        basisJaar = controleJaar;
+        lockUitleg = `60-maandentermijn verstreken (1-${lockEindStr}) — ${controleJaar}-tarief van toepassing`;
       }
     }
-
-    const tarief = BC_EV_TARIEVEN[percentageBasisJaar] || BC_EV_TARIEVEN[controleJaar];
+    const tarief = BC_EV_TARIEVEN[basisJaar] || BC_EV_TARIEVEN[controleJaar];
     if (!tarief) {
-      resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">⚠️</div><p>Tarief niet beschikbaar voor dit jaar. Raadpleeg belastingdienst.nl.</p></div>';
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Tarief niet beschikbaar voor dit jaar. Raadpleeg belastingdienst.nl.');
       return;
     }
-    percentage = tarief.pct;
-    cap = isWaterstof ? null : tarief.cap; // waterstof: geen maximumcataloguswaarde
-
-    if (!catalogusprijs) { resultEl.innerHTML = '<div class="placeholder"><div class="ph-icon">⚠️</div><p>Catalogusprijs niet beschikbaar in RDW.</p></div>'; return; }
-    if (cap && catalogusprijs > cap) {
-      bijtellingJaar   = cap * percentage + (catalogusprijs - cap) * 0.22;
-      berekeningUitleg = `${(percentage*100).toFixed(0)}% × ${fmtE(cap)} + 22% × ${fmtE(catalogusprijs - cap)} = ${fmtE(bijtellingJaar)} per jaar`;
-    } else {
-      bijtellingJaar   = catalogusprijs * percentage;
-      berekeningUitleg = `${(percentage*100).toFixed(0)}% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+    if (!catalogusprijs) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Catalogusprijs niet beschikbaar in RDW.');
+      return;
     }
-    bijtellingMaand = bijtellingJaar / 12;
+    percentagePct = tarief.pct;
+    cap = isWaterstof ? null : tarief.cap;  // waterstof: geen maximumcataloguswaarde
+    if (cap && catalogusprijs > cap) {
+      bijtellingJaar = cap * percentagePct + (catalogusprijs - cap) * TARIEVEN.bijtellingRegulier;
+      berekeningUitleg = `${(percentagePct * 100).toFixed(0)}% × ${fmtE(cap)} + 22% × ${fmtE(catalogusprijs - cap)} = ${fmtE(bijtellingJaar)} per jaar`;
+    } else {
+      bijtellingJaar = catalogusprijs * percentagePct;
+      berekeningUitleg = `${(percentagePct * 100).toFixed(0)}% × ${fmtE(catalogusprijs)} = ${fmtE(bijtellingJaar)} per jaar`;
+    }
   }
 
-  // ── Loonstrook vergelijking ──
-  const loonstrookMaand = parseFloat(document.getElementById('bc_loonstrook').value) || 0;
+  const bijtellingMaand = bijtellingJaar / 12;
+  const loonstrookMaand = positiefBedrag($('bc_loonstrook').value) ?? 0;
   let verdictClass = 'v-ok', verdictTekst = '', verschilMaand = 0, verschilPct = 0;
-
   if (loonstrookMaand > 0) {
     verschilMaand = loonstrookMaand - bijtellingMaand;
-    verschilPct   = bijtellingMaand > 0 ? Math.abs(verschilMaand) / bijtellingMaand * 100 : 0;
+    verschilPct = bijtellingMaand > 0 ? Math.abs(verschilMaand) / bijtellingMaand * 100 : 0;
     if (verschilPct <= 1)      { verdictClass = 'v-ok';   verdictTekst = 'Bijtelling klopt ✓'; }
     else if (verschilPct <= 5) { verdictClass = 'v-warn'; verdictTekst = 'Kleine afwijking'; }
-    else                        { verdictClass = 'v-bad';  verdictTekst = 'Afwijking — nader onderzoek'; }
+    else                       { verdictClass = 'v-bad';  verdictTekst = 'Afwijking — nader onderzoek'; }
   }
 
-  // ── Render ──
-  const brandstofType = isElektrisch ? 'Elektrisch' : isWaterstof ? 'Waterstof' : 'Fossiel (benzine/diesel)';
-  const pctLabel = isYoungtimer
-    ? '35% (youngtimer, grondslag dagwaarde)'
-    : `${(percentage*100).toFixed(0)}%` + (cap && !isYoungtimer ? ` t/m ${fmtE(cap)}, daarboven 22%` : '');
+  const brandstofType = isEmissievrij ? (isWaterstof ? 'Waterstof' : 'Elektrisch') : 'Fossiel (incl. hybride)';
+  const pctLabel = yt.isYoungtimer
+    ? '35% (youngtimer, grondslag waarde economisch verkeer)'
+    : `${(percentagePct * 100).toFixed(0)}%` + (cap ? ` t/m ${fmtE(cap)}, daarboven 22%` : '');
 
   resultEl.innerHTML = `
     <div style="padding:14px 16px 0;">
       <div class="eh-kaart">
         <div class="eh-kaart-titel">Voertuig &amp; bijtelling ${controleJaar}</div>
         <div class="gegevens-grid">
-          <div class="gegeven">
-            <span class="gegeven-label">Eerste tenaamstelling NL</span>
-            <span class="gegeven-waarde">${datumTenFormatted}</span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Brandstof</span>
-            <span class="gegeven-waarde">${brandstofType}</span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Youngtimer (${controleJaar})</span>
-            <span class="gegeven-waarde" style="color:${isYoungtimer ? 'var(--yellow)' : 'var(--mint)'};">
-              ${isYoungtimer
-                ? `Ja &mdash; ${leeftijdToelating} jr (grens ${youngtimerLeeftijd})`
-                : `Nee &mdash; ${leeftijdToelating ?? '?'} jr`}
-            </span>
-          </div>
-          <div class="gegeven">
-            <span class="gegeven-label">Bijtellingspercentage</span>
-            <span class="gegeven-waarde">${pctLabel}</span>
-          </div>
+          <div class="gegeven"><span class="gegeven-label">Datum eerste toelating</span>
+            <span class="gegeven-waarde">${esc(formatDatumNl(datumToelating))}</span></div>
+          <div class="gegeven"><span class="gegeven-label">Eerste tenaamstelling NL</span>
+            <span class="gegeven-waarde">${esc(formatDatumNl(datumTenaamstelling))}</span></div>
+          <div class="gegeven"><span class="gegeven-label">Brandstof</span>
+            <span class="gegeven-waarde">${esc(brandstofType)}</span></div>
+          <div class="gegeven"><span class="gegeven-label">Youngtimer (${controleJaar})</span>
+            <span class="gegeven-waarde" style="color:${yt.isYoungtimer ? 'var(--yellow)' : 'var(--mint)'};">
+              ${yt.isYoungtimer
+                ? `Ja &mdash; ${yt.leeftijd} jr (grens ${yt.grens})${yt.viaOvergangsrecht ? ', overgangsrecht' : ''}`
+                : `Nee &mdash; ${yt.leeftijd} jr (grens ${yt.grens})`}</span></div>
+          <div class="gegeven"><span class="gegeven-label">Bijtellingspercentage</span>
+            <span class="gegeven-waarde">${esc(pctLabel)}</span></div>
         </div>
-        ${!isYoungtimer && tenJaar >= 2017 ? `
-        <div style="margin-top:10px;font-size:12px;padding:7px 10px;background:rgba(255,255,255,0.04);border-radius:7px;color:${isGelocked ? 'var(--mint)' : 'var(--muted)'};">
-          🔒 ${lockUitleg}
-        </div>` : ''}
+        ${lockUitleg ? `<div style="margin-top:10px;font-size:12px;padding:7px 10px;background:rgba(255,255,255,0.04);border-radius:7px;color:${isGelocked ? 'var(--mint)' : 'var(--muted)'};">🔒 ${esc(lockUitleg)}</div>` : ''}
       </div>
     </div>
 
     <div class="verdict ${loonstrookMaand > 0 ? verdictClass : 'v-ok'}" style="margin:0 14px 14px;">
       ${loonstrookMaand > 0 ? `
-        <div class="v-lbl">${verdictTekst}</div>
-        <div class="v-main">${verschilMaand >= 0 ? '+' : '&minus;'}${fmtE(Math.abs(verschilMaand))}<span style="font-size:16px;font-weight:600;">/mnd</span></div>
-        <div class="v-sub">${verschilPct.toFixed(1)}% t.o.v. verwacht ${fmtE(bijtellingMaand)}/mnd</div>
+        <div class="v-lbl">${esc(verdictTekst)}</div>
+        <div class="v-main">${fmtSigned(verschilMaand)}<span style="font-size:16px;font-weight:600;">/mnd</span></div>
+        <div class="v-sub">${verschilPct.toFixed(1).replace('.', ',')}% t.o.v. verwacht ${fmtE(bijtellingMaand)}/mnd</div>
       ` : `
         <div class="v-lbl">Berekend maandbedrag</div>
         <div class="v-main">${fmtE(bijtellingMaand)}</div>
@@ -1647,25 +2141,25 @@ function bcBereken() {
 
     <div class="rs">
       <div class="rs-title">Berekening</div>
-      <div class="rrow"><span class="rl">Grondslag</span><span class="rv">${isYoungtimer ? `Dagwaarde ${fmtE(dagwaarde)}` : `Catalogusprijs ${fmtE(catalogusprijs)}`}</span></div>
+      <div class="rrow"><span class="rl">Grondslag</span><span class="rv">${yt.isYoungtimer ? `Waarde economisch verkeer ${fmtE(dagwaarde)}` : `Catalogusprijs ${fmtE(catalogusprijs)}`}</span></div>
       <div class="rrow"><span class="rl">Bijtelling per jaar</span><span class="rv mint">${fmtE(bijtellingJaar)}</span></div>
       <div class="rrow"><span class="rl">Bijtelling per maand</span><span class="rv mint">${fmtE(bijtellingMaand)}</span></div>
-      ${berekeningUitleg ? `<div class="rrow" style="border-top:none;"><span class="rl" style="font-size:11px;color:var(--muted);line-height:1.5;">${berekeningUitleg}</span></div>` : ''}
+      <div class="rrow" style="border-top:none;"><span class="rl" style="font-size:11px;color:var(--muted);line-height:1.5;">${esc(berekeningUitleg)}</span></div>
       ${loonstrookMaand > 0 ? `
       <div class="rs-title">Vergelijking loonstrook</div>
       <div class="rrow"><span class="rl">Loonstrook per maand</span><span class="rv">${fmtE(loonstrookMaand)}</span></div>
       <div class="rrow"><span class="rl">Verwacht per maand</span><span class="rv">${fmtE(bijtellingMaand)}</span></div>
-      <div class="rrow"><span class="rl">Verschil</span><span class="rv ${Math.abs(verschilMaand) > 50 ? (verschilMaand > 0 ? 'red' : 'mint') : ''}">${verschilMaand >= 0 ? '+' : '&minus;'}${fmtE(Math.abs(verschilMaand))}</span></div>
+      <div class="rrow"><span class="rl">Verschil</span><span class="rv ${Math.abs(verschilMaand) > 50 ? (verschilMaand > 0 ? 'red' : 'mint') : ''}">${fmtSigned(verschilMaand)}</span></div>
       ` : ''}
     </div>`;
 }
 
 // ─── PASTE HANDLER (duizendtalscheiders) ───
 document.querySelectorAll('input[type="number"]').forEach(inp => {
-  inp.addEventListener('paste', function(e) {
+  inp.addEventListener('paste', function (e) {
     e.preventDefault();
     const raw = (e.clipboardData || window.clipboardData).getData('text');
-    const cleaned = raw.replace(/[^\d,\.]/g, '');
+    const cleaned = raw.replace(/[^\d,\.\-]/g, '');
     let val;
     if (cleaned.includes(',')) {
       val = cleaned.replace(/\./g, '').replace(',', '.');
@@ -1679,10 +2173,46 @@ document.querySelectorAll('input[type="number"]').forEach(inp => {
   });
 });
 
+// ─── EVENT BINDING ───
+$('eh_catalogusprijs').addEventListener('input', function () {
+  if (this.value.trim()) {
+    setEhCatalogusprijsStatus('Handmatig', 'Catalogusprijs handmatig ingevuld.', 'handmatig', 'Handmatig ingevuld');
+  }
+  berekenEindheffing();
+});
+$('eh_catalogusprijsBronKeuze').addEventListener('change', function () {
+  if (this.value === 'handmatig') {
+    setEhCatalogusprijsStatus('Handmatig', 'Handmatige invoer actief.', 'handmatig', 'Handmatige invoer actief');
+  } else if (rdwData?.catalogusprijs) {
+    $('eh_catalogusprijs').value = rdwData.catalogusprijs;
+    setEhCatalogusprijsStatus('RDW', 'Catalogusprijs automatisch opgehaald via RDW.', 'auto', 'Automatisch opgehaald');
+  }
+  berekenEindheffing();
+});
+['eh_startdatum', 'eh_einddatum', 'eh_privegebruik', 'eh_emissievrij', 'eh_jaar', 'eh_datum_toelating']
+  .forEach(id => $(id).addEventListener('change', berekenEindheffing));
+$('eh_dagwaarde').addEventListener('input', berekenEindheffing);
+
+['cataloguswaarde', 'dagwaarde', 'winst_ib', 'loon_dga', 'mkb']
+  .forEach(id => $(id).addEventListener('input', invalideerResultaat));
+document.querySelectorAll('input[name="zelf"], input[name="lhk"]')
+  .forEach(el => el.addEventListener('change', invalideerResultaat));
+document.querySelectorAll('input[name="terb2025"]')
+  .forEach(el => el.addEventListener('change', () => { updateLeeftijd(); }));
+$('bc_terb2025').addEventListener('change', bcBereken);
+
 // ─── INIT ───
+$('mkb').value = TARIEVEN.mkbVrijstellingDefault;
+$('zelf_label_bedrag').textContent = fmtE(TARIEVEN.zelfstandigenAftrek);
+$('tarief_voetnoot_ib').textContent =
+  `Box 1 2026: schijf 1 t/m ${fmtE(TARIEVEN.ibSchijf1Grens)} (${fmtPct(TARIEVEN.ibSchijf1Tarief)}) · schijf 2 t/m ${fmtE(TARIEVEN.ibSchijf2Grens)} (${fmtPct(TARIEVEN.ibSchijf2Tarief)}) · schijf 3 (${fmtPct(TARIEVEN.ibSchijf3Tarief, 1)}) · Zvw ${fmtPct(TARIEVEN.zvwPremie)} tot ${fmtE(TARIEVEN.zvwMaxLoon)} · zelfstandigenaftrek ${fmtE(TARIEVEN.zelfstandigenAftrek)} · mkb-winstvrijstelling ${String(TARIEVEN.mkbVrijstellingDefault).replace('.', ',')}% · tariefsaanpassing ${fmtPct(TARIEVEN.tariefsaanpassingPct)} boven ${fmtE(TARIEVEN.tariefsaanpassingDrempel)}`;
+$('tarief_voetnoot_dga').textContent =
+  `Loonheffing 2026: schijf 1 t/m ${fmtE(TARIEVEN.ibSchijf1Grens)} (${fmtPct(TARIEVEN.ibSchijf1Tarief)}) · schijf 2 t/m ${fmtE(TARIEVEN.ibSchijf2Grens)} (${fmtPct(TARIEVEN.ibSchijf2Tarief)}) · schijf 3 (${fmtPct(TARIEVEN.ibSchijf3Tarief, 1)}). Algemene heffingskorting max ${fmtE(TARIEVEN.ahkMax)} (afbouw ${fmtPct(TARIEVEN.ahkAfbouwPct, 3)} vanaf ${fmtE(TARIEVEN.ahkAfbouwVanaf)}), arbeidskorting max ${fmtE(TARIEVEN.akMax)} (afbouw ${fmtPct(TARIEVEN.akAfbouwPct)} vanaf ${fmtE(TARIEVEN.akAfbouwVanaf)}).`;
+vergrendelConclusiebrief();
 setBrief('signaal');
 setEhCatalogusprijsStatus('-', 'We proberen de catalogusprijs automatisch op te halen via RDW.', 'leeg', 'Nog niet bepaald');
+berekenEindheffing();
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 aug 2026, 15:18</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 17:45</div>
 </body>
 </html>
