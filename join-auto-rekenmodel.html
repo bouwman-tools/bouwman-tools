@@ -173,6 +173,12 @@
   .btn-solid-sm { flex: 2; padding: 9px; background: rgba(61,217,160,0.15); border: 1px solid rgba(61,217,160,0.3); border-radius: 8px; color: var(--mint); font-family: 'Nunito Sans', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.18s; }
   .btn-solid-sm:hover { background: var(--mint); color: var(--navy); }
 
+  .valbox      { margin: 0 0 14px; border-radius: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.55; }
+  .valbox.fout { background: rgba(255,107,107,0.10); border: 1px solid rgba(255,107,107,0.40); color: var(--red); }
+  .valbox.waar { background: rgba(255,209,0,0.09);  border: 1px solid rgba(255,209,0,0.32);  color: var(--yellow); }
+  .valbox strong { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .valbox ul   { margin: 0; padding-left: 18px; }
+  .valbox li   { margin: 3px 0; }
   .placeholder { padding: 36px 18px; text-align: center; }
   .ph-icon { width: 52px; height: 52px; background: rgba(255,255,255,0.06); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 12px; }
   .placeholder p { font-size: 13px; color: var(--dim); line-height: 1.6; }
@@ -361,7 +367,7 @@
         <div class="field">
           <label>Operational lease / jaar (incl. btw)</label>
           <div class="pw"><span class="af">€</span><input type="number" id="lease_prijs" value="0" step="100"></div>
-          <div class="field-note">Vul 0 in als geen operational lease</div>
+          <div class="field-note">Vul 0 in als geen operational lease. De termijn vervangt afschrijving, rente, MRB, verzekering en onderhoud; brandstof/stroom en parkeren komen erbovenop.</div>
         </div>
       </div>
     </div>
@@ -382,7 +388,7 @@
       <div class="fg">
         <div class="field"><label>Kilometervergoeding</label><div class="pw"><span class="af">€</span><input type="number" id="km_vergoeding" value="0.25" step="0.01" min="0"></div></div>
         <div class="field"><label>Verbruik per 100 km</label><div class="sw" id="w_verb"><input type="number" id="verbruik_100" value="7" step="0.1" min="0"><span class="af">l/kWh</span></div></div>
-        <div class="field"><label>Prijs per liter / kWh (incl. btw)</label><div class="pw"><span class="af">€</span><input type="number" id="prijs_liter" value="2.10" step="0.05" min="0"></div></div>
+        <div class="field"><label id="lbl_prijs">Prijs per liter (incl. btw)</label><div class="pw" id="w_prijs"><span class="af">€</span><input type="number" id="prijs_liter" value="2.10" step="0.05" min="0"></div></div>
       </div>
     </div>
 
@@ -416,6 +422,7 @@
         <h2>Analyse uitkomst</h2>
         <p>IB-vergelijking auto van de zaak vs. privé</p>
       </div>
+      <div id="val" class="valbox" style="display:none;"></div>
       <div id="ph" class="placeholder">
         <div class="ph-icon">📊</div>
         <p>Vul de gegevens in en klik op <strong style="color:var(--white)">Bereken analyse</strong> om de uitkomst te zien.</p>
@@ -430,7 +437,8 @@
         <!-- KOSTENOPBOUW -->
         <div class="rs">
           <div class="rs-title">Kostenopbouw auto van de zaak (per jaar)</div>
-          <div class="rrow"><span class="rl">Afschrijving (15% × catalogus)</span><span class="rv muted" id="r_afschr">—</span></div>
+          <div class="rrow" id="row_lease"><span class="rl">Leasetermijn</span><span class="rv muted" id="r_lease">—</span></div>
+          <div class="rrow" id="row_afschr"><span class="rl">Afschrijving (15% × catalogus)</span><span class="rv muted" id="r_afschr">—</span></div>
           <div class="rrow"><span class="rl">Brandstof (km × verbruik × prijs)</span><span class="rv muted" id="r_brand">—</span></div>
           <div class="rrow"><span class="rl">MRB</span><span class="rv muted" id="r_mrb">—</span></div>
           <div class="rrow"><span class="rl">Verzekering</span><span class="rv muted" id="r_verz">—</span></div>
@@ -517,6 +525,10 @@ const TARIEVEN_2026 = {
   // Kilometervergoeding (art. 31a lid 2 Wet LB / Besluit onkostenvergoedingen)
   kmVergoeding:         0.25,     // € per km — onbelaste vergoeding 2026 (was € 0,23 in 2025)
 
+  // Energieprijzen incl. btw — indicatief, pas aan naar de eigen situatie
+  prijsBrandstof:       2.10,     // € per liter
+  prijsStroom:          0.35,     // € per kWh (thuis laden)
+
   // Restwaarde-vuistregels na 4 jaar (bron: Autotelex / BOVAG / ING)
   restwaardeEV:         48,       // % van aanschafprijs
   restwaardeHybride:    43,       // %
@@ -532,6 +544,7 @@ const TARIEVEN_2026 = {
   document.getElementById('ib_tarief').value      = T.ibTarief;
   document.getElementById('vpb_ib').value         = T.vpbIbDividend;
   document.getElementById('km_vergoeding').value  = T.kmVergoeding;
+  document.getElementById('prijs_liter').value    = T.prijsBrandstof;
   document.getElementById('restwaarde_note').textContent =
     `Fossiel 4jr: ~${T.restwaardeFossiel}% | Elektrisch 4jr: ~${T.restwaardeEV}%`;
   // Bijwerk label btw-radioknop met actueel tarief
@@ -631,6 +644,25 @@ function setStatus(type, html) {
   const el = document.getElementById('rdw_status');
   el.className = 'rdw-status ' + type;
   el.innerHTML = html;
+}
+
+// Energiesoort bepaalt de eenheid van het verbruiksveld, de default energieprijs
+// en de eenheid in de resultaatregel. Wordt gezet door de RDW-lookup; de
+// beginstand is brandstof. Zonder dit werd een elektrische auto tegen de
+// literprijs gerekend: bij 18 kWh/100km en 25.000 km scheelt dat een factor 6.
+let energieSoort = 'brandstof';
+
+function zetEnergieSoort(soort, vulPrijs) {
+  energieSoort = soort;
+  const stroom = soort === 'stroom';
+  const eenheidEl = document.querySelector('#w_verb .af');
+  if (eenheidEl) eenheidEl.textContent = stroom ? 'kWh/100' : 'l/100km';
+  const lbl = document.getElementById('lbl_prijs');
+  if (lbl) lbl.textContent = stroom ? 'Prijs per kWh (incl. btw)' : 'Prijs per liter (incl. btw)';
+  if (vulPrijs) {
+    setFilled('w_prijs', 'prijs_liter',
+      stroom ? TARIEVEN_2026.prijsStroom : TARIEVEN_2026.prijsBrandstof);
+  }
 }
 
 function setFilled(wrapId, inputId, val) {
@@ -753,8 +785,12 @@ async function zoekKenteken() {
     if (ouderdomMnd)  setFilled('w_oud',  'ouderdom',         ouderdomMnd);
     if (verbruikVal > 0) {
       setFilled('w_verb', 'verbruik_100', verbruikVal.toFixed(2));
-      document.querySelector('#w_verb .af').textContent = isEV ? 'kWh/100' : 'l/100km';
     }
+    // Ook bij verbruik 0 (onbekend bij de RDW) moet de eenheid en de prijs kloppen.
+    // De prijs alleen overschrijven als de energiesoort echt wisselt, zodat een
+    // handmatig ingevulde prijs bij een gelijksoortige auto blijft staan.
+    const nieuweSoort = isEV ? 'stroom' : 'brandstof';
+    zetEnergieSoort(nieuweSoort, nieuweSoort !== energieSoort);
 
     // Restwaarde NA cataloguswaarde invullen zodat bedrag correct uitrekent
     setRestwaardeSuggestion(brandstof, cat);
@@ -852,6 +888,42 @@ function berekenBelastingeffect(rol, i) {
   };
 }
 
+// Invoercontract: zonder deze gegevens is de uitkomst geen antwoord maar een nul.
+// Zonder validatie leverde een leeg formulier "Auto van de zaak, voordeel € 0" op,
+// omdat alle invoer via `+value || fallback` op nul uitkwam.
+// Geeft blokkerende fouten en niet-blokkerende waarschuwingen apart terug.
+function valideerInvoer(i) {
+  const fouten = [], waarschuwingen = [];
+
+  if (!(i.mnd > 0)) {
+    fouten.push('Vul de gebruiksduur in maanden in.');
+  }
+  if (!(i.basis > 0)) {
+    fouten.push('Vul een cataloguswaarde of aanschafprijs in — die is de grondslag voor bijtelling en forfait.');
+  }
+  if (!(i.kmTotaal > 0)) {
+    fouten.push('Vul het aantal kilometers per jaar in.');
+  }
+  if (!(i.lease > 0) && !(i.aanschaf > 0)) {
+    fouten.push('Vul een aanschafprijs in, of een leasetermijn per jaar.');
+  }
+
+  if (i.kmTotaal > 0 && !(i.kmZakelijkWoonwerk > 0)) {
+    waarschuwingen.push('Zonder zakelijke of woon-werk-kilometers is er in het privéscenario geen vergoeding, dus valt de vergelijking per definitie richting de auto van de zaak.');
+  }
+  if (i.lease > 0 && i.aanschaf > 0) {
+    waarschuwingen.push('Bij een leasetermijn wordt de aanschafprijs alleen gebruikt voor de restwaarde, niet voor afschrijving.');
+  }
+  if (i.restwaarde > 0 && i.aanschaf > 0 && i.restwaarde >= i.aanschaf) {
+    waarschuwingen.push('De restwaarde is gelijk aan of hoger dan de aanschafprijs; er wordt dan niet afgeschreven.');
+  }
+  if (!(i.lease > 0) && !(i.kostenOverig > 0)) {
+    waarschuwingen.push('Er zijn geen kosten voor MRB, verzekering, onderhoud of parkeren ingevuld.');
+  }
+
+  return { fouten: fouten, waarschuwingen: waarschuwingen, geldig: fouten.length === 0 };
+}
+
 // Netto btw-effect over de hele gebruiksduur. Positief = voordeel zakelijk.
 // btwAanschaf en btwKostenJr zijn teruggevorderde btw (voordeel); btwPriveJr is
 // de correctie privégebruik en is al negatief. De factor (1 - tarief) maakt het
@@ -876,7 +948,8 @@ function bereken() {
   const btw_a    = document.querySelector('input[name="btw_aanschaf"]:checked').value;
   const btw_t    = btw_a === 'ja' ? TARIEVEN_2026.btwTarief / 100 : 0;
   const btw_af   = (+document.getElementById('btw_aftrek_pct').value  || 100) / 100;
-  const mnd      = +document.getElementById('gebruiksduur_mnd').value || 48;
+  // Geen fallback: een stille 48 zou de validatie hieronder dode code maken.
+  const mnd      = +document.getElementById('gebruiksduur_mnd').value || 0;
   const rente    = (+document.getElementById('rente').value           || 0)   / 100;
   const lease    = +document.getElementById('lease_prijs').value      || 0;
 
@@ -886,7 +959,8 @@ function bereken() {
   const kt = kp + kw + kz;
   const kv = +document.getElementById('km_vergoeding').value || TARIEVEN_2026.kmVergoeding;
   const vb = +document.getElementById('verbruik_100').value  || 7;
-  const pl = +document.getElementById('prijs_liter').value   || 2.1;
+  const pl = +document.getElementById('prijs_liter').value
+    || (energieSoort === 'stroom' ? TARIEVEN_2026.prijsStroom : TARIEVEN_2026.prijsBrandstof);
 
   const mrb  = +document.getElementById('mrb').value        || 0;
   const verz = +document.getElementById('verzekering').value || 0;
@@ -905,7 +979,7 @@ function bereken() {
 
   // Grondslag bijtelling/forfait = cataloguswaarde, anders aanschafprijs
   const basis = cat || aansch;
-  const jaren = mnd / 12;
+  const jaren = mnd > 0 ? mnd / 12 : 1;   // deling door nul vóór de validatie voorkomen
 
   // Restwaarde & afschrijving
   const rv_pct    = +document.getElementById('restwaarde_pct').value    || 0;
@@ -917,7 +991,12 @@ function bereken() {
   const k_brand  = (kt / 100) * vb * pl;
   const k_rente  = rente * (aansch + restwaarde) / 2;
   const k_overig = mrb + verz + ond + ovr;
-  const k_totaal = lease > 0 ? lease : k_afschr + k_brand + k_overig + k_rente;
+  // Operational lease dekt afschrijving, rente, MRB, verzekering en onderhoud.
+  // Brandstof/stroom en parkeren zitten niet in de termijn en komen erbovenop —
+  // anders verdwijnen die posten uit het totaal terwijl ze op het scherm staan.
+  const leaseActief = lease > 0;
+  const k_totaal = leaseActief ? lease + k_brand + ovr
+                               : k_afschr + k_brand + k_overig + k_rente;
 
   // Privé: kilometervergoeding
   const km_vergoed = kv * (kz + kw);
@@ -943,9 +1022,15 @@ function bereken() {
   const vd = vj * jaren;
 
   // BTW-effect (indicatief)
-  const btw_aansch   = btw_t > 0 ? (basis - bpm) / (1 + btw_t) * btw_t * btw_af : 0;
+  // Bij operational lease wordt de auto niet gekocht: er is geen btw op de
+  // aanschaf terug te vorderen, alleen op de leasetermijn (zie btw_basis_jr).
+  const btw_aansch   = (btw_t > 0 && !leaseActief) ? (basis - bpm) / (1 + btw_t) * btw_t * btw_af : 0;
   const btw_prive_jr = (btw_t > 0 ? -TARIEVEN_2026.btwPriveGebruikPct : 0) * basis * btw_af;
-  const btw_brand_jr = (ond + k_brand) / (1 + TARIEVEN_2026.btwTarief / 100) * (TARIEVEN_2026.btwTarief / 100) * btw_af;
+  // Btw over de jaarlijkse kosten die btw dragen. MRB en verzekering dragen geen
+  // btw (belasting resp. assurantiebelasting). Bij lease is dat de leasetermijn
+  // plus brandstof; het onderhoud zit dan al in de termijn.
+  const btw_basis_jr = leaseActief ? lease + k_brand : ond + k_brand;
+  const btw_brand_jr = btw_basis_jr / (1 + TARIEVEN_2026.btwTarief / 100) * (TARIEVEN_2026.btwTarief / 100) * btw_af;
   const btw_ef       = berekenBtwEffect(rol, {
     btwAanschaf: btw_aansch,
     btwKostenJr: btw_brand_jr,
@@ -954,6 +1039,38 @@ function bereken() {
     tarief:      tar
   });
   const totaal       = vd + btw_ef;
+
+  // ── VALIDATIE ──
+  const val = valideerInvoer({
+    basis:              basis,
+    mnd:                mnd,
+    kmTotaal:           kt,
+    kmZakelijkWoonwerk: kz + kw,
+    lease:              lease,
+    aanschaf:           aansch,
+    restwaarde:         restwaarde,
+    kostenOverig:       k_overig
+  });
+
+  const vbox = document.getElementById('val');
+  const lijst = (titel, items) =>
+    '<strong>' + titel + '</strong><ul><li>' + items.join('</li><li>') + '</li></ul>';
+
+  if (!val.geldig) {
+    // Geen uitkomst tonen: een oordeel op onvolledige invoer is misleidend.
+    vbox.style.display = 'block';
+    vbox.className = 'valbox fout';
+    vbox.innerHTML = lijst('Vul dit eerst in', val.fouten);
+    document.getElementById('rc').style.display = 'none';
+    document.getElementById('ph').style.display = 'block';
+    return;
+  }
+
+  vbox.style.display = val.waarschuwingen.length ? 'block' : 'none';
+  if (val.waarschuwingen.length) {
+    vbox.className = 'valbox waar';
+    vbox.innerHTML = lijst('Let op', val.waarschuwingen);
+  }
 
   // ── RENDEREN ──
   document.getElementById('ph').style.display = 'none';
@@ -964,13 +1081,19 @@ function bereken() {
   rc.classList.add('reveal');
 
   // Kostenopbouw
-  document.getElementById('r_afschr').textContent = lease > 0
-    ? '— (operational lease)'
-    : fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jaren + 'jr)';
-  document.getElementById('r_brand').textContent  = fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb}l × €${pl})`;
-  document.getElementById('r_mrb').textContent    = fmtE(mrb);
-  document.getElementById('r_verz').textContent   = fmtE(verz);
-  document.getElementById('r_ond').textContent    = fmtE(ond);
+  document.getElementById('row_lease').style.display  = leaseActief ? '' : 'none';
+  document.getElementById('row_afschr').style.display = leaseActief ? 'none' : '';
+  document.getElementById('r_lease').textContent = fmtE(lease) + ' (incl. afschrijving, rente, MRB, verzekering en onderhoud)';
+  document.getElementById('r_afschr').textContent =
+    fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jaren + 'jr)';
+  const eenheid = energieSoort === 'stroom' ? 'kWh' : 'l';
+  document.getElementById('r_brand').textContent  = fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb} ${eenheid} × €${pl})`;
+  // Bij lease zitten deze posten in de termijn; ze niet meetellen én toch als
+  // bedrag laten staan is precies de optelling die niet klopte.
+  const gedekt = ' — in leasetermijn';
+  document.getElementById('r_mrb').textContent    = leaseActief ? fmtE(mrb) + gedekt : fmtE(mrb);
+  document.getElementById('r_verz').textContent   = leaseActief ? fmtE(verz) + gedekt : fmtE(verz);
+  document.getElementById('r_ond').textContent    = leaseActief ? fmtE(ond) + gedekt : fmtE(ond);
   document.getElementById('r_ovr').textContent    = fmtE(ovr);
   document.getElementById('r_kosten').textContent = fmtE(k_totaal);
 
@@ -1094,7 +1217,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:15</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:32</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
