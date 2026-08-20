@@ -535,20 +535,24 @@
 // ═══════════════════════════════════════════════════════════════════════════
 const TARIEVEN_2026 = {
   // Bijtelling privégebruik auto (art. 3.20 / 13bis Wet LB)
-  bijtellingLaag:       18,       // % — elektrisch & waterstof (eerste schijf)
-  bijtellingHoog:       22,       // % — fossiel/hybride én elektrisch boven cap
-  bijtellingElektrCap:  30000,    // € — catalogusgrens laag tarief elektrisch
-  bijtellingYoungtimer: 35,       // % — auto ouder dan 15 jaar (over waarde ec. verkeer)
+  // Alleen de beginwaarde van het invoerveld en de fallback als het veld leeg is.
+  // Het percentage dat écht wordt gerekend komt uit BIJT/EV_VERLAGING verderop,
+  // via het 60-maandenregime. De nulemissiepercentages staan daarom NIET hier:
+  // die zijn een verlaging met een plafond per jaar, geen los tarief.
+  bijtellingHoog:       22,       // % — beginwaarde/fallback invoerveld
 
   // Autokostenforfait IB-ondernemer (art. 3.20 Wet IB 2001)
   autokostenforfait:    22,       // % — standaard; volgt bijtellingspercentage
 
   // Inkomstenbelasting tarieven box 1 (art. 2.10 Wet IB 2001)
-  ibTarief:             49.5,     // % — marginaal tarief schijf 2 (default)
+  ibTarief:             49.5,     // % — marginaal tarief schijf 3 (default)
 
   // VPB + IB over dividend — gecombineerd effectief tarief DGA
-  // VPB laag 19% + box 2 IB ~26.9% = ca. 38.85% gecombineerd (2026)
-  vpbIbDividend:        38.85,    // % — gecombineerd VPB + box-2 tarief
+  // VPB laag 19% + box 2 eerste schijf 24,5%: 19 + 81 × 24,5% = 38,85%.
+  // LET OP: dit veronderstelt de EERSTE box 2-schijf. Boven € 68.843 is box 2
+  // 31% en wordt het gecombineerde tarief 19 + 81 × 31% = 44,11%. Pas het veld
+  // in dat geval handmatig aan.
+  vpbIbDividend:        38.85,    // % — gecombineerd VPB + box-2 tarief (eerste schijf)
 
   // BTW (Wet OB 1968)
   btwTarief:            21,       // % — standaard btw-tarief
@@ -653,19 +657,24 @@ function updateRestwaardePct() {
   }
 }
 
-// Stel default restwaarde in op basis van brandstofsoort (marktgemiddelden 4 jaar)
-function setRestwaardeSuggestion(brandstof, aanschafprijs) {
-  const bs = (brandstof || '').toLowerCase();
-  let pct, label;
-  if (bs.includes('elektr')) {
-    pct = TARIEVEN_2026.restwaardeEV;       label = `Elektrisch 4jr: ~${TARIEVEN_2026.restwaardeEV}% (bron: Autotelex/Bovag 2025)`;
-  } else if (bs.includes('hybride') || bs.includes('plug')) {
-    pct = TARIEVEN_2026.restwaardeHybride;  label = `Hybride 4jr: ~${TARIEVEN_2026.restwaardeHybride}% (schatting o.b.v. marktdata)`;
-  } else if (bs.includes('waterstof')) {
-    pct = TARIEVEN_2026.restwaardeWaterstof; label = `Waterstof 4jr: ~${TARIEVEN_2026.restwaardeWaterstof}% (schatting)`;
-  } else {
-    pct = TARIEVEN_2026.restwaardeFossiel;  label = `Fossiel 4jr: ~${TARIEVEN_2026.restwaardeFossiel}% (bron: ING/Bovag)`;
-  }
+// Default restwaarde op basis van de energiesoort (marktgemiddelden 4 jaar).
+//
+// Werkte eerder op de brandstofstring van de RDW, waarbij 'elektr' vóór
+// 'hybride' werd getoetst. Omdat die string door $limit=1 altijd één waarde
+// bevatte, waren de takken voor hybride en waterstof onbereikbaar en kreeg een
+// plug-in hybride het fossiele percentage. Nu op de expliciete energiesoort,
+// dus alle vier de takken worden echt gebruikt.
+const RESTWAARDE = {
+  elektrisch: { pct: 'restwaardeEV',        label: 'Elektrisch',      bron: 'bron: Autotelex/Bovag 2025' },
+  hybride:    { pct: 'restwaardeHybride',   label: 'Plug-in hybride', bron: 'schatting o.b.v. marktdata' },
+  waterstof:  { pct: 'restwaardeWaterstof', label: 'Waterstof',       bron: 'schatting' },
+  brandstof:  { pct: 'restwaardeFossiel',   label: 'Fossiel',         bron: 'bron: ING/Bovag' },
+};
+
+function setRestwaardeSuggestion(energiesoort, aanschafprijs) {
+  const r = RESTWAARDE[energiesoort] || RESTWAARDE.brandstof;
+  const pct = TARIEVEN_2026[r.pct];
+  const label = `${r.label} 4jr: ~${pct}% (${r.bron})`;
   document.getElementById('restwaarde_pct').value = pct;
   document.getElementById('restwaarde_note').textContent = label;
   // Gebruik de meegegeven aanschafprijs als die beschikbaar is
@@ -726,6 +735,34 @@ function toonTenaamstellingVeld() {
   document.getElementById('veld_tenaam').style.display = nodig ? '' : 'none';
 }
 
+// Leidt bijtelling en forfait af uit het 60-maandenregime en vult de velden.
+// Eén plek, zodat de RDW-lookup en bereken() niet elk hun eigen model hebben —
+// dat was precies het probleem met het oude platte bijtellingsmodel.
+// Retourneert de uitkomst van bijtellingOverPeriode, of null als dat niet kan.
+function werkBijtellingBij(basis, mnd, start) {
+  const detRaw    = document.getElementById('datum_toelating').value.trim();
+  const tenaamRaw = document.getElementById('datum_tenaamstelling').value.trim();
+  if (!detRaw || !(basis > 0) || !(mnd > 0)) return null;
+
+  const enk = energieKenmerken();
+  const periode = bijtellingOverPeriode(start, mnd, {
+    cataloguswaarde:     basis,
+    datumToelating:      detRaw,
+    datumTenaamstelling: tenaamRaw,
+    isNulemissie:        enk.isNulemissie,
+    isWaterstof:         enk.isWaterstof,
+  });
+  if (periode.fout) return periode;
+
+  const pct = (periode.gemiddeldPct * 100).toFixed(1);
+  if (!handmatig.bijt) setFilled('w_bijt', 'bijtelling_pct', pct);
+  if (!handmatig.forf) document.getElementById('forfait_pct').value = pct;
+  document.getElementById('bijt_note').textContent = periode.termijnEinde
+    ? `Nulemissie, ankerjaar ${periode.ankerJaar}: termijn t/m ${formatDatumNl(periode.termijnEinde)}, gemiddeld ${pct}% over de gebruiksduur`
+    : `Algemeen percentage ${(periode.basisPct * 100).toFixed(0)}% (geen nulemissiekorting)`;
+  return periode;
+}
+
 function energieSoortNu() {
   const r = document.querySelector('input[name="energie"]:checked');
   return r ? r.value : 'brandstof';
@@ -760,42 +797,49 @@ function setFilled(wrapId, inputId, val) {
   if (wrap) wrap.classList.add('rdw-filled');
 }
 
-// ─── BIJTELLING 2026 (bron: Belastingdienst.nl) ───
-// Twee tarieven: 18% en 22%.
-// Elektrisch: 18% over eerste €30.000 catalogus, 22% daarboven.
-// Waterstof/zonnecellen: 18% over volledige cataloguswaarde.
-// Alle overige (fossiel, hybride, PHEV): 22% over volledige cataloguswaarde.
-// Youngtimer (>16 jaar): 35% van waarde economisch verkeer (apart geval).
-function bepaalBijtelling(co2, brandstof) {
-  const bs = (brandstof || '').toLowerCase();
-  const laag = TARIEVEN_2026.bijtellingLaag;
-  const hoog = TARIEVEN_2026.bijtellingHoog;
-  const cap  = TARIEVEN_2026.bijtellingElektrCap;
-  if (bs.includes('waterstof')) return { pct: laag, cap: null, label: `Waterstof - ${laag}% (geen cap)` };
-  if (bs.includes('elektr'))   return { pct: laag, cap: cap,  label: `Elektrisch - ${laag}% t/m ${fmtN(cap)}, ${hoog}% daarboven` };
-  return { pct: hoog, cap: null, label: `Fossiel/hybride - ${hoog}%` };
+// RDW-tekstvelden komen in innerHTML terecht; merk en handelsbenaming zijn
+// vrije tekst uit een externe bron en gaan daarom door deze escape.
+function escapeHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Berekent de effectieve bijtelling in euro's op basis van cataloguswaarde
-function berekenBijtellingBedrag(catalogus, bijtellingInfo) {
-  if (!bijtellingInfo.cap || catalogus <= bijtellingInfo.cap) {
-    return catalogus * bijtellingInfo.pct / 100;
+// ─── RDW FETCH ───
+// Met een timeout en een statuscontrole: zonder die twee bleef een trage of
+// falende API hangen, of werd een foutpagina als geldige JSON behandeld.
+const RDW_TIMEOUT_MS = 8000;
+
+// De voertuigendataset kent geen brandstof_volgnummer, dus daar geen $order.
+async function rdwFetchVoertuig(endpoint, kenteken) {
+  const url = `https://opendata.rdw.nl/resource/${endpoint}.json`
+    + `?kenteken=${encodeURIComponent(kenteken)}&$limit=1`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), RDW_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: ctrl.signal });
+    if (!response.ok) throw new Error(`RDW antwoordde met status ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  // Elektrisch met cap
-  return (bijtellingInfo.cap * bijtellingInfo.pct / 100) + ((catalogus - bijtellingInfo.cap) * TARIEVEN_2026.bijtellingHoog / 100);
 }
 
-// Effectief % voor gebruik in bestaande rekenvelden (afgerond voor weergave)
-function effectiefBijtellingPct(catalogus, bijtellingInfo) {
-  if (!catalogus || catalogus <= 0) return bijtellingInfo.pct;
-  return Math.round(berekenBijtellingBedrag(catalogus, bijtellingInfo) / catalogus * 1000) / 10;
-}
-
-// ─── RDW FETCH (zelfde aanpak als Pseudo_eindheffing.html) ───
-async function rdwFetch(endpoint, kenteken) {
-  const url = `https://opendata.rdw.nl/resource/${endpoint}.json?kenteken=${encodeURIComponent(kenteken)}&$limit=1`;
-  const response = await fetch(url);
-  return response.json();
+async function rdwFetch(endpoint, kenteken, limit = 1) {
+  const url = `https://opendata.rdw.nl/resource/${endpoint}.json`
+    + `?kenteken=${encodeURIComponent(kenteken)}`
+    + `&$limit=${limit}&$order=brandstof_volgnummer`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), RDW_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: ctrl.signal });
+    if (!response.ok) {
+      throw new Error(`RDW antwoordde met status ${response.status}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ─── KENTEKEN ZOEKEN ───
@@ -812,9 +856,12 @@ async function zoekKenteken() {
   setStatus('loading', '<div class="spinner"></div>&nbsp; Gegevens ophalen bij RDW…');
 
   try {
+    // Alle brandstofregels ophalen in plaats van alleen de eerste: bij een
+    // plug-in hybride staat de brandstofmotor op volgnummer 1 en Elektriciteit
+    // op 2, en met $limit=1 was niet te zien dát het een hybride was.
     const [voertuigen, brandstofData] = await Promise.all([
-      rdwFetch('m9d7-ebf2', raw),
-      rdwFetch('8ys7-d773', raw)
+      rdwFetchVoertuig('m9d7-ebf2', raw),
+      rdwFetch('8ys7-d773', raw, 8)
     ]);
 
     if (!voertuigen || voertuigen.length === 0) {
@@ -830,28 +877,49 @@ async function zoekKenteken() {
     const model   = (v.handelsbenaming || v.type || '').trim();
     const cat     = v.catalogusprijs   ? Math.round(+v.catalogusprijs) : null;
     const bpm     = v.bruto_bpm        ? Math.round(+v.bruto_bpm)      : 0;
-    const datumRaw = v.datum_eerste_toelating || v.datum_eerste_afgifte_nederland || '';
-
-    // Ouderdom in maanden
+    // Ouderdom in maanden, via de strikte datumparser uit de kern in plaats van
+    // losse substring-berekeningen op de ruwe RDW-string.
+    const toelatingRdw = parseRdwDatum(String(v.datum_eerste_toelating || ''))
+      || parseRdwDatum(String(v.datum_eerste_afgifte_nederland || ''));
     let ouderdomMnd = 0;
-    if (datumRaw && datumRaw.length >= 6) {
-      const jaar  = parseInt(datumRaw.substring(0, 4));
-      const maand = parseInt(datumRaw.substring(4, 6));
+    if (toelatingRdw) {
       const nu = new Date();
-      ouderdomMnd = Math.max(0, (nu.getFullYear() - jaar) * 12 + (nu.getMonth() + 1 - maand));
+      ouderdomMnd = Math.max(0,
+        (nu.getFullYear() - toelatingRdw.getFullYear()) * 12
+        + (nu.getMonth() - toelatingRdw.getMonth()));
     }
 
-    const brandstof = (b?.brandstof_omschrijving || b?.brandstofsoort || v.brandstof_omschrijving || '').trim();
-    const co2       = b ? (+b.co2_uitstoot_gecombineerd || 0) : 0;
-    const isEV      = brandstof.toLowerCase().includes('elektr');
+    // Energiesoort uit ALLE brandstofregels. Een auto met alleen Elektriciteit
+    // is een volledige EV; Elektriciteit naast een brandstofmotor is een
+    // plug-in hybride en krijgt dus géén nulemissiekorting.
+    const soorten = (brandstofData || [])
+      .map(r => String(r.brandstof_omschrijving || r.brandstofsoort || '').trim())
+      .filter(Boolean);
+    const brandstof = soorten.join(' + ') ||
+      String(v.brandstof_omschrijving || '').trim();
+    const heeftStroom    = soorten.some(x => x.toLowerCase().includes('elektr'));
+    const heeftWaterstof = soorten.some(x => x.toLowerCase().includes('waterstof'));
+    const heeftMotor     = soorten.some(x => !x.toLowerCase().includes('elektr')
+                                          && !x.toLowerCase().includes('waterstof'));
+    const nieuweSoort = heeftWaterstof ? 'waterstof'
+      : (heeftStroom && heeftMotor) ? 'hybride'
+      : heeftStroom ? 'elektrisch'
+      : 'brandstof';
+    const isEV = nieuweSoort === 'elektrisch';
+
+    // CO2 van de eerste regel (laagste volgnummer, dus de hoofdmotor).
+    const co2 = b ? (+b.co2_uitstoot_gecombineerd || 0) : 0;
 
     // Verbruik: WLTP heeft voorkeur boven NEDC; elektrisch in Wh/km → kWh/100km
     let verbruikVal = 0;
     let verbruikBron = '';
     if (b) {
-      if (isEV) {
-        const wltp = +b.elektrisch_verbruik_enkel_elektrisch_wltp || 0;
-        const nedc = +b.elektrisch_verbruik_extern_opladen_wltp   || 0;
+      if (isEV || nieuweSoort === 'waterstof') {
+        // Bij een EV staat het elektrisch verbruik op de Elektriciteit-regel.
+        const eRij = (brandstofData || []).find(r =>
+          String(r.brandstof_omschrijving || '').toLowerCase().includes('elektr')) || b;
+        const wltp = +eRij.elektrisch_verbruik_enkel_elektrisch_wltp || 0;
+        const nedc = +eRij.elektrisch_verbruik_extern_opladen_wltp   || 0;
         if (wltp > 0) { verbruikVal = wltp / 10; verbruikBron = 'WLTP (kWh/100km)'; }
         else if (nedc > 0) { verbruikVal = nedc / 10; verbruikBron = 'WLTP extern (kWh/100km)'; }
       } else {
@@ -861,9 +929,6 @@ async function zoekKenteken() {
         else if (nedc > 0) { verbruikVal = nedc; verbruikBron = 'NEDC (l/100km)'; }
       }
     }
-    const bijtInfo  = bepaalBijtelling(co2, brandstof);
-    const bijtEff   = effectiefBijtellingPct(cat, bijtInfo);
-
     // Velden invullen
     if (cat)          setFilled('w_cat',  'cataloguswaarde',  cat);
     if (bpm)          setFilled('w_bpm',  'bpm_nieuw',        bpm);
@@ -873,44 +938,39 @@ async function zoekKenteken() {
     // Ook bij verbruik 0 (onbekend bij de RDW) moet de eenheid en de prijs kloppen.
     // De prijs alleen overschrijven als de energiesoort echt wisselt, zodat een
     // handmatig ingevulde prijs bij een gelijksoortige auto blijft staan.
-    const bsl = brandstof.toLowerCase();
-    const nieuweSoort = bsl.includes('waterstof') ? 'waterstof'
-      : isEV ? 'elektrisch'
-      : (bsl.includes('hybride') || bsl.includes('plug')) ? 'hybride'
-      : 'brandstof';
     const oudeSoort = energieSoortNu();
     zetEnergieSoort(nieuweSoort, nieuweSoort !== oudeSoort);
 
     // Datums voor het 60-maandenregime. De RDW levert JJJJMMDD.
-    const detDatum = parseRdwDatum(String(v.datum_eerste_toelating || ''));
+    const detDatum = toelatingRdw;
     if (detDatum) setFilled('w_det', 'datum_toelating', formatDatumNl(detDatum));
     const tenaamDatum = parseRdwDatum(String(v.datum_tenaamstelling || ''));
     if (tenaamDatum) setFilled('w_tenaam', 'datum_tenaamstelling', formatDatumNl(tenaamDatum));
     toonTenaamstellingVeld();
 
     // Restwaarde NA cataloguswaarde invullen zodat bedrag correct uitrekent
-    setRestwaardeSuggestion(brandstof, cat);
+    setRestwaardeSuggestion(nieuweSoort, cat);
 
-    // Bijtelling invullen met correct 2026-tarief
-    document.getElementById('bijtelling_pct').value = bijtEff;
-    document.getElementById('bijtelling_pct').classList.add('rdw-filled');
-    document.getElementById('w_bijt').classList.add('rdw-filled');
-    document.getElementById('forfait_pct').value = bijtEff;
-    document.getElementById('bijt_note').textContent =
-      'Belastingdienst 2026: ' + bijtInfo.label + (bijtInfo.cap && cat ? ' (effectief ' + bijtEff + '% over EUR ' + fmtN(cat) + ')' : '');
+    // Bijtelling en forfait volgens het 60-maandenregime, via dezelfde functie
+    // die bereken() gebruikt. Geen tweede model meer met een eigen uitkomst.
+    const mndNu   = +document.getElementById('gebruiksduur_mnd').value || 0;
+    const startNu = parseMaandJaar(document.getElementById('datum_start').value.trim())
+      || { jaar: new Date().getFullYear(), maand: new Date().getMonth() + 1 };
+    const periodeNu = werkBijtellingBij(cat || 0, mndNu, startNu);
 
     // Auto-infobanner
     const ci = document.getElementById('rdw_car_info');
     ci.style.display = 'flex';
     ci.className = 'rdw-car-info';
     ci.innerHTML = `
-      <div class="car-detail"><span>Voertuig</span><span class="car-name">${merk} ${model}</span></div>
+      <div class="car-detail"><span>Voertuig</span><span class="car-name">${escapeHtml(merk)} ${escapeHtml(model)}</span></div>
       ${cat ? `<div class="car-detail"><span>Cataloguswaarde</span><span>${fmtE(cat)}</span></div>` : ''}
       ${bpm ? `<div class="car-detail"><span>Bruto BPM</span><span>${fmtE(bpm)}</span></div>` : ''}
-      <div class="car-detail"><span>Brandstof</span><span>${brandstof || '—'}</span></div>
+      <div class="car-detail"><span>Brandstof</span><span>${escapeHtml(brandstof) || '—'}</span></div>
       <div class="car-detail"><span>CO₂</span><span>${co2 ? co2 + ' g/km' : '—'}</span></div>
-      <div class="car-detail"><span>Bijtelling 2026</span><span>${bijtInfo.cap && cat ? `${TARIEVEN_2026.bijtellingLaag}% / ${TARIEVEN_2026.bijtellingHoog}%` : `${bijtInfo.pct}%`}</span></div>
-      ${verbruikVal > 0 ? `<div class="car-detail"><span>Verbruik (${verbruikBron})</span><span>${verbruikVal.toFixed(2)} ${isEV ? 'kWh/100km' : 'l/100km'}</span></div>` : ''}
+      ${detDatum ? `<div class="car-detail"><span>Eerste toelating</span><span>${escapeHtml(formatDatumNl(detDatum))}</span></div>` : ''}
+      ${periodeNu && !periodeNu.fout ? `<div class="car-detail"><span>Bijtelling gemiddeld</span><span>${(periodeNu.gemiddeldPct * 100).toFixed(1)}%</span></div>` : ''}
+      ${verbruikVal > 0 ? `<div class="car-detail"><span>Verbruik (${escapeHtml(verbruikBron)})</span><span>${verbruikVal.toFixed(2)} ${escapeHtml(energieKenmerken().veldEenheid)}</span></div>` : ''}
       ${ouderdomMnd ? `<div class="car-detail"><span>Ouderdom</span><span>${ouderdomMnd} mnd</span></div>` : ''}
     `;
 
@@ -918,7 +978,10 @@ async function zoekKenteken() {
 
   } catch (err) {
     console.error(err);
-    setStatus('error', '❌ RDW niet bereikbaar vanuit de preview-omgeving. Open het bestand lokaal in Chrome of Edge — de koppeling werkt dan gewoon.');
+    const afgebroken = err && err.name === 'AbortError';
+    setStatus('error', afgebroken
+      ? `⏱️ De RDW reageerde niet binnen ${RDW_TIMEOUT_MS / 1000} seconden. Probeer het opnieuw of vul de gegevens handmatig in.`
+      : '❌ De gegevens konden niet bij de RDW worden opgehaald. Probeer het opnieuw of vul de gegevens handmatig in.');
   }
 
   btn.disabled = false;
@@ -1017,6 +1080,9 @@ function valideerInvoer(i) {
     fouten.push('Voor het ankerjaar van deze auto is geen verlagingspercentage bekend. De tabel loopt van 2017 tot en met 2027.');
   }
 
+  if (i.youngtimerJaar) {
+    waarschuwingen.push(`Deze auto is in ${i.youngtimerJaar} een youngtimer. De bijtelling gaat dan over 35% van de waarde in het economisch verkeer in plaats van over de cataloguswaarde; dat regime rekent deze tool niet.`);
+  }
   if (i.datumToelatingRuw === '') {
     waarschuwingen.push(i.isNulemissie
       ? 'Zonder datum eerste toelating kan de 60-maandentermijn niet worden bepaald; het ingevulde bijtellingspercentage wordt gebruikt.'
@@ -1080,6 +1146,21 @@ const EV_KORTING_LAATSTE_JAAR = 2027;
 // zonnecelautos pas vanaf 2021 (Belastingplan 2021).
 const EV_ZONNECEL_VANAF = 2021;
 
+// Youngtimergrens in jaren, per kalenderjaar. Overgenomen uit auto-fiscaal-2027.
+// De grens loopt op: 15 jaar t/m 2025, 16 jaar in 2026 en 25 jaar vanaf 2027.
+// Een youngtimer wordt bijgeteld tegen 35% van de waarde in het economisch
+// verkeer in plaats van een percentage van de cataloguswaarde. Deze tool rekent
+// alleen met de cataloguswaarde en modelleert dat regime NIET; de grens staat
+// hier om ervoor te kunnen waarschuwen.
+const YOUNGTIMER_LEEFTIJD = { 2024: 15, 2025: 15, 2026: 16 };
+const YOUNGTIMER_LEEFTIJD_VANAF_2027 = 25;
+const BIJTELLING_YOUNGTIMER = 0.35;   // % van de waarde economisch verkeer
+
+function youngtimerGrens(jaar) {
+  if (jaar >= 2027) return YOUNGTIMER_LEEFTIJD_VANAF_2027;
+  return YOUNGTIMER_LEEFTIJD[jaar] !== undefined ? YOUNGTIMER_LEEFTIJD[jaar] : 15;
+}
+
 // Strikte parser voor DD-MM-JJJJ en JJJJ-MM-DD. Weigert onbestaande datums
 // (31-02-2010) in plaats van ze stil door te laten rollen naar 3 maart.
 function parseDatum(str) {
@@ -1115,6 +1196,30 @@ function formatDatumNl(d) {
   if (!dt) return '—';
   const p = (n) => String(n).padStart(2, '0');
   return `${p(dt.getDate())}-${p(dt.getMonth() + 1)}-${dt.getFullYear()}`;
+}
+
+// Volledige jaren tussen twee datums.
+function leeftijdOp(datum, peildatum) {
+  const d = parseDatum(datum), ref = parseDatum(peildatum);
+  if (!d || !ref) return null;
+  let age = ref.getFullYear() - d.getFullYear();
+  const m = ref.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && ref.getDate() < d.getDate())) age--;
+  return age;
+}
+
+// Valt de auto in een van de kalenderjaren van de gebruiksduur onder de
+// youngtimergrens? Retourneert het eerste jaar waarin dat gebeurt, of null.
+// De grens verschuift per jaar, dus elk jaar apart toetsen.
+function youngtimerInPeriode(datumToelating, start, mnd) {
+  if (!parseDatum(datumToelating) || !(mnd > 0)) return null;
+  const eersteJaar = start.jaar;
+  const laatsteJaar = Math.floor((start.jaar * 12 + start.maand - 1 + mnd - 1) / 12);
+  for (let jaar = eersteJaar; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdOp(datumToelating, new Date(jaar, 0, 1));
+    if (leeftijd !== null && leeftijd >= youngtimerGrens(jaar)) return jaar;
+  }
+  return null;
 }
 
 function isPre2017(datumToelating) {
@@ -1364,6 +1469,8 @@ function bereken() {
   // Grondslag bijtelling/forfait = cataloguswaarde, anders aanschafprijs
   const basis = cat || aansch;
   const jaren = mnd > 0 ? mnd / 12 : 1;   // deling door nul vóór de validatie voorkomen
+  // Afgerond voor weergave: 50 maanden gaf eerder "4.166666666666667 jaar".
+  const jarenTekst = Number.isInteger(jaren) ? String(jaren) : jaren.toFixed(1).replace('.', ',');
 
   // Restwaarde & afschrijving
   const rv_pct    = +document.getElementById('restwaarde_pct').value    || 0;
@@ -1399,27 +1506,12 @@ function bereken() {
   // naar een veld dat niet op het scherm staat.
   toonTenaamstellingVeld();
 
-  let bijtPeriode = null;
-  if (detRaw && basis > 0 && mnd > 0) {
-    bijtPeriode = bijtellingOverPeriode(start, mnd, {
-      cataloguswaarde:     basis,
-      datumToelating:      detRaw,
-      datumTenaamstelling: tenaamRaw,
-      isNulemissie:        enk.isNulemissie,
-      isWaterstof:         enk.isWaterstof,
-    });
-  }
+  // Afgeleid percentage, tenzij de gebruiker zelf een percentage heeft getypt.
+  // Art. 3.20 lid 2 Wet IB kent dezelfde verlaging voor het autokostenforfait
+  // van de IB-ondernemer als voor de bijtelling, dus die volgt mee.
+  const bijtPeriode = werkBijtellingBij(basis, mnd, start);
   const regimeOk = bijtPeriode && !bijtPeriode.fout;
 
-  // Afgeleid percentage, tenzij de gebruiker zelf een percentage heeft getypt.
-  if (regimeOk && !handmatig.bijt) {
-    setFilled('w_bijt', 'bijtelling_pct', (bijtPeriode.gemiddeldPct * 100).toFixed(1));
-  }
-  if (regimeOk && !handmatig.forf) {
-    // Art. 3.20 lid 2 Wet IB kent dezelfde verlaging voor het autokostenforfait
-    // van de IB-ondernemer als voor de bijtelling, dus die volgt mee.
-    document.getElementById('forfait_pct').value = (bijtPeriode.gemiddeldPct * 100).toFixed(1);
-  }
   const bijt_pct_eff = (regimeOk && !handmatig.bijt)
     ? bijtPeriode.gemiddeldPct
     : (+document.getElementById('bijtelling_pct').value || 0) / 100;
@@ -1484,7 +1576,8 @@ function bereken() {
     startRuw:           startRaw,
     startGeldig:        startRaw === '' || parseMaandJaar(startRaw) !== null,
     regimeFout:         bijtPeriode ? (bijtPeriode.fout || null) : null,
-    isNulemissie:       enk.isNulemissie
+    isNulemissie:       enk.isNulemissie,
+    youngtimerJaar:     youngtimerInPeriode(detRaw, start, mnd)
   });
 
   const vbox = document.getElementById('val');
@@ -1520,7 +1613,7 @@ function bereken() {
   document.getElementById('row_afschr').style.display = leaseActief ? 'none' : '';
   document.getElementById('r_lease').textContent = fmtE(lease) + ' (incl. afschrijving, rente, MRB, verzekering en onderhoud)';
   document.getElementById('r_afschr').textContent =
-    fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jaren + 'jr)';
+    fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jarenTekst + 'jr)';
   const eenheid = enk.eenheid;
   document.getElementById('r_brand').textContent  = fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb} ${eenheid} × €${pl})`;
   // Bij lease zitten deze posten in de termijn; ze niet meetellen én toch als
@@ -1626,7 +1719,7 @@ function bereken() {
   evj.textContent = fmtE(Math.abs(vj)) + ' (' + richting + ')';
   evj.className = 'rv ' + (vj >= 0 ? 'mint' : 'yellow');
 
-  document.getElementById('r_duur').textContent = `${mnd} maanden (${jaren} jaar)`;
+  document.getElementById('r_duur').textContent = `${mnd} maanden (${jarenTekst} jaar)`;
 
   const evd = document.getElementById('r_vd');
   evd.textContent = fmtE(Math.abs(vd)) + ' (' + richting + ')';
@@ -1684,7 +1777,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:46</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:56</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
