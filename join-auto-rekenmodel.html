@@ -179,6 +179,11 @@
   .valbox strong { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
   .valbox ul   { margin: 0; padding-left: 18px; }
   .valbox li   { margin: 3px 0; }
+  .jaartabel      { margin: 6px 0 4px; padding: 8px 10px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+  .jaartabel-kop  { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); margin-bottom: 5px; }
+  .jaarrij        { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+  .jaarrij .jr    { color: var(--dim); }
+  .jaarrij.wissel .jr::after { content: ' ↘'; color: var(--yellow); }
   .placeholder { padding: 36px 18px; text-align: center; }
   .ph-icon { width: 52px; height: 52px; background: rgba(255,255,255,0.06); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 12px; }
   .placeholder p { font-size: 13px; color: var(--dim); line-height: 1.6; }
@@ -310,8 +315,33 @@
           <div class="pw" id="w_bpm"><span class="af">€</span><input type="number" id="bpm_nieuw" value="0" step="100"></div>
         </div>
         <div class="field">
-          <label>Ouderdom bij aanschaf</label>
-          <div class="sw" id="w_oud"><input type="number" id="ouderdom" value="0" min="0" step="1"><span class="af">mnd</span></div>
+          <label>Datum eerste toelating</label>
+          <div class="pw" id="w_det"><input type="text" id="datum_toelating" placeholder="dd-mm-jjjj"></div>
+          <div class="field-note">Bepaalt het bijtellingspercentage en de 60-maandentermijn</div>
+        </div>
+      </div>
+      <div class="fg1" style="margin-top:14px;">
+        <div class="field">
+          <label>Energiesoort</label>
+          <div class="rg" id="rg_energie">
+            <label class="rb"><input type="radio" name="energie" value="brandstof" checked> Benzine / diesel</label>
+            <label class="rb"><input type="radio" name="energie" value="hybride"> Plug-in hybride</label>
+            <label class="rb"><input type="radio" name="energie" value="elektrisch"> Elektrisch</label>
+            <label class="rb"><input type="radio" name="energie" value="waterstof"> Waterstof</label>
+          </div>
+          <div class="field-note" id="energie_note">Alleen volledig elektrisch en waterstof krijgen de nulemissiekorting</div>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="field" id="veld_tenaam" style="display:none;">
+          <label>Datum eerste tenaamstelling</label>
+          <div class="pw" id="w_tenaam"><input type="text" id="datum_tenaamstelling" placeholder="dd-mm-jjjj"></div>
+          <div class="field-note">Bij toelating t/m 31-12-2016 is dit de ankerdatum van de termijn</div>
+        </div>
+        <div class="field">
+          <label>Start gebruiksduur</label>
+          <div class="pw" id="w_start"><input type="text" id="datum_start" placeholder="mm-jjjj"></div>
+          <div class="field-note">Vanaf welke maand u de auto gaat gebruiken</div>
         </div>
       </div>
       <hr class="sep">
@@ -319,7 +349,7 @@
         <div class="field">
           <label>Bijtellingspercentage</label>
           <div class="sw" id="w_bijt"><input type="number" id="bijtelling_pct" value="22" step="0.5" min="0" max="35"><span class="af">%</span></div>
-          <div class="field-note" id="bijt_note">Zie rdw.nl op basis van DET en CO₂</div>
+          <div class="field-note" id="bijt_note">Wordt afgeleid uit de datum eerste toelating; vul handmatig in om te overschrijven</div>
         </div>
         <div class="field" id="veld_forfait">
           <label>Autokostenforfait</label>
@@ -451,6 +481,8 @@
 
           <div class="rs-title" id="ttl_fisc">Bijtelling en aftrekbeperking</div>
           <div class="rrow" id="row_bijt"><span class="rl" id="lbl_bijt">Bijtelling (catalogus × bijtelling%)</span><span class="rv muted" id="r_bijtelling_bedrag">—</span></div>
+          <div class="rrow" id="row_termijn"><span class="rl">60-maandentermijn</span><span class="rv muted" id="r_termijn">—</span></div>
+          <div id="bijt_jaren" class="jaartabel" style="display:none;"></div>
           <div class="rrow" id="row_forf"><span class="rl">Autokostenforfait (catalogus × forfait%)</span><span class="rv muted" id="r_forfait_bedrag">—</span></div>
           <div class="rrow" id="row_forf_beperk"><span class="rl">Aftrekbeperking (min. forfait, werkelijke kosten)</span><span class="rv muted" id="r_forfait">—</span></div>
           <div class="rrow" id="row_aftrekbaar"><span class="rl" id="lbl_aftrekbaar"><strong>Aftrekbaar ten laste van winst</strong></span><span class="rv mint" id="r_winst_z">—</span></div>
@@ -528,6 +560,7 @@ const TARIEVEN_2026 = {
   // Energieprijzen incl. btw — indicatief, pas aan naar de eigen situatie
   prijsBrandstof:       2.10,     // € per liter
   prijsStroom:          0.35,     // € per kWh (thuis laden)
+  prijsWaterstof:      13.00,     // € per kg — sterk wisselend, controleer altijd
 
   // Restwaarde-vuistregels na 4 jaar (bron: Autotelex / BOVAG / ING)
   restwaardeEV:         48,       // % van aanschafprijs
@@ -545,6 +578,10 @@ const TARIEVEN_2026 = {
   document.getElementById('vpb_ib').value         = T.vpbIbDividend;
   document.getElementById('km_vergoeding').value  = T.kmVergoeding;
   document.getElementById('prijs_liter').value    = T.prijsBrandstof;
+  // Startmaand van de gebruiksduur: standaard de huidige maand.
+  const nuInit = new Date();
+  document.getElementById('datum_start').value =
+    String(nuInit.getMonth() + 1).padStart(2, '0') + '-' + nuInit.getFullYear();
   document.getElementById('restwaarde_note').textContent =
     `Fossiel 4jr: ~${T.restwaardeFossiel}% | Elektrisch 4jr: ~${T.restwaardeEV}%`;
   // Bijwerk label btw-radioknop met actueel tarief
@@ -566,6 +603,23 @@ function toggleSection() {
 }
 
 // ─── ROL SWITCH ───
+// Energiesoort wisselt eenheid, prijs en het al dan niet toepassen van de korting
+document.querySelectorAll('input[name="energie"]').forEach(r => {
+  r.addEventListener('change', () => {
+    zetEnergieSoort(r.value, true);
+    if (document.getElementById('rc').style.display === 'block') bereken();
+  });
+});
+
+// Het tenaamstellingsveld is alleen nodig bij toelating t/m 31-12-2016
+document.getElementById('datum_toelating').addEventListener('input', () => {
+  toonTenaamstellingVeld();
+});
+
+// Zelf een percentage typen is een bewuste overschrijving van het afgeleide
+document.getElementById('bijtelling_pct').addEventListener('input', () => { handmatig.bijt = true; });
+document.getElementById('forfait_pct').addEventListener('input',    () => { handmatig.forf = true; });
+
 // Ook de salaris/dividend-keuze verandert het tarief in de DGA-tak
 document.querySelectorAll('input[name="dga_div"]').forEach(r => {
   r.addEventListener('change', () => {
@@ -646,23 +700,54 @@ function setStatus(type, html) {
   el.innerHTML = html;
 }
 
-// Energiesoort bepaalt de eenheid van het verbruiksveld, de default energieprijs
-// en de eenheid in de resultaatregel. Wordt gezet door de RDW-lookup; de
-// beginstand is brandstof. Zonder dit werd een elektrische auto tegen de
-// literprijs gerekend: bij 18 kWh/100km en 25.000 km scheelt dat een factor 6.
-let energieSoort = 'brandstof';
+// Energiesoort bepaalt de eenheid van het verbruiksveld, de energieprijs, de
+// eenheid in de resultaatregel en of de nulemissiekorting van toepassing is.
+// Zonder dit werd een elektrische auto tegen de literprijs gerekend: bij
+// 18 kWh/100km en 25.000 km scheelt dat een factor 6.
+//
+// Alleen volledig elektrisch en waterstof zijn nulemissie. Een plug-in hybride
+// niet: die rijdt in dit model op brandstof en krijgt het algemeen percentage.
+const ENERGIE = {
+  brandstof:  { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false },
+  hybride:    { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false },
+  elektrisch: { eenheid: 'kWh', veldEenheid: 'kWh/100',  prijsLabel: 'Prijs per kWh (incl. btw)',   prijs: 'prijsStroom',    isNulemissie: true,  isWaterstof: false },
+  waterstof:  { eenheid: 'kg',  veldEenheid: 'kg/100km', prijsLabel: 'Prijs per kg (incl. btw)',    prijs: 'prijsWaterstof', isNulemissie: true,  isWaterstof: true  },
+};
+
+// Zodra de gebruiker het bijtellings- of forfaitpercentage zelf typt, is dat een
+// bewuste overschrijving en leiden we het niet meer af uit de datum toelating.
+const handmatig = { bijt: false, forf: false };
+
+// De tenaamstelling is alleen de ankerdatum bij toelating t/m 31-12-2016; het
+// veld staat daarom pas in de weg als het nodig is.
+function toonTenaamstellingVeld() {
+  const det = document.getElementById('datum_toelating').value;
+  const nodig = isPre2017(det) === true;
+  document.getElementById('veld_tenaam').style.display = nodig ? '' : 'none';
+}
+
+function energieSoortNu() {
+  const r = document.querySelector('input[name="energie"]:checked');
+  return r ? r.value : 'brandstof';
+}
+
+function energieKenmerken() {
+  return ENERGIE[energieSoortNu()] || ENERGIE.brandstof;
+}
 
 function zetEnergieSoort(soort, vulPrijs) {
-  energieSoort = soort;
-  const stroom = soort === 'stroom';
+  const radio = document.querySelector(`input[name="energie"][value="${soort}"]`);
+  if (radio) radio.checked = true;
+  const k = ENERGIE[soort] || ENERGIE.brandstof;
   const eenheidEl = document.querySelector('#w_verb .af');
-  if (eenheidEl) eenheidEl.textContent = stroom ? 'kWh/100' : 'l/100km';
+  if (eenheidEl) eenheidEl.textContent = k.veldEenheid;
   const lbl = document.getElementById('lbl_prijs');
-  if (lbl) lbl.textContent = stroom ? 'Prijs per kWh (incl. btw)' : 'Prijs per liter (incl. btw)';
-  if (vulPrijs) {
-    setFilled('w_prijs', 'prijs_liter',
-      stroom ? TARIEVEN_2026.prijsStroom : TARIEVEN_2026.prijsBrandstof);
-  }
+  if (lbl) lbl.textContent = k.prijsLabel;
+  const note = document.getElementById('energie_note');
+  if (note) note.textContent = k.isNulemissie
+    ? 'Nulemissie: de verlaging van het bijtellingspercentage geldt 60 maanden vanaf de ankerdatum'
+    : 'Geen nulemissiekorting; het algemeen bijtellingspercentage geldt';
+  if (vulPrijs) setFilled('w_prijs', 'prijs_liter', TARIEVEN_2026[k.prijs]);
 }
 
 function setFilled(wrapId, inputId, val) {
@@ -782,15 +867,26 @@ async function zoekKenteken() {
     // Velden invullen
     if (cat)          setFilled('w_cat',  'cataloguswaarde',  cat);
     if (bpm)          setFilled('w_bpm',  'bpm_nieuw',        bpm);
-    if (ouderdomMnd)  setFilled('w_oud',  'ouderdom',         ouderdomMnd);
     if (verbruikVal > 0) {
       setFilled('w_verb', 'verbruik_100', verbruikVal.toFixed(2));
     }
     // Ook bij verbruik 0 (onbekend bij de RDW) moet de eenheid en de prijs kloppen.
     // De prijs alleen overschrijven als de energiesoort echt wisselt, zodat een
     // handmatig ingevulde prijs bij een gelijksoortige auto blijft staan.
-    const nieuweSoort = isEV ? 'stroom' : 'brandstof';
-    zetEnergieSoort(nieuweSoort, nieuweSoort !== energieSoort);
+    const bsl = brandstof.toLowerCase();
+    const nieuweSoort = bsl.includes('waterstof') ? 'waterstof'
+      : isEV ? 'elektrisch'
+      : (bsl.includes('hybride') || bsl.includes('plug')) ? 'hybride'
+      : 'brandstof';
+    const oudeSoort = energieSoortNu();
+    zetEnergieSoort(nieuweSoort, nieuweSoort !== oudeSoort);
+
+    // Datums voor het 60-maandenregime. De RDW levert JJJJMMDD.
+    const detDatum = parseRdwDatum(String(v.datum_eerste_toelating || ''));
+    if (detDatum) setFilled('w_det', 'datum_toelating', formatDatumNl(detDatum));
+    const tenaamDatum = parseRdwDatum(String(v.datum_tenaamstelling || ''));
+    if (tenaamDatum) setFilled('w_tenaam', 'datum_tenaamstelling', formatDatumNl(tenaamDatum));
+    toonTenaamstellingVeld();
 
     // Restwaarde NA cataloguswaarde invullen zodat bedrag correct uitrekent
     setRestwaardeSuggestion(brandstof, cat);
@@ -908,6 +1004,24 @@ function valideerInvoer(i) {
     fouten.push('Vul een aanschafprijs in, of een leasetermijn per jaar.');
   }
 
+  if (i.datumToelatingGeldig === false) {
+    fouten.push('De datum eerste toelating is geen geldige datum (dd-mm-jjjj).');
+  }
+  if (i.startGeldig === false) {
+    fouten.push('De start van de gebruiksduur is geen geldige maand (mm-jjjj).');
+  }
+  if (i.regimeFout === 'geen-ankerdatum') {
+    fouten.push('Vul de datum eerste tenaamstelling in: bij toelating t/m 31-12-2016 is dat de ankerdatum van de 60-maandentermijn.');
+  }
+  if (i.regimeFout === 'regime-onbekend') {
+    fouten.push('Voor het ankerjaar van deze auto is geen verlagingspercentage bekend. De tabel loopt van 2017 tot en met 2027.');
+  }
+
+  if (i.datumToelatingRuw === '') {
+    waarschuwingen.push(i.isNulemissie
+      ? 'Zonder datum eerste toelating kan de 60-maandentermijn niet worden bepaald; het ingevulde bijtellingspercentage wordt gebruikt.'
+      : 'Zonder datum eerste toelating wordt het ingevulde bijtellingspercentage gebruikt in plaats van het afgeleide.');
+  }
   if (i.kmTotaal > 0 && !(i.kmZakelijkWoonwerk > 0)) {
     waarschuwingen.push('Zonder zakelijke of woon-werk-kilometers is er in het privéscenario geen vergoeding, dus valt de vergelijking per definitie richting de auto van de zaak.');
   }
@@ -922,6 +1036,276 @@ function valideerInvoer(i) {
   }
 
   return { fouten: fouten, waarschuwingen: waarschuwingen, geldig: fouten.length === 0 };
+}
+
+// ─── 60-maandenregime nulemissie ──────────────────────────────────────────────
+//
+// Overgenomen uit auto-fiscaal-2027 (fiscale kern), augustus 2026. De
+// primitieven hieronder zijn letterlijk overgenomen zodat de tests uit die repo
+// hier één op één gelden; alleen de verwijzing naar TARIEVEN is vervangen door
+// het lokale BIJT-blok.
+//
+// LET OP — eenheden. Percentages in dit blok zijn FRACTIES (0,22), terwijl
+// TARIEVEN_2026 hele procenten gebruikt (22). Bewust niet geharmoniseerd: zo
+// blijft dit blok vergelijkbaar met de bron en is een volgende sync eenvoudig.
+
+const BIJT = {
+  regulier:     0.22,          // datum 1e toelating vanaf 01-01-2017
+  pre2017:      0.25,          // datum 1e toelating t/m 31-12-2016
+  pre2017Grens: '2016-12-31',
+};
+
+// De wet formuleert de korting NIET als "laag percentage tot een grensbedrag",
+// maar als een verlaging in procentpunten met een plafond in EUROS:
+// art. 3.20 lid 2 Wet IB 2001 / art. 13bis lid 2 Wet LB 1964. De cap-bedragen
+// die de toelichting noemt zijn daaruit afgeleid (max / pct):
+//   € 9.000 / 18% = € 50.000 (2019) · € 6.300 / 14% = € 45.000 (2020) · enz.
+// 2017 en 2018 kenden GEEN plafond: de verlaging gold over de hele grondslag.
+const EV_VERLAGING = {
+  2017: { pct: 0.18, max: null },   // geen plafond
+  2018: { pct: 0.18, max: null },   // geen plafond
+  2019: { pct: 0.18, max: 9000 },   // toelichting: t/m € 50.000
+  2020: { pct: 0.14, max: 6300 },   // t/m € 45.000
+  2021: { pct: 0.10, max: 4000 },   // t/m € 40.000
+  2022: { pct: 0.06, max: 2100 },   // t/m € 35.000
+  2023: { pct: 0.06, max: 1800 },   // t/m € 30.000
+  2024: { pct: 0.06, max: 1800 },   // t/m € 30.000
+  2025: { pct: 0.05, max: 1500 },   // t/m € 30.000
+  2026: { pct: 0.04, max: 1200 },   // t/m € 30.000
+  2027: { pct: 0.02, max:  600 },   // t/m € 30.000
+};
+// Per 1 januari 2028 vervalt de korting; dan geldt het algemeen percentage.
+const EV_KORTING_LAATSTE_JAAR = 2027;
+// Waterstof is uitgezonderd van het plafond vanaf 2019 (toen het plafond ontstond);
+// zonnecelautos pas vanaf 2021 (Belastingplan 2021).
+const EV_ZONNECEL_VANAF = 2021;
+
+// Strikte parser voor DD-MM-JJJJ en JJJJ-MM-DD. Weigert onbestaande datums
+// (31-02-2010) in plaats van ze stil door te laten rollen naar 3 maart.
+function parseDatum(str) {
+  if (Object.prototype.toString.call(str) === '[object Date]') {
+    return isNaN(str.getTime()) ? null : str;
+  }
+  if (typeof str !== 'string') return null;
+  const s = str.trim();
+  if (!s) return null;
+  let d, m, j;
+  let mm = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (mm) { d = +mm[1]; m = +mm[2]; j = +mm[3]; }
+  else {
+    mm = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (!mm) return null;
+    j = +mm[1]; m = +mm[2]; d = +mm[3];
+  }
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(j, m - 1, d);
+  // Rollover-detectie: 31-02 wordt 03-03 en valt hier af.
+  if (dt.getFullYear() !== j || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+
+// RDW levert JJJJMMDD.
+function parseRdwDatum(str) {
+  if (typeof str !== 'string' || !/^\d{8}$/.test(str)) return null;
+  return parseDatum(`${str.slice(0, 4)}-${str.slice(4, 6)}-${str.slice(6, 8)}`);
+}
+
+function formatDatumNl(d) {
+  const dt = parseDatum(d);
+  if (!dt) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(dt.getDate())}-${p(dt.getMonth() + 1)}-${dt.getFullYear()}`;
+}
+
+function isPre2017(datumToelating) {
+  const d = parseDatum(datumToelating);
+  if (!d) return null;
+  return d <= parseDatum(BIJT.pre2017Grens);
+}
+
+// Reguliere bijtellingspercentage: 25% voor autos met datum eerste toelating
+// t/m 31-12-2016, anders 22% (art. 10a.4 Wet IB 2001).
+function regulierBijtellingPct(datumToelating) {
+  const pre = isPre2017(datumToelating);
+  if (pre === null) return BIJT.regulier;
+  return pre ? BIJT.pre2017 : BIJT.regulier;
+}
+
+// Ankerdatum voor het 60-maandenregime:
+//   · datum eerste toelating vanaf 01-01-2017   — art. 3.20 lid 11 Wet IB 2001
+//   · eerste tenaamstelling bij toelating t/m 31-12-2016 — art. 10a.4 lid 2
+function evAnkerdatum(datumToelating, datumTenaamstelling) {
+  const det = parseDatum(datumToelating);
+  if (!det) return null;
+  return isPre2017(det) ? (parseDatum(datumTenaamstelling) || null) : det;
+}
+
+// Maandindex (jaar*12 + maand) van de LAATSTE maand binnen de 60-maandentermijn.
+// De termijn begint op de eerste dag van de maand ná de ankerdatum en loopt
+// 60 maanden, dus hij eindigt altijd op de laatste dag van een maand.
+function termijnEindeMaandIndex(ankerdatum) {
+  const d = parseDatum(ankerdatum);
+  if (!d) return null;
+  return (d.getFullYear() * 12 + d.getMonth() + 1) + 59;
+}
+
+// Laatste dag van de termijn, als Date — voor weergave.
+function termijnEindeDatum(ankerdatum) {
+  const idx = termijnEindeMaandIndex(ankerdatum);
+  if (idx === null) return null;
+  return new Date(Math.floor(idx / 12), (idx % 12) + 1, 0);
+}
+
+// Het regime van één kalenderjaar: verlagingspercentage plus plafond in euros.
+// Retourneert null als het jaar onbekend is — dan liever bijten dan gokken.
+function evRegime(jaar, { isWaterstof = false, isZonnecel = false } = {}) {
+  if (jaar > EV_KORTING_LAATSTE_JAAR) return { pct: 0, max: 0, geenKorting: true };
+  const v = EV_VERLAGING[jaar];
+  if (!v) return null;
+  const geenPlafond = v.max === null || isWaterstof ||
+    (isZonnecel && jaar >= EV_ZONNECEL_VANAF);
+  return { pct: v.pct, max: geenPlafond ? null : v.max };
+}
+
+function bijtellingMetVerlaging(waarde, basisPct, regime) {
+  const bruto = waarde * basisPct;
+  if (!regime || regime.geenKorting) return bruto;
+  const verlaging = regime.max === null
+    ? waarde * regime.pct
+    : Math.min(waarde * regime.pct, regime.max);
+  return Math.max(0, bruto - verlaging);
+}
+
+// Bijtelling nulemissie-auto voor één kalenderjaar, tijdsevenredig per maand.
+//
+// Systematiek (art. 3.20 lid 11 Wet IB 2001, Handboek Loonheffingen § 23.3.4):
+//   1. binnen de 60 maanden staan percentage EN plafond van het ankerjaar vast;
+//   2. direct na afloop wordt het percentage opnieuw vastgesteld volgens de
+//      regels die op dat moment gelden;
+//   3. elk volgend kalenderjaar opnieuw — er ontstaat GEEN nieuwe termijn.
+function bijtellingNulemissie(jaar, auto) {
+  const { cataloguswaarde, datumToelating, datumTenaamstelling,
+          isWaterstof = false, isZonnecel = false } = auto;
+  if (!parseDatum(datumToelating)) return { fout: 'ongeldige-datum' };
+  const waarde = Number(cataloguswaarde);
+  if (!(waarde > 0)) return { fout: 'geen-cataloguswaarde' };
+
+  const anker = evAnkerdatum(datumToelating, datumTenaamstelling);
+  if (!anker) return { fout: 'geen-ankerdatum' };
+
+  const eindIdx = termijnEindeMaandIndex(anker);
+  const binnen  = Math.max(0, Math.min(12, eindIdx - jaar * 12 + 1));
+  const na      = 12 - binnen;
+
+  const opts     = { isWaterstof, isZonnecel };
+  const basisPct = regulierBijtellingPct(datumToelating);
+  const ankerJaar = parseDatum(anker).getFullYear();
+
+  const regimeBinnen = binnen > 0 ? evRegime(ankerJaar, opts) : null;
+  const regimeNa     = na     > 0 ? evRegime(jaar, opts)      : null;
+  if (binnen > 0 && !regimeBinnen) return { fout: 'regime-onbekend', onbekendJaar: ankerJaar };
+  if (na     > 0 && !regimeNa)     return { fout: 'regime-onbekend', onbekendJaar: jaar };
+
+  const jaarBedragBinnen = binnen > 0 ? bijtellingMetVerlaging(waarde, basisPct, regimeBinnen) : 0;
+  const jaarBedragNa     = na     > 0 ? bijtellingMetVerlaging(waarde, basisPct, regimeNa)     : 0;
+  const bedrag = jaarBedragBinnen * (binnen / 12) + jaarBedragNa * (na / 12);
+
+  return {
+    bedrag, waarde, basisPct, ankerJaar, binnen, na,
+    ankerdatum: anker,
+    termijnEinde: termijnEindeDatum(anker),
+    termijnLooptAf: binnen > 0 && na > 0,
+    volledigBinnen: binnen === 12,
+    regimeBinnen, regimeNa, jaarBedragBinnen, jaarBedragNa,
+    effectiefPct: bedrag / waarde,
+  };
+}
+
+// ─── Bijtelling over de gebruiksduur ──────────────────────────────────────────
+//
+// Deze tool vergelijkt over een gebruiksduur in maanden, niet over één
+// kalenderjaar. De 60-maandentermijn loopt vrijwel nooit gelijk met die duur,
+// dus we rekenen maand voor maand: per kalendermaand het jaarbedrag dat op die
+// maand van toepassing is, gedeeld door twaalf.
+
+// Jaarbedrag van de bijtelling dat geldt in één kalendermaand.
+// maandIdx = jaar*12 + (maand-1). Retourneert null als het regime onbekend is.
+function bijtellingJaarbedragVoorMaand(maandIdx, auto) {
+  const waarde = Number(auto.cataloguswaarde);
+  if (!(waarde > 0)) return null;
+  const basisPct = regulierBijtellingPct(auto.datumToelating);
+
+  // Fossiel en (plug-in) hybride kennen geen nulemissiekorting.
+  if (!auto.isNulemissie) return waarde * basisPct;
+
+  const anker = evAnkerdatum(auto.datumToelating, auto.datumTenaamstelling);
+  if (!anker) return null;
+
+  // Binnen de termijn geldt het regime van het ankerjaar, daarna dat van het
+  // lopende kalenderjaar. De termijn eindigt midden in een jaar, vandaar per maand.
+  const binnenTermijn = maandIdx <= termijnEindeMaandIndex(anker);
+  const regimeJaar = binnenTermijn ? parseDatum(anker).getFullYear() : Math.floor(maandIdx / 12);
+  const regime = evRegime(regimeJaar, auto);
+  if (!regime) return null;
+  return bijtellingMetVerlaging(waarde, basisPct, regime);
+}
+
+// Parser voor MM-JJJJ, voor de startmaand van de gebruiksduur.
+function parseMaandJaar(str) {
+  if (typeof str !== 'string') return null;
+  const m = str.trim().match(/^(\d{1,2})[-\/](\d{4})$/);
+  if (!m) return null;
+  const maand = +m[1], jaar = +m[2];
+  if (maand < 1 || maand > 12) return null;
+  return { jaar: jaar, maand: maand };
+}
+
+// Bijtelling over de hele gebruiksduur, uitgesplitst per kalenderjaar.
+// start = { jaar, maand } (maand 1-12), mnd = gebruiksduur in maanden.
+function bijtellingOverPeriode(start, mnd, auto) {
+  if (!(mnd > 0)) return { fout: 'geen-gebruiksduur' };
+  if (!parseDatum(auto.datumToelating)) return { fout: 'ongeldige-datum' };
+  const waarde = Number(auto.cataloguswaarde);
+  if (!(waarde > 0)) return { fout: 'geen-cataloguswaarde' };
+  if (auto.isNulemissie && !evAnkerdatum(auto.datumToelating, auto.datumTenaamstelling)) {
+    return { fout: 'geen-ankerdatum' };
+  }
+
+  const startIdx = start.jaar * 12 + (start.maand - 1);
+  const perJaar = new Map();
+  let totaal = 0;
+
+  for (let i = 0; i < mnd; i++) {
+    const idx = startIdx + i;
+    const jaarbedrag = bijtellingJaarbedragVoorMaand(idx, auto);
+    if (jaarbedrag === null) {
+      return { fout: 'regime-onbekend', onbekendJaar: Math.floor(idx / 12) };
+    }
+    const jaar = Math.floor(idx / 12);
+    const rij = perJaar.get(jaar) || { jaar, maanden: 0, bedrag: 0, jaarbedrag };
+    rij.maanden += 1;
+    rij.bedrag  += jaarbedrag / 12;
+    // Wisselt het jaarbedrag binnen het kalenderjaar, dan is dat het jaar waarin
+    // de termijn afloopt; het weergegeven jaarbedrag is dan niet één getal.
+    if (rij.jaarbedrag !== jaarbedrag) rij.wisselt = true;
+    perJaar.set(jaar, rij);
+    totaal += jaarbedrag / 12;
+  }
+
+  const anker = auto.isNulemissie
+    ? evAnkerdatum(auto.datumToelating, auto.datumTenaamstelling) : null;
+
+  return {
+    totaal,
+    perJaar: [...perJaar.values()],
+    // Gemiddeld jaarbedrag over de duur. Het belastingeffect is lineair in de
+    // bijtelling, dus hiermee blijft de rest van het model per jaar rekenen.
+    gemiddeldJaarbedrag: totaal / (mnd / 12),
+    gemiddeldPct: totaal / (mnd / 12) / waarde,
+    basisPct: regulierBijtellingPct(auto.datumToelating),
+    termijnEinde: anker ? termijnEindeDatum(anker) : null,
+    ankerJaar: anker ? parseDatum(anker).getFullYear() : null,
+  };
 }
 
 // Netto btw-effect over de hele gebruiksduur. Positief = voordeel zakelijk.
@@ -959,8 +1343,8 @@ function bereken() {
   const kt = kp + kw + kz;
   const kv = +document.getElementById('km_vergoeding').value || TARIEVEN_2026.kmVergoeding;
   const vb = +document.getElementById('verbruik_100').value  || 7;
-  const pl = +document.getElementById('prijs_liter').value
-    || (energieSoort === 'stroom' ? TARIEVEN_2026.prijsStroom : TARIEVEN_2026.prijsBrandstof);
+  const enk = energieKenmerken();
+  const pl = +document.getElementById('prijs_liter').value || TARIEVEN_2026[enk.prijs];
 
   const mrb  = +document.getElementById('mrb').value        || 0;
   const verz = +document.getElementById('verzekering').value || 0;
@@ -998,6 +1382,51 @@ function bereken() {
   const k_totaal = leaseActief ? lease + k_brand + ovr
                                : k_afschr + k_brand + k_overig + k_rente;
 
+  // ── Bijtelling volgens het 60-maandenregime ──
+  // Binnen de termijn staat het regime van het ankerjaar vast, daarna geldt per
+  // kalenderjaar het dan geldende regime. Dat betekent dat het percentage
+  // gedurende de gebruiksduur verandert; we rekenen daarom per maand en gebruiken
+  // het gewogen gemiddelde. Het belastingeffect is lineair in de bijtelling, dus
+  // dat gemiddelde geeft exact hetzelfde totaal als per jaar rekenen.
+  const detRaw    = document.getElementById('datum_toelating').value.trim();
+  const tenaamRaw = document.getElementById('datum_tenaamstelling').value.trim();
+  const startRaw  = document.getElementById('datum_start').value.trim();
+  const nu        = new Date();
+  const start     = parseMaandJaar(startRaw) || { jaar: nu.getFullYear(), maand: nu.getMonth() + 1 };
+
+  // Het veld moet zichtbaar zijn zodra het relevant is, ook als de datum niet
+  // getypt maar gevuld is (RDW, paste): anders wijst de foutmelding hieronder
+  // naar een veld dat niet op het scherm staat.
+  toonTenaamstellingVeld();
+
+  let bijtPeriode = null;
+  if (detRaw && basis > 0 && mnd > 0) {
+    bijtPeriode = bijtellingOverPeriode(start, mnd, {
+      cataloguswaarde:     basis,
+      datumToelating:      detRaw,
+      datumTenaamstelling: tenaamRaw,
+      isNulemissie:        enk.isNulemissie,
+      isWaterstof:         enk.isWaterstof,
+    });
+  }
+  const regimeOk = bijtPeriode && !bijtPeriode.fout;
+
+  // Afgeleid percentage, tenzij de gebruiker zelf een percentage heeft getypt.
+  if (regimeOk && !handmatig.bijt) {
+    setFilled('w_bijt', 'bijtelling_pct', (bijtPeriode.gemiddeldPct * 100).toFixed(1));
+  }
+  if (regimeOk && !handmatig.forf) {
+    // Art. 3.20 lid 2 Wet IB kent dezelfde verlaging voor het autokostenforfait
+    // van de IB-ondernemer als voor de bijtelling, dus die volgt mee.
+    document.getElementById('forfait_pct').value = (bijtPeriode.gemiddeldPct * 100).toFixed(1);
+  }
+  const bijt_pct_eff = (regimeOk && !handmatig.bijt)
+    ? bijtPeriode.gemiddeldPct
+    : (+document.getElementById('bijtelling_pct').value || 0) / 100;
+  const forf_pct_eff = (regimeOk && !handmatig.forf)
+    ? bijtPeriode.gemiddeldPct
+    : forf_pct;
+
   // Privé: kilometervergoeding
   const km_vergoed = kv * (kz + kw);
 
@@ -1006,8 +1435,8 @@ function bereken() {
     kosten:    k_totaal,
     basis:     basis,
     kmVergoed: km_vergoed,
-    bijtPct:   bijt_pct,
-    forfPct:   forf_pct,
+    bijtPct:   bijt_pct_eff,
+    forfPct:   forf_pct_eff,
     ibTarief:  ibt,
     bvTarief:  bvt
   });
@@ -1049,7 +1478,13 @@ function bereken() {
     lease:              lease,
     aanschaf:           aansch,
     restwaarde:         restwaarde,
-    kostenOverig:       k_overig
+    kostenOverig:       k_overig,
+    datumToelatingRuw:  detRaw,
+    datumToelatingGeldig: detRaw === '' || parseDatum(detRaw) !== null,
+    startRuw:           startRaw,
+    startGeldig:        startRaw === '' || parseMaandJaar(startRaw) !== null,
+    regimeFout:         bijtPeriode ? (bijtPeriode.fout || null) : null,
+    isNulemissie:       enk.isNulemissie
   });
 
   const vbox = document.getElementById('val');
@@ -1086,7 +1521,7 @@ function bereken() {
   document.getElementById('r_lease').textContent = fmtE(lease) + ' (incl. afschrijving, rente, MRB, verzekering en onderhoud)';
   document.getElementById('r_afschr').textContent =
     fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jaren + 'jr)';
-  const eenheid = energieSoort === 'stroom' ? 'kWh' : 'l';
+  const eenheid = enk.eenheid;
   document.getElementById('r_brand').textContent  = fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb} ${eenheid} × €${pl})`;
   // Bij lease zitten deze posten in de termijn; ze niet meetellen én toch als
   // bedrag laten staan is precies de optelling die niet klopte.
@@ -1111,8 +1546,40 @@ function bereken() {
     ? 'Autokostenforfait en aftrekbeperking'
     : (isDga ? 'Bijtelling box 1 en kostenaftrek in de BV' : 'Bijtelling bij het loon');
 
-  document.getElementById('r_bijtelling_bedrag').textContent = fmtE(bijtelling_bedrag) + ` (${fmtE(basis)} × ${(bijt_pct*100).toFixed(1)}%)`;
-  document.getElementById('r_forfait_bedrag').textContent    = fmtE(forfait_bedrag)    + ` (${fmtE(basis)} × ${(forf_pct*100).toFixed(1)}%)`;
+  document.getElementById('r_bijtelling_bedrag').textContent = fmtE(bijtelling_bedrag) + ` (${fmtE(basis)} × ${(bijt_pct_eff*100).toFixed(1)}%)`;
+  document.getElementById('r_forfait_bedrag').textContent    = fmtE(forfait_bedrag)    + ` (${fmtE(basis)} × ${(forf_pct_eff*100).toFixed(1)}%)`;
+
+  // 60-maandentermijn en de opbouw per kalenderjaar
+  const rijTermijn = document.getElementById('row_termijn');
+  const tabel      = document.getElementById('bijt_jaren');
+  // Ook voor de IB-ondernemer relevant: het autokostenforfait volgt hetzelfde
+  // verlagingsregime (art. 3.20 lid 2 Wet IB), dus de termijn bepaalt daar ook
+  // de uitkomst.
+  const toonRegime = regimeOk;
+  rijTermijn.style.display = toonRegime ? '' : 'none';
+  if (toonRegime) {
+    document.getElementById('r_termijn').textContent = bijtPeriode.termijnEinde
+      ? `ankerjaar ${bijtPeriode.ankerJaar}, termijn t/m ${formatDatumNl(bijtPeriode.termijnEinde)}`
+      : `geen nulemissiekorting — basispercentage ${(bijtPeriode.basisPct*100).toFixed(0)}%`;
+  }
+
+  const meerdereJaren = regimeOk && bijtPeriode.perJaar.length > 1;
+  const varieert = meerdereJaren && new Set(
+    bijtPeriode.perJaar.map(r => Math.round(r.bedrag / r.maanden * 12))
+  ).size > 1;
+  tabel.style.display = (toonRegime && varieert) ? 'block' : 'none';
+  if (!(toonRegime && varieert)) {
+    tabel.innerHTML = '';   // niet laten staan: anders blijft een oude opbouw in de DOM
+  } else {
+    tabel.innerHTML = `<div class="jaartabel-kop">${isOnd ? 'Autokostenforfait' : 'Bijtelling'} per kalenderjaar</div>` +
+      bijtPeriode.perJaar.map(r =>
+        `<div class="jaarrij${r.wisselt ? ' wissel' : ''}">` +
+        `<span class="jr">${r.jaar}${r.maanden < 12 ? ` (${r.maanden} mnd)` : ''}</span>` +
+        `<span>${fmtE(r.bedrag)}</span></div>`
+      ).join('') +
+      `<div class="jaarrij" style="border-top:1px solid rgba(255,255,255,0.12);margin-top:4px;padding-top:4px;">` +
+      `<span class="jr">totaal over de gebruiksduur</span><span>${fmtE(bijtPeriode.totaal)}</span></div>`;
+  }
   document.getElementById('r_forfait').textContent = fmtE(Math.min(forfait_bedrag, k_totaal))
     + (forfait_bedrag > k_totaal ? ' ⚠ forfait > kosten → volledige aftrekbeperking' : '');
 
@@ -1217,7 +1684,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:32</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:46</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
