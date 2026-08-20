@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dividend & Uitkeringstoets — bouwman.tools</title>
+  <title>Dividend &amp; Uitkeringstoets — bouwman.tools</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap');
-
     :root {
       --navy:       #1E2D4E;
       --navy-deep:  #16223c;
@@ -21,9 +19,13 @@
       --muted:      #6b7a99;
       --warn:       #c0392b;
       --warn-light: #fdf0ee;
+      --amber:      #b45309;
+      --amber-light:#fffbeb;
+      --amber-bd:   #fcd34d;
       --ok:         #16a34a;
       --ok-light:   #f0fdf4;
-      --sans: 'Nunito Sans', sans-serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,6 +35,7 @@
       background: var(--bg);
       color: var(--text);
       padding: 0 0 80px;
+      -webkit-text-size-adjust: 100%;
     }
 
     header {
@@ -56,6 +59,7 @@
       background: var(--mint);
       border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
     .header-logo svg { display: block; }
     .header-title { font-size: 16px; font-weight: 800; color: #fff; }
@@ -63,7 +67,8 @@
 
     .content { max-width: 960px; margin: 0 auto; padding: 32px 24px 0; }
 
-    h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 14px; }
+    h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 14px; display: flex; align-items: center; }
+    h3 { font-size: 13px; font-weight: 700; color: var(--navy); margin: 4px 0 10px; }
 
     .card {
       background: var(--surface);
@@ -75,12 +80,12 @@
 
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
 
     label { font-size: 13px; font-weight: 600; color: var(--navy); display: block; margin-bottom: 6px; }
-    label .sub { font-weight: 400; color: var(--muted); font-size: 12px; display: block; margin-top: 1px; }
+    label .sub { font-weight: 400; color: var(--muted); font-size: 12px; display: block; margin-top: 2px; line-height: 1.45; }
 
-    input[type=number], input[type=text], input[type=date], select {
+    input[type=text], input[type=date], select, textarea {
       width: 100%; padding: 10px 12px;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -91,11 +96,19 @@
       transition: border-color .15s;
       appearance: none;
     }
-    input[type=number]:focus, input[type=text]:focus, input[type=date]:focus, select:focus {
+    textarea { min-height: 76px; resize: vertical; line-height: 1.5; }
+    input[type=text]:focus, input[type=date]:focus, select:focus, textarea:focus {
       outline: none; border-color: var(--mint);
     }
+    input.money { text-align: right; font-variant-numeric: tabular-nums; }
+    input.invalid, select.invalid { border-color: var(--warn); background: var(--warn-light); }
+    .field-echo { font-size: 11.5px; color: var(--muted); margin-top: 4px; min-height: 15px; }
+    .field-echo.err { color: var(--warn); font-weight: 600; }
 
-    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+
+    .lead { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.65; }
+    .lead strong { color: var(--navy); }
 
     /* Toets resultaat inline */
     .toets-result {
@@ -105,44 +118,97 @@
     }
     .toets-result.ok { background: var(--ok-light); border: 1px solid #86efac; }
     .toets-result.warn { background: var(--warn-light); border: 1px solid #fca5a5; }
+    .toets-result.amber { background: var(--amber-light); border: 1px solid var(--amber-bd); color: #713f12; }
     .toets-result.neutral { background: #f8faff; border: 1px solid #dbeafe; color: #1e40af; }
-    .toets-result .tr-icon { font-size: 18px; flex-shrink: 0; line-height: 1.3; }
+    .toets-result .tr-icon { font-size: 17px; flex-shrink: 0; line-height: 1.3; }
     .toets-result .tr-body strong { font-weight: 700; }
 
     /* Berekend veld */
     .calc-row {
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
       padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
     }
-    .calc-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; }
+    .calc-row.total { border-bottom: none; font-weight: 700; font-size: 14px; }
+    .calc-row.total .calc-label { color: var(--navy); }
     .calc-row .calc-label { color: var(--muted); }
-    .calc-row .calc-val { font-weight: 600; color: var(--navy); }
+    .calc-row .calc-val { font-weight: 600; color: var(--navy); white-space: nowrap; font-variant-numeric: tabular-nums; }
     .calc-box { background: #f8faff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
+    .neg { color: var(--warn); }
+    .pos { color: var(--ok); }
+
+    /* Prognosetabel */
+    .table-wrap { overflow-x: auto; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+    table.pg { border-collapse: collapse; width: 100%; min-width: 700px; font-size: 12.5px; }
+    table.pg th, table.pg td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+    table.pg th { background: #f8faff; font-weight: 700; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; position: sticky; top: 0; }
+    table.pg th:first-child, table.pg td:first-child { text-align: left; }
+    table.pg td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    table.pg tr.divrow { background: var(--mint-light); }
+    table.pg tr.negrow td.eind { color: var(--warn); font-weight: 800; }
+    table.pg input { width: 108px; padding: 5px 7px; font-size: 12.5px; text-align: right; border-radius: 6px; font-variant-numeric: tabular-nums; }
+    .pg-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+    .pg-tools .qf { max-width: 220px; }
+
+    .btn {
+      font-size: 12.5px; font-weight: 700; padding: 9px 16px; border-radius: 8px;
+      border: 1.5px solid var(--border); background: #fff; color: var(--navy);
+      cursor: pointer; font-family: var(--sans); transition: all .15s;
+    }
+    .btn:hover { border-color: var(--mint); background: var(--mint-light); }
+    .btn.small { padding: 6px 11px; font-size: 12px; }
+    .btn.danger:hover { border-color: #fca5a5; background: var(--warn-light); color: var(--warn); }
+
+    /* Herhaalbare rijen */
+    .rowset { display: flex; flex-direction: column; gap: 10px; }
+    .rrow { display: grid; grid-template-columns: 2fr 90px 1fr 40px; gap: 10px; align-items: start; }
+    .rrow.best { grid-template-columns: 1fr 40px; }
+    @media (max-width: 700px) {
+      .rrow { grid-template-columns: 1fr 1fr; }
+      .rrow > .rr-naam { grid-column: 1 / -1; }
+      .rrow.best { grid-template-columns: 1fr 44px; }
+      .rrow.best > .rr-naam { grid-column: auto; }
+    }
+    .rrow .rr-del { display: flex; align-items: center; justify-content: center; }
+    .rr-head { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: -2px; }
+    @media (max-width: 700px) { .rr-head { display: none; } }
+
+    /* Bevestigingen */
+    .confirm { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; }
+    .confirm input[type=checkbox] { width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; accent-color: var(--mint); }
+    .confirm label { margin: 0; font-weight: 600; font-size: 13px; line-height: 1.5; cursor: pointer; }
+    .confirm.checked { border-color: var(--mint); background: var(--mint-light); }
+    .radios { display: flex; flex-direction: column; gap: 8px; }
+    .radios .ro { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; line-height: 1.5; cursor: pointer; }
+    .radios input[type=radio] { width: 17px; height: 17px; margin-top: 1px; flex-shrink: 0; accent-color: var(--mint); }
+    fieldset { border: none; }
+    legend { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+    legend .sub { font-weight: 400; color: var(--muted); font-size: 12px; display: block; margin-top: 2px; line-height: 1.45; }
 
     /* Conclusie */
-    .conclusie-card {
-      border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 2px solid;
-    }
+    .conclusie-card { border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 2px solid; }
     .conclusie-card.ok { background: var(--ok-light); border-color: #86efac; }
+    .conclusie-card.amber { background: var(--amber-light); border-color: var(--amber-bd); }
     .conclusie-card.warn { background: var(--warn-light); border-color: #fca5a5; }
-    .conclusie-card .c-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .conclusie-card .c-icon { font-size: 22px; }
-    .conclusie-card .c-title { font-size: 16px; font-weight: 800; }
+    .conclusie-card .c-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+    .conclusie-card .c-icon { font-size: 22px; line-height: 1.1; }
+    .conclusie-card .c-title { font-size: 16px; font-weight: 800; line-height: 1.35; }
     .conclusie-card.ok .c-title { color: var(--ok); }
+    .conclusie-card.amber .c-title { color: var(--amber); }
     .conclusie-card.warn .c-title { color: var(--warn); }
     .conclusie-card .c-body { font-size: 13px; line-height: 1.65; }
     .conclusie-card strong { font-weight: 700; }
+    .conclusie-card ul { margin: 10px 0 0 0; }
 
-    .check-list { list-style: none; margin-top: 10px; }
-    .check-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; }
-    .check-list .ci { font-size: 16px; }
+    .check-list { list-style: none; }
+    .check-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; padding: 4px 0; line-height: 1.5; }
+    .check-list .ci { flex-shrink: 0; }
 
-    /* Notulen */
-    .notulen-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    /* Documenten */
+    .notulen-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .ntab {
       padding: 8px 18px; border-radius: 20px; border: 1.5px solid var(--border);
       font-size: 13px; font-weight: 600; cursor: pointer; background: #fff;
-      color: var(--muted); transition: all .15s;
+      color: var(--muted); transition: all .15s; font-family: var(--sans);
     }
     .ntab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
@@ -153,36 +219,42 @@
     .notulen-doc.active { display: block; }
 
     .doc-toolbar {
-      display: flex; gap: 8px; padding: 10px 14px;
+      display: flex; gap: 8px; padding: 10px 14px; flex-wrap: wrap; align-items: center;
       border-bottom: 1px solid var(--border); background: #f4f5f7;
       border-radius: 8px 8px 0 0;
     }
     .doc-btn {
-      font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 6px;
+      font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;
       border: 1.5px solid var(--border); background: #fff; color: var(--navy);
-      cursor: pointer; display: flex; align-items: center; gap: 5px;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
       transition: all .15s; font-family: var(--sans);
     }
     .doc-btn:hover { border-color: var(--mint); background: var(--mint-light); }
     .doc-btn.copied { background: var(--ok-light); border-color: #86efac; color: var(--ok); }
+    .doc-status { font-size: 11.5px; color: var(--muted); }
 
     .doc-text {
-      white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12.5px;
-      line-height: 1.75; padding: 20px 24px; color: #1a1a2e;
+      white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px;
+      line-height: 1.7; padding: 20px 24px; color: #1a1a2e;
       min-height: 300px; outline: none; border-radius: 0 0 8px 8px;
+      overflow-x: auto;
     }
     .doc-text[contenteditable=true]:focus { background: #fff; }
 
-    .info-box { background: #f8faff; border: 1px solid #dbeafe; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #1e40af; line-height: 1.6; margin-top: 16px; }
+    .info-box { background: #f8faff; border: 1px solid #dbeafe; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #1e40af; line-height: 1.65; margin-top: 16px; }
+    .info-box strong { font-weight: 700; }
+    .warn-box { background: var(--warn-light); border: 1px solid #fca5a5; border-radius: 8px; padding: 14px 16px; font-size: 12px; color: #7f1d1d; line-height: 1.65; margin-top: 16px; }
+    .warn-box ul { margin: 8px 0 0 18px; }
+    .warn-box li { margin-bottom: 4px; }
 
     .step-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 22px; height: 22px; border-radius: 50%; background: var(--navy);
-      color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-right: 6px;
+      color: #fff; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-right: 8px;
     }
 
-    #resultSection { display: none; }
-    #notulenSection { display: none; }
+    #docsSection { display: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -191,14 +263,14 @@
   <div class="header-inner">
     <div class="header-brand">
       <div class="header-logo">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
           <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </div>
       <div>
-        <div class="header-title">Dividend & Uitkeringstoets</div>
-        <div class="header-sub">Balanstoets · Liquiditeitstoets · Notulen genereren</div>
+        <div class="header-title">Dividend &amp; Uitkeringstoets</div>
+        <div class="header-sub">Balanstest · Liquiditeitsprognose · Besluitdocumenten</div>
       </div>
     </div>
   </div>
@@ -206,81 +278,129 @@
 
 <div class="content">
 
-  <!-- Stap 1: BV-gegevens -->
+  <div class="info-box" style="margin-top:0;margin-bottom:20px;">
+    Deze tool ondersteunt het <strong>vennootschapsrechtelijke</strong> besluit tot een uitkering door een B.V. (art. 2:216 BW):
+    de beperkte balanstest van lid 1 en de goedkeuring door het bestuur op grond van lid 2. De tool rekent geen
+    dividendbelasting of inkomstenbelasting en geeft geen fiscaal advies. De beoordeling van lid 2 blijft een
+    <strong>oordeel van het bestuur</strong>; deze tool structureert dat oordeel en legt het vast, maar neemt het niet over.
+  </div>
+
+  <!-- Stap 1: BV & besluit -->
   <div class="card">
-    <h2><span class="step-badge">1</span> BV & vergadering</h2>
+    <h2><span class="step-badge">1</span> Vennootschap &amp; besluit</h2>
     <div class="grid2">
       <div>
-        <label>Naam BV
-          <input type="text" id="naamBV" placeholder="Bouwman Beheer B.V." oninput="bereken()" />
+        <label for="naamBV">Naam B.V.
+          <input type="text" id="naamBV" placeholder="Bouwman Beheer B.V." autocomplete="off" />
         </label>
       </div>
       <div>
-        <label>Boekjaar waarover dividend
-          <select id="boekjaar" onchange="bereken()">
-            <option value="2025">2025</option>
-            <option value="2024">2024</option>
-            <option value="2023">2023</option>
-            <option value="2026">2026</option>
+        <label for="plaatsnaam">Plaats van het besluit
+          <span class="sub">Wordt gebruikt boven de ondertekening.</span>
+          <input type="text" id="plaatsnaam" placeholder="Amsterdam" autocomplete="off" />
+        </label>
+      </div>
+      <div>
+        <label for="aardUitkering">Aard van de uitkering
+          <select id="aardUitkering">
+            <option value="slot">Dividend / winstbestemming over een afgesloten boekjaar</option>
+            <option value="interim">Interim-uitkering over het lopende boekjaar</option>
+            <option value="reserves">Uitkering ten laste van de overige reserves</option>
           </select>
         </label>
       </div>
       <div>
-        <label>Naam aandeelhouder(s)
-          <span class="sub">Bijv. naam DGA of Holding B.V.</span>
-          <input type="text" id="naamAandeelhouder" placeholder="S. Bouwman" oninput="bereken()" />
+        <label for="boekjaar"><span id="boekjaarLabel">Boekjaar waarover wordt uitgekeerd</span>
+          <span class="sub" id="boekjaarSub">Het boekjaar waarvan de winst wordt bestemd.</span>
+          <select id="boekjaar"></select>
         </label>
       </div>
       <div>
-        <label>Naam bestuurder(s)
-          <span class="sub">Laat leeg als gelijk aan aandeelhouder</span>
-          <input type="text" id="naamBestuurder" placeholder="Zelfde als aandeelhouder" oninput="bereken()" />
+        <label for="datumBesluit">Datum besluit
+          <span class="sub">Datum van het aandeelhoudersbesluit én de bestuursgoedkeuring. Startpunt van de prognose.</span>
+          <input type="date" id="datumBesluit" />
         </label>
       </div>
       <div>
-        <label>Datum vergadering / besluit
-          <input type="date" id="datumVergadering" oninput="bereken()" />
-        </label>
-      </div>
-      <div>
-        <label>Verwachte uitkeringsdatum
-          <input type="date" id="datumUitkering" oninput="bereken()" />
-        </label>
-      </div>
-      <div>
-        <label>Plaatsnaam (voor handtekening)
-          <input type="text" id="plaatsnaam" placeholder="Amsterdam" oninput="bereken()" />
+        <label for="datumUitkering">Datum betaalbaarstelling / uitkering
+          <span class="sub">Het moment waarop het bedrag ter beschikking wordt gesteld. Mag niet vóór de besluitdatum liggen.</span>
+          <input type="date" id="datumUitkering" />
         </label>
       </div>
     </div>
+
+    <hr class="divider" />
+
+    <fieldset>
+      <legend>Bevoegd orgaan volgens de statuten
+        <span class="sub">Art. 2:216 lid 1 BW: de statuten kunnen de bevoegdheid tot vaststelling van uitkeringen beperken of aan een ander orgaan toekennen.</span>
+      </legend>
+      <div class="radios">
+        <label class="ro"><input type="radio" name="orgaan" value="ava" checked /> <span>Algemene vergadering — besluit in vergadering</span></label>
+        <label class="ro"><input type="radio" name="orgaan" value="enig" /> <span>Enig aandeelhouder — besluit buiten vergadering</span></label>
+        <label class="ro"><input type="radio" name="orgaan" value="ander" /> <span>Een ander orgaan of een beperkte bevoegdheid volgens de statuten</span></label>
+      </div>
+      <div id="orgaanAnderWrap" style="display:none;margin-top:10px;">
+        <label for="orgaanAnder">Naam van het bevoegde orgaan
+          <input type="text" id="orgaanAnder" placeholder="bijv. de vergadering van houders van aandelen B" autocomplete="off" />
+        </label>
+      </div>
+    </fieldset>
   </div>
 
-  <!-- Stap 2: Balanstoets -->
+  <!-- Stap 2: Aandeelhouders & bestuur -->
   <div class="card">
-    <h2><span class="step-badge">2</span> Balanstoets — art. 2:216 lid 1 BW</h2>
-    <div class="grid2">
+    <h2><span class="step-badge">2</span> Aandeelhouder(s) &amp; bestuur</h2>
+
+    <h3>Aandeelhouder(s) die het besluit nemen</h3>
+    <p class="lead">
+      Vul alleen in wat u daadwerkelijk kunt vaststellen. Percentages en bedragen per aandeelhouder zijn optioneel —
+      laat u ze leeg, dan bevatten de documenten geen uitspraak over stemverhoudingen of verdeling.
+      Vult u bedragen in, dan moet de som exact gelijk zijn aan het totale uitkeringsbedrag.
+    </p>
+    <div class="rrow rr-head" aria-hidden="true">
+      <div>Naam</div><div>Aandeel %</div><div>Bedrag uitkering</div><div></div>
+    </div>
+    <div class="rowset" id="ahRows"></div>
+    <div style="margin-top:12px;"><button type="button" class="btn small" id="addAh">+ Aandeelhouder toevoegen</button></div>
+
+    <hr class="divider" />
+
+    <h3>Bestuurder(s)</h3>
+    <p class="lead">Alle bestuurders die de goedkeuring op grond van art. 2:216 lid 2 BW verlenen en het bestuursbesluit ondertekenen.</p>
+    <div class="rrow best rr-head" aria-hidden="true"><div>Naam</div><div></div></div>
+    <div class="rowset" id="bestRows"></div>
+    <div style="margin-top:12px;"><button type="button" class="btn small" id="addBest">+ Bestuurder toevoegen</button></div>
+  </div>
+
+  <!-- Stap 3: Balanstest -->
+  <div class="card">
+    <h2><span class="step-badge">3</span> Beperkte balanstest — art. 2:216 lid 1 BW</h2>
+    <p class="lead">
+      De algemene vergadering is bevoegd tot vaststelling van uitkeringen <strong>voor zover het eigen vermogen groter is dan
+      de reserves die krachtens de wet of de statuten moeten worden aangehouden</strong>. Het gestorte aandelenkapitaal van
+      een B.V. vormt sinds de invoering van de Flex-B.V. géén ondergrens meer en wordt hier daarom niet in mindering gebracht.
+    </p>
+    <div class="grid3">
       <div>
-        <label>Eigen vermogen (totaal)
-          <span class="sub">Uit de (tussentijdse) balans</span>
-          <input type="number" id="eigenVermogen" value="0" min="0" step="1000" oninput="bereken()" />
+        <label for="eigenVermogen">Eigen vermogen
+          <span class="sub">Totaal eigen vermogen volgens de (tussentijdse) balans, ná verwerking van het resultaat. Een negatief bedrag mag worden ingevoerd.</span>
+          <input type="text" inputmode="decimal" class="money" id="eigenVermogen" placeholder="0,00" autocomplete="off" />
+          <span class="field-echo" id="echo_eigenVermogen"></span>
         </label>
       </div>
       <div>
-        <label>Gestort en opgevraagd aandelenkapitaal
-          <span class="sub">Nominale waarde geplaatste aandelen</span>
-          <input type="number" id="aandelenkapitaal" value="18000" min="0" step="1000" oninput="bereken()" />
+        <label for="verplichteReserves">Wettelijke en statutaire reserves
+          <span class="sub">Reserves die op grond van de wet of de statuten moeten worden aangehouden, zoals een wettelijke herwaarderingsreserve, een reserve deelnemingen of een andere verplichte reserve. Agio is bij een B.V. niet automatisch een verplichte reserve — neem het alleen op als de statuten of de wet dat voorschrijven.</span>
+          <input type="text" inputmode="decimal" class="money" id="verplichteReserves" placeholder="0,00" autocomplete="off" />
+          <span class="field-echo" id="echo_verplichteReserves"></span>
         </label>
       </div>
       <div>
-        <label>Wettelijke en statutaire reserves
-          <span class="sub">Niet-vrij-uitkeerbaar deel (agio, herwaardering, etc.)</span>
-          <input type="number" id="wettelijkeReserves" value="0" min="0" step="1000" oninput="bereken()" />
-        </label>
-      </div>
-      <div>
-        <label>Gewenst dividend
-          <span class="sub">Totale uitkering aan alle aandeelhouders</span>
-          <input type="number" id="dividend" value="0" min="0" step="1000" oninput="bereken()" />
+        <label for="dividend">Voorgenomen uitkering
+          <span class="sub">Totaalbedrag voor alle aandeelhouders samen. Exact bedrag, centen toegestaan.</span>
+          <input type="text" inputmode="decimal" class="money" id="dividend" placeholder="0,00" autocomplete="off" />
+          <span class="field-echo" id="echo_dividend"></span>
         </label>
       </div>
     </div>
@@ -289,68 +409,198 @@
     <div id="balansResultaat"></div>
   </div>
 
-  <!-- Stap 3: Liquiditeitstoets -->
+  <!-- Stap 4: Liquiditeitsprognose -->
   <div class="card">
-    <h2><span class="step-badge">3</span> Liquiditeitstoets — art. 2:216 lid 2 BW</h2>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6;">Het bestuur beoordeelt of de BV na de uitkering haar opeisbare schulden kan blijven voldoen gedurende ten minste 12 maanden. Vul de verwachte kaspositie in.</p>
+    <h2><span class="step-badge">4</span> Liquiditeitsprognose — art. 2:216 lid 2 BW</h2>
+    <p class="lead">
+      Het bestuur weigert de goedkeuring als het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de
+      uitkering <strong>niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden</strong>. Daarvoor is een
+      eindstand na twaalf maanden niet genoeg: de vennootschap moet op <em>elk moment</em> in de periode aan haar opeisbare
+      verplichtingen kunnen voldoen. Daarom wordt hieronder per maand geprognosticeerd.
+    </p>
+    <div class="info-box" style="margin-top:0;margin-bottom:18px;">
+      <strong>Zo voorkomt u dubbeltellingen.</strong> De bestaande kortlopende schulden worden niet als los bedrag afgetrokken.
+      Neem ze op in de maand waarin u ze daadwerkelijk betaalt, in de kolom <em>Betaling bestaande verplichtingen</em>.
+      In de kolom <em>Netto kasmutatie bedrijfsvoering</em> horen alleen de <em>toekomstige</em> ontvangsten en uitgaven
+      (omzet, inkoop, loon, huur, nieuwe belastingen over toekomstige perioden) — dus niet nog eens de schulden die er op
+      de startdatum al stonden.
+    </div>
+
     <div class="grid2">
       <div>
-        <label>Liquide middelen nu (bank + kas)
-          <input type="number" id="liquideMiddelen" value="0" min="0" step="1000" oninput="bereken()" />
+        <label for="liqStart">Liquide middelen bij aanvang
+          <span class="sub">Saldo bank en kas op de besluitdatum. Een negatief saldo (rekening-courantkrediet) mag worden ingevoerd.</span>
+          <input type="text" inputmode="decimal" class="money" id="liqStart" placeholder="0,00" autocomplete="off" />
+          <span class="field-echo" id="echo_liqStart"></span>
         </label>
       </div>
       <div>
-        <label>Kortlopende schulden / verplichtingen (nu)
-          <span class="sub">Crediteuren, belastingschulden, lening o/g &lt;1 jaar</span>
-          <input type="number" id="kortlopendeSchulden" value="0" min="0" step="1000" oninput="bereken()" />
-        </label>
-      </div>
-      <div>
-        <label>Verwachte netto kasstroom — 12 maanden
-          <span class="sub">Ontvangsten min kosten (excl. dividend), indicatief</span>
-          <input type="number" id="kasstroom12" value="0" step="1000" oninput="bereken()" />
+        <label for="bestaandeSchulden">Bestaande kortlopende schulden op de startdatum
+          <span class="sub">Alleen ter controle: crediteuren, belastingschulden en aflossingen die op de startdatum al openstaan. Dit bedrag wordt niet automatisch afgetrokken — plan het in de maandkolommen in.</span>
+          <input type="text" inputmode="decimal" class="money" id="bestaandeSchulden" placeholder="0,00" autocomplete="off" />
+          <span class="field-echo" id="echo_bestaandeSchulden"></span>
         </label>
       </div>
     </div>
+
+    <hr class="divider" />
+
+    <div class="pg-tools">
+      <div class="qf">
+        <label for="qfOps">Alle maanden vullen met
+          <span class="sub">Vaste netto kasmutatie per maand.</span>
+          <input type="text" inputmode="decimal" class="money" id="qfOps" placeholder="0,00" autocomplete="off" />
+        </label>
+      </div>
+      <button type="button" class="btn small" id="qfApply">Toepassen op 12 maanden</button>
+      <button type="button" class="btn small danger" id="pgClear">Prognose leegmaken</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="pg" id="pgTable">
+        <thead>
+          <tr>
+            <th scope="col">Maand</th>
+            <th scope="col">Beginstand</th>
+            <th scope="col">Netto kasmutatie bedrijfsvoering</th>
+            <th scope="col">Betaling bestaande verplichtingen</th>
+            <th scope="col">Uitkering</th>
+            <th scope="col">Eindstand</th>
+          </tr>
+        </thead>
+        <tbody id="pgBody"></tbody>
+      </table>
+    </div>
+    <p class="lead" style="margin-top:10px;margin-bottom:0;">
+      Uitgaven in de kolom <em>Betaling bestaande verplichtingen</em> voert u in als positief bedrag; ze worden afgetrokken.
+      De kolom <em>Netto kasmutatie bedrijfsvoering</em> mag negatief zijn. De prognose toetst de stand per maandeinde —
+      loopt de liquiditeit binnen een maand door een grote betaling tijdelijk verder terug, splits die maand dan
+      conservatief of verlaag de uitkering.
+    </p>
 
     <div class="calc-box" id="liqCalc"></div>
     <div id="liqResultaat"></div>
+  </div>
 
-    <div class="info-box" style="margin-top:16px;">
-      <strong>Let op:</strong> de liquiditeitstoets is een <em>bestuursoordeel</em>. Als het bestuur de uitkering goedkeurt terwijl de BV daarna niet aan haar verplichtingen kan voldoen, zijn bestuurders hoofdelijk aansprakelijk voor het tekort (art. 2:216 lid 3 BW). De berekening hier is indicatief — voeg aanvullende toelichting toe in het bestuursbesluit als de situatie complex is.
+  <!-- Stap 5: Bevestigingen -->
+  <div class="card">
+    <h2><span class="step-badge">5</span> Bevestigingen door het bestuur</h2>
+
+    <fieldset>
+      <legend>Zijn er buiten deze prognoseperiode bekende of redelijkerwijs voorzienbare verplichtingen of omstandigheden die de continuïteit kunnen beïnvloeden?
+        <span class="sub">
+          De beoordeling ziet in normale omstandigheden in ieder geval op de komende twaalf maanden. Zijn op het moment van
+          het besluit relevante verplichtingen of omstandigheden bekend die daarna liggen — een aflossing in één keer, een
+          belastingschuld met uitstel, een aflopend contract, een lopende procedure — dan moeten ook die worden meegenomen.
+        </span>
+      </legend>
+      <div class="radios">
+        <label class="ro"><input type="radio" name="naPeriode" value="nee" checked /> <span>Nee — er zijn geen zodanige verplichtingen of omstandigheden bekend</span></label>
+        <label class="ro"><input type="radio" name="naPeriode" value="ja" /> <span>Ja — er zijn bekende of voorzienbare verplichtingen of omstandigheden na de prognoseperiode</span></label>
+      </div>
+      <div id="naPeriodeWrap" style="display:none;margin-top:10px;">
+        <label for="naPeriodeToelichting">Toelichting
+          <span class="sub">Beschrijf de verplichting of omstandigheid, het bedrag en het moment. Deze tekst komt in het bestuursbesluit.</span>
+          <textarea id="naPeriodeToelichting" placeholder="Bijv.: aflossing lening o/g van € 150.000 in één termijn in maand 18; betalingsregeling Belastingdienst loopt door tot ..."></textarea>
+        </label>
+      </div>
+    </fieldset>
+
+    <hr class="divider" />
+
+    <fieldset>
+      <legend>Aandelenstructuur en winstrechten
+        <span class="sub">Art. 2:216 lid 5 t/m 11 BW: de statuten kunnen bepalen dat aandelen van een bepaalde soort geen of beperkt recht op winst of reserves hebben, en eigen aandelen tellen niet mee.</span>
+      </legend>
+      <div class="radios">
+        <label class="ro"><input type="radio" name="structuur" value="enkel" checked /> <span>Eén soort aandelen, zonder afwijkende winst- of reserveringsrechten, en de vennootschap houdt geen eigen aandelen</span></label>
+        <label class="ro"><input type="radio" name="structuur" value="bijzonder" /> <span>Er zijn bijzondere soorten aandelen, afwijkende winst- of reserveringsrechten, certificaten, of eigen aandelen</span></label>
+      </div>
+    </fieldset>
+
+    <hr class="divider" />
+
+    <div class="confirm" id="statutenWrap">
+      <input type="checkbox" id="statutenOk" />
+      <label for="statutenOk">
+        De statuten zijn gecontroleerd en bevatten geen bepaling die deze uitkering of de bevoegdheid van het hierboven
+        gekozen orgaan verhindert of anders regelt.
+        <span class="sub" style="font-weight:400;">Verplicht voordat de besluitdocumenten worden gegenereerd.</span>
+      </label>
     </div>
+
+    <hr class="divider" />
+
+    <fieldset>
+      <legend>Fiscale positie van de aandeelhouder(s)
+        <span class="sub">Alleen voor de fiscale signalering hieronder. Dit heeft geen invloed op de vennootschapsrechtelijke uitkomst.</span>
+      </legend>
+      <label for="ahType" class="sr-only">Fiscale positie van de aandeelhouder(s)</label>
+      <select id="ahType">
+        <option value="onbekend">Anders of onbekend</option>
+        <option value="np">Natuurlijk persoon, woonachtig in Nederland</option>
+        <option value="nlbv">Nederlandse vennootschap / holding</option>
+        <option value="buitenland">Buitenlandse aandeelhouder</option>
+        <option value="gemengd">Meerdere aandeelhouders met verschillende posities</option>
+      </select>
+    </fieldset>
   </div>
 
   <!-- Resultaat -->
   <div id="resultSection">
+    <div id="validatieCard"></div>
     <div id="conclusieCard"></div>
+    <div id="fiscaalCard"></div>
   </div>
 
-  <!-- Notulen -->
-  <div id="notulenSection">
+  <!-- Documenten -->
+  <div id="docsSection">
     <div class="card">
-      <h2><span class="step-badge">4</span> Notulen genereren</h2>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6;">Onderstaande documenten zijn gegenereerd op basis van jouw invoer. Je kunt de tekst nog aanpassen voor je kopieert of print.</p>
+      <h2><span class="step-badge">6</span> Besluitdocumenten</h2>
+      <p class="lead">
+        Beide documenten zijn opgebouwd uit uw invoer en de hierboven vastgelegde bevestigingen. Er staan geen feiten in
+        die u niet zelf hebt ingevoerd of bevestigd. U kunt de tekst nog aanpassen voordat u kopieert of print.
+      </p>
 
       <div class="notulen-tabs">
-        <button class="ntab active" onclick="switchTab('ava')">AVA-besluit</button>
-        <button class="ntab" onclick="switchTab('bestuur')">Bestuursbesluit & Uitkeringstoets</button>
+        <button type="button" class="ntab active" data-tab="ah">Aandeelhoudersbesluit</button>
+        <button type="button" class="ntab" data-tab="bestuur">Bestuursbesluit &amp; uitkeringstoets</button>
       </div>
 
-      <div class="notulen-doc active" id="docAva">
+      <div class="notulen-doc active" id="docAh">
         <div class="doc-toolbar">
-          <button class="doc-btn" onclick="kopieer('ava')">📋 Kopieer</button>
-          <button class="doc-btn" onclick="printDoc('ava')">🖨️ Printen</button>
+          <button type="button" class="doc-btn" data-copy="ah">Kopiëren</button>
+          <button type="button" class="doc-btn" data-print="ah">Printen</button>
+          <span class="doc-status" id="status_ah"></span>
         </div>
-        <div class="doc-text" id="tekstAva" contenteditable="true"></div>
+        <div class="doc-text" id="tekstAh" contenteditable="true" spellcheck="false"></div>
       </div>
 
       <div class="notulen-doc" id="docBestuur">
         <div class="doc-toolbar">
-          <button class="doc-btn" onclick="kopieer('bestuur')">📋 Kopieer</button>
-          <button class="doc-btn" onclick="printDoc('bestuur')">🖨️ Printen</button>
+          <button type="button" class="doc-btn" data-copy="bestuur">Kopiëren</button>
+          <button type="button" class="doc-btn" data-print="bestuur">Printen</button>
+          <span class="doc-status" id="status_bestuur"></span>
         </div>
-        <div class="doc-text" id="tekstBestuur" contenteditable="true"></div>
+        <div class="doc-text" id="tekstBestuur" contenteditable="true" spellcheck="false"></div>
+      </div>
+
+      <div class="warn-box">
+        <strong>Aansprakelijkheid — art. 2:216 lid 3 BW.</strong>
+        Kan de vennootschap na een uitkering niet voortgaan met het betalen van haar opeisbare schulden, dan geldt:
+        <ul>
+          <li>de bestuurders die dat ten tijde van de uitkering wisten of redelijkerwijs behoorden te voorzien, zijn
+              <em>jegens de vennootschap</em> hoofdelijk verbonden voor het tekort dat door de uitkering is ontstaan,
+              vermeerderd met de wettelijke rente vanaf de dag van de uitkering;</li>
+          <li>een bestuurder is niet verbonden als hij bewijst dat het niet aan hem te wijten is dat de vennootschap de
+              uitkering heeft gedaan en dat hij niet nalatig is geweest in het treffen van maatregelen om de gevolgen
+              daarvan af te wenden;</li>
+          <li>ook wie de uitkering ontving terwijl hij dit wist of redelijkerwijs behoorde te voorzien, is gehouden tot
+              vergoeding van het tekort — ieder voor niet meer dan het bedrag of de waarde van de ontvangen uitkering,
+              met wettelijke rente.</li>
+        </ul>
+        Het gaat dus om een verbondenheid jegens de vennootschap voor het door de uitkering ontstane tekort, niet om een
+        rechtstreekse hoofdelijke aansprakelijkheid voor het volledige tekort van de crediteuren.
       </div>
     </div>
   </div>
@@ -358,293 +608,1279 @@
 </div><!-- .content -->
 
 <script>
-function fmt(n) {
-  return '€ ' + Math.round(n).toLocaleString('nl-NL');
+'use strict';
+
+/* ============================================================
+   Bedragen — intern altijd in hele centen (integers)
+   ============================================================ */
+
+/**
+ * Parseert een door de gebruiker ingevoerd bedrag naar hele centen.
+ * Accepteert Nederlandse notatie (1.234,56) en puntnotatie (1234.56).
+ * @returns {{cents:number|null, empty:boolean, valid:boolean}}
+ */
+function parseCents(raw) {
+  if (raw === null || raw === undefined) return { cents: null, empty: true, valid: true };
+  let s = String(raw).trim();
+  if (s === '') return { cents: null, empty: true, valid: true };
+  s = s.replace(/[\s  ]/g, '').replace(/€/g, '').replace(/^\+/, '');
+
+  let neg = false;
+  if (s.charAt(0) === '-') { neg = true; s = s.slice(1); }
+  else if (s.slice(-1) === '-') { neg = true; s = s.slice(0, -1); }
+
+  if (s.indexOf(',') !== -1) {
+    // komma = decimaalteken, punten zijn duizendscheidingen
+    s = s.replace(/\./g, '');
+    const parts = s.split(',');
+    if (parts.length > 2) return { cents: null, empty: false, valid: false };
+    s = parts[0] + '.' + (parts[1] || '');
+  } else if (s.indexOf('.') !== -1) {
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
+      s = s.replace(/\./g, '');           // 12.345 -> 12345
+    } else {
+      const i = s.lastIndexOf('.');       // laatste punt = decimaalteken
+      s = s.slice(0, i).replace(/\./g, '') + '.' + s.slice(i + 1);
+    }
+  }
+
+  if (!/^\d*(\.\d*)?$/.test(s) || s === '' || s === '.') return { cents: null, empty: false, valid: false };
+
+  const parts = s.split('.');
+  const whole = parts[0] === '' ? 0 : parseInt(parts[0], 10);
+  const decRaw = (parts[1] || '') + '000';
+  let cents = whole * 100 + parseInt(decRaw.slice(0, 2), 10);
+  if (parseInt(decRaw.charAt(2), 10) >= 5) cents += 1;   // afronden op de cent
+  return { cents: neg ? -cents : cents, empty: false, valid: true };
 }
 
-function fmtDatum(isoStr) {
-  if (!isoStr) return '…';
-  const d = new Date(isoStr);
-  if (isNaN(d)) return isoStr;
-  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+/** Formatteert hele centen als Nederlands eurobedrag, exact op twee decimalen. */
+function eur(cents, opts) {
+  const o = opts || {};
+  const c = Math.trunc(cents || 0);
+  const neg = c < 0;
+  const a = Math.abs(c);
+  const whole = Math.floor(a / 100);
+  const frac = a % 100;
+  const w = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const body = w + ',' + String(frac).padStart(2, '0');
+  if (o.bare) return (neg ? '-' : '') + body;
+  return (neg ? '-' : '') + '€ ' + body;
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.ntab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.notulen-doc').forEach(d => d.classList.remove('active'));
-  if (tab === 'ava') {
-    document.querySelectorAll('.ntab')[0].classList.add('active');
-    document.getElementById('docAva').classList.add('active');
-  } else {
-    document.querySelectorAll('.ntab')[1].classList.add('active');
-    document.getElementById('docBestuur').classList.add('active');
+/** Signed weergave met expliciet plus- of minteken (voor kasstroomregels). */
+function eurSigned(cents, opts) {
+  const c = Math.trunc(cents || 0);
+  if (c === 0) return eur(0, opts);
+  return (c > 0 ? '+ ' : '- ') + eur(Math.abs(c), opts).replace('-', '');
+}
+
+/* ============================================================
+   Datums — altijd lokaal, nooit via UTC-parsing
+   ============================================================ */
+
+const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const MAANDEN_KORT = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+function todayISO() {
+  const d = new Date();
+  return isoFromParts(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+function isoFromParts(y, m, d) {
+  return String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+/** Parseert YYYY-MM-DD naar een lokale Date (geen UTC-shift). */
+function parseISO(iso) {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return dt;
+}
+function fmtDatum(iso) {
+  const d = parseISO(iso);
+  if (!d) return '';
+  return d.getDate() + ' ' + MAANDEN[d.getMonth()] + ' ' + d.getFullYear();
+}
+function addDaysISO(iso, days) {
+  const d = parseISO(iso);
+  if (!d) return '';
+  d.setDate(d.getDate() + days);
+  return isoFromParts(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+/** Aantal hele kalendermaanden tussen twee ISO-datums (op maandniveau). */
+function maandVerschil(isoA, isoB) {
+  const a = parseISO(isoA), b = parseISO(isoB);
+  if (!a || !b) return null;
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+}
+function maandLabel(isoStart, offset) {
+  const d = parseISO(isoStart);
+  if (!d) return 'maand ' + (offset + 1);
+  const m = d.getMonth() + offset;
+  const y = d.getFullYear() + Math.floor(m / 12);
+  return MAANDEN_KORT[((m % 12) + 12) % 12] + ' ' + y;
+}
+
+/* ============================================================
+   Kleine DOM-helpers
+   ============================================================ */
+
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = text;
+  return n;
+}
+function radioVal(name) {
+  const n = document.querySelector('input[name="' + name + '"]:checked');
+  return n ? n.value : null;
+}
+function txt(id) { const n = $(id); return n ? n.value.trim() : ''; }
+
+const PROGNOSE_MAANDEN = 12;
+
+/* ============================================================
+   Opbouw dynamische invoer
+   ============================================================ */
+
+function boekjaarOpties() {
+  const sel = $('boekjaar');
+  const nu = new Date().getFullYear();
+  const jaren = [];
+  for (let y = nu + 1; y >= nu - 6; y--) jaren.push(y);
+  sel.textContent = '';
+  jaren.forEach(y => {
+    const o = el('option', null, String(y));
+    o.value = String(y);
+    sel.appendChild(o);
+  });
+  sel.value = String(nu - 1);
+}
+
+function ahRow() {
+  const row = el('div', 'rrow');
+  const c1 = el('div', 'rr-naam');
+  const i1 = el('input'); i1.type = 'text'; i1.className = 'ah-naam'; i1.placeholder = 'Naam aandeelhouder'; i1.autocomplete = 'off';
+  i1.setAttribute('aria-label', 'Naam aandeelhouder');
+  c1.appendChild(i1);
+  const c2 = el('div');
+  const i2 = el('input'); i2.type = 'text'; i2.inputMode = 'decimal'; i2.className = 'ah-pct money'; i2.placeholder = '%'; i2.autocomplete = 'off';
+  i2.setAttribute('aria-label', 'Aandeel in procenten (optioneel)');
+  c2.appendChild(i2);
+  const c3 = el('div');
+  const i3 = el('input'); i3.type = 'text'; i3.inputMode = 'decimal'; i3.className = 'ah-bedrag money'; i3.placeholder = 'optioneel'; i3.autocomplete = 'off';
+  i3.setAttribute('aria-label', 'Bedrag van de uitkering aan deze aandeelhouder (optioneel)');
+  c3.appendChild(i3);
+  const c4 = el('div', 'rr-del');
+  const b = el('button', 'btn small danger', '×');
+  b.type = 'button'; b.title = 'Rij verwijderen'; b.setAttribute('aria-label', 'Aandeelhouder verwijderen');
+  b.addEventListener('click', () => { row.remove(); ensureMinRows(); bereken(); });
+  c4.appendChild(b);
+  row.append(c1, c2, c3, c4);
+  return row;
+}
+
+function bestRow() {
+  const row = el('div', 'rrow best');
+  const c1 = el('div', 'rr-naam');
+  const i1 = el('input'); i1.type = 'text'; i1.className = 'best-naam'; i1.placeholder = 'Naam bestuurder'; i1.autocomplete = 'off';
+  i1.setAttribute('aria-label', 'Naam bestuurder');
+  c1.appendChild(i1);
+  const c2 = el('div', 'rr-del');
+  const b = el('button', 'btn small danger', '×');
+  b.type = 'button'; b.title = 'Rij verwijderen'; b.setAttribute('aria-label', 'Bestuurder verwijderen');
+  b.addEventListener('click', () => { row.remove(); ensureMinRows(); bereken(); });
+  c2.appendChild(b);
+  row.append(c1, c2);
+  return row;
+}
+
+function ensureMinRows() {
+  if (!$('ahRows').querySelector('.rrow')) $('ahRows').appendChild(ahRow());
+  if (!$('bestRows').querySelector('.rrow')) $('bestRows').appendChild(bestRow());
+}
+
+function bouwPrognoseRijen() {
+  const body = $('pgBody');
+  body.textContent = '';
+  for (let i = 0; i < PROGNOSE_MAANDEN; i++) {
+    const tr = el('tr');
+    tr.id = 'pgrow_' + i;
+
+    const tdM = el('th'); tdM.scope = 'row'; tdM.className = 'pg-maand'; tdM.id = 'pgm_' + i;
+    tdM.style.textAlign = 'left'; tdM.style.fontWeight = '700'; tdM.style.textTransform = 'none';
+    tdM.style.letterSpacing = '0'; tdM.style.fontSize = '12.5px'; tdM.style.color = 'var(--navy)';
+    tdM.style.background = '#fff'; tdM.style.position = 'static';
+    tdM.textContent = 'maand ' + (i + 1);
+
+    const tdBegin = el('td', 'num'); tdBegin.id = 'pgb_' + i;
+
+    const tdOps = el('td');
+    const iOps = el('input'); iOps.type = 'text'; iOps.inputMode = 'decimal'; iOps.className = 'money pg-ops';
+    iOps.id = 'pgops_' + i; iOps.placeholder = '0,00'; iOps.autocomplete = 'off';
+    iOps.setAttribute('aria-label', 'Netto kasmutatie bedrijfsvoering maand ' + (i + 1));
+    tdOps.appendChild(iOps);
+
+    const tdVer = el('td');
+    const iVer = el('input'); iVer.type = 'text'; iVer.inputMode = 'decimal'; iVer.className = 'money pg-verpl';
+    iVer.id = 'pgver_' + i; iVer.placeholder = '0,00'; iVer.autocomplete = 'off';
+    iVer.setAttribute('aria-label', 'Betaling bestaande verplichtingen maand ' + (i + 1));
+    tdVer.appendChild(iVer);
+
+    const tdDiv = el('td', 'num'); tdDiv.id = 'pgd_' + i;
+    const tdEind = el('td', 'num eind'); tdEind.id = 'pge_' + i;
+
+    tr.append(tdM, tdBegin, tdOps, tdVer, tdDiv, tdEind);
+    body.appendChild(tr);
   }
 }
 
-function kopieer(which) {
-  const el = document.getElementById(which === 'ava' ? 'tekstAva' : 'tekstBestuur');
-  const tekst = el.innerText;
-  navigator.clipboard.writeText(tekst).then(() => {
-    const btn = el.closest('.notulen-doc').querySelector('.doc-btn');
-    btn.classList.add('copied');
-    btn.textContent = '✓ Gekopieerd';
-    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '📋 Kopieer'; }, 2000);
+/* ============================================================
+   Invoer inlezen
+   ============================================================ */
+
+/** Leest een geldveld, zet de foutstijl en schrijft de echo-regel. */
+function leesGeld(id, opts) {
+  const o = opts || {};
+  const node = $(id);
+  const r = parseCents(node.value);
+  const echo = $('echo_' + id);
+  node.classList.remove('invalid');
+  let fout = null;
+
+  if (!r.valid) {
+    fout = 'Ongeldig bedrag.';
+  } else if (!r.empty && o.min !== undefined && r.cents < o.min) {
+    fout = o.minMsg || 'Bedrag mag niet negatief zijn.';
+  }
+
+  const cents = (r.valid && !r.empty) ? r.cents : 0;
+  if (fout) node.classList.add('invalid');
+  if (echo) {
+    echo.textContent = fout ? fout : (r.empty ? '' : eur(cents));
+    echo.className = 'field-echo' + (fout ? ' err' : '');
+  }
+  return { cents: fout ? 0 : cents, fout: fout, leeg: r.empty };
+}
+
+function leesPercentage(node) {
+  const r = parseCents(node.value);         // hergebruik: 2 decimalen nauwkeurig
+  node.classList.remove('invalid');
+  if (!r.valid) { node.classList.add('invalid'); return { waarde: null, fout: true }; }
+  if (r.empty) return { waarde: null, fout: false };
+  return { waarde: r.cents / 100, fout: false };
+}
+
+function leesInvoer() {
+  const s = {};
+
+  s.naamBV = txt('naamBV');
+  s.plaats = txt('plaatsnaam');
+  s.aard = $('aardUitkering').value;
+  s.boekjaar = $('boekjaar').value;
+  s.datumBesluit = $('datumBesluit').value;
+  s.datumUitkering = $('datumUitkering').value;
+  s.orgaan = radioVal('orgaan');
+  s.orgaanAnder = txt('orgaanAnder');
+
+  s.aandeelhouders = [];
+  $('ahRows').querySelectorAll('.rrow').forEach(row => {
+    const naam = row.querySelector('.ah-naam').value.trim();
+    const pctNode = row.querySelector('.ah-pct');
+    const bedNode = row.querySelector('.ah-bedrag');
+    const pct = leesPercentage(pctNode);
+    const bed = parseCents(bedNode.value);
+    bedNode.classList.toggle('invalid', !bed.valid || (bed.valid && !bed.empty && bed.cents < 0));
+    s.aandeelhouders.push({
+      naam: naam,
+      pct: pct.waarde,
+      pctFout: pct.fout,
+      bedrag: (bed.valid && !bed.empty) ? bed.cents : null,
+      bedragFout: !bed.valid || (bed.valid && !bed.empty && bed.cents < 0)
+    });
+  });
+  s.ahMetNaam = s.aandeelhouders.filter(a => a.naam !== '');
+
+  s.bestuurders = [];
+  $('bestRows').querySelectorAll('.best-naam').forEach(n => {
+    const v = n.value.trim();
+    if (v) s.bestuurders.push(v);
+  });
+
+  const ev = leesGeld('eigenVermogen');
+  const res = leesGeld('verplichteReserves', { min: 0, minMsg: 'Verplichte reserves kunnen niet negatief zijn.' });
+  const div = leesGeld('dividend', { min: 0, minMsg: 'De uitkering kan niet negatief zijn.' });
+  s.eigenVermogen = ev.cents; s.evFout = ev.fout;
+  s.reserves = res.cents; s.resFout = res.fout;
+  s.dividend = div.cents; s.divFout = div.fout;
+
+  const liq = leesGeld('liqStart');
+  const bes = leesGeld('bestaandeSchulden', { min: 0, minMsg: 'Voer een positief bedrag in.' });
+  s.liqStart = liq.cents; s.liqFout = liq.fout;
+  s.bestaandeSchulden = bes.cents; s.besFout = bes.fout;
+
+  s.pgOps = []; s.pgVerpl = []; s.pgFouten = 0;
+  for (let i = 0; i < PROGNOSE_MAANDEN; i++) {
+    const o = parseCents($('pgops_' + i).value);
+    const v = parseCents($('pgver_' + i).value);
+    const oFout = !o.valid;
+    const vFout = !v.valid || (v.valid && !v.empty && v.cents < 0);
+    $('pgops_' + i).classList.toggle('invalid', oFout);
+    $('pgver_' + i).classList.toggle('invalid', vFout);
+    if (oFout || vFout) s.pgFouten++;
+    s.pgOps.push(oFout || o.empty ? 0 : o.cents);
+    s.pgVerpl.push(vFout || v.empty ? 0 : v.cents);
+  }
+
+  s.naPeriode = radioVal('naPeriode');
+  s.naPeriodeToelichting = txt('naPeriodeToelichting');
+  s.structuur = radioVal('structuur');
+  s.statutenOk = $('statutenOk').checked;
+  s.ahType = $('ahType').value;
+
+  return s;
+}
+
+/* ============================================================
+   Toetsen
+   ============================================================ */
+
+function balanstest(s) {
+  const ruimte = s.eigenVermogen - s.reserves;          // art. 2:216 lid 1 BW
+  const evNa = s.eigenVermogen - s.dividend;
+  const restRuimte = ruimte - s.dividend;
+  return {
+    ruimte: ruimte,
+    evNa: evNa,
+    restRuimte: restRuimte,
+    geenRuimte: ruimte < 0,
+    evNegatief: s.eigenVermogen < 0,
+    geslaagd: s.dividend > 0 && restRuimte >= 0,
+    maxUitkering: Math.max(0, ruimte)
+  };
+}
+
+function liquiditeitsprognose(s) {
+  const offset = (s.datumBesluit && s.datumUitkering) ? maandVerschil(s.datumBesluit, s.datumUitkering) : null;
+  const divMaand = (offset === null) ? null : offset + 1;      // 1-based
+  const binnenPeriode = divMaand !== null && divMaand >= 1 && divMaand <= PROGNOSE_MAANDEN;
+
+  const rijen = [];
+  let stand = s.liqStart;
+  let laagste = s.liqStart;
+  let laagsteMaand = 0;                                        // 0 = beginstand
+
+  for (let i = 0; i < PROGNOSE_MAANDEN; i++) {
+    const begin = stand;
+    const divBedrag = (binnenPeriode && divMaand === i + 1) ? s.dividend : 0;
+    const eind = begin + s.pgOps[i] - s.pgVerpl[i] - divBedrag;
+    rijen.push({ i: i, begin: begin, ops: s.pgOps[i], verpl: s.pgVerpl[i], dividend: divBedrag, eind: eind });
+    if (eind < laagste) { laagste = eind; laagsteMaand = i + 1; }
+    stand = eind;
+  }
+
+  const verplGepland = s.pgVerpl.reduce((a, b) => a + b, 0);
+  return {
+    rijen: rijen,
+    divMaand: divMaand,
+    binnenPeriode: binnenPeriode,
+    eindstand: stand,
+    laagste: laagste,
+    laagsteMaand: laagsteMaand,
+    startNegatief: s.liqStart < 0,
+    verplGepland: verplGepland,
+    verplOpen: s.bestaandeSchulden - verplGepland,
+    geslaagd: s.dividend > 0 && binnenPeriode && laagste >= 0
+  };
+}
+
+/* ============================================================
+   Validatie
+   ============================================================ */
+
+function valideer(s, bt, lp) {
+  const fouten = [];   // blokkerend
+  const punten = [];   // reden voor "nadere beoordeling"
+
+  if (s.evFout) fouten.push('Het eigen vermogen is geen geldig bedrag.');
+  if (s.resFout) fouten.push('De wettelijke en statutaire reserves vormen geen geldig bedrag.');
+  if (s.divFout) fouten.push('De voorgenomen uitkering is geen geldig bedrag.');
+  if (s.liqFout) fouten.push('De liquide middelen bij aanvang vormen geen geldig bedrag.');
+  if (s.besFout) fouten.push('De bestaande kortlopende schulden vormen geen geldig bedrag.');
+  if (s.pgFouten > 0) fouten.push('De liquiditeitsprognose bevat ' + s.pgFouten + ' ongeldig(e) bedrag(en).');
+
+  if (!s.naamBV) fouten.push('Vul de naam van de B.V. in.');
+  if (!s.plaats) fouten.push('Vul de plaats van het besluit in.');
+  if (!s.datumBesluit) fouten.push('Vul de datum van het besluit in.');
+  if (!s.datumUitkering) fouten.push('Vul de datum van de betaalbaarstelling in.');
+
+  if (s.datumBesluit && s.datumUitkering) {
+    const diff = parseISO(s.datumUitkering) - parseISO(s.datumBesluit);
+    if (diff < 0) {
+      fouten.push('De uitkeringsdatum (' + fmtDatum(s.datumUitkering) + ') ligt vóór de besluitdatum (' + fmtDatum(s.datumBesluit) + ').');
+    } else if (!lp.binnenPeriode) {
+      fouten.push('De uitkeringsdatum ligt meer dan twaalf maanden na de besluitdatum en valt daarmee buiten de prognoseperiode. Pas de data aan of beoordeel een langere periode buiten deze tool.');
+    }
+  }
+
+  if (s.ahMetNaam.length === 0) fouten.push('Vul ten minste één aandeelhouder in. Zonder naam kan geen aandeelhoudersbesluit worden opgesteld.');
+  if (s.bestuurders.length === 0) fouten.push('Vul ten minste één bestuurder in. Zonder bestuurder kan de goedkeuring ex art. 2:216 lid 2 BW niet worden vastgelegd.');
+
+  if (s.aandeelhouders.some(a => a.bedragFout)) fouten.push('Een bedrag per aandeelhouder is geen geldig positief bedrag.');
+  if (s.aandeelhouders.some(a => a.pctFout)) fouten.push('Een percentage per aandeelhouder is ongeldig.');
+
+  // Verdeling per aandeelhouder: alles of niets, en exact optellen
+  const metBedrag = s.ahMetNaam.filter(a => a.bedrag !== null);
+  s.verdeling = null;
+  if (metBedrag.length > 0) {
+    if (metBedrag.length !== s.ahMetNaam.length) {
+      fouten.push('Vul het bedrag per aandeelhouder voor álle aandeelhouders in, of voor geen enkele.');
+    } else {
+      const som = metBedrag.reduce((a, b) => a + b.bedrag, 0);
+      if (som !== s.dividend) {
+        fouten.push('De bedragen per aandeelhouder tellen op tot ' + eur(som) + ', terwijl de voorgenomen uitkering ' + eur(s.dividend) + ' is.');
+      } else {
+        s.verdeling = metBedrag;
+      }
+    }
+  }
+
+  const pctSom = s.ahMetNaam.reduce((a, b) => a + (b.pct === null ? 0 : b.pct), 0);
+  if (s.ahMetNaam.some(a => a.pct !== null) && Math.abs(pctSom - 100) > 0.001) {
+    punten.push('De ingevoerde aandelenpercentages tellen op tot ' + pctSom.toLocaleString('nl-NL', { maximumFractionDigits: 2 }) + '% in plaats van 100%. Controleer de aandelenverhouding.');
+  }
+
+  if (s.orgaan === 'ander' && !s.orgaanAnder) {
+    fouten.push('Vul de naam van het bevoegde orgaan in, of kies de algemene vergadering.');
+  }
+  if (s.orgaan === 'enig' && s.ahMetNaam.length > 1) {
+    fouten.push('U hebt "enig aandeelhouder" gekozen, maar meer dan één aandeelhouder ingevoerd.');
+  }
+
+  if (s.naPeriode === 'ja') {
+    punten.push('Het bestuur heeft aangegeven dat er buiten de prognoseperiode bekende of voorzienbare verplichtingen of omstandigheden zijn. Deze moeten in de beoordeling van art. 2:216 lid 2 BW worden meegewogen.');
+    if (!s.naPeriodeToelichting) fouten.push('Geef een toelichting op de bekende verplichtingen of omstandigheden na de prognoseperiode.');
+  }
+  if (s.structuur === 'bijzonder') {
+    punten.push('Er zijn bijzondere soorten aandelen, afwijkende winst- of reserveringsrechten, certificaten of eigen aandelen. Deze tool rekent niet met afwijkende gerechtigdheden — de verdeling en de gerechtigdheid moeten afzonderlijk worden beoordeeld (art. 2:216 lid 5 t/m 11 BW).');
+  }
+  if (s.orgaan === 'ander') {
+    punten.push('De bevoegdheid tot vaststelling van de uitkering is volgens de statuten aan een ander orgaan toegekend of beperkt. Controleer of het besluit door het juiste orgaan en met de juiste meerderheid wordt genomen.');
+  }
+  if (lp.startNegatief) {
+    punten.push('De liquide middelen bij aanvang zijn negatief (' + eur(s.liqStart) + '). Beoordeel of de beschikbare kredietruimte de prognose daadwerkelijk draagt.');
+  }
+  if (s.bestaandeSchulden > 0 && lp.verplOpen > 0) {
+    punten.push('Van de ' + eur(s.bestaandeSchulden) + ' bestaande kortlopende schulden is ' + eur(lp.verplGepland) + ' in de prognose ingepland. Er staat nog ' + eur(lp.verplOpen) + ' niet ingepland — neem die betalingen op in de betreffende maand.');
+  }
+
+  return { fouten: fouten, punten: punten };
+}
+
+/* ============================================================
+   Weergave
+   ============================================================ */
+
+function renderBalans(s, bt) {
+  const box = $('balansCalc');
+  box.textContent = '';
+  const rij = (label, val, cls, total) => {
+    const r = el('div', 'calc-row' + (total ? ' total' : ''));
+    r.appendChild(el('span', 'calc-label', label));
+    r.appendChild(el('span', 'calc-val' + (cls ? ' ' + cls : ''), val));
+    box.appendChild(r);
+  };
+  rij('Eigen vermogen', eur(s.eigenVermogen), s.eigenVermogen < 0 ? 'neg' : '');
+  rij('Af: wettelijke en statutaire reserves', '- ' + eur(s.reserves));
+  rij('Maximale uitkeringsruimte (art. 2:216 lid 1 BW)', eur(bt.ruimte), bt.ruimte < 0 ? 'neg' : 'pos');
+  rij('Voorgenomen uitkering', '- ' + eur(s.dividend));
+  rij('Eigen vermogen na uitkering', eur(bt.evNa), bt.evNa < s.reserves ? 'neg' : '');
+  rij('Resterende uitkeringsruimte na uitkering', eur(bt.restRuimte), bt.restRuimte < 0 ? 'neg' : 'pos', true);
+
+  const out = $('balansResultaat');
+  out.textContent = '';
+  let cls, icon, html;
+  if (s.dividend <= 0) {
+    cls = 'neutral'; icon = 'i';
+    html = 'Vul een uitkeringsbedrag in om de balanstest uit te voeren.';
+  } else if (bt.geenRuimte) {
+    cls = 'warn'; icon = '×';
+    html = '<strong>Balanstest niet doorstaan.</strong> Het eigen vermogen (' + eur(s.eigenVermogen) + ') is niet groter dan de reserves die krachtens de wet of de statuten moeten worden aangehouden (' + eur(s.reserves) + '). Er is <strong>geen uitkeringsruimte</strong>; op grond van art. 2:216 lid 1 BW is geen enkele uitkering toegestaan.'
+      + (bt.evNegatief ? ' Het eigen vermogen is bovendien negatief.' : ' Het eigen vermogen zelf is niet negatief, maar wordt volledig door verplichte reserves beslagen.');
+  } else if (!bt.geslaagd) {
+    cls = 'warn'; icon = '×';
+    html = '<strong>Balanstest niet doorstaan.</strong> De voorgenomen uitkering (' + eur(s.dividend) + ') is hoger dan de uitkeringsruimte (' + eur(bt.ruimte) + '). Het eigen vermogen zou dalen tot ' + eur(bt.evNa) + ' en daarmee onder de verplichte reserves van ' + eur(s.reserves) + '. Maximaal uitkeerbaar: <strong>' + eur(bt.maxUitkering) + '</strong>.';
+  } else {
+    cls = 'ok'; icon = '✓';
+    html = '<strong>Balanstest doorstaan.</strong> Het eigen vermogen blijft na de uitkering ' + eur(bt.evNa) + ' en daarmee ' + (bt.restRuimte === 0 ? 'gelijk aan' : 'boven') + ' de verplichte reserves van ' + eur(s.reserves) + '. Resterende uitkeringsruimte: <strong>' + eur(bt.restRuimte) + '</strong>.';
+  }
+  const wrap = el('div', 'toets-result ' + cls);
+  wrap.appendChild(el('div', 'tr-icon', icon));
+  const body = el('div', 'tr-body');
+  body.innerHTML = html;
+  wrap.appendChild(body);
+  out.appendChild(wrap);
+}
+
+function renderPrognose(s, lp) {
+  for (let i = 0; i < PROGNOSE_MAANDEN; i++) {
+    const r = lp.rijen[i];
+    $('pgm_' + i).textContent = s.datumBesluit ? maandLabel(s.datumBesluit, i) : 'maand ' + (i + 1);
+    $('pgb_' + i).textContent = eur(r.begin);
+    $('pgb_' + i).className = 'num' + (r.begin < 0 ? ' neg' : '');
+    $('pgd_' + i).textContent = r.dividend ? '- ' + eur(r.dividend) : '—';
+    $('pge_' + i).textContent = eur(r.eind);
+    const tr = $('pgrow_' + i);
+    tr.className = (r.dividend ? 'divrow ' : '') + (r.eind < 0 ? 'negrow' : '');
+  }
+
+  const box = $('liqCalc');
+  box.textContent = '';
+  const rij = (label, val, cls, total) => {
+    const r = el('div', 'calc-row' + (total ? ' total' : ''));
+    r.appendChild(el('span', 'calc-label', label));
+    r.appendChild(el('span', 'calc-val' + (cls ? ' ' + cls : ''), val));
+    box.appendChild(r);
+  };
+  rij('Liquide middelen bij aanvang', eur(s.liqStart), s.liqStart < 0 ? 'neg' : '');
+  rij('Uitkering opgenomen in', lp.binnenPeriode
+    ? (s.datumBesluit ? maandLabel(s.datumBesluit, lp.divMaand - 1) + ' (maand ' + lp.divMaand + ')' : 'maand ' + lp.divMaand)
+    : 'niet in de prognoseperiode');
+  rij('Bestaande kortlopende schulden ingepland', eur(lp.verplGepland) + (s.bestaandeSchulden > 0 ? ' van ' + eur(s.bestaandeSchulden) : ''), (s.bestaandeSchulden > 0 && lp.verplOpen > 0) ? 'neg' : '');
+  rij('Liquiditeitspositie einde prognoseperiode', eur(lp.eindstand), lp.eindstand < 0 ? 'neg' : 'pos');
+  rij('Laagste verwachte liquiditeitspositie', eur(lp.laagste) + (lp.laagsteMaand === 0 ? ' (bij aanvang)' : (s.datumBesluit ? ' (' + maandLabel(s.datumBesluit, lp.laagsteMaand - 1) + ')' : ' (maand ' + lp.laagsteMaand + ')')), lp.laagste < 0 ? 'neg' : 'pos', true);
+
+  const out = $('liqResultaat');
+  out.textContent = '';
+  let cls, icon, html;
+  if (s.dividend <= 0) {
+    cls = 'neutral'; icon = 'i';
+    html = 'Vul een uitkeringsbedrag in om de liquiditeitsprognose te beoordelen.';
+  } else if (!lp.binnenPeriode) {
+    cls = 'warn'; icon = '×';
+    html = '<strong>Prognose onvolledig.</strong> De uitkering valt niet binnen de prognoseperiode van twaalf maanden vanaf de besluitdatum. Controleer de besluit- en uitkeringsdatum.';
+  } else if (lp.laagste < 0) {
+    const wanneer = lp.laagsteMaand === 0 ? 'al bij aanvang' : 'in ' + (s.datumBesluit ? maandLabel(s.datumBesluit, lp.laagsteMaand - 1) : 'maand ' + lp.laagsteMaand);
+    cls = 'warn'; icon = '×';
+    html = '<strong>Prognose niet doorstaan.</strong> De liquiditeit wordt ' + wanneer + ' negatief (' + eur(lp.laagste) + ')'
+      + (lp.eindstand >= 0 ? ', ook al is de stand aan het einde van de periode positief (' + eur(lp.eindstand) + ')' : '')
+      + '. De vennootschap kan haar opeisbare schulden op dat moment niet blijven betalen. Verlaag de uitkering, verschuif het moment van betaalbaarstelling of herzie de prognose.';
+  } else {
+    cls = 'ok'; icon = '✓';
+    html = '<strong>Prognose doorstaan.</strong> In alle twaalf maanden blijft de verwachte liquiditeit positief. Laagste stand: <strong>' + eur(lp.laagste) + '</strong>' + (lp.laagsteMaand === 0 ? ' (bij aanvang)' : ' (' + (s.datumBesluit ? maandLabel(s.datumBesluit, lp.laagsteMaand - 1) : 'maand ' + lp.laagsteMaand) + ')') + '; stand aan het einde van de periode: <strong>' + eur(lp.eindstand) + '</strong>. De prognose is een onderbouwing, geen garantie — het oordeel blijft aan het bestuur.';
+  }
+  const wrap = el('div', 'toets-result ' + cls);
+  wrap.appendChild(el('div', 'tr-icon', icon));
+  const body = el('div', 'tr-body');
+  body.innerHTML = html;
+  wrap.appendChild(body);
+  out.appendChild(wrap);
+}
+
+function renderValidatie(v) {
+  const card = $('validatieCard');
+  card.textContent = '';
+  if (v.fouten.length === 0) return;
+  const c = el('div', 'conclusie-card warn');
+  const h = el('div', 'c-header');
+  h.appendChild(el('div', 'c-icon', '!'));
+  h.appendChild(el('div', 'c-title', 'Invoer onvolledig of onjuist — ' + v.fouten.length + ' punt' + (v.fouten.length === 1 ? '' : 'en')));
+  c.appendChild(h);
+  const b = el('div', 'c-body');
+  b.appendChild(el('div', null, 'Zolang deze punten niet zijn opgelost, worden geen besluitdocumenten gegenereerd.'));
+  const ul = el('ul', 'check-list');
+  v.fouten.forEach(f => {
+    const li = el('li');
+    li.appendChild(el('span', 'ci', '·'));
+    li.appendChild(el('span', null, f));
+    ul.appendChild(li);
+  });
+  b.appendChild(ul);
+  c.appendChild(b);
+  card.appendChild(c);
+}
+
+function renderConclusie(s, bt, lp, v, status) {
+  const card = $('conclusieCard');
+  card.textContent = '';
+  if (s.dividend <= 0) return;
+
+  const c = el('div', 'conclusie-card ' + (status === 'groen' ? 'ok' : status === 'oranje' ? 'amber' : 'warn'));
+  const h = el('div', 'c-header');
+  const b = el('div', 'c-body');
+
+  const lijst = (items) => {
+    const ul = el('ul', 'check-list');
+    items.forEach(it => {
+      const li = el('li');
+      li.appendChild(el('span', 'ci', it.ok === true ? '✓' : it.ok === false ? '×' : '!'));
+      const sp = el('span'); sp.innerHTML = it.txt;
+      li.appendChild(sp);
+      ul.appendChild(li);
+    });
+    return ul;
+  };
+
+  const deeltoetsen = [
+    { ok: bt.geslaagd, txt: '<strong>Balanstest (art. 2:216 lid 1 BW):</strong> ' + (bt.geslaagd
+        ? 'doorstaan — uitkeringsruimte ' + eur(bt.ruimte) + ', na uitkering resteert ' + eur(bt.restRuimte) + '.'
+        : 'niet doorstaan — maximaal uitkeerbaar ' + eur(bt.maxUitkering) + '.') },
+    { ok: lp.geslaagd, txt: '<strong>Liquiditeitsprognose (art. 2:216 lid 2 BW):</strong> ' + (lp.geslaagd
+        ? 'doorstaan — laagste verwachte stand ' + eur(lp.laagste) + ', eindstand ' + eur(lp.eindstand) + '.'
+        : (lp.binnenPeriode ? 'niet doorstaan — laagste verwachte stand ' + eur(lp.laagste) + '.' : 'onvolledig — de uitkering valt buiten de prognoseperiode.')) }
+  ];
+
+  if (status === 'rood') {
+    h.appendChild(el('div', 'c-icon', '×'));
+    h.appendChild(el('div', 'c-title', 'Uitkering kan op basis van de ingevoerde gegevens niet worden goedgekeurd'));
+    c.appendChild(h);
+    const p = el('div');
+    p.innerHTML = 'De voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> voldoet niet aan de vereisten van art. 2:216 BW zoals die uit de ingevoerde gegevens volgen.';
+    b.appendChild(p);
+    b.appendChild(lijst(deeltoetsen));
+    const na = el('div');
+    na.style.marginTop = '10px';
+    na.textContent = 'Verlaag het bedrag, verschuif het moment van uitkering of herstel de vermogens- of liquiditeitspositie voordat tot uitkering wordt overgegaan. Keert het bestuur toch uit, dan komt de verbondenheid van art. 2:216 lid 3 BW in beeld.';
+    b.appendChild(na);
+  } else if (status === 'oranje') {
+    h.appendChild(el('div', 'c-icon', '!'));
+    h.appendChild(el('div', 'c-title', 'Nadere beoordeling noodzakelijk'));
+    c.appendChild(h);
+    const p = el('div');
+    p.innerHTML = 'De beide rekenkundige deeltoetsen zijn doorstaan, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.';
+    b.appendChild(p);
+    b.appendChild(lijst(deeltoetsen));
+    const items = v.punten.map(t => ({ ok: null, txt: t }));
+    if (!s.statutenOk) items.push({ ok: null, txt: 'De statuten zijn nog niet als gecontroleerd bevestigd. Zonder die bevestiging worden geen besluitdocumenten gegenereerd.' });
+    b.appendChild(lijst(items));
+    const na = el('div');
+    na.style.marginTop = '10px';
+    na.textContent = s.statutenOk
+      ? 'De documenten hieronder zijn als concept opgesteld en bevatten een uitdrukkelijk voorbehoud. Het bestuur blijft verantwoordelijk voor de beoordeling op grond van art. 2:216 lid 2 BW.'
+      : 'Bevestig eerst de controle van de statuten in stap 5.';
+    b.appendChild(na);
+  } else {
+    h.appendChild(el('div', 'c-icon', '✓'));
+    h.appendChild(el('div', 'c-title', 'Op basis van de ingevoerde gegevens zijn geen belemmeringen voor de voorgenomen uitkering vastgesteld'));
+    c.appendChild(h);
+    const p = el('div');
+    p.innerHTML = 'Voor de uitkering van <strong>' + eur(s.dividend) + '</strong> zijn op basis van de ingevoerde gegevens en bevestigingen geen belemmeringen vastgesteld.';
+    b.appendChild(p);
+    b.appendChild(lijst(deeltoetsen.concat([
+      { ok: true, txt: 'Statuten gecontroleerd en geen belemmerende bepaling gemeld.' },
+      { ok: true, txt: 'Geen bekende of voorzienbare verplichtingen of omstandigheden buiten de prognoseperiode gemeld.' }
+    ])));
+    const na = el('div');
+    na.style.marginTop = '10px';
+    na.textContent = 'Dit is geen wettelijke goedkeuring. Het bestuur blijft zelf verantwoordelijk voor de beoordeling op grond van art. 2:216 lid 2 BW en moet daarbij alle omstandigheden betrekken die deze berekening niet kan kennen. De documenten hieronder leggen dat oordeel vast.';
+    b.appendChild(na);
+  }
+  c.appendChild(b);
+  card.appendChild(c);
+}
+
+const FISCAAL = {
+  np: {
+    kop: 'Aandeelhouder is een natuurlijk persoon in Nederland',
+    regels: [
+      'Beoordeel of dividendbelasting moet worden ingehouden. Bij een uitkering aan een natuurlijk persoon geldt de inhoudingsvrijstelling in beginsel niet.',
+      'Beoordeel of en hoe de ingehouden dividendbelasting bij de aandeelhouder verrekenbaar is met de inkomstenbelasting.',
+      'Beoordeel de gevolgen voor het aanmerkelijk belang (box 2) bij de aandeelhouder.'
+    ]
+  },
+  nlbv: {
+    kop: 'Aandeelhouder is een Nederlandse vennootschap of holding',
+    regels: [
+      'Beoordeel of de inhoudingsvrijstelling van toepassing is, onder meer of sprake is van een deelneming en of aan de voorwaarden wordt voldaan.',
+      'Past u de inhoudingsvrijstelling toe, beoordeel dan of en wanneer een opgaaf dividendbelasting moet worden gedaan.',
+      'Beoordeel de gevolgen voor de deelnemingsvrijstelling en, bij een fiscale eenheid, de gevolgen daarvan.'
+    ]
+  },
+  buitenland: {
+    kop: 'Aandeelhouder is in het buitenland gevestigd of woonachtig',
+    regels: [
+      'Beoordeel de Nederlandse inhoudingsplicht, een eventuele inhoudingsvrijstelling en de werking van het toepasselijke belastingverdrag.',
+      'Bij toepassing van een inhoudingsvrijstelling in een deelnemingssituatie geldt in beginsel een opgaafverplichting binnen één maand na het ter beschikking stellen.',
+      'Beoordeel ook de eventuele toepassing van de bronbelasting op dividenden naar laagbelastende jurisdicties en misbruiksituaties.'
+    ]
+  },
+  gemengd: {
+    kop: 'Meerdere aandeelhouders met verschillende fiscale posities',
+    regels: [
+      'Beoordeel per aandeelhouder afzonderlijk of dividendbelasting moet worden ingehouden en of een inhoudingsvrijstelling van toepassing is.',
+      'Eén aangifte kan meerdere gerechtigden betreffen; de behandeling per gerechtigde kan verschillen.'
+    ]
+  },
+  onbekend: {
+    kop: 'Fiscale positie van de aandeelhouder(s) onbekend',
+    regels: [
+      'Fiscale beoordeling nodig. Zonder informatie over de aandeelhouder kan niet worden vastgesteld of dividendbelasting moet worden ingehouden of dat een inhoudingsvrijstelling van toepassing is.',
+      'Stel eerst de fiscale positie van iedere gerechtigde vast voordat de uitkering wordt betaalbaar gesteld.'
+    ]
+  }
+};
+
+function renderFiscaal(s) {
+  const card = $('fiscaalCard');
+  card.textContent = '';
+  if (s.dividend <= 0) return;
+  const f = FISCAAL[s.ahType] || FISCAAL.onbekend;
+
+  const c = el('div', 'card');
+  c.appendChild(el('h2', null, 'Fiscale afwikkeling — afzonderlijk te beoordelen'));
+  const lead = el('p', 'lead');
+  lead.innerHTML = 'Deze tool beoordeelt uitsluitend het <strong>vennootschapsrechtelijke</strong> besluit tot uitkering. '
+    + 'De fiscale afwikkeling staat daar los van en is hier niet berekend of beoordeeld.';
+  c.appendChild(lead);
+
+  c.appendChild(el('h3', null, f.kop));
+  const ul = el('ul', 'check-list');
+  f.regels.forEach(r => {
+    const li = el('li');
+    li.appendChild(el('span', 'ci', '·'));
+    li.appendChild(el('span', null, r));
+    ul.appendChild(li);
+  });
+  c.appendChild(ul);
+
+  const box = el('div', 'info-box');
+  const duStr = fmtDatum(s.datumUitkering);
+  box.innerHTML = '<strong>Termijnen.</strong> Is dividendbelasting verschuldigd, dan moeten aangifte en betaling in beginsel '
+    + 'plaatsvinden binnen één maand na de dag waarop het dividend ter beschikking is gesteld. '
+    + (duStr ? 'Met een betaalbaarstelling op ' + duStr + ' betekent dat een termijn tot en met ongeveer ' + fmtDatum(addDaysISO(s.datumUitkering, 30)) + '. ' : '')
+    + 'Wordt een inhoudingsvrijstelling toegepast, dan kan in plaats daarvan een opgaaf dividendbelasting nodig zijn, in beginsel binnen dezelfde termijn. '
+    + 'Controleer de exacte termijn en de te gebruiken formulieren bij de Belastingdienst.';
+  c.appendChild(box);
+
+  if (s.ahType === 'onbekend') {
+    const w = el('div', 'toets-result amber');
+    w.appendChild(el('div', 'tr-icon', '!'));
+    const bd = el('div', 'tr-body');
+    bd.innerHTML = '<strong>Fiscale beoordeling nodig.</strong> Er is te weinig informatie over de aandeelhouder(s) om iets over de dividendbelasting te kunnen zeggen. Deze tool doet daarover geen aanname.';
+    w.appendChild(bd);
+    c.appendChild(w);
+  }
+
+  card.appendChild(c);
+}
+
+/* ============================================================
+   Documenten
+   ============================================================ */
+
+const KOL = 16;
+const NBSP = ' ';
+/** Bedrag voor doorlopende documenttekst; de harde ruimte houdt het bedrag bij elkaar. */
+function eurD(cents) { return '€' + NBSP + eur(cents, { bare: true }); }
+function bedragRegel(label, cents, breedte, teken) {
+  const b = breedte || 52;
+  let val;
+  if (teken === '-') val = (cents === 0 ? '' : '- ') + eur(Math.abs(cents), { bare: true });
+  else if (teken === '+') val = (cents < 0 ? '- ' : '+ ') + eur(Math.abs(cents), { bare: true });
+  else val = eur(cents, { bare: true });
+  return label.padEnd(b) + val.padStart(KOL);
+}
+function scheidingsRegel(breedte) {
+  return ''.padEnd(breedte || 52) + '-'.repeat(KOL);
+}
+function pad(str, n) { return String(str).padEnd(n); }
+function padL(str, n) { return String(str).padStart(n); }
+
+function aardOmschrijving(s, hoofdletter) {
+  let t;
+  if (s.aard === 'interim') t = 'interim-uitkering over het lopende boekjaar ' + s.boekjaar;
+  else if (s.aard === 'reserves') t = 'uitkering ten laste van de overige reserves';
+  else t = 'dividend over het boekjaar ' + s.boekjaar + ' (winstbestemming)';
+  return hoofdletter ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+function orgaanNaam(s) {
+  if (s.orgaan === 'enig') return 'de enig aandeelhouder';
+  if (s.orgaan === 'ander') return s.orgaanAnder;
+  return 'de algemene vergadering';
+}
+
+function bestuurAanduiding(s) {
+  return s.bestuurders.length === 1 ? 'de bestuurder' : 'het bestuur';
+}
+
+function voorbehoudBlok(v, s) {
+  if (v.punten.length === 0) return '';
+  const regels = ['LET OP - NADERE BEOORDELING NOODZAKELIJK', ''];
+  regels.push('Dit document is een concept. Bij het opstellen zijn de volgende punten');
+  regels.push('vastgesteld die eerst nadere beoordeling vragen:');
+  regels.push('');
+  v.punten.forEach((p, i) => {
+    regels.push(...wrapTekst((i + 1) + '. ' + p, 74, '   '));
+  });
+  regels.push('');
+  regels.push('Stel dit document niet vast en ga niet tot uitkering over voordat deze');
+  regels.push('punten zijn beoordeeld en de uitkomst daarvan is vastgelegd.');
+  regels.push('');
+  regels.push('='.repeat(74));
+  regels.push('');
+  return regels.join('\n');
+}
+
+/** Eenvoudige woordafbreking voor platte tekst. */
+function wrapTekst(tekst, breedte, vervolgIndent) {
+  const woorden = String(tekst).replace(/[ 	]+/g, ' ').trim().split(' ');
+  const ind = vervolgIndent || '';
+  const uit = [];
+  let regel = '';
+  woorden.forEach(w => {
+    if (regel === '') { regel = w; return; }
+    const kandidaat = regel + ' ' + w;
+    const max = uit.length === 0 ? breedte : breedte - ind.length;
+    if (kandidaat.length > max) { uit.push(uit.length === 0 ? regel : ind + regel); regel = w; }
+    else regel = kandidaat;
+  });
+  if (regel !== '') uit.push(uit.length === 0 ? regel : ind + regel);
+  return uit;
+}
+
+function aandeelhouderRegels(s) {
+  return s.ahMetNaam.map(a => {
+    let r = '- ' + a.naam;
+    const extra = [];
+    if (a.pct !== null) extra.push('aandeel ' + a.pct.toLocaleString('nl-NL', { maximumFractionDigits: 2 }) + '%');
+    if (s.verdeling && a.bedrag !== null) extra.push('uitkering ' + eurD(a.bedrag));
+    if (extra.length) r += ' (' + extra.join('; ') + ')';
+    return r;
   });
 }
 
-function printDoc(which) {
-  const el = document.getElementById(which === 'ava' ? 'tekstAva' : 'tekstBestuur');
-  const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Notulen</title>
-    <style>body{font-family:'Courier New',monospace;font-size:13px;line-height:1.8;padding:40px;color:#111;}
-    @media print{body{padding:20px;}}</style></head>
-    <body><pre>${el.innerText}</pre><script>window.print();<\/script></body></html>`);
-  w.document.close();
+function maakAandeelhoudersbesluit(s, bt, lp, v) {
+  const L = [];
+  const vb = voorbehoudBlok(v, s);
+  if (vb) L.push(vb);
+
+  const kop = s.orgaan === 'enig'
+    ? 'BESLUIT VAN DE ENIG AANDEELHOUDER'
+    : (s.orgaan === 'ander' ? 'BESLUIT TOT UITKERING' : 'BESLUIT VAN DE ALGEMENE VERGADERING VAN AANDEELHOUDERS');
+
+  L.push(kop);
+  L.push('van de besloten vennootschap met beperkte aansprakelijkheid');
+  L.push(s.naamBV);
+  L.push('');
+  L.push('Datum besluit        : ' + fmtDatum(s.datumBesluit));
+  L.push('Plaats               : ' + s.plaats);
+  L.push('Aard van de uitkering: ' + aardOmschrijving(s, true));
+  L.push('Bedrag               : € ' + eur(s.dividend, { bare: true }));
+  L.push('Betaalbaarstelling   : ' + fmtDatum(s.datumUitkering));
+  L.push('');
+  L.push('');
+  L.push('1. BESLUITVORMEND ORGAAN');
+  L.push('');
+  if (s.orgaan === 'enig') {
+    L.push(...wrapTekst('Dit besluit is genomen door de enig aandeelhouder buiten vergadering, met inachtneming van artikel 2:238 BW. Het bestuur is in de gelegenheid gesteld advies uit te brengen.', 74));
+  } else if (s.orgaan === 'ander') {
+    L.push(...wrapTekst('Dit besluit is genomen door ' + s.orgaanAnder + ', dat op grond van de statuten bevoegd is tot vaststelling van uitkeringen (art. 2:216 lid 1, tweede volzin, BW).', 74));
+  } else {
+    L.push(...wrapTekst('Dit besluit is genomen door de algemene vergadering, die op grond van artikel 2:216 lid 1 BW bevoegd is tot bestemming van de winst en tot vaststelling van uitkeringen, voor zover het eigen vermogen groter is dan de reserves die krachtens de wet of de statuten moeten worden aangehouden.', 74));
+  }
+  L.push('');
+  L.push(...wrapTekst('De statuten zijn gecontroleerd en bevatten geen bepaling die deze uitkering of de bevoegdheid van dit orgaan verhindert of anders regelt.', 74));
+  L.push('');
+  L.push('');
+  L.push(s.ahMetNaam.length === 1 ? '2. AANDEELHOUDER' : '2. AANDEELHOUDERS');
+  L.push('');
+  L.push(s.ahMetNaam.length === 1 ? 'Als aandeelhouder is opgegeven:' : 'Als aandeelhouders zijn opgegeven:');
+  L.push('');
+  L.push(...aandeelhouderRegels(s));
+  L.push('');
+  if (!s.verdeling) {
+    L.push(...wrapTekst('De verdeling van de uitkering over de aandeelhouders is in dit besluit niet vastgelegd en vindt plaats overeenkomstig de statuten en de gerechtigdheid van de aandelen.', 74));
+    L.push('');
+  }
+  if (s.structuur === 'bijzonder') {
+    L.push(...wrapTekst('Opgegeven is dat er bijzondere soorten aandelen, afwijkende winst- of reserveringsrechten, certificaten of eigen aandelen zijn. De gerechtigdheid tot deze uitkering moet op grond van de statuten en artikel 2:216 lid 5 tot en met 11 BW afzonderlijk worden vastgesteld; dit besluit legt die vaststelling niet vast.', 74));
+    L.push('');
+  }
+  L.push('');
+  L.push('3. BESLUIT');
+  L.push('');
+  L.push(...wrapTekst('Besloten wordt tot vaststelling van een ' + aardOmschrijving(s, false) + ' ten bedrage van ' + eurD(s.dividend) + '.', 74));
+  L.push('');
+  if (s.verdeling) {
+    L.push('De uitkering wordt als volgt vastgesteld:');
+    L.push('');
+    const breedte = Math.max(30, Math.min(52, Math.max.apply(null, s.verdeling.map(a => a.naam.length)) + 4));
+    s.verdeling.forEach(a => L.push('  ' + bedragRegel(a.naam, a.bedrag, breedte)));
+    L.push('  ' + scheidingsRegel(breedte));
+    L.push('  ' + bedragRegel('Totaal', s.dividend, breedte));
+    L.push('');
+  }
+  L.push(...wrapTekst('De uitkering wordt betaalbaar gesteld op ' + fmtDatum(s.datumUitkering) + ', niet eerder dan nadat het bestuur de hierna bedoelde goedkeuring heeft verleend.', 74));
+  L.push('');
+  L.push('');
+  L.push('4. BESTUURSGOEDKEURING (ART. 2:216 LID 2 BW)');
+  L.push('');
+  L.push(...wrapTekst('Dit besluit heeft geen gevolgen zolang het bestuur daaraan geen goedkeuring heeft verleend. Het bestuur weigert die goedkeuring slechts indien het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de uitkering niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden.', 74));
+  L.push('');
+  L.push(...wrapTekst('De uitkering wordt niet betaalbaar gesteld en niet uitbetaald voordat die goedkeuring is verleend en schriftelijk is vastgelegd.', 74));
+  L.push('');
+  L.push('');
+  L.push('5. ONDERTEKENING');
+  L.push('');
+  L.push('Aldus besloten te ' + s.plaats + ' op ' + fmtDatum(s.datumBesluit) + '.');
+  L.push('');
+  L.push(...wrapTekst('Ondertekent een rechtspersoon, vermeld dan onder de handtekening tevens de naam en de hoedanigheid van degene die haar vertegenwoordigt.', 74));
+  L.push('');
+  L.push('');
+  s.ahMetNaam.forEach(a => {
+    L.push('');
+    L.push('___________________________');
+    L.push(a.naam);
+    L.push('');
+  });
+  return L.join('\n');
 }
+
+function maakBestuursbesluit(s, bt, lp, v) {
+  const L = [];
+  const vb = voorbehoudBlok(v, s);
+  if (vb) L.push(vb);
+
+  const meer = s.bestuurders.length > 1;
+
+  L.push('BESLUIT VAN HET BESTUUR');
+  L.push('houdende de goedkeuring als bedoeld in artikel 2:216 lid 2 BW');
+  L.push('van de besloten vennootschap met beperkte aansprakelijkheid');
+  L.push(s.naamBV);
+  L.push('');
+  L.push('Datum besluit        : ' + fmtDatum(s.datumBesluit));
+  L.push('Plaats               : ' + s.plaats);
+  L.push('Aard van de uitkering: ' + aardOmschrijving(s, true));
+  L.push('Bedrag               : € ' + eur(s.dividend, { bare: true }));
+  L.push('Betaalbaarstelling   : ' + fmtDatum(s.datumUitkering));
+  L.push('');
+  L.push('');
+  L.push(meer ? '1. DE ONDERGETEKENDEN' : '1. DE ONDERGETEKENDE');
+  L.push('');
+  s.bestuurders.forEach(b => L.push('- ' + b));
+  L.push('');
+  L.push(...wrapTekst((meer ? 'gezamenlijk vormend het bestuur' : 'bestuurder') + ' van ' + s.naamBV + ', hierna: "de vennootschap",', 74));
+  L.push('');
+  L.push(meer ? 'nemen het volgende in aanmerking.' : 'neemt het volgende in aanmerking.');
+  L.push('');
+  L.push('');
+  L.push('2. HET UITKERINGSBESLUIT');
+  L.push('');
+  L.push(...wrapTekst(orgaanNaam(s).charAt(0).toUpperCase() + orgaanNaam(s).slice(1) + ' heeft op ' + fmtDatum(s.datumBesluit) + ' besloten tot een ' + aardOmschrijving(s, false) + ' ten bedrage van ' + eurD(s.dividend) + ', betaalbaar te stellen op ' + fmtDatum(s.datumUitkering) + '.', 74));
+  L.push('');
+  L.push(...wrapTekst('Dat besluit heeft geen gevolgen zolang het bestuur daaraan geen goedkeuring heeft verleend (art. 2:216 lid 2 BW).', 74));
+  L.push('');
+  L.push('');
+  L.push('3. BEPERKTE BALANSTEST (ART. 2:216 LID 1 BW)');
+  L.push('');
+  L.push('Bedragen in euro, op basis van de balans per de datum van het besluit.');
+  L.push('');
+  L.push(bedragRegel('Eigen vermogen volgens de (tussentijdse) balans', s.eigenVermogen));
+  L.push('Af: reserves die krachtens de wet of de statuten moeten');
+  L.push(bedragRegel('    worden aangehouden', s.reserves, undefined, '-'));
+  L.push(scheidingsRegel());
+  L.push(bedragRegel('Maximale uitkeringsruimte', bt.ruimte));
+  L.push(bedragRegel('Voorgenomen uitkering', s.dividend, undefined, '-'));
+  L.push(scheidingsRegel());
+  L.push(bedragRegel('Resterende uitkeringsruimte na uitkering', bt.restRuimte));
+  L.push('');
+  L.push(bedragRegel('Eigen vermogen na de uitkering', bt.evNa));
+  L.push('');
+  L.push(...wrapTekst('Het eigen vermogen blijft na de uitkering ' + (bt.restRuimte === 0 ? 'gelijk aan' : 'groter dan') + ' de reserves die krachtens de wet of de statuten moeten worden aangehouden. Aan de voorwaarde van artikel 2:216 lid 1 BW is daarmee voldaan.', 74));
+  L.push('');
+  L.push('');
+  L.push('4. LIQUIDITEITSPROGNOSE (ART. 2:216 LID 2 BW)');
+  L.push('');
+  L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Daartoe is een maandelijkse liquiditeitsprognose opgesteld over twaalf maanden vanaf ' + fmtDatum(s.datumBesluit) + '. De prognose toetst de stand per maandeinde. Bedragen in euro.', 74));
+  L.push('');
+  L.push(pad('Maand', 10) + padL('Begin', 14) + padL('Kasmutatie', 14) + padL('Verplicht.', 14) + padL('Uitkering', 14) + padL('Eind', 14));
+  L.push('-'.repeat(80));
+  lp.rijen.forEach(r => {
+    L.push(
+      pad(maandLabel(s.datumBesluit, r.i), 10) +
+      padL(eur(r.begin, { bare: true }), 14) +
+      padL(eur(r.ops, { bare: true }), 14) +
+      padL(r.verpl ? '-' + eur(r.verpl, { bare: true }) : '-', 14) +
+      padL(r.dividend ? '-' + eur(r.dividend, { bare: true }) : '-', 14) +
+      padL(eur(r.eind, { bare: true }), 14)
+    );
+  });
+  L.push('-'.repeat(80));
+  L.push('');
+  L.push(bedragRegel('Liquide middelen bij aanvang', s.liqStart));
+  L.push(bedragRegel('Laagste verwachte liquiditeitspositie', lp.laagste));
+  L.push('  ' + pad('bereikt in', 20) + (lp.laagsteMaand === 0 ? 'bij aanvang' : maandLabel(s.datumBesluit, lp.laagsteMaand - 1)));
+  L.push(bedragRegel('Liquiditeitspositie einde prognoseperiode', lp.eindstand));
+  L.push('');
+  L.push(...wrapTekst('De uitkering is in de prognose opgenomen in ' + maandLabel(s.datumBesluit, lp.divMaand - 1) + ', overeenkomstig de voorgenomen betaalbaarstelling op ' + fmtDatum(s.datumUitkering) + '.', 74));
+  L.push('');
+  if (s.bestaandeSchulden > 0) {
+    L.push(...wrapTekst('Van de op de startdatum bestaande kortlopende schulden van ' + eurD(s.bestaandeSchulden) + ' is ' + eurD(lp.verplGepland) + ' in de prognose ingepland in de maand van betaling. Toekomstige ontvangsten en uitgaven zijn in de kolom kasmutatie opgenomen; bestaande schulden zijn niet dubbel geteld.', 74));
+    L.push('');
+  }
+  L.push('');
+  L.push('5. VERPLICHTINGEN EN OMSTANDIGHEDEN BUITEN DE PROGNOSEPERIODE');
+  L.push('');
+  L.push(...wrapTekst('De beoordeling ziet in normale omstandigheden in ieder geval op de komende twaalf maanden. Zijn op het moment van het besluit relevante verplichtingen of omstandigheden bekend die daarna liggen, dan zijn ook die in de beoordeling betrokken.', 74));
+  L.push('');
+  if (s.naPeriode === 'ja') {
+    L.push('Het bestuur heeft de volgende verplichtingen of omstandigheden gemeld:');
+    L.push('');
+    s.naPeriodeToelichting.split(/\r?\n/).forEach(r => {
+      if (r.trim() === '') { L.push(''); return; }
+      L.push(...wrapTekst(r, 74));
+    });
+    L.push('');
+    L.push(...wrapTekst('De gevolgen hiervan voor de vraag of de vennootschap haar opeisbare schulden kan blijven betalen, zijn afzonderlijk beoordeeld. De uitkomst van die beoordeling is hieronder vastgelegd.', 74));
+  } else {
+    L.push(...wrapTekst('Het bestuur verklaart dat hem geen verplichtingen of omstandigheden buiten de prognoseperiode bekend zijn die de continuïteit van de vennootschap kunnen beïnvloeden.', 74));
+  }
+  L.push('');
+  L.push('');
+  L.push('6. CONCLUSIE VAN HET BESTUUR');
+  L.push('');
+  const conclusieTekst = (v.punten.length === 0)
+    ? 'Op grond van het bovenstaande weet het bestuur niet, en behoort het redelijkerwijs niet te voorzien, dat de vennootschap na de uitkering niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur ziet daarom geen grond om de goedkeuring te weigeren.'
+    : 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de rekenkundige toetsen geen belemmering opleveren, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.';
+  L.push(...wrapTekst(conclusieTekst, 74));
+  L.push('');
+  if (v.punten.length > 0) {
+    L.push('Nadere beoordeling van het bestuur:');
+    L.push('');
+    L.push('..............................................................................');
+    L.push('');
+    L.push('..............................................................................');
+    L.push('');
+    L.push('..............................................................................');
+    L.push('');
+  }
+  L.push('');
+  L.push('7. BESLUIT');
+  L.push('');
+  L.push(...wrapTekst('Het bestuur verleent de goedkeuring als bedoeld in artikel 2:216 lid 2 BW aan het besluit tot een ' + aardOmschrijving(s, false) + ' ten bedrage van ' + eurD(s.dividend) + ', betaalbaar te stellen op ' + fmtDatum(s.datumUitkering) + '.', 74));
+  L.push('');
+  L.push('');
+  L.push('8. AANSPRAKELIJKHEID (ART. 2:216 LID 3 BW)');
+  L.push('');
+  L.push(...wrapTekst('Het bestuur is ermee bekend dat, indien de vennootschap na een uitkering niet kan voortgaan met het betalen van haar opeisbare schulden, de bestuurders die dat ten tijde van de uitkering wisten of redelijkerwijs behoorden te voorzien jegens de vennootschap hoofdelijk verbonden zijn voor het tekort dat door de uitkering is ontstaan, vermeerderd met de wettelijke rente vanaf de dag van de uitkering, en dat ook degene die de uitkering ontving terwijl hij dit wist of redelijkerwijs behoorde te voorzien gehouden kan zijn tot vergoeding van dat tekort, ieder voor niet meer dan het bedrag of de waarde van de door hem ontvangen uitkering.', 74));
+  L.push('');
+  L.push('');
+  L.push('9. ONDERTEKENING');
+  L.push('');
+  L.push('Aldus besloten te ' + s.plaats + ' op ' + fmtDatum(s.datumBesluit) + '.');
+  L.push('');
+  s.bestuurders.forEach(b => {
+    L.push('');
+    L.push('');
+    L.push('___________________________');
+    L.push(b);
+    L.push('bestuurder van ' + s.naamBV);
+    L.push('');
+  });
+  return L.join('\n');
+}
+
+/* ============================================================
+   Kopiëren en printen
+   ============================================================ */
+
+function docEl(which) { return which === 'ah' ? $('tekstAh') : $('tekstBestuur'); }
+
+function meldStatus(which, tekst, ok) {
+  const n = $('status_' + which);
+  if (!n) return;
+  n.textContent = tekst;
+  n.style.color = ok === false ? 'var(--warn)' : (ok === true ? 'var(--ok)' : 'var(--muted)');
+  if (tekst) window.setTimeout(() => { if (n.textContent === tekst) n.textContent = ''; }, 4000);
+}
+
+async function kopieer(which) {
+  const tekst = docEl(which).innerText;
+  const btn = document.querySelector('[data-copy="' + which + '"]');
+  const gelukt = () => {
+    if (btn) {
+      btn.classList.add('copied');
+      const oud = btn.textContent;
+      btn.textContent = 'Gekopieerd';
+      window.setTimeout(() => { btn.classList.remove('copied'); btn.textContent = oud; }, 2000);
+    }
+  };
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(tekst);
+      gelukt();
+      return;
+    }
+    throw new Error('clipboard niet beschikbaar');
+  } catch (e) {
+    // Fallback: verborgen textarea + execCommand
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = tekst;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, tekst.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) { gelukt(); return; }
+      throw new Error('execCommand mislukt');
+    } catch (e2) {
+      // Laatste redmiddel: selecteer de tekst zodat de gebruiker zelf kan kopiëren
+      let geselecteerd = false;
+      try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(docEl(which));
+        sel.removeAllRanges();
+        sel.addRange(range);
+        geselecteerd = String(sel).length > 0;
+      } catch (e3) { /* negeren */ }
+      meldStatus(which, geselecteerd
+        ? 'Kopiëren is in deze browser niet toegestaan — de tekst is geselecteerd, gebruik Ctrl+C.'
+        : 'Kopiëren is in deze browser niet toegestaan — selecteer de tekst hieronder en gebruik Ctrl+C.', false);
+    }
+  }
+}
+
+function printDoc(which) {
+  const tekst = docEl(which).innerText;
+  const titel = which === 'ah' ? 'Aandeelhoudersbesluit' : 'Bestuursbesluit';
+  const w = window.open('', '_blank');
+  if (!w) { meldStatus(which, 'De printvensterblokkering van de browser verhindert printen. Sta pop-ups toe of print deze pagina.', false); return; }
+  const d = w.document;
+  // Volledig via DOM opgebouwd: ingevoerde of aangepaste tekst wordt nooit als HTML uitgevoerd.
+  const html = d.documentElement || d.appendChild(d.createElement('html'));
+  const head = d.head || html.appendChild(d.createElement('head'));
+  const body = d.body || html.appendChild(d.createElement('body'));
+  head.textContent = '';
+  body.textContent = '';
+  const meta = d.createElement('meta'); meta.setAttribute('charset', 'UTF-8'); head.appendChild(meta);
+  const t = d.createElement('title'); t.textContent = titel; head.appendChild(t);
+  const st = d.createElement('style');
+  st.textContent = 'body{font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;font-size:11.5px;line-height:1.6;padding:36px;color:#111;}pre{white-space:pre-wrap;word-wrap:break-word;margin:0;font:inherit;}@media print{body{padding:14mm;}}';
+  head.appendChild(st);
+  const pre = d.createElement('pre');
+  pre.textContent = tekst;
+  body.appendChild(pre);
+  try { w.focus(); } catch (e) { /* negeren */ }
+  window.setTimeout(() => { try { w.print(); } catch (e) { /* negeren */ } }, 120);
+}
+
+/* ============================================================
+   Hoofdroutine
+   ============================================================ */
 
 function bereken() {
-  const naamBV           = document.getElementById('naamBV').value.trim() || '[Naam BV]';
-  const boekjaar         = document.getElementById('boekjaar').value;
-  const naamAH           = document.getElementById('naamAandeelhouder').value.trim() || '[Naam aandeelhouder]';
-  const naamBest         = document.getElementById('naamBestuurder').value.trim() || naamAH;
-  const datumVerg        = document.getElementById('datumVergadering').value;
-  const datumUitk        = document.getElementById('datumUitkering').value;
-  const plaatsnaam       = document.getElementById('plaatsnaam').value.trim() || '[Plaatsnaam]';
+  const s = leesInvoer();
 
-  const eigenVermogen    = parseFloat(document.getElementById('eigenVermogen').value) || 0;
-  const kapitaal         = parseFloat(document.getElementById('aandelenkapitaal').value) || 0;
-  const reserves         = parseFloat(document.getElementById('wettelijkeReserves').value) || 0;
-  const dividend         = parseFloat(document.getElementById('dividend').value) || 0;
-
-  const liquideMiddelen  = parseFloat(document.getElementById('liquideMiddelen').value) || 0;
-  const kortSchulden     = parseFloat(document.getElementById('kortlopendeSchulden').value) || 0;
-  const kasstroom12      = parseFloat(document.getElementById('kasstroom12').value) || 0;
-
-  // ---- BALANSTOETS ----
-  const vrijUitkeerbaar = eigenVermogen - kapitaal - reserves;
-  const balansOk = vrijUitkeerbaar >= dividend && dividend > 0;
-  const balansNegatief = vrijUitkeerbaar < 0;
-
-  document.getElementById('balansCalc').innerHTML = `
-    <div class="calc-row"><span class="calc-label">Eigen vermogen</span><span class="calc-val">${fmt(eigenVermogen)}</span></div>
-    <div class="calc-row"><span class="calc-label">Af: gestort aandelenkapitaal</span><span class="calc-val">− ${fmt(kapitaal)}</span></div>
-    <div class="calc-row"><span class="calc-label">Af: wettelijke/statutaire reserves</span><span class="calc-val">− ${fmt(reserves)}</span></div>
-    <div class="calc-row"><span class="calc-label">Vrij uitkeerbaar eigen vermogen</span><span class="calc-val" style="color:${vrijUitkeerbaar < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(vrijUitkeerbaar)}</span></div>
-    <div class="calc-row"><span class="calc-label">Gewenst dividend</span><span class="calc-val">${fmt(dividend)}</span></div>
-    <div class="calc-row"><span class="calc-label">Resterend vrij uitkeerbaar na uitkering</span><span class="calc-val" style="color:${vrijUitkeerbaar - dividend < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(vrijUitkeerbaar - dividend)}</span></div>
-  `;
-
-  let balansHTML = '';
-  if (dividend === 0) {
-    balansHTML = `<div class="toets-result neutral"><div class="tr-icon">ℹ️</div><div class="tr-body">Vul een dividendbedrag in om de balanstoets uit te voeren.</div></div>`;
-  } else if (balansNegatief) {
-    balansHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Balanstoets niet geslaagd:</strong> het eigen vermogen is al negatief (${fmt(eigenVermogen)}). Uitkering is wettelijk niet toegestaan.</div></div>`;
-  } else if (!balansOk) {
-    balansHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Balanstoets niet geslaagd:</strong> het vrij uitkeerbaar vermogen (${fmt(vrijUitkeerbaar)}) is lager dan het gewenste dividend (${fmt(dividend)}). Maximaal uitkeerbaar: <strong>${fmt(Math.max(0, vrijUitkeerbaar))}</strong>.</div></div>`;
+  // afhankelijke velden tonen/verbergen
+  $('orgaanAnderWrap').style.display = s.orgaan === 'ander' ? 'block' : 'none';
+  $('naPeriodeWrap').style.display = s.naPeriode === 'ja' ? 'block' : 'none';
+  $('statutenWrap').classList.toggle('checked', s.statutenOk);
+  if (s.aard === 'reserves') {
+    $('boekjaarLabel').textContent = 'Referentieboekjaar';
+    $('boekjaarSub').textContent = 'Het boekjaar van de laatst vastgestelde jaarrekening waarop de reserves zijn gebaseerd.';
+  } else if (s.aard === 'interim') {
+    $('boekjaarLabel').textContent = 'Lopend boekjaar';
+    $('boekjaarSub').textContent = 'Het boekjaar waarin de interim-uitkering wordt gedaan.';
   } else {
-    balansHTML = `<div class="toets-result ok"><div class="tr-icon">✅</div><div class="tr-body"><strong>Balanstoets geslaagd.</strong> Er is voldoende vrij uitkeerbaar vermogen. Na uitkering resteert <strong>${fmt(vrijUitkeerbaar - dividend)}</strong> vrij uitkeerbaar eigen vermogen.</div></div>`;
+    $('boekjaarLabel').textContent = 'Boekjaar waarover wordt uitgekeerd';
+    $('boekjaarSub').textContent = 'Het boekjaar waarvan de winst wordt bestemd.';
   }
-  document.getElementById('balansResultaat').innerHTML = balansHTML;
 
-  // ---- LIQUIDITEITSTOETS ----
-  const liqNaUitkering = liquideMiddelen + kasstroom12 - kortSchulden - dividend;
-  const liqOk = liqNaUitkering >= 0 && dividend > 0;
+  const bt = balanstest(s);
+  const lp = liquiditeitsprognose(s);
+  const v = valideer(s, bt, lp);
 
-  document.getElementById('liqCalc').innerHTML = `
-    <div class="calc-row"><span class="calc-label">Liquide middelen nu</span><span class="calc-val">${fmt(liquideMiddelen)}</span></div>
-    <div class="calc-row"><span class="calc-label">Verwachte netto kasstroom (12 mnd)</span><span class="calc-val">${kasstroom12 >= 0 ? '' : '− '}${fmt(Math.abs(kasstroom12))}</span></div>
-    <div class="calc-row"><span class="calc-label">Af: kortlopende schulden</span><span class="calc-val">− ${fmt(kortSchulden)}</span></div>
-    <div class="calc-row"><span class="calc-label">Af: dividend</span><span class="calc-val">− ${fmt(dividend)}</span></div>
-    <div class="calc-row"><span class="calc-label">Liquiditeitspositie na 12 maanden</span><span class="calc-val" style="color:${liqNaUitkering < 0 ? 'var(--warn)' : 'var(--ok)'};">${fmt(liqNaUitkering)}</span></div>
-  `;
+  renderBalans(s, bt);
+  renderPrognose(s, lp);
+  renderValidatie(v);
 
-  let liqHTML = '';
-  if (dividend === 0) {
-    liqHTML = `<div class="toets-result neutral"><div class="tr-icon">ℹ️</div><div class="tr-body">Vul een dividendbedrag in om de liquiditeitstoets uit te voeren.</div></div>`;
-  } else if (!liqOk) {
-    liqHTML = `<div class="toets-result warn"><div class="tr-icon">❌</div><div class="tr-body"><strong>Liquiditeitstoets niet geslaagd:</strong> de verwachte kaspositie na 12 maanden is <strong>${fmt(liqNaUitkering)}</strong>. De BV kan na uitkering mogelijk haar opeisbare schulden niet voldoen.</div></div>`;
+  // status bepalen
+  let status;
+  if (s.dividend <= 0) status = 'leeg';
+  else if (!bt.geslaagd || !lp.geslaagd) status = 'rood';
+  else if (v.fouten.length > 0) status = 'rood';
+  else if (!s.statutenOk || v.punten.length > 0) status = 'oranje';
+  else status = 'groen';
+
+  renderConclusie(s, bt, lp, v, status === 'leeg' ? 'rood' : status);
+  if (status === 'leeg') $('conclusieCard').textContent = '';
+  renderFiscaal(status === 'rood' || status === 'leeg' ? { dividend: 0 } : s);
+
+  // documenten
+  const mogen = (status === 'groen' || status === 'oranje') && v.fouten.length === 0 && s.statutenOk;
+  $('docsSection').style.display = mogen ? 'block' : 'none';
+  if (mogen) {
+    $('tekstAh').textContent = maakAandeelhoudersbesluit(s, bt, lp, v);
+    $('tekstBestuur').textContent = maakBestuursbesluit(s, bt, lp, v);
   } else {
-    liqHTML = `<div class="toets-result ok"><div class="tr-icon">✅</div><div class="tr-body"><strong>Liquiditeitstoets geslaagd.</strong> De verwachte kaspositie na 12 maanden is <strong>${fmt(liqNaUitkering)}</strong>. De BV kan naar verwachting haar opeisbare schulden blijven voldoen.</div></div>`;
+    $('tekstAh').textContent = '';
+    $('tekstBestuur').textContent = '';
   }
-  document.getElementById('liqResultaat').innerHTML = liqHTML;
-
-  // ---- CONCLUSIE ----
-  if (dividend === 0) {
-    document.getElementById('resultSection').style.display = 'none';
-    document.getElementById('notulenSection').style.display = 'none';
-    return;
-  }
-
-  document.getElementById('resultSection').style.display = 'block';
-  const beidegoed = balansOk && liqOk;
-
-  const conclusieEl = document.getElementById('conclusieCard');
-  if (beidegoed) {
-    conclusieEl.className = 'conclusie-card ok';
-    conclusieEl.innerHTML = `
-      <div class="c-header"><div class="c-icon">✅</div><div class="c-title">Uitkeringstoets geslaagd — dividend mag worden uitgekeerd</div></div>
-      <div class="c-body">
-        Beide toetsen zijn doorstaan. Het bestuur kan de uitkering van <strong>${fmt(dividend)}</strong> goedkeuren.
-        <ul class="check-list">
-          <li><span class="ci">✅</span> Balanstoets: vrij uitkeerbaar vermogen voldoende (${fmt(vrijUitkeerbaar)})</li>
-          <li><span class="ci">✅</span> Liquiditeitstoets: positieve kaspositie na 12 maanden (${fmt(liqNaUitkering)})</li>
-        </ul>
-        <br>De notulen zijn hieronder klaargemaakt. Controleer en sla op als pdf.
-      </div>`;
-    document.getElementById('notulenSection').style.display = 'block';
-  } else {
-    conclusieEl.className = 'conclusie-card warn';
-    const items = [];
-    if (!balansOk) items.push(`<li><span class="ci">❌</span> Balanstoets: onvoldoende vrij uitkeerbaar vermogen (max. ${fmt(Math.max(0, vrijUitkeerbaar))})</li>`);
-    if (!liqOk)   items.push(`<li><span class="ci">❌</span> Liquiditeitstoets: verwachte kaspositie na 12 maanden negatief (${fmt(liqNaUitkering)})</li>`);
-    conclusieEl.innerHTML = `
-      <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Uitkeringstoets niet geslaagd</div></div>
-      <div class="c-body">
-        Het dividend van <strong>${fmt(dividend)}</strong> kan op basis van de huidige gegevens <strong>niet</strong> worden uitgekeerd.
-        <ul class="check-list">${items.join('')}</ul>
-        <br>Pas het dividendbedrag aan of herstel de financiële positie van de BV alvorens tot uitkering over te gaan.
-        <br><br><strong>Aansprakelijkheid:</strong> keert het bestuur toch uit, dan zijn bestuurders hoofdelijk aansprakelijk voor het tekort bij de crediteuren (art. 2:216 lid 3 BW).
-      </div>`;
-    document.getElementById('notulenSection').style.display = 'none';
-  }
-
-  // ---- NOTULEN GENEREREN ----
-  if (!beidegoed) return;
-
-  const dvStr  = fmtDatum(datumVerg);
-  const duStr  = fmtDatum(datumUitk);
-  const vNaamBV = naamBV.endsWith('B.V.') || naamBV.endsWith('BV') ? naamBV : naamBV + ' B.V.';
-
-  // AVA-notulen
-  const avaDoc = `NOTULEN VERGADERING VAN AANDEELHOUDERS
-${vNaamBV}
-${'='.repeat(Math.max(40, vNaamBV.length + 32))}
-
-Datum      : ${dvStr}
-Locatie    : [in te vullen]
-Aanwezig   : ${naamAH} (enig aandeelhouder)
-Voorzitter : ${naamBest}
-Notulist   : ${naamBest}
-
-De vergadering wordt geopend. Geconstateerd wordt dat alle aandelen in
-het kapitaal van de vennootschap vertegenwoordigd zijn, zodat rechtsgeldig
-besluiten kunnen worden genomen.
-
-AGENDAPUNT — Dividenduitkering boekjaar ${boekjaar}
-${'─'.repeat(48)}
-
-Aan de orde is het voorstel tot uitkering van dividend over boekjaar
-${boekjaar} ten laste van de vrije reserves.
-
-De vergadering stelt vast dat:
-
-  1. Het bestuur op grond van art. 2:216 BW de uitkeringstoets heeft
-     uitgevoerd en daarbij heeft geconstateerd dat:
-
-     a) het eigen vermogen na de uitkering niet daalt tot onder het
-        gestorte en opgevraagde aandelenkapitaal (balanstoets);
-
-     b) de vennootschap na de uitkering naar verwachting gedurende
-        ten minste twaalf maanden haar opeisbare schulden zal kunnen
-        blijven voldoen (liquiditeitstoets).
-
-  2. Het bestuur zijn goedkeuring heeft gehecht aan de uitkering.
-
-BESLUIT (unaniem aangenomen):
-
-  De vergadering besluit tot uitkering van een dividend van ${fmt(dividend)}
-  (zegge: ${bedragInWoorden(dividend)}) over boekjaar ${boekjaar},
-  te voldoen aan de aandeelhouder(s) op ${duStr}.
-
-Niets meer aan de orde zijnde, sluit de voorzitter de vergadering.
-
-Getekend te ${plaatsnaam}, ${dvStr}
-
-___________________________
-${naamBest}
-Voorzitter / Notulist`;
-
-  // Bestuursbesluit
-  const bestuurDoc = `BESTUURSBESLUIT / VERKLARING UITKERINGSTOETS
-${vNaamBV}
-${'='.repeat(Math.max(40, vNaamBV.length + 32))}
-
-Datum     : ${dvStr}
-Bestuurder: ${naamBest}
-
-Het bestuur van ${vNaamBV} heeft op ${dvStr} de uitkeringstoets
-uitgevoerd als bedoeld in art. 2:216 lid 2 Burgerlijk Wetboek, in
-verband met het voorgenomen besluit tot dividenduitkering van ${fmt(dividend)}
-over boekjaar ${boekjaar}.
-
-A. BALANSTOETS (art. 2:216 lid 1 BW)
-${'─'.repeat(40)}
-
-   Eigen vermogen (tussentijdse balans)         ${fmtR(fmt(eigenVermogen))}
-   Af: gestort en opgevraagd aandelenkapitaal   ${fmtR('− ' + fmt(kapitaal))}
-   Af: wettelijke en statutaire reserves        ${fmtR('− ' + fmt(reserves))}
-                                                ${'─'.repeat(18)}
-   Vrij uitkeerbaar eigen vermogen              ${fmtR(fmt(vrijUitkeerbaar))}
-   Voorgesteld dividend                         ${fmtR('− ' + fmt(dividend))}
-                                                ${'─'.repeat(18)}
-   Resterend vrij uitkeerbaar na uitkering      ${fmtR(fmt(vrijUitkeerbaar - dividend))}
-
-   Conclusie balanstoets: GESLAAGD
-   Na de uitkering daalt het eigen vermogen niet tot onder het gestorte
-   aandelenkapitaal.
-
-B. LIQUIDITEITSTOETS (art. 2:216 lid 2 BW)
-${'─'.repeat(40)}
-
-   Liquide middelen huidig                      ${fmtR(fmt(liquideMiddelen))}
-   Verwachte netto kasstroom (12 maanden)       ${fmtR((kasstroom12 >= 0 ? '+ ' : '− ') + fmt(Math.abs(kasstroom12)))}
-   Af: kortlopende schulden en verplichtingen   ${fmtR('− ' + fmt(kortSchulden))}
-   Af: dividend                                 ${fmtR('− ' + fmt(dividend))}
-                                                ${'─'.repeat(18)}
-   Verwachte liquiditeitspositie na 12 mnd      ${fmtR(fmt(liqNaUitkering))}
-
-   Conclusie liquiditeitstoets: GESLAAGD
-   Het bestuur is op basis van de beschikbare financiële gegevens van
-   oordeel dat de vennootschap na de uitkering gedurende ten minste
-   twaalf maanden haar opeisbare schulden kan blijven voldoen.
-
-C. BESLUIT BESTUUR
-${'─'.repeat(40)}
-
-   Op grond van het voorgaande geeft het bestuur zijn goedkeuring voor
-   de uitkering van ${fmt(dividend)} aan de aandeelhouder(s), te voldoen
-   op ${duStr}.
-
-   Het bestuur wijst op zijn aansprakelijkheid ex art. 2:216 lid 3 BW
-   en bevestigt dat de uitkering op basis van de bekende informatie
-   verantwoord is.
-
-Getekend te ${plaatsnaam}, ${dvStr}
-
-___________________________
-${naamBest}
-Bestuurder ${vNaamBV}`;
-
-  document.getElementById('tekstAva').innerText = avaDoc;
-  document.getElementById('tekstBestuur').innerText = bestuurDoc;
 }
 
-function fmtR(s) {
-  return s.padStart(18);
+/* ============================================================
+   Initialisatie
+   ============================================================ */
+
+function switchTab(tab) {
+  document.querySelectorAll('.ntab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('docAh').classList.toggle('active', tab === 'ah');
+  $('docBestuur').classList.toggle('active', tab === 'bestuur');
 }
 
-function bedragInWoorden(n) {
-  // Vereenvoudigde versie: geeft alleen het getal terug voor gebruiksgemak
-  return 'zie bedrag in cijfers';
-}
+(function init() {
+  boekjaarOpties();
+  bouwPrognoseRijen();
+  $('ahRows').appendChild(ahRow());
+  $('bestRows').appendChild(bestRow());
 
-// Init datum velden op vandaag
-(function() {
-  const nu = new Date();
-  const iso = nu.toISOString().split('T')[0];
-  document.getElementById('datumVergadering').value = iso;
-  const uitk = new Date(nu); uitk.setDate(uitk.getDate() + 14);
-  document.getElementById('datumUitkering').value = uitk.toISOString().split('T')[0];
+  const vandaag = todayISO();
+  $('datumBesluit').value = vandaag;
+  $('datumUitkering').value = addDaysISO(vandaag, 14);
+
+  $('addAh').addEventListener('click', () => { $('ahRows').appendChild(ahRow()); bereken(); });
+  $('addBest').addEventListener('click', () => { $('bestRows').appendChild(bestRow()); bereken(); });
+
+  $('qfApply').addEventListener('click', () => {
+    const r = parseCents($('qfOps').value);
+    if (!r.valid) { $('qfOps').classList.add('invalid'); return; }
+    $('qfOps').classList.remove('invalid');
+    const waarde = r.empty ? '' : eur(r.cents, { bare: true });
+    for (let i = 0; i < PROGNOSE_MAANDEN; i++) $('pgops_' + i).value = waarde;
+    bereken();
+  });
+  $('pgClear').addEventListener('click', () => {
+    for (let i = 0; i < PROGNOSE_MAANDEN; i++) { $('pgops_' + i).value = ''; $('pgver_' + i).value = ''; }
+    $('qfOps').value = '';
+    bereken();
+  });
+
+  document.querySelectorAll('.ntab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => kopieer(b.dataset.copy)));
+  document.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => printDoc(b.dataset.print)));
+
+  // Eén gedelegeerde listener: werkt ook voor later toegevoegde rijen.
+  const container = document.querySelector('.content');
+  container.addEventListener('input', (e) => {
+    if (e.target.closest('.doc-text')) return;   // bewerkte documenttekst niet herrekenen
+    bereken();
+  });
+  container.addEventListener('change', (e) => {
+    if (e.target.closest('.doc-text')) return;
+    bereken();
+  });
+
   bereken();
 })();
 </script>
@@ -661,14 +1897,15 @@ function bedragInWoorden(n) {
 .bt-footerbrand strong{color:#C0522A;font-weight:500;}
 .bt-footerbrand .tip{display:none;position:absolute;bottom:28px;right:0;background:#2C1A0E;color:#F5EBE0;font-size:11px;padding:6px 12px;border-radius:6px;white-space:nowrap;}
 .bt-footerbrand:hover .tip{display:block;}
+@media (max-width: 700px){.bt-nav-back{position:static;margin:10px;}}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
 <footer class="bt-page-footer">
-  <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div>
+  <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 18 aug 2026, 15:18</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 21 aug 2026, 00:27</div>
 </footer>
-<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
+<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
 </html>
