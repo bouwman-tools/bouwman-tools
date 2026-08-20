@@ -107,6 +107,11 @@
   .pw input, .sw input { border: none; border-radius: 0; background: transparent; flex: 1; }
 
   .field-note { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .bron { display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 1px 5px; border-radius: 4px; margin-right: 4px; vertical-align: 1px; }
+  .bron-rdw       { background: rgba(61,217,160,0.16);  color: var(--mint); }
+  .bron-regel     { background: rgba(255,255,255,0.10); color: var(--dim); }
+  .bron-schatting { background: rgba(255,209,0,0.14);   color: var(--yellow); }
+  .legenda { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; font-size: 11px; color: var(--muted); }
   hr.sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
   .km-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(61,217,160,0.08); border: 1px solid rgba(61,217,160,0.2); border-radius: 9px; margin-top: 12px; }
@@ -332,6 +337,12 @@
           <div class="field-note" id="energie_note">Alleen volledig elektrisch en waterstof krijgen de nulemissiekorting</div>
         </div>
       </div>
+      <div class="fg1" id="veld_zonnecel" style="display:none;margin-top:10px;">
+        <div class="field">
+          <label class="rb" style="display:inline-flex;"><input type="checkbox" id="is_zonnecel"> Auto met geïntegreerde zonnepanelen</label>
+          <div class="field-note"><span class="bron bron-regel">fiscale regel</span> Vanaf 2021 uitgezonderd van het plafond op de nulemissiekorting. Niet uit de RDW af te leiden, dus zelf aanvinken</div>
+        </div>
+      </div>
       <div class="fg">
         <div class="field" id="veld_tenaam" style="display:none;">
           <label>Datum eerste tenaamstelling</label>
@@ -357,15 +368,30 @@
           <div class="field-note">Alleen voor de IB-ondernemer (art. 3.20 Wet IB)</div>
         </div>
         <div class="field">
-          <label>Btw bij aanschaf</label>
+          <label>Btw bij aanschaf afgetrokken</label>
           <div class="rg">
-            <label class="rb" id="lbl_btw_ja"><input type="radio" name="btw_aanschaf" value="ja" checked> Ja (21%)</label>
-            <label class="rb"><input type="radio" name="btw_aanschaf" value="nee"> Nee (marge)</label>
+            <label class="rb" id="lbl_btw_ja"><input type="radio" name="btw_aanschaf" value="ja" checked> Ja (btw-auto)</label>
+            <label class="rb"><input type="radio" name="btw_aanschaf" value="nee"> Nee (marge/particulier)</label>
           </div>
+          <div class="field-note"><span class="bron bron-regel">fiscale regel</span> Zonder aftrek bij aanschaf geldt 1,5% in plaats van 2,7% correctie, begrensd op de btw op gebruik en onderhoud</div>
+        </div>
+        <div class="field" id="veld_btw_aanschaf">
+          <label>Aftrekbare btw op aanschaf</label>
+          <div class="pw" id="w_btw_aansch"><span class="af">€</span><input type="number" id="btw_aanschaf_bedrag" step="100" min="0" placeholder="schatting"></div>
+          <div class="field-note" id="btw_aansch_note"><span class="bron bron-schatting">schatting</span> Leeg = (aanschafprijs − BPM) ÷ 1,21 × 21%. Vul bij een gebruikte auto de btw van de factuur in</div>
         </div>
         <div class="field">
-          <label>% btw-aftrek aanschaf/brandstof</label>
+          <label>% btw-aftrek (bij deels vrijgestelde omzet)</label>
           <div class="sw"><input type="number" id="btw_aftrek_pct" value="100" step="1" min="0" max="100"><span class="af">%</span></div>
+          <div class="field-note">0% is een geldige invoer</div>
+        </div>
+        <div class="field">
+          <label>Correctie privégebruik</label>
+          <div class="rg">
+            <label class="rb"><input type="radio" name="btw_correctie" value="forfait" checked> Forfait</label>
+            <label class="rb"><input type="radio" name="btw_correctie" value="werkelijk"> Werkelijk gebruik</label>
+          </div>
+          <div class="field-note"><span class="bron bron-regel">fiscale regel</span> Voor de btw is woon-werkverkeer privégebruik, anders dan voor de bijtelling</div>
         </div>
       </div>
       <hr class="sep">
@@ -419,6 +445,9 @@
         <div class="field"><label>Kilometervergoeding</label><div class="pw"><span class="af">€</span><input type="number" id="km_vergoeding" value="0.25" step="0.01" min="0"></div></div>
         <div class="field"><label>Verbruik per 100 km</label><div class="sw" id="w_verb"><input type="number" id="verbruik_100" value="7" step="0.1" min="0"><span class="af">l/kWh</span></div></div>
         <div class="field"><label id="lbl_prijs">Prijs per liter (incl. btw)</label><div class="pw" id="w_prijs"><span class="af">€</span><input type="number" id="prijs_liter" value="2.10" step="0.05" min="0"></div></div>
+        <div class="field" id="veld_kwh" style="display:none;"><label>Verbruik elektrisch</label><div class="sw" id="w_verb_kwh"><input type="number" id="verbruik_kwh" value="18" step="0.1" min="0"><span class="af">kWh/100</span></div></div>
+        <div class="field" id="veld_prijs_kwh" style="display:none;"><label>Prijs per kWh (incl. btw)</label><div class="pw" id="w_prijs_kwh"><span class="af">€</span><input type="number" id="prijs_kwh" value="0.35" step="0.01" min="0"></div></div>
+        <div class="field" id="veld_aandeel_ev" style="display:none;"><label>Aandeel elektrisch gereden</label><div class="sw"><input type="number" id="aandeel_ev" value="50" step="5" min="0" max="100"><span class="af">%</span></div><div class="field-note"><span class="bron bron-schatting">schatting</span> Bepaalt hoeveel kilometers tegen de stroomprijs worden gerekend</div></div>
       </div>
     </div>
 
@@ -442,6 +471,11 @@
       </div>
     </div>
 
+    <div class="legenda">
+      <span><span class="bron bron-rdw">RDW</span> uit het kentekenregister</span>
+      <span><span class="bron bron-regel">fiscale regel</span> volgt uit wet of beleid</span>
+      <span><span class="bron bron-schatting">schatting</span> aanname die u zelf kunt aanpassen</span>
+    </div>
     <button class="btn-calc" onclick="bereken()">Bereken analyse →</button>
   </div>
 
@@ -497,9 +531,19 @@
           <div class="rrow"><span class="rl">Belastingverschil per jaar</span><span class="rv" id="r_vj">—</span></div>
           <div class="rrow"><span class="rl">Gebruiksduur</span><span class="rv muted" id="r_duur">—</span></div>
           <div class="rrow"><span class="rl">Belastingverschil totale gebruiksduur</span><span class="rv" id="r_vd">—</span></div>
-          <div class="rrow"><span class="rl">Netto btw-effect (gebruiksduur)</span><span class="rv muted" id="r_btw">—</span></div>
+          <div class="rs-title" id="ttl_btw">Btw over de gebruiksduur</div>
+          <div class="rrow" id="row_btw_aansch"><span class="rl">Btw afgetrokken bij aanschaf</span><span class="rv muted" id="r_btw_aansch">—</span></div>
+          <div class="rrow" id="row_btw_kosten"><span class="rl">Btw op gebruik en onderhoud</span><span class="rv muted" id="r_btw_kosten">—</span></div>
+          <div class="rrow" id="row_btw_corr"><span class="rl" id="lbl_btw_corr">Correctie privégebruik</span><span class="rv muted" id="r_btw_corr">—</span></div>
+          <div class="rrow" id="row_btw_prive"><span class="rl">Btw-aftrek privéscenario (naar rato zakelijk)</span><span class="rv muted" id="r_btw_prive">—</span></div>
+          <div class="rrow"><span class="rl">Netto btw-effect (na belasting)</span><span class="rv muted" id="r_btw">—</span></div>
+
+          <div class="rs-title" id="ttl_netto" style="display:none;">Netto kosten werknemer (per jaar)</div>
+          <div class="rrow" id="row_netto_z" style="display:none;"><span class="rl">Auto van de zaak: belasting over de bijtelling</span><span class="rv muted" id="r_netto_z">—</span></div>
+          <div class="rrow" id="row_netto_p" style="display:none;"><span class="rl">Auto privé: eigen autokosten minus vergoeding</span><span class="rv muted" id="r_netto_p">—</span></div>
+          <div class="rrow" id="row_netto_tot" style="display:none;border-top:1px solid rgba(255,255,255,0.15);margin-top:2px;padding-top:10px;"><span class="rl"><strong>Netto verschil over de gebruiksduur</strong></span><span class="rv" id="r_netto_tot" style="font-size:15px;">—</span></div>
           <div class="rrow" style="border-top:1px solid rgba(255,255,255,0.15);margin-top:2px;padding-top:10px;">
-            <span class="rl"><strong>Totaal belastingverschil incl. btw</strong></span>
+            <span class="rl" id="lbl_tot"><strong>Totaal belastingverschil incl. btw</strong></span>
             <span class="rv" id="r_tot" style="font-size:15px;">—</span>
           </div>
         </div>
@@ -517,7 +561,8 @@
     </div>
     <div class="info-card">
       <strong>ℹ️ Over dit model</strong><br><br>
-      Autogegevens worden opgehaald via de open data API van de RDW. Bijtelling wordt automatisch bepaald op basis van CO₂ en brandstofsoort (2026-regels). De btw-effecten zijn indicatief. Raadpleeg altijd een adviseur.<br><br>
+      <strong>Gegevens en privacy.</strong> Uw invoer wordt niet opgeslagen en niet naar bouwman.tools verstuurd; de berekening gebeurt in uw browser. Twee uitzonderingen: bij een kentekenopvraag wordt het kenteken rechtstreeks naar de open data API van de RDW gestuurd (opendata.rdw.nl), en het lettertype van deze pagina wordt geladen bij Google Fonts (fonts.googleapis.com). Zonder kentekenopvraag verlaat er geen ingevoerd gegeven uw browser.<br><br>
+      <strong>Fiscale aannames.</strong> De bijtelling volgt het 60-maandenregime vanaf de datum eerste toelating. Bij niet meer dan 500 privékilometers per jaar blijven bijtelling en forfait achterwege; de bewijslast ligt bij u. Voor de inkomstenbelasting is woon-werkverkeer zakelijk verkeer, voor de btw is het privégebruik — de tool rekent die twee apart. De btw-correctie is forfaitair 2,7% van de cataloguswaarde, of 1,5% zonder aftrek bij aanschaf en vanaf het vijfde gebruiksjaar. Het youngtimerregime (35% van de waarde economisch verkeer) wordt niet gerekend, alleen gemeld. Restwaardepercentages zijn marktinschattingen, geen fiscale regels. Raadpleeg altijd een adviseur.<br><br>
       <strong>Join Administraties</strong> — <a href="https://joinadministraties.nl" target="_blank">joinadministraties.nl</a>
     </div>
   </div>
@@ -556,7 +601,6 @@ const TARIEVEN_2026 = {
 
   // BTW (Wet OB 1968)
   btwTarief:            21,       // % — standaard btw-tarief
-  btwPriveGebruikPct:   0.027,    // 2,7 % van cataloguswaarde/jaar (privégebruik correctie)
 
   // Kilometervergoeding (art. 31a lid 2 Wet LB / Besluit onkostenvergoedingen)
   kmVergoeding:         0.25,     // € per km — onbelaste vergoeding 2026 (was € 0,23 in 2025)
@@ -587,16 +631,42 @@ const TARIEVEN_2026 = {
   document.getElementById('datum_start').value =
     String(nuInit.getMonth() + 1).padStart(2, '0') + '-' + nuInit.getFullYear();
   document.getElementById('restwaarde_note').textContent =
-    `Fossiel 4jr: ~${T.restwaardeFossiel}% | Elektrisch 4jr: ~${T.restwaardeEV}%`;
+    `Marktinschatting, geen fiscale regel — fossiel ~${T.restwaardeFossiel}% en elektrisch ~${T.restwaardeEV}% na 4 jaar`;
+  document.getElementById('prijs_kwh').value = T.prijsStroom;
   // Bijwerk label btw-radioknop met actueel tarief
   const lblBtwJa = document.getElementById('lbl_btw_ja');
   if (lblBtwJa) {
     const inp = lblBtwJa.querySelector('input');
     lblBtwJa.innerHTML = '';
     lblBtwJa.appendChild(inp);
-    lblBtwJa.append(` Ja (${T.btwTarief}%)`);
+    lblBtwJa.append(` Ja, btw-auto (${T.btwTarief}%)`);
   }
 })();
+
+// Het bedrag aan aanschaf-btw is alleen relevant als die btw is afgetrokken.
+function toonBtwAanschafVeld() {
+  const ja = (document.querySelector('input[name="btw_aanschaf"]:checked') || {}).value === 'ja';
+  const lease = veldWaarde('lease_prijs', { standaard: 0, min: 0 }) > 0;
+  document.getElementById('veld_btw_aanschaf').style.display = (ja && !lease) ? '' : 'none';
+}
+
+document.querySelectorAll('input[name="btw_aanschaf"], input[name="btw_correctie"]').forEach(r => {
+  r.addEventListener('change', () => {
+    toonBtwAanschafVeld();
+    if (document.getElementById('rc').style.display === 'block') bereken();
+  });
+});
+document.getElementById('lease_prijs').addEventListener('input', toonBtwAanschafVeld);
+toonBtwAanschafVeld();
+
+// De restwaardesuggestie hangt aan de gebruiksduur: een vuistregel na vier jaar
+// hoort niet ongewijzigd bij 24 of 72 maanden te blijven staan.
+document.getElementById('gebruiksduur_mnd').addEventListener('input', () => {
+  if (!restwaardeHandmatig) setRestwaardeSuggestion(energieSoortNu(), 0);
+  if (document.getElementById('rc').style.display === 'block') bereken();
+});
+document.getElementById('restwaarde_pct').addEventListener('input', () => { restwaardeHandmatig = true; });
+document.getElementById('restwaarde_bedrag').addEventListener('input', () => { restwaardeHandmatig = true; });
 
 // ─── COLLAPSIBLE ───
 let secOpen = true;
@@ -613,6 +683,10 @@ document.querySelectorAll('input[name="energie"]').forEach(r => {
     zetEnergieSoort(r.value, true);
     if (document.getElementById('rc').style.display === 'block') bereken();
   });
+});
+
+document.getElementById('is_zonnecel').addEventListener('change', () => {
+  if (document.getElementById('rc').style.display === 'block') bereken();
 });
 
 // Het tenaamstellingsveld is alleen nodig bij toelating t/m 31-12-2016
@@ -673,8 +747,17 @@ const RESTWAARDE = {
 
 function setRestwaardeSuggestion(energiesoort, aanschafprijs) {
   const r = RESTWAARDE[energiesoort] || RESTWAARDE.brandstof;
-  const pct = TARIEVEN_2026[r.pct];
-  const label = `${r.label} 4jr: ~${pct}% (${r.bron})`;
+  const pct4 = TARIEVEN_2026[r.pct];
+  // De vuistregel geldt na vier jaar. Bij een andere gebruiksduur werd hij
+  // eerder ongewijzigd overgenomen; nu omgerekend met een constant jaarlijks
+  // afschrijvingstempo. Blijft een marktinschatting, geen fiscale regel.
+  const mnd = veldWaarde('gebruiksduur_mnd', { standaard: 48, min: 1 });
+  const pct = restwaardeVoorDuur(pct4, mnd);
+  const jr = (mnd / 12);
+  const jrTekst = Number.isInteger(jr) ? String(jr) : jr.toFixed(1).replace('.', ',');
+  const label = mnd === 48
+    ? `Schatting ${r.label} na 4 jaar: ~${pct}% (${r.bron})`
+    : `Schatting ${r.label}: ~${pct4}% na 4 jaar → ~${pct}% na ${jrTekst} jaar (${r.bron})`;
   document.getElementById('restwaarde_pct').value = pct;
   document.getElementById('restwaarde_note').textContent = label;
   // Gebruik de meegegeven aanschafprijs als die beschikbaar is
@@ -716,16 +799,23 @@ function setStatus(type, html) {
 //
 // Alleen volledig elektrisch en waterstof zijn nulemissie. Een plug-in hybride
 // niet: die rijdt in dit model op brandstof en krijgt het algemeen percentage.
+// tweeStromen: de auto rijdt op twee energiebronnen en heeft dus twee
+// verbruikscijfers en twee prijzen nodig. Alleen de plug-in hybride.
+// zonnecelMogelijk: de uitzondering op het plafond bestaat alleen voor
+// nulemissie-auto's met geïntegreerde zonnepanelen.
 const ENERGIE = {
-  brandstof:  { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false },
-  hybride:    { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false },
-  elektrisch: { eenheid: 'kWh', veldEenheid: 'kWh/100',  prijsLabel: 'Prijs per kWh (incl. btw)',   prijs: 'prijsStroom',    isNulemissie: true,  isWaterstof: false },
-  waterstof:  { eenheid: 'kg',  veldEenheid: 'kg/100km', prijsLabel: 'Prijs per kg (incl. btw)',    prijs: 'prijsWaterstof', isNulemissie: true,  isWaterstof: true  },
+  brandstof:  { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false, tweeStromen: false, zonnecelMogelijk: false },
+  hybride:    { eenheid: 'l',   veldEenheid: 'l/100km',  prijsLabel: 'Prijs per liter (incl. btw)', prijs: 'prijsBrandstof', isNulemissie: false, isWaterstof: false, tweeStromen: true,  zonnecelMogelijk: false },
+  elektrisch: { eenheid: 'kWh', veldEenheid: 'kWh/100',  prijsLabel: 'Prijs per kWh (incl. btw)',   prijs: 'prijsStroom',    isNulemissie: true,  isWaterstof: false, tweeStromen: false, zonnecelMogelijk: true  },
+  waterstof:  { eenheid: 'kg',  veldEenheid: 'kg/100km', prijsLabel: 'Prijs per kg (incl. btw)',    prijs: 'prijsWaterstof', isNulemissie: true,  isWaterstof: true,  tweeStromen: false, zonnecelMogelijk: false },
 };
 
 // Zodra de gebruiker het bijtellings- of forfaitpercentage zelf typt, is dat een
 // bewuste overschrijving en leiden we het niet meer af uit de datum toelating.
 const handmatig = { bijt: false, forf: false };
+// Zodra de gebruiker de restwaarde zelf zet, niet meer overschrijven met de
+// suggestie bij een wijziging van de gebruiksduur.
+let restwaardeHandmatig = false;
 
 // De tenaamstelling is alleen de ankerdatum bij toelating t/m 31-12-2016; het
 // veld staat daarom pas in de weg als het nodig is.
@@ -745,12 +835,14 @@ function werkBijtellingBij(basis, mnd, start) {
   if (!detRaw || !(basis > 0) || !(mnd > 0)) return null;
 
   const enk = energieKenmerken();
+  const zonnecel = !!(document.getElementById('is_zonnecel') || {}).checked;
   const periode = bijtellingOverPeriode(start, mnd, {
     cataloguswaarde:     basis,
     datumToelating:      detRaw,
     datumTenaamstelling: tenaamRaw,
     isNulemissie:        enk.isNulemissie,
     isWaterstof:         enk.isWaterstof,
+    isZonnecel:          zonnecel,
   });
   if (periode.fout) return periode;
 
@@ -776,6 +868,17 @@ function zetEnergieSoort(soort, vulPrijs) {
   const radio = document.querySelector(`input[name="energie"][value="${soort}"]`);
   if (radio) radio.checked = true;
   const k = ENERGIE[soort] || ENERGIE.brandstof;
+  // Tweede energiestroom en de zonnecelvraag alleen tonen waar ze bestaan.
+  ['veld_kwh', 'veld_prijs_kwh', 'veld_aandeel_ev'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = k.tweeStromen ? '' : 'none';
+  });
+  const zc = document.getElementById('veld_zonnecel');
+  if (zc) zc.style.display = k.zonnecelMogelijk ? '' : 'none';
+  if (!k.zonnecelMogelijk) {
+    const cb = document.getElementById('is_zonnecel');
+    if (cb) cb.checked = false;
+  }
   const eenheidEl = document.querySelector('#w_verb .af');
   if (eenheidEl) eenheidEl.textContent = k.veldEenheid;
   const lbl = document.getElementById('lbl_prijs');
@@ -785,6 +888,15 @@ function zetEnergieSoort(soort, vulPrijs) {
     ? 'Nulemissie: de verlaging van het bijtellingspercentage geldt 60 maanden vanaf de ankerdatum'
     : 'Geen nulemissiekorting; het algemeen bijtellingspercentage geldt';
   if (vulPrijs) setFilled('w_prijs', 'prijs_liter', TARIEVEN_2026[k.prijs]);
+}
+
+// Leest een invoerveld via leesGetal, zodat een geldige 0 blijft staan.
+function veld(id, opties) {
+  const el = document.getElementById(id);
+  return leesGetal(el ? el.value : '', opties);
+}
+function veldWaarde(id, opties) {
+  return veld(id, opties).waarde;
 }
 
 function setFilled(wrapId, inputId, val) {
@@ -1017,15 +1129,28 @@ async function zoekKenteken() {
 //               kilometervergoeding; onbelast ontvangen geld is geen
 //               aftrekpost, dus het fiscale effect daarvan is nul.
 //
-// i = { kosten, basis, kmVergoed, bijtPct, forfPct, ibTarief, bvTarief }
+// De 500-kilometergrens werkt in alle drie de takken: is het privégebruik op
+// jaarbasis niet meer dan 500 kilometer, dan blijven bijtelling én
+// autokostenforfait achterwege. Voor de IB-ondernemer betekent dat dat alle
+// autokosten aftrekbaar worden; voor de DGA en de werknemer valt de
+// belastingpost weg. Woon-werkverkeer telt hier NIET als privé mee.
+//
+// Werkt op BEDRAGEN per jaar, niet op percentages: bij een nulemissie-auto
+// verandert het bedrag tijdens de gebruiksduur, en de aanroeper weet per jaar
+// welk bedrag geldt. Zie berekenEffectOverPeriode.
+//
+// i = { kosten, bijtelling, forfait, kmVergoed, priveKmPerJaar, ibTarief, bvTarief }
 function berekenBelastingeffect(rol, i) {
-  const bijtelling = i.basis * i.bijtPct;
-  const forfait    = i.basis * i.forfPct;
+  const verschuldigd = bijtellingVerschuldigd(i.priveKmPerJaar);
+  const bijtelling = verschuldigd ? (i.bijtelling || 0) : 0;
+  const forfait    = verschuldigd ? (i.forfait || 0) : 0;
   let aftrekbaar, effect_z, effect_p;
 
   if (rol === 'werknemer') {
     aftrekbaar = 0;
-    effect_z   = -bijtelling * i.ibTarief;
+    // Expliciet 0 in plaats van -0: JavaScript maakt van -0 * x een negatieve
+    // nul, en die komt in de weergave terecht als "- EUR 0".
+    effect_z   = bijtelling === 0 ? 0 : -bijtelling * i.ibTarief;
     effect_p   = 0;
   } else if (rol === 'dga') {
     aftrekbaar = i.kosten;
@@ -1043,7 +1168,59 @@ function berekenBelastingeffect(rol, i) {
     aftrekbaar: aftrekbaar,
     effect_z:   effect_z,
     effect_p:   effect_p,
-    verschil:   effect_z - effect_p
+    verschil:   effect_z - effect_p,
+    // Of de bijtelling/het forfait is toegepast, zodat de UI dat kan uitleggen
+    // in plaats van een onverklaarde nul te tonen.
+    bijtellingVerschuldigd: verschuldigd
+  };
+}
+
+// Belastingeffect over de hele gebruiksduur, per gebruiksjaar gerekend.
+//
+// Dit MOET per jaar, want de IB-tak is niet lineair in het forfait: door
+// `max(0, kosten - forfait)` levert rekenen met een gemiddeld forfait een andere
+// uitkomst zodra het forfait de kosten in sommige jaren wél en in andere niet
+// overtreft. Bij een EV uit 2019 met € 6.000 autokosten en een forfait dat van
+// € 1.600 naar € 7.600 loopt, scheelde het gemiddelde een factor 4,6.
+//
+// perJaar = [{ maanden, bijtelling, forfait }] met bedragen op JAARBASIS; de
+// weging naar het aantal maanden gebeurt hier.
+function berekenEffectOverPeriode(rol, i) {
+  let effect_z = 0, effect_p = 0, bijtellingTotaal = 0, forfaitTotaal = 0, aftrekbaarTotaal = 0;
+  let verschuldigd = false;
+
+  for (const j of i.perJaar) {
+    const deel = j.maanden / 12;
+    const r = berekenBelastingeffect(rol, {
+      kosten:         i.kostenJr,
+      bijtelling:     j.bijtelling,
+      forfait:        j.forfait,
+      kmVergoed:      i.kmVergoedJr,
+      priveKmPerJaar: i.priveKmPerJaar,
+      ibTarief:       i.ibTarief,
+      bvTarief:       i.bvTarief
+    });
+    effect_z         += r.effect_z * deel;
+    effect_p         += r.effect_p * deel;
+    bijtellingTotaal += r.bijtelling * deel;
+    forfaitTotaal    += r.forfait * deel;
+    aftrekbaarTotaal += r.aftrekbaar * deel;
+    verschuldigd = r.bijtellingVerschuldigd;
+  }
+
+  const jaren = i.perJaar.reduce((som, j) => som + j.maanden, 0) / 12;
+  return {
+    // Totalen over de gebruiksduur.
+    effect_z: effect_z, effect_p: effect_p, verschil: effect_z - effect_p,
+    bijtelling: bijtellingTotaal, forfait: forfaitTotaal, aftrekbaar: aftrekbaarTotaal,
+    // Gemiddelden per jaar, alleen voor de weergave.
+    bijtellingJr: jaren > 0 ? bijtellingTotaal / jaren : 0,
+    forfaitJr:    jaren > 0 ? forfaitTotaal / jaren : 0,
+    aftrekbaarJr: jaren > 0 ? aftrekbaarTotaal / jaren : 0,
+    effectZJr:    jaren > 0 ? effect_z / jaren : 0,
+    effectPJr:    jaren > 0 ? effect_p / jaren : 0,
+    jaren: jaren,
+    bijtellingVerschuldigd: verschuldigd
   };
 }
 
@@ -1057,8 +1234,11 @@ function valideerInvoer(i) {
   if (!(i.mnd > 0)) {
     fouten.push('Vul de gebruiksduur in maanden in.');
   }
-  if (!(i.basis > 0)) {
-    fouten.push('Vul een cataloguswaarde of aanschafprijs in — die is de grondslag voor bijtelling en forfait.');
+  if (!(i.cataloguswaarde > 0)) {
+    // Niet terugvallen op de aanschafprijs: dat is fiscaal een ander getal. Bij
+    // een gebruikte auto van € 15.000 met een nieuwprijs van € 45.000 scheelt de
+    // bijtelling een factor drie.
+    fouten.push('Vul de fiscale cataloguswaarde in (nieuwprijs incl. btw en BPM). Dat is de grondslag voor bijtelling, forfait en de btw-correctie — de aanschafprijs mag daar niet voor doorgaan.');
   }
   if (!(i.kmTotaal > 0)) {
     fouten.push('Vul het aantal kilometers per jaar in.');
@@ -1093,6 +1273,18 @@ function valideerInvoer(i) {
   }
   if (i.lease > 0 && i.aanschaf > 0) {
     waarschuwingen.push('Bij een leasetermijn wordt de aanschafprijs alleen gebruikt voor de restwaarde, niet voor afschrijving.');
+  }
+  if (!(i.lease > 0) && i.cataloguswaarde > 0 && i.aanschaf > 0 && i.aanschaf > i.cataloguswaarde) {
+    waarschuwingen.push('De aanschafprijs is hoger dan de cataloguswaarde. Controleer of de cataloguswaarde de nieuwprijs incl. btw en BPM is.');
+  }
+  if (!i.bijtellingVerschuldigd) {
+    waarschuwingen.push(`Bij niet meer dan ${PRIVE_KM_GRENS} privékilometers per jaar blijven bijtelling en autokostenforfait achterwege. De bewijslast ligt bij u: dat vraagt een sluitende rittenregistratie. Woon-werkverkeer telt hier niet als privé mee, voor de btw wél.`);
+  }
+  if (i.btwAanschafGeschat && i.aanschafBtwAfgetrokken && !(i.lease > 0)) {
+    waarschuwingen.push('De aftrekbare btw op de aanschaf is geschat uit aanschafprijs min BPM. Dat klopt voor een nieuwe auto; vul bij een gebruikte auto de btw van de factuur in.');
+  }
+  if (i.btwCorrectieMethode === 'werkelijk' && !(i.kmTotaal > 0)) {
+    waarschuwingen.push('Voor de correctie op werkelijk privégebruik zijn kilometers nodig; zonder die verdeling komt de correctie op nul uit.');
   }
   if (i.restwaarde > 0 && i.aanschaf > 0 && i.restwaarde >= i.aanschaf) {
     waarschuwingen.push('De restwaarde is gelijk aan of hoger dan de aanschafprijs; er wordt dan niet afgeschreven.');
@@ -1208,15 +1400,26 @@ function leeftijdOp(datum, peildatum) {
   return age;
 }
 
-// Valt de auto in een van de kalenderjaren van de gebruiksduur onder de
-// youngtimergrens? Retourneert het eerste jaar waarin dat gebeurt, of null.
-// De grens verschuift per jaar, dus elk jaar apart toetsen.
+// Valt de auto ergens binnen de gebruiksduur onder de youngtimergrens?
+// Retourneert het eerste jaar waarin dat gebeurt, of null.
+//
+// Toetst per kalenderjaar op de leeftijd aan het EINDE van het deel van dat
+// jaar dat binnen de gebruiksduur valt, niet op 1 januari. Een auto die in
+// augustus 16 wordt is in dat jaar wél een youngtimer, en dat werd met een
+// toets op 1 januari een jaar te laat gezien. Voor een waarschuwing is te vroeg
+// melden beter dan te laat.
 function youngtimerInPeriode(datumToelating, start, mnd) {
   if (!parseDatum(datumToelating) || !(mnd > 0)) return null;
+  const startIdx = start.jaar * 12 + (start.maand - 1);
+  const eindIdx  = startIdx + mnd - 1;
   const eersteJaar = start.jaar;
-  const laatsteJaar = Math.floor((start.jaar * 12 + start.maand - 1 + mnd - 1) / 12);
+  const laatsteJaar = Math.floor(eindIdx / 12);
   for (let jaar = eersteJaar; jaar <= laatsteJaar; jaar++) {
-    const leeftijd = leeftijdOp(datumToelating, new Date(jaar, 0, 1));
+    // Laatste maand van dit kalenderjaar die nog binnen de gebruiksduur valt.
+    const laatsteMaandIdx = Math.min(eindIdx, jaar * 12 + 11);
+    const maand = laatsteMaandIdx - jaar * 12;           // 0-11
+    const peildatum = new Date(jaar, maand + 1, 0);      // laatste dag van die maand
+    const leeftijd = leeftijdOp(datumToelating, peildatum);
     if (leeftijd !== null && leeftijd >= youngtimerGrens(jaar)) return jaar;
   }
   return null;
@@ -1413,14 +1616,237 @@ function bijtellingOverPeriode(start, mnd, auto) {
   };
 }
 
-// Netto btw-effect over de hele gebruiksduur. Positief = voordeel zakelijk.
-// btwAanschaf en btwKostenJr zijn teruggevorderde btw (voordeel); btwPriveJr is
-// de correctie privégebruik en is al negatief. De factor (1 - tarief) maakt het
-// effect netto na belasting: teruggevorderde btw verlaagt de aftrekbare kosten.
-// Een werknemer heeft geen btw-positie — de auto is van de werkgever.
+// ─── Numerieke invoer ─────────────────────────────────────────────────────────
+//
+// `+veld.value || standaard` maakt een geldige nul onmogelijk: 0 is falsy, dus
+// wie bewust 0% btw-aftrek, € 0 vergoeding of 0 liter verbruik invulde kreeg
+// stil de default terug. Deze helper scheidt de vier gevallen expliciet:
+// leeg veld, ongeldige waarde, geldige nul, en een gewone waarde.
+//
+// Retourneert altijd een bruikbare `waarde`, plus vlaggen zodat de UI kan
+// melden dat er een default of een afgekapte waarde is gebruikt.
+function leesGetal(ruw, opties) {
+  const o = opties || {};
+  const standaard = o.standaard !== undefined ? o.standaard : 0;
+  const min = o.min !== undefined ? o.min : null;
+  const max = o.max !== undefined ? o.max : null;
+
+  const s = (ruw === null || ruw === undefined) ? '' : String(ruw).trim();
+  if (s === '') {
+    return { waarde: standaard, leeg: true, ongeldig: false, standaardGebruikt: true };
+  }
+  // Zowel 0,35 als 0.35 toestaan: het invoerveld is numeriek, maar een geplakte
+  // waarde met een komma mag niet stil als ongeldig wegvallen.
+  const n = Number(s.replace(',', '.'));
+  if (!Number.isFinite(n)) {
+    return { waarde: standaard, leeg: false, ongeldig: true, standaardGebruikt: true };
+  }
+  if ((min !== null && n < min) || (max !== null && n > max)) {
+    return { waarde: standaard, leeg: false, ongeldig: true, standaardGebruikt: true,
+             buitenBereik: true, ingevoerd: n };
+  }
+  return { waarde: n, leeg: false, ongeldig: false, standaardGebruikt: false };
+}
+
+// ─── 500-kilometergrens ───────────────────────────────────────────────────────
+//
+// Art. 3.20 lid 1 Wet IB 2001 en art. 13bis lid 1 Wet LB 1964: bijtelling en
+// autokostenforfait blijven achterwege "tenzij blijkt dat de auto op jaarbasis
+// voor niet meer dan 500 kilometer voor privédoeleinden wordt gebruikt".
+//
+// Twee dingen om niet te verwarren:
+//   · Voor de inkomstenbelasting en de loonheffingen is woon-werkverkeer
+//     ZAKELIJK verkeer. Het telt dus NIET mee in de 500 kilometer.
+//   · Voor de btw is woon-werkverkeer juist PRIVÉgebruik. De btw-correctie kent
+//     deze grens helemaal niet en verdwijnt dus niet mee.
+// De bewijslast ligt bij de belastingplichtige ("tenzij blijkt dat"), in de
+// praktijk met een sluitende rittenregistratie.
+const PRIVE_KM_GRENS = 500;
+
+function bijtellingVerschuldigd(priveKmPerJaar) {
+  return !(priveKmPerJaar <= PRIVE_KM_GRENS);
+}
+
+// ─── Kilometeraandelen ────────────────────────────────────────────────────────
+//
+// Het zakelijke aandeel is voor de btw een ánder getal dan voor de
+// inkomstenbelasting, precies omdat woon-werk aan de andere kant valt.
+function kmAandelen(km) {
+  const totaal = km.prive + km.woonwerk + km.zakelijk;
+  if (!(totaal > 0)) {
+    return { totaal: 0, zakelijkIb: 0, zakelijkBtw: 0, priveBtw: 0 };
+  }
+  return {
+    totaal: totaal,
+    // IB/LB: woon-werk is zakelijk verkeer.
+    zakelijkIb: (km.zakelijk + km.woonwerk) / totaal,
+    // Btw: woon-werk is privégebruik.
+    zakelijkBtw: km.zakelijk / totaal,
+    priveBtw: (km.prive + km.woonwerk) / totaal,
+  };
+}
+
+// ─── Btw ──────────────────────────────────────────────────────────────────────
+//
+// Correctie privégebruik auto van de zaak. De grondslag is de catalogusprijs
+// INCLUSIEF btw en BPM; dat is precies wat het veld cataloguswaarde bevat.
+//
+//   2,7%  standaard, als de btw op de aanschaf is afgetrokken en de auto nog
+//         binnen de herzieningsperiode valt (jaar van ingebruikname + 4 jaar).
+//   1,5%  als er geen aanschaf-btw is afgetrokken (marge-auto of gekocht van
+//         een particulier), of vanaf het vijfde jaar na ingebruikname.
+//
+// Zonder aftrek van aanschaf-btw is de correctie bovendien BEGRENSD op de btw
+// die dat jaar op gebruik en onderhoud is afgetrokken: je kunt niet meer
+// terugbetalen dan je hebt afgetrokken.
+//
+// In plaats van het forfait mag het werkelijke privégebruik worden gebruikt
+// (rittenregistratie). Dan is de correctie het privé-aandeel van de btw op de
+// autokosten — en voor de btw hoort woon-werk in dat privé-aandeel.
+const BTW_CORRECTIE_HOOG   = 0.027;
+const BTW_CORRECTIE_LAAG   = 0.015;
+const BTW_HERZIENING_JAREN = 5;      // jaar van ingebruikname + 4
+
+// `geenAftrekKapitaal` is waar bij een marge-auto of een auto van een
+// particulier: dan is er over de waarde van de auto nooit btw afgetrokken en
+// zou 2,7% te veel corrigeren. Bij operational lease is dat NIET zo — de btw
+// op de leasetermijn dekt ook het waardeverlies — dus daar geldt 2,7%.
+function btwCorrectiePct(jaarIndex, geenAftrekKapitaal) {
+  if (geenAftrekKapitaal) return BTW_CORRECTIE_LAAG;
+  return jaarIndex < BTW_HERZIENING_JAREN ? BTW_CORRECTIE_HOOG : BTW_CORRECTIE_LAAG;
+}
+
+// Verdeelt een gebruiksduur in maanden over gebruiksjaren, zodat een
+// correctiepercentage dat per jaar wisselt tijdsevenredig kan worden toegepast.
+function gebruiksjaren(mnd) {
+  const rijen = [];
+  let over = mnd;
+  let idx = 0;
+  while (over > 0) {
+    const maanden = Math.min(12, over);
+    rijen.push({ jaarIndex: idx, maanden: maanden, deel: maanden / 12 });
+    over -= maanden;
+    idx += 1;
+  }
+  return rijen;
+}
+
+// Btw-effect van het zakelijke scenario over de hele gebruiksduur.
+// Positief = per saldo btw terug.
+function berekenBtwZakelijk(i) {
+  const aanschaf = i.btwAanschaf || 0;
+  const geenAftrekKapitaal = !!i.geenAftrekKapitaal;
+  const rijen = [];
+  let kostenTotaal = 0, correctieTotaal = 0;
+
+  for (const j of gebruiksjaren(i.mnd)) {
+    const kostenAftrek = (i.btwKostenJr || 0) * j.deel;
+    let correctie, pct = null;
+
+    if (i.methode === 'werkelijk') {
+      // Werkelijk privégebruik: het privé-aandeel van de afgetrokken btw.
+      correctie = kostenAftrek * (i.priveAandeelBtw || 0);
+    } else if (!(i.priveAandeelBtw > 0)) {
+      // Aantoonbaar geen enkel privégebruik voor de btw — ook geen woon-werk —
+      // dan is er niets te corrigeren.
+      correctie = 0;
+    } else {
+      pct = btwCorrectiePct(j.jaarIndex, geenAftrekKapitaal);
+      correctie = (i.cataloguswaarde || 0) * pct * j.deel;
+      if (geenAftrekKapitaal) {
+        // Begrensd op de btw die dat jaar op gebruik en onderhoud is afgetrokken:
+        // je kunt niet meer terugbetalen dan je hebt afgetrokken.
+        correctie = Math.min(correctie, kostenAftrek);
+      }
+    }
+
+    kostenTotaal += kostenAftrek;
+    correctieTotaal += correctie;
+    rijen.push({ jaarIndex: j.jaarIndex, maanden: j.maanden, kostenAftrek: kostenAftrek,
+                 correctie: correctie, pct: pct });
+  }
+
+  return {
+    aanschaf: aanschaf,
+    kostenTotaal: kostenTotaal,
+    correctieTotaal: correctieTotaal,
+    netto: aanschaf + kostenTotaal - correctieTotaal,
+    rijen: rijen,
+  };
+}
+
+// Btw-effect van het privéscenario.
+//
+// Alleen de IB-ondernemer heeft hier een btw-positie: de auto is privévermogen,
+// maar de btw op gebruik en onderhoud is aftrekbaar naar rato van het zakelijk
+// gebruik. Voor de btw is woon-werkverkeer privégebruik, dus dat aandeel telt
+// daar niet als zakelijk mee. Een DGA of werknemer die privé rijdt en een
+// kilometervergoeding ontvangt, heeft geen aftrekrecht.
+//
+// Zonder dit werd het btw-voordeel volledig aan het zakelijke scenario
+// toegerekend en was de vergelijking vertekend.
+function berekenBtwPrive(rol, i) {
+  if (rol !== 'ondernemer') {
+    return { netto: 0, aftrek: 0, aandeel: 0, vanToepassing: false };
+  }
+  const aandeel = i.zakelijkAandeelBtw || 0;
+  const aftrek = (i.btwKostenPriveJr || 0) * (i.mnd / 12) * aandeel;
+  return { netto: aftrek, aftrek: aftrek, aandeel: aandeel, vanToepassing: true };
+}
+
+// Netto btw-effect voor de vergelijking, over de hele gebruiksduur.
+// De factor (1 - tarief) maakt het effect netto na belasting: teruggevorderde
+// btw verlaagt de aftrekbare kosten en een correctie verhoogt ze weer.
+// Een werknemer heeft geen btw-positie: de auto is van de werkgever en in het
+// privéscenario is hij geen ondernemer.
 function berekenBtwEffect(rol, i) {
-  if (rol === 'werknemer') return 0;
-  return (i.btwAanschaf + i.btwKostenJr * i.jaren + i.btwPriveJr * i.jaren) * (1 - i.tarief);
+  if (rol === 'werknemer') {
+    return { zakelijk: 0, prive: 0, bruto: 0, netto: 0, vanToepassing: false };
+  }
+  const bruto = i.btwZakelijkNetto - i.btwPriveNetto;
+  return {
+    zakelijk: i.btwZakelijkNetto,
+    prive: i.btwPriveNetto,
+    bruto: bruto,
+    netto: bruto * (1 - i.tarief),
+    vanToepassing: true,
+  };
+}
+
+// ─── Netto kostenvergelijking werknemer ───────────────────────────────────────
+//
+// Voor een werknemer zegt het belastingverschil alleen niets: in het zakelijke
+// scenario draagt de werkgever alle autokosten en betaalt de werknemer enkel
+// belasting over de bijtelling, in het privéscenario draagt de werknemer alle
+// kosten zelf en ontvangt hij een onbelaste vergoeding. Een oordeel op alleen
+// het belastingverschil valt daarom altijd uit op "auto privé", ongeacht de
+// werkelijke bedragen. Daarom voor deze rol een echte netto-vergelijking.
+//
+// Niet gemodelleerd: een eigen bijdrage voor privégebruik, en het feit dat een
+// werkgever een privéauto ook onbelast minder dan € 0,25 per km mag vergoeden.
+function berekenNettoWerknemer(i) {
+  const kostenZakelijk = i.bijtelling * i.ibTarief;      // belasting over de bijtelling
+  const kostenPrive = i.autokostenJr - i.vergoedingJr;   // eigen kosten minus vergoeding
+  return {
+    kostenZakelijk: kostenZakelijk,
+    kostenPrive: kostenPrive,
+    // Positief = de auto van de zaak is per jaar goedkoper voor de werknemer.
+    verschil: kostenPrive - kostenZakelijk,
+  };
+}
+
+// ─── Restwaarde ───────────────────────────────────────────────────────────────
+//
+// De vuistregels zijn marktinschattingen NA VIER JAAR, geen fiscale regels. Ze
+// werden eerder ongewijzigd toegepast bij elke gebruiksduur, dus ook bij 24 of
+// 72 maanden. Hier wordt het vierjaarspercentage omgerekend naar de werkelijke
+// duur met een constant jaarlijks afschrijvingstempo: r(t) = r4^(t/4).
+// Dat blijft een schatting; de gebruiker kan altijd overschrijven.
+function restwaardeVoorDuur(pct4, mnd) {
+  if (!(pct4 > 0) || !(mnd > 0)) return 0;
+  const jaar = mnd / 12;
+  const pct = 100 * Math.pow(pct4 / 100, jaar / 4);
+  return Math.round(pct * 10) / 10;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1428,36 +1854,47 @@ function berekenBtwEffect(rol, i) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function bereken() {
-  // Invoer
-  const cat      = +document.getElementById('cataloguswaarde').value  || 0;
-  const aansch   = +document.getElementById('aanschafkosten').value   || cat;
-  const bpm      = +document.getElementById('bpm_nieuw').value        || 0;
-  const bijt_pct = (+document.getElementById('bijtelling_pct').value  || TARIEVEN_2026.bijtellingHoog) / 100;
-  const forf_pct = (+document.getElementById('forfait_pct').value     || TARIEVEN_2026.autokostenforfait) / 100;
+  // Invoer — alles via veldWaarde(), zodat een bewust ingevulde 0 blijft staan.
+  // Voorheen ging elk veld via `+value || default`, waardoor 0% btw-aftrek stil
+  // 100% werd en € 0 kilometervergoeding stil € 0,25.
+  const cat      = veldWaarde('cataloguswaarde', { standaard: 0, min: 0 });
+  const aansch   = veldWaarde('aanschafkosten',  { standaard: 0, min: 0 });
+  const bpm      = veldWaarde('bpm_nieuw',       { standaard: 0, min: 0 });
+  const forf_pct = veldWaarde('forfait_pct',     { standaard: TARIEVEN_2026.autokostenforfait, min: 0, max: 100 }) / 100;
+
   const btw_a    = document.querySelector('input[name="btw_aanschaf"]:checked').value;
-  const btw_t    = btw_a === 'ja' ? TARIEVEN_2026.btwTarief / 100 : 0;
-  const btw_af   = (+document.getElementById('btw_aftrek_pct').value  || 100) / 100;
+  const aanschafBtwAfgetrokken = btw_a === 'ja';
+  const btw_af   = veldWaarde('btw_aftrek_pct',  { standaard: 100, min: 0, max: 100 }) / 100;
+  const btw_corr_methode = (document.querySelector('input[name="btw_correctie"]:checked') || {}).value || 'forfait';
+
   // Geen fallback: een stille 48 zou de validatie hieronder dode code maken.
-  const mnd      = +document.getElementById('gebruiksduur_mnd').value || 0;
-  const rente    = (+document.getElementById('rente').value           || 0)   / 100;
-  const lease    = +document.getElementById('lease_prijs').value      || 0;
+  const mnd      = veldWaarde('gebruiksduur_mnd', { standaard: 0, min: 0 });
+  const rente    = veldWaarde('rente',            { standaard: 0, min: 0, max: 100 }) / 100;
+  const lease    = veldWaarde('lease_prijs',      { standaard: 0, min: 0 });
 
-  const kp = +document.getElementById('km_prive').value    || 0;
-  const kw = +document.getElementById('km_woonwerk').value || 0;
-  const kz = +document.getElementById('km_zakelijk').value || 0;
+  const kp = veldWaarde('km_prive',    { standaard: 0, min: 0 });
+  const kw = veldWaarde('km_woonwerk', { standaard: 0, min: 0 });
+  const kz = veldWaarde('km_zakelijk', { standaard: 0, min: 0 });
   const kt = kp + kw + kz;
-  const kv = +document.getElementById('km_vergoeding').value || TARIEVEN_2026.kmVergoeding;
-  const vb = +document.getElementById('verbruik_100').value  || 7;
+  const aandeel = kmAandelen({ prive: kp, woonwerk: kw, zakelijk: kz });
+  const kv = veldWaarde('km_vergoeding', { standaard: TARIEVEN_2026.kmVergoeding, min: 0 });
+
   const enk = energieKenmerken();
-  const pl = +document.getElementById('prijs_liter').value || TARIEVEN_2026[enk.prijs];
+  const vb = veldWaarde('verbruik_100', { standaard: 0, min: 0 });
+  const pl = veldWaarde('prijs_liter',  { standaard: 0, min: 0 });
+  // Plug-in hybride: tweede energiestroom. Een PHEV rijdt deels elektrisch, en
+  // die kilometers volledig tegen de literprijs rekenen wijkt sterk af.
+  const vb2 = veldWaarde('verbruik_kwh',  { standaard: 0, min: 0 });
+  const pl2 = veldWaarde('prijs_kwh',     { standaard: 0, min: 0 });
+  const evAandeel = veldWaarde('aandeel_ev', { standaard: 0, min: 0, max: 100 }) / 100;
 
-  const mrb  = +document.getElementById('mrb').value        || 0;
-  const verz = +document.getElementById('verzekering').value || 0;
-  const ond  = +document.getElementById('onderhoud').value   || 0;
-  const ovr  = +document.getElementById('overig').value      || 0;
+  const mrb  = veldWaarde('mrb',         { standaard: 0, min: 0 });
+  const verz = veldWaarde('verzekering', { standaard: 0, min: 0 });
+  const ond  = veldWaarde('onderhoud',   { standaard: 0, min: 0 });
+  const ovr  = veldWaarde('overig',      { standaard: 0, min: 0 });
 
-  const ibt = (+document.getElementById('ib_tarief').value || TARIEVEN_2026.ibTarief) / 100;
-  const vbt = (+document.getElementById('vpb_ib').value    || TARIEVEN_2026.vpbIbDividend) / 100;
+  const ibt = veldWaarde('ib_tarief', { standaard: TARIEVEN_2026.ibTarief,      min: 0, max: 100 }) / 100;
+  const vbt = veldWaarde('vpb_ib',    { standaard: TARIEVEN_2026.vpbIbDividend, min: 0, max: 100 }) / 100;
   const rol = document.querySelector('input[name="rol"]:checked').value;
   const div = document.querySelector('input[name="dga_div"]:checked')?.value || 'nee';
   // Box 1 voor de bijtelling; bvt is het tarief waartegen een euro kosten in de
@@ -1466,8 +1903,12 @@ function bereken() {
   // Tarief dat het scenario domineert, gebruikt voor het btw-effect en de teksten.
   const tar = (rol === 'dga') ? bvt : ibt;
 
-  // Grondslag bijtelling/forfait = cataloguswaarde, anders aanschafprijs
-  const basis = cat || aansch;
+  // Grondslag voor bijtelling, forfait en de btw-correctie is de fiscale
+  // CATALOGUSWAARDE (nieuwprijs incl. btw en BPM). De aanschafprijs is iets
+  // anders en mag daar niet stil voor doorgaan: bij een gebruikte auto van
+  // € 15.000 met een nieuwprijs van € 45.000 verschilt de bijtelling een factor
+  // drie. Ontbreekt de cataloguswaarde, dan blokkeert de validatie hieronder.
+  const basis = cat;
   const jaren = mnd > 0 ? mnd / 12 : 1;   // deling door nul vóór de validatie voorkomen
   // Afgerond voor weergave: 50 maanden gaf eerder "4.166666666666667 jaar".
   const jarenTekst = Number.isInteger(jaren) ? String(jaren) : jaren.toFixed(1).replace('.', ',');
@@ -1479,7 +1920,13 @@ function bereken() {
   const k_afschr  = lease > 0 ? 0 : Math.max(0, aansch - restwaarde) / jaren;
 
   // Kostenopbouw per jaar
-  const k_brand  = (kt / 100) * vb * pl;
+  // Bij een plug-in hybride wordt het aantal kilometers gesplitst: het opgegeven
+  // aandeel rijdt elektrisch tegen de stroomprijs, de rest op brandstof.
+  const kmEv       = enk.tweeStromen ? kt * evAandeel : 0;
+  const kmMotor    = kt - kmEv;
+  const k_brand_l  = (kmMotor / 100) * vb * pl;
+  const k_brand_ev = enk.tweeStromen ? (kmEv / 100) * vb2 * pl2 : 0;
+  const k_brand    = k_brand_l + k_brand_ev;
   const k_rente  = rente * (aansch + restwaarde) / 2;
   const k_overig = mrb + verz + ond + ovr;
   // Operational lease dekt afschrijving, rente, MRB, verzekering en onderhoud.
@@ -1522,44 +1969,119 @@ function bereken() {
   // Privé: kilometervergoeding
   const km_vergoed = kv * (kz + kw);
 
-  // Belastingeffect per rol — zie FISCALE KERN
-  const fisc = berekenBelastingeffect(rol, {
-    kosten:    k_totaal,
-    basis:     basis,
-    kmVergoed: km_vergoed,
-    bijtPct:   bijt_pct_eff,
-    forfPct:   forf_pct_eff,
-    ibTarief:  ibt,
-    bvTarief:  bvt
-  });
-  const bijtelling_bedrag = fisc.bijtelling;
-  const forfait_bedrag    = fisc.forfait;
-  const aftrekbaar        = fisc.aftrekbaar;
-  const ib_z              = fisc.effect_z;
-  const ib_p              = fisc.effect_p;
+  // Bijtelling en forfait per gebruiksjaar, op jaarbasis. Bij een nulemissie-auto
+  // verandert het bedrag tijdens de duur; anders is het elk jaar hetzelfde.
+  const perJaarBedragen = (regimeOk && !handmatig.bijt)
+    ? bijtPeriode.perJaar.map(r => {
+        const jaarbedrag = r.bedrag / (r.maanden / 12);
+        return { maanden: r.maanden, bijtelling: jaarbedrag,
+                 forfait: handmatig.forf ? basis * forf_pct : jaarbedrag };
+      })
+    : gebruiksjaren(mnd).map(j => ({
+        maanden: j.maanden,
+        bijtelling: basis * bijt_pct_eff,
+        forfait:    basis * forf_pct_eff
+      }));
 
-  // Verschil
-  const vj = fisc.verschil;
-  const vd = vj * jaren;
-
-  // BTW-effect (indicatief)
-  // Bij operational lease wordt de auto niet gekocht: er is geen btw op de
-  // aanschaf terug te vorderen, alleen op de leasetermijn (zie btw_basis_jr).
-  const btw_aansch   = (btw_t > 0 && !leaseActief) ? (basis - bpm) / (1 + btw_t) * btw_t * btw_af : 0;
-  const btw_prive_jr = (btw_t > 0 ? -TARIEVEN_2026.btwPriveGebruikPct : 0) * basis * btw_af;
-  // Btw over de jaarlijkse kosten die btw dragen. MRB en verzekering dragen geen
-  // btw (belasting resp. assurantiebelasting). Bij lease is dat de leasetermijn
-  // plus brandstof; het onderhoud zit dan al in de termijn.
-  const btw_basis_jr = leaseActief ? lease + k_brand : ond + k_brand;
-  const btw_brand_jr = btw_basis_jr / (1 + TARIEVEN_2026.btwTarief / 100) * (TARIEVEN_2026.btwTarief / 100) * btw_af;
-  const btw_ef       = berekenBtwEffect(rol, {
-    btwAanschaf: btw_aansch,
-    btwKostenJr: btw_brand_jr,
-    btwPriveJr:  btw_prive_jr,
-    jaren:       jaren,
-    tarief:      tar
+  // Belastingeffect per rol — zie FISCALE KERN. Per jaar gerekend, want de
+  // IB-tak is niet lineair in het forfait.
+  const fisc = berekenEffectOverPeriode(rol, {
+    kostenJr:    k_totaal,
+    kmVergoedJr: km_vergoed,
+    // Alleen echte privékilometers; woon-werk is voor de IB en de loonheffingen
+    // zakelijk verkeer en telt hier dus niet mee.
+    priveKmPerJaar: kp,
+    ibTarief:    ibt,
+    bvTarief:    bvt,
+    perJaar:     perJaarBedragen
   });
+  const bijtelling_bedrag = fisc.bijtellingJr;
+  const forfait_bedrag    = fisc.forfaitJr;
+  const aftrekbaar        = fisc.aftrekbaarJr;
+  const ib_z              = fisc.effectZJr;
+  const ib_p              = fisc.effectPJr;
+
+  // Verschil: totaal over de duur, niet een jaarbedrag maal de jaren.
+  const vj = fisc.verschil / (fisc.jaren || 1);
+  const vd = fisc.verschil;
+
+  // ── BTW ──
+  // Btw-tarief over de posten die btw dragen. MRB en verzekering dragen geen
+  // btw (motorrijtuigenbelasting resp. assurantiebelasting), dus die blijven
+  // buiten de grondslag. Bij operational lease zit het onderhoud in de termijn.
+  const btwT = TARIEVEN_2026.btwTarief / 100;
+  const btwIn = (bedragInclBtw) => bedragInclBtw / (1 + btwT) * btwT;
+
+  const kostenMetBtwJr = leaseActief ? (lease + k_brand + ovr) : (ond + k_brand + ovr);
+  const btwKostenJr    = btwIn(kostenMetBtwJr) * btw_af;
+
+  // Aftrekbare btw op de aanschaf. Expliciet invoerveld, want de vuistregel
+  // (cataloguswaarde - BPM) / 1,21 x 21% klopt alleen voor een nieuwe auto: bij
+  // een gebruikte auto is de btw die je kunt aftrekken die op de FACTUUR, en
+  // bij een marge-auto is er niets af te trekken. Leeg veld valt terug op de
+  // vuistregel over de AANSCHAFPRIJS (niet de cataloguswaarde), als schatting.
+  const btwAanschafVeld = veld('btw_aanschaf_bedrag', { standaard: -1, min: 0 });
+  const btwAanschafSchatting = Math.max(0, (aansch - bpm)) / (1 + btwT) * btwT;
+  const btwAanschafGeschat = btwAanschafVeld.standaardGebruikt;
+  // Bij operational lease wordt de auto niet gekocht: geen aanschaf-btw.
+  const btwAanschaf = (aanschafBtwAfgetrokken && !leaseActief)
+    ? (btwAanschafGeschat ? btwAanschafSchatting : btwAanschafVeld.waarde) * btw_af
+    : 0;
+
+  // Bij operational lease is er wél btw-aftrek over het waardeverlies (via de
+  // termijn), dus geen 1,5% en geen maximum; alleen is er geen aanschafbedrag.
+  const geenAftrekKapitaal = !aanschafBtwAfgetrokken && !leaseActief;
+  const btwZ = berekenBtwZakelijk({
+    btwAanschaf:          btwAanschaf,
+    btwKostenJr:          btwKostenJr,
+    cataloguswaarde:      basis,
+    geenAftrekKapitaal:   geenAftrekKapitaal,
+    methode:              btw_corr_methode,
+    priveAandeelBtw:      aandeel.priveBtw,
+    mnd:                  mnd
+  });
+
+  // Privéscenario: alleen de IB-ondernemer heeft hier aftrekrecht, naar rato van
+  // het zakelijk gebruik — en voor de btw is woon-werk géén zakelijk gebruik.
+  // De kosten in het privéscenario zijn dezelfde autokosten, maar zonder
+  // leasetermijn: dat scenario gaat over een eigen auto.
+  const btwKostenPriveJr = btwIn(ond + k_brand + ovr) * btw_af;
+  const btwP = berekenBtwPrive(rol, {
+    btwKostenPriveJr:  btwKostenPriveJr,
+    zakelijkAandeelBtw: aandeel.zakelijkBtw,
+    mnd:                mnd
+  });
+
+  const btwUitkomst = berekenBtwEffect(rol, {
+    btwZakelijkNetto: btwZ.netto,
+    btwPriveNetto:    btwP.netto,
+    tarief:           tar
+  });
+  const btw_ef = btwUitkomst.netto;
   const totaal       = vd + btw_ef;
+
+  // Voor de werknemer is het belastingverschil alleen geen antwoord: dat valt
+  // altijd uit op "auto privé", want de werkgever draagt in het zakelijke
+  // scenario alle kosten. Voor die rol daarom een netto-vergelijking, waarin de
+  // autokosten die de werknemer privé zelf draagt wél meetellen.
+  const nettoWn = berekenNettoWerknemer({
+    // Jaarbedrag: autokostenJr en vergoedingJr zijn ook per jaar. fisc.bijtelling
+    // is het totaal over de gebruiksduur en zou hier een factor `jaren` te hoog zijn.
+    bijtelling:   fisc.bijtellingJr,
+    ibTarief:     ibt,
+    autokostenJr: k_totaal,
+    vergoedingJr: km_vergoed
+  });
+  const nettoWnDuur = nettoWn.verschil * jaren;
+
+  // Waar het eindoordeel op rust, per rol.
+  const oordeelBasis = rol === 'werknemer' ? nettoWnDuur : totaal;
+
+  // Een youngtimer rekent deze tool niet: de bijtelling gaat dan over 35% van de
+  // waarde in het economisch verkeer. Een normale bijtelling presenteren als
+  // eindconclusie zou dan schijnzekerheid zijn.
+  const ytJaar = youngtimerInPeriode(detRaw, start, mnd);
+  const oordeelBetrouwbaar = !ytJaar;
 
   // ── VALIDATIE ──
   const val = valideerInvoer({
@@ -1577,7 +2099,12 @@ function bereken() {
     startGeldig:        startRaw === '' || parseMaandJaar(startRaw) !== null,
     regimeFout:         bijtPeriode ? (bijtPeriode.fout || null) : null,
     isNulemissie:       enk.isNulemissie,
-    youngtimerJaar:     youngtimerInPeriode(detRaw, start, mnd)
+    youngtimerJaar:     ytJaar,
+    cataloguswaarde:        cat,
+    bijtellingVerschuldigd: fisc.bijtellingVerschuldigd,
+    btwAanschafGeschat:     btwAanschafGeschat,
+    aanschafBtwAfgetrokken: aanschafBtwAfgetrokken,
+    btwCorrectieMethode:    btw_corr_methode
   });
 
   const vbox = document.getElementById('val');
@@ -1615,7 +2142,9 @@ function bereken() {
   document.getElementById('r_afschr').textContent =
     fmtE(k_afschr) + '/jr  (' + fmtE(aansch) + ' aanschaf - ' + fmtE(restwaarde) + ' restwaarde = ' + fmtE(Math.max(0, aansch-restwaarde)) + ' over ' + jarenTekst + 'jr)';
   const eenheid = enk.eenheid;
-  document.getElementById('r_brand').textContent  = fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb} ${eenheid} × €${pl})`;
+  document.getElementById('r_brand').textContent = enk.tweeStromen
+    ? fmtE(k_brand) + ` (${fmtN(kmMotor)} km × ${vb} l × €${pl} + ${fmtN(kmEv)} km × ${vb2} kWh × €${pl2})`
+    : fmtE(k_brand) + ` (${fmtN(kt)} km × ${vb} ${eenheid} × €${pl})`;
   // Bij lease zitten deze posten in de termijn; ze niet meetellen én toch als
   // bedrag laten staan is precies de optelling die niet klopte.
   const gedekt = ' — in leasetermijn';
@@ -1635,12 +2164,17 @@ function bereken() {
   zichtbaar('row_aftrekbaar',  !isWn);    // werknemer heeft geen kostenaftrek
   zichtbaar('veld_forfait',    isOnd);
 
-  document.getElementById('ttl_fisc').textContent = isOnd
-    ? 'Autokostenforfait en aftrekbeperking'
-    : (isDga ? 'Bijtelling box 1 en kostenaftrek in de BV' : 'Bijtelling bij het loon');
+  document.getElementById('ttl_fisc').textContent = !fisc.bijtellingVerschuldigd
+    ? `Geen bijtelling of forfait — privégebruik ≤ ${PRIVE_KM_GRENS} km`
+    : (isOnd ? 'Autokostenforfait en aftrekbeperking'
+      : (isDga ? 'Bijtelling box 1 en kostenaftrek in de BV' : 'Bijtelling bij het loon'));
 
-  document.getElementById('r_bijtelling_bedrag').textContent = fmtE(bijtelling_bedrag) + ` (${fmtE(basis)} × ${(bijt_pct_eff*100).toFixed(1)}%)`;
-  document.getElementById('r_forfait_bedrag').textContent    = fmtE(forfait_bedrag)    + ` (${fmtE(basis)} × ${(forf_pct_eff*100).toFixed(1)}%)`;
+  document.getElementById('r_bijtelling_bedrag').textContent = fisc.bijtellingVerschuldigd
+    ? fmtE(bijtelling_bedrag) + ` (${fmtE(basis)} × ${(bijt_pct_eff*100).toFixed(1)}%)`
+    : `€ 0 — niet verschuldigd (${(bijt_pct_eff*100).toFixed(1)}% zou € ${fmtN(Math.round(basis*bijt_pct_eff))} zijn)`;
+  document.getElementById('r_forfait_bedrag').textContent = fisc.bijtellingVerschuldigd
+    ? fmtE(forfait_bedrag) + ` (${fmtE(basis)} × ${(forf_pct_eff*100).toFixed(1)}%)`
+    : `€ 0 — niet verschuldigd (${(forf_pct_eff*100).toFixed(1)}% zou € ${fmtN(Math.round(basis*forf_pct_eff))} zijn)`;
 
   // 60-maandentermijn en de opbouw per kalenderjaar
   const rijTermijn = document.getElementById('row_termijn');
@@ -1676,9 +2210,10 @@ function bereken() {
   document.getElementById('r_forfait').textContent = fmtE(Math.min(forfait_bedrag, k_totaal))
     + (forfait_bedrag > k_totaal ? ' ⚠ forfait > kosten → volledige aftrekbeperking' : '');
 
-  document.getElementById('lbl_bijt').textContent = isDga
-    ? 'Bijtelling bij het loon (belast in box 1)'
-    : 'Bijtelling bij het loon (catalogus × bijtelling%)';
+  document.getElementById('lbl_bijt').textContent = !fisc.bijtellingVerschuldigd
+    ? `Bijtelling — vervalt bij niet meer dan ${PRIVE_KM_GRENS} privékilometers`
+    : (isDga ? 'Bijtelling bij het loon (belast in box 1)'
+             : 'Bijtelling bij het loon (catalogus × bijtelling%)');
 
   document.getElementById('lbl_aftrekbaar').innerHTML = isDga
     ? '<strong>Aftrekbaar in de BV</strong>'
@@ -1725,10 +2260,58 @@ function bereken() {
   evd.textContent = fmtE(Math.abs(vd)) + ' (' + richting + ')';
   evd.className = 'rv ' + (vj >= 0 ? 'mint' : 'yellow');
 
+  // Btw-opbouw expliciet, zodat de uitkomst controleerbaar is in plaats van
+  // één samengesteld getal.
+  const btwRijenZichtbaar = btwUitkomst.vanToepassing;
+  ['ttl_btw','row_btw_aansch','row_btw_kosten','row_btw_corr','row_btw_prive'].forEach(id => {
+    document.getElementById(id).style.display = btwRijenZichtbaar ? '' : 'none';
+  });
+  if (btwRijenZichtbaar) {
+    document.getElementById('r_btw_aansch').textContent = leaseActief
+      ? '— (lease: geen aanschaf)'
+      : (aanschafBtwAfgetrokken
+          ? fmtE(btwZ.aanschaf) + (btwAanschafGeschat ? ' (schatting)' : '')
+          : '— (marge/particulier)');
+    document.getElementById('r_btw_kosten').textContent = fmtE(btwZ.kostenTotaal);
+
+    const pctenGebruikt = [...new Set(btwZ.rijen.map(r => r.pct).filter(v => v !== null))];
+    document.getElementById('lbl_btw_corr').textContent = btw_corr_methode === 'werkelijk'
+      ? `Correctie privégebruik (werkelijk, ${(aandeel.priveBtw*100).toFixed(0)}% privé incl. woon-werk)`
+      : (pctenGebruikt.length
+          ? `Correctie privégebruik (forfait ${pctenGebruikt.map(v => (v*100).toFixed(1).replace('.', ',') + '%').join(' en ')})`
+          : 'Correctie privégebruik');
+    document.getElementById('r_btw_corr').textContent = '− ' + fmtE(btwZ.correctieTotaal);
+
+    document.getElementById('r_btw_prive').textContent = btwP.vanToepassing
+      ? '− ' + fmtE(btwP.netto) + ` (${(btwP.aandeel*100).toFixed(0)}% zakelijk, excl. woon-werk)`
+      : 'n.v.t. voor deze rol';
+  }
+
   const btw_richting = btw_ef >= 0 ? 'voordeel zakelijk' : 'nadeel zakelijk';
-  document.getElementById('r_btw').textContent = isWn
+  document.getElementById('r_btw').textContent = !btwUitkomst.vanToepassing
     ? 'n.v.t. — de auto is van de werkgever'
     : fmtE(Math.abs(btw_ef)) + ` (${btw_richting})`;
+
+  // Netto-regels voor de werknemer
+  ['ttl_netto','row_netto_z','row_netto_p','row_netto_tot'].forEach(id => {
+    document.getElementById(id).style.display = isWn ? '' : 'none';
+  });
+  if (isWn) {
+    document.getElementById('r_netto_z').textContent = fmtE(nettoWn.kostenZakelijk);
+    document.getElementById('r_netto_p').textContent = fmtE(nettoWn.kostenPrive)
+      + ` (${fmtE(k_totaal)} kosten − ${fmtE(km_vergoed)} vergoeding)`;
+    const enet = document.getElementById('r_netto_tot');
+    enet.textContent = fmtE(Math.abs(nettoWnDuur))
+      + (nettoWnDuur >= 0 ? ' (zakelijk voordelig)' : ' (privé voordelig)');
+    enet.className = 'rv ' + (nettoWnDuur >= 0 ? 'mint' : 'yellow');
+  }
+
+  // Bij de werknemer rust het oordeel op de netto-vergelijking, niet op het
+  // belastingverschil. Dat laatste blijft staan als toelichting, maar mag niet
+  // als het eindcijfer worden gelezen.
+  document.getElementById('lbl_tot').innerHTML = isWn
+    ? '<strong>Belastingverschil</strong> <span style="font-weight:400;opacity:.7;">(toelichting, niet de conclusie)</span>'
+    : '<strong>Totaal belastingverschil incl. btw</strong>';
 
   const etot = document.getElementById('r_tot');
   etot.textContent = fmtE(Math.abs(totaal));
@@ -1736,12 +2319,28 @@ function bereken() {
 
   // Verdict
   const verd = document.getElementById('verd');
-  const totaal_richting = totaal >= 0 ? 'zakelijk voordelig' : 'privé voordelig';
-  verd.className = 'verdict ' + (totaal >= 0 ? 'v-z' : 'v-p');
-  document.getElementById('v_main').textContent = totaal >= 0 ? 'Auto van de zaak' : 'Auto privé';
-  document.getElementById('v_sub').innerHTML =
-    'Belastingvoordeel: <strong>' + fmtE(Math.abs(totaal)) + '</strong> over de gebruiksduur'
-    + '<br><span style="font-size:11px;opacity:.75;">Alleen het belastingverschil — de autokosten die u in het privéscenario zelf draagt, staan hier niet tegenover.</span>';
+  const klein = (tekst) => `<br><span style="font-size:11px;opacity:.75;">${tekst}</span>`;
+
+  if (!oordeelBetrouwbaar) {
+    // Geen richting geven waar het model het regime niet rekent.
+    verd.className = 'verdict';
+    document.getElementById('v_main').textContent = 'Geen betrouwbare conclusie';
+    document.getElementById('v_sub').innerHTML =
+      `Deze auto is in ${ytJaar} een youngtimer.`
+      + klein('De bijtelling gaat dan over 35% van de waarde in het economisch verkeer, en dat regime rekent deze tool niet. De bedragen hieronder gaan uit van de normale bijtelling over de cataloguswaarde en zijn dus niet bruikbaar als eindconclusie.');
+  } else if (rol === 'werknemer') {
+    verd.className = 'verdict ' + (oordeelBasis >= 0 ? 'v-z' : 'v-p');
+    document.getElementById('v_main').textContent = oordeelBasis >= 0 ? 'Auto van de zaak' : 'Auto privé';
+    document.getElementById('v_sub').innerHTML =
+      'Netto voordeel: <strong>' + fmtE(Math.abs(oordeelBasis)) + '</strong> over de gebruiksduur'
+      + klein('Netto-vergelijking: belasting over de bijtelling tegenover de autokosten die u privé zelf draagt, minus de onbelaste kilometervergoeding. Een eigen bijdrage voor privégebruik is niet meegenomen.');
+  } else {
+    verd.className = 'verdict ' + (oordeelBasis >= 0 ? 'v-z' : 'v-p');
+    document.getElementById('v_main').textContent = oordeelBasis >= 0 ? 'Auto van de zaak' : 'Auto privé';
+    document.getElementById('v_sub').innerHTML =
+      'Belastingvoordeel: <strong>' + fmtE(Math.abs(oordeelBasis)) + '</strong> over de gebruiksduur'
+      + klein('Alleen het belastingverschil — de autokosten die u in het privéscenario zelf draagt, staan hier niet tegenover.');
+  }
 
   // Bars
   // Effecten kunnen negatief zijn (bijtelling bij werknemer/DGA), dus op
@@ -1777,8 +2376,8 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 22:56</div></footer>
-<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 23:34</div></footer>
+<div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
 </html>
