@@ -562,7 +562,7 @@
     <div class="info-card">
       <strong>ℹ️ Over dit model</strong><br><br>
       <strong>Gegevens en privacy.</strong> Uw invoer wordt niet opgeslagen en niet naar bouwman.tools verstuurd; de berekening gebeurt in uw browser. Twee uitzonderingen: bij een kentekenopvraag wordt het kenteken rechtstreeks naar de open data API van de RDW gestuurd (opendata.rdw.nl), en het lettertype van deze pagina wordt geladen bij Google Fonts (fonts.googleapis.com). Zonder kentekenopvraag verlaat er geen ingevoerd gegeven uw browser.<br><br>
-      <strong>Fiscale aannames.</strong> De bijtelling volgt het 60-maandenregime vanaf de datum eerste toelating. Bij niet meer dan 500 privékilometers per jaar blijven bijtelling en forfait achterwege; de bewijslast ligt bij u. Voor de inkomstenbelasting is woon-werkverkeer zakelijk verkeer, voor de btw is het privégebruik — de tool rekent die twee apart. De btw-correctie is forfaitair 2,7% van de cataloguswaarde, of 1,5% zonder aftrek bij aanschaf en vanaf het vijfde gebruiksjaar. Het youngtimerregime (35% van de waarde economisch verkeer) wordt niet gerekend, alleen gemeld. Restwaardepercentages zijn marktinschattingen, geen fiscale regels. Raadpleeg altijd een adviseur.<br><br>
+      <strong>Fiscale aannames.</strong> De bijtelling volgt het 60-maandenregime vanaf de datum eerste toelating. Bij niet meer dan 500 privékilometers per jaar blijven bijtelling en forfait achterwege; de bewijslast ligt bij u. Voor de inkomstenbelasting is woon-werkverkeer zakelijk verkeer, voor de btw is het privégebruik — de tool rekent die twee apart. De btw-correctie is forfaitair 2,7% van de cataloguswaarde — ook bij operational en financial lease. Vindt het privégebruik plaats later dan 4 jaar na het jaar waarin u de auto in gebruik nam, dan geldt 1,5%: bij ingebruikname in 2026 dus 2,7% over 2026 t/m 2030 en 1,5% vanaf 2031, per kalenderjaar. Zonder btw-aftrek bij aanschaf (marge-auto of particulier) geldt 1,5% vanaf het begin, begrensd op de btw die u dat jaar op gebruik en onderhoud aftrok. Het youngtimerregime (35% van de waarde economisch verkeer) wordt niet gerekend, alleen gemeld. Restwaardepercentages zijn marktinschattingen, geen fiscale regels. Raadpleeg altijd een adviseur.<br><br>
       <strong>Join Administraties</strong> — <a href="https://joinadministraties.nl" target="_blank">joinadministraties.nl</a>
     </div>
   </div>
@@ -1705,19 +1705,42 @@ function kmAandelen(km) {
 // autokosten — en voor de btw hoort woon-werk in dat privé-aandeel.
 const BTW_CORRECTIE_HOOG   = 0.027;
 const BTW_CORRECTIE_LAAG   = 0.015;
-const BTW_HERZIENING_JAREN = 5;      // jaar van ingebruikname + 4
+// Het jaar van ingebruikname plus de vier jaren daarna: vijf KALENDERJAREN.
+const BTW_HERZIENING_JAREN = 5;
 
-// `geenAftrekKapitaal` is waar bij een marge-auto of een auto van een
-// particulier: dan is er over de waarde van de auto nooit btw afgetrokken en
-// zou 2,7% te veel corrigeren. Bij operational lease is dat NIET zo — de btw
-// op de leasetermijn dekt ook het waardeverlies — dus daar geldt 2,7%.
-function btwCorrectiePct(jaarIndex, geenAftrekKapitaal) {
+// Belastingdienst, "Btw en privégebruik auto van de zaak":
+//
+//   "Dit percentage van 2,7 geldt ook voor de auto die u gebruikt op basis van
+//    operational lease of financial lease."
+//
+//   "Hebt u de auto aangeschaft (of in eigendom) of is er sprake van lease? En
+//    vindt het privégebruik plaats later dan 4 jaar na het jaar waarin u de auto
+//    in gebruik hebt genomen? Dan neemt u 1,5% in plaats van 2,7%."
+//
+// Twee dingen volgen hieruit, en ze zijn los van elkaar:
+//
+//   · De tijdsgrens geldt ÓÓK bij operational en financial lease. Lease is geen
+//     uitzondering op de verlaging naar 1,5%.
+//   · De grens loopt op KALENDERJAREN vanaf het jaar van ingebruikname, niet op
+//     blokken van twaalf maanden vanaf de startmaand. Ingebruikname in 2026
+//     betekent 2,7% over 2026 t/m 2030 en 1,5% vanaf 2031 — ook als het gebruik
+//     halverwege 2026 begint. Met blokken vanaf de startmaand zou januari t/m
+//     juni 2031 nog op 2,7% uitkomen.
+//
+// `geenAftrekKapitaal` staat daar los van en is waar bij een marge-auto of een
+// auto van een particulier: dan is over de waarde nooit btw afgetrokken en zou
+// 2,7% te veel corrigeren, ook in het eerste jaar. Bij lease is dat niet zo —
+// de btw op de termijn dekt ook het waardeverlies.
+function btwCorrectiePct(jaar, jaarIngebruikname, geenAftrekKapitaal) {
   if (geenAftrekKapitaal) return BTW_CORRECTIE_LAAG;
-  return jaarIndex < BTW_HERZIENING_JAREN ? BTW_CORRECTIE_HOOG : BTW_CORRECTIE_LAAG;
+  return jaar > jaarIngebruikname + (BTW_HERZIENING_JAREN - 1)
+    ? BTW_CORRECTIE_LAAG
+    : BTW_CORRECTIE_HOOG;
 }
 
-// Verdeelt een gebruiksduur in maanden over gebruiksjaren, zodat een
-// correctiepercentage dat per jaar wisselt tijdsevenredig kan worden toegepast.
+// Verdeelt een gebruiksduur in maanden over gebruiksjaren, zodat een bedrag dat
+// per jaar wisselt tijdsevenredig kan worden toegepast. Blokken van twaalf
+// maanden vanaf de startmaand — gebruikt voor de bijtelling, niet voor de btw.
 function gebruiksjaren(mnd) {
   const rijen = [];
   let over = mnd;
@@ -1731,6 +1754,21 @@ function gebruiksjaren(mnd) {
   return rijen;
 }
 
+// Verdeelt de gebruiksduur over KALENDERJAREN. De btw-correctie wordt per
+// kalenderjaar aangegeven, in de laatste aangifte van dat jaar, en de tijdsgrens
+// van de Belastingdienst is geformuleerd in kalenderjaren.
+function btwKalenderjaren(start, mnd) {
+  const startIdx = start.jaar * 12 + (start.maand - 1);
+  const perJaar = new Map();
+  for (let i = 0; i < mnd; i++) {
+    const jaar = Math.floor((startIdx + i) / 12);
+    const rij = perJaar.get(jaar) || { jaar: jaar, maanden: 0 };
+    rij.maanden += 1;
+    perJaar.set(jaar, rij);
+  }
+  return [...perJaar.values()].map(r => ({ jaar: r.jaar, maanden: r.maanden, deel: r.maanden / 12 }));
+}
+
 // Btw-effect van het zakelijke scenario over de hele gebruiksduur.
 // Positief = per saldo btw terug.
 function berekenBtwZakelijk(i) {
@@ -1739,7 +1777,11 @@ function berekenBtwZakelijk(i) {
   const rijen = [];
   let kostenTotaal = 0, correctieTotaal = 0;
 
-  for (const j of gebruiksjaren(i.mnd)) {
+  // Het jaar van ingebruikname is het startjaar van de gebruiksduur: vanaf dat
+  // moment gebruikt déze ondernemer de auto.
+  const jaarIngebruikname = i.start.jaar;
+
+  for (const j of btwKalenderjaren(i.start, i.mnd)) {
     const kostenAftrek = (i.btwKostenJr || 0) * j.deel;
     let correctie, pct = null;
 
@@ -1751,7 +1793,7 @@ function berekenBtwZakelijk(i) {
       // dan is er niets te corrigeren.
       correctie = 0;
     } else {
-      pct = btwCorrectiePct(j.jaarIndex, geenAftrekKapitaal);
+      pct = btwCorrectiePct(j.jaar, jaarIngebruikname, geenAftrekKapitaal);
       correctie = (i.cataloguswaarde || 0) * pct * j.deel;
       if (geenAftrekKapitaal) {
         // Begrensd op de btw die dat jaar op gebruik en onderhoud is afgetrokken:
@@ -1762,7 +1804,7 @@ function berekenBtwZakelijk(i) {
 
     kostenTotaal += kostenAftrek;
     correctieTotaal += correctie;
-    rijen.push({ jaarIndex: j.jaarIndex, maanden: j.maanden, kostenAftrek: kostenAftrek,
+    rijen.push({ jaar: j.jaar, maanden: j.maanden, kostenAftrek: kostenAftrek,
                  correctie: correctie, pct: pct });
   }
 
@@ -1771,6 +1813,7 @@ function berekenBtwZakelijk(i) {
     kostenTotaal: kostenTotaal,
     correctieTotaal: correctieTotaal,
     netto: aanschaf + kostenTotaal - correctieTotaal,
+    jaarIngebruikname: jaarIngebruikname,
     rijen: rijen,
   };
 }
@@ -2038,6 +2081,9 @@ function bereken() {
     geenAftrekKapitaal:   geenAftrekKapitaal,
     methode:              btw_corr_methode,
     priveAandeelBtw:      aandeel.priveBtw,
+    // Kalenderjaren: de tijdsgrens van 2,7% naar 1,5% loopt vanaf het JAAR van
+    // ingebruikname, niet vanaf de startmaand.
+    start:                start,
     mnd:                  mnd
   });
 
@@ -2274,11 +2320,22 @@ function bereken() {
           : '— (marge/particulier)');
     document.getElementById('r_btw_kosten').textContent = fmtE(btwZ.kostenTotaal);
 
-    const pctenGebruikt = [...new Set(btwZ.rijen.map(r => r.pct).filter(v => v !== null))];
+    // Per percentage de kalenderjaren erbij, zodat te zien is wanneer de
+    // verlaging naar 1,5% ingaat.
+    const perPct = new Map();
+    btwZ.rijen.filter(r => r.pct !== null).forEach(r => {
+      const key = r.pct;
+      const bereik = perPct.get(key) || { van: r.jaar, tot: r.jaar };
+      bereik.van = Math.min(bereik.van, r.jaar);
+      bereik.tot = Math.max(bereik.tot, r.jaar);
+      perPct.set(key, bereik);
+    });
+    const pctTekst = [...perPct.entries()].map(([pct, b]) =>
+      `${(pct*100).toFixed(1).replace('.', ',')}% ${b.van === b.tot ? b.van : b.van + '–' + b.tot}`);
     document.getElementById('lbl_btw_corr').textContent = btw_corr_methode === 'werkelijk'
       ? `Correctie privégebruik (werkelijk, ${(aandeel.priveBtw*100).toFixed(0)}% privé incl. woon-werk)`
-      : (pctenGebruikt.length
-          ? `Correctie privégebruik (forfait ${pctenGebruikt.map(v => (v*100).toFixed(1).replace('.', ',') + '%').join(' en ')})`
+      : (pctTekst.length
+          ? `Correctie privégebruik (forfait ${pctTekst.join(' en ')})`
           : 'Correctie privégebruik');
     document.getElementById('r_btw_corr').textContent = '− ' + fmtE(btwZ.correctieTotaal);
 
@@ -2376,7 +2433,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 23:34</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 23:44</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
