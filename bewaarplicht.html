@@ -465,6 +465,12 @@ function dagErvoor(d) {
   return { jaar: d.jaar - 1, maand: 12, dag: 31 };
 }
 
+function dagErna(d) {
+  if (d.dag < dagenInMaand(d.jaar, d.maand)) return { jaar: d.jaar, maand: d.maand, dag: d.dag + 1 };
+  if (d.maand < 12) return { jaar: d.jaar, maand: d.maand + 1, dag: 1 };
+  return { jaar: d.jaar + 1, maand: 1, dag: 1 };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. DE TWEE KLOKKEN
 //
@@ -498,15 +504,26 @@ function bewaartermijnUitJaar(ankerjaar, termijnJaren) {
 }
 
 function bewaartermijnVanafDatum(ankerdatum, termijnJaren) {
-  // Vooruit klemmen: art. 33 lid 3 Wwft is óók een bewaarplicht, dus de termijn
-  // moet altijd minstens het volle aantal jaren beslaan.
-  const grens = datumPlusJaren(ankerdatum, termijnJaren, 'vooruit');
+  // Art. 33 lid 3 Wwft rekent "vijf jaar na het tijdstip" van beëindiging of
+  // transactie — een tijdstip, geen kalenderdag. De UI vraagt alleen een datum,
+  // dus het uur is onbekend. Eindigde de relatie op 21 augustus 2026 om 16:00,
+  // dan loopt de termijn tot 21 augustus 2031 om 16:00: op die vijfde verjaardag
+  // mag 's ochtends nog niet worden vernietigd.
+  //
+  // Zonder tijdstip is de enige veilige uitleg daarom dat de verjaardag zelf nog
+  // een bewaardag is en pas de dag daarna mag worden vernietigd. Dat is hooguit
+  // één dag te lang bewaren; andersom zou de tool te vroeg vernietigen adviseren
+  // op een termijn die óók een vernietigingsplicht kent.
+  //
+  // Vooruit klemmen om dezelfde reden: 29 februari + 5 jaar bestaat niet, en dan
+  // is 1 maart de eerste dag waarop de vijf jaar zeker vol zijn.
+  const verjaardag = datumPlusJaren(ankerdatum, termijnJaren, 'vooruit');
   return {
     klok: 'datum',
     ankerdatum: ankerdatum,
     termijnJaren: termijnJaren,
-    laatsteBewaardag: dagErvoor(grens),
-    verstrekenVanaf: grens,
+    laatsteBewaardag: verjaardag,
+    verstrekenVanaf: dagErna(verjaardag),
   };
 }
 
@@ -1455,14 +1472,19 @@ const TEKSTEN = {
   tweeTermijnen: 'Twee termijnen lopen naast elkaar; de langste is bepalend:',
   datumInToekomst: 'De ingevulde datum ligt in de toekomst. Controleer of dat klopt voor dit documenttype.',
   datumOnwaarschijnlijk: 'Deze datum ligt meer dan 25 jaar in de toekomst. Controleer het jaartal.',
-  tweedeVeldOnbenut:
-    'Dit is alleen de termijn van art. 34a Wet OB. Op het stuk zelf loopt daarnaast de ' +
-    'zevenjaarstermijn van art. 52 AWR. Verliest het stuk zijn actuele waarde later dan hierboven ' +
-    'staat, vul dan het tweede veld in — de einddatum schuift dan op.',
-  tweedeVeldNodig:
-    'De termijn van art. 34a Wet OB is voorbij, maar op het stuk zelf loopt de zevenjaarstermijn van ' +
-    'art. 52 AWR nog door. Vul het tweede veld in om te zien tot wanneer u het moet bewaren — zonder ' +
-    'dat gegeven is dit géén volledige uitkomst.',
+  // Welke van de twee klokken vooraan staat verschilt per documenttype: bij een
+  // akte is art. 34a primair, bij een onderhoudsfactuur art. 52 AWR. Deze
+  // meldingen krijgen de grondslagen daarom mee in plaats van ze te noemen.
+  // Ze zeggen bewust "kan rusten" en niet "loopt nog": zonder de tweede datum
+  // weet de tool niet óf die termijn loopt.
+  kortGrondslag: (g) => String(g || '').split(' — ')[0],
+  tweedeVeldOnbenut: (primair, tweede) =>
+    `Dit is alleen de termijn van ${primair}. Op dit stuk kan daarnaast ${tweede} rusten. Speelt dat, ` +
+    'vul dan het tweede veld in — de einddatum kan dan opschuiven.',
+  tweedeVeldNodig: (primair, tweede) =>
+    `De termijn van ${primair} is voorbij. Op dit stuk kan daarnaast ${tweede} rusten, en zonder de ` +
+    'tweede datum kan de tool niet vaststellen of die nog loopt. Vul het tweede veld in — zonder dat ' +
+    'gegeven is dit géén volledige uitkomst.',
   verstrekenLetOp:
     '<strong>Verstreken is niet hetzelfde als vernietigen.</strong> Alleen de fiscale termijn volgens ' +
     'deze berekening is voorbij. Ga vóór vernietiging na of de zevenjaarstermijn van ' +
@@ -1620,7 +1642,7 @@ function bevriesDiep(waarde) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     MAANDEN_NL, JAAR_MIN, JAAR_MAX,
-    isSchrikkeljaar, dagenInMaand, datumPlusJaren, dagErvoor, isKalenderdatum,
+    isSchrikkeljaar, dagenInMaand, datumPlusJaren, dagErvoor, dagErna, isKalenderdatum,
     parseKalenderdatum, formatDatumNl, vergelijkDatum,
     bewaartermijnUitJaar, bewaartermijnVanafDatum, isVerstreken,
     BRONNEN, CATEGORIEEN, DOCUMENT_TYPES, AANDACHTSPUNTEN, TEKSTEN,
@@ -1892,11 +1914,12 @@ function bereken() {
   }
 
   // Tweede termijn beschikbaar maar niet ingevuld, terwijl de eerste nog loopt.
-  // De getoonde datum is dan een ondergrens: ligt de actuele waarde van het stuk
-  // zélf later, dan loopt art. 52 AWR door tot ná de OB-termijn. Zonder deze
-  // kanttekening leest die datum als een volledig antwoord.
+  // De getoonde datum is dan een ondergrens: de andere klok kan later aflopen.
+  // Zonder deze kanttekening leest die datum als een volledig antwoord.
   if (doc.tweedeTermijn && r.termijnen.length === 1 && !r.onvolledig) {
-    meta += '<div class="result-waarschuwing">' + esc(TEKSTEN.tweedeVeldOnbenut) + '</div>';
+    meta += '<div class="result-waarschuwing">' + esc(TEKSTEN.tweedeVeldOnbenut(
+      TEKSTEN.kortGrondslag(r.bepalend.grondslag),
+      TEKSTEN.kortGrondslag(doc.tweedeTermijn.grondslag))) + '</div>';
   }
 
   // Wwft: vaste termijn — vijf jaar bewaren en daarna vernietigen.
@@ -1915,12 +1938,14 @@ function bereken() {
     return;
   }
 
-  // Onroerende zaken zonder de tweede datum: de OB-termijn is voorbij, maar we
-  // weten niet of art. 52 AWR op het stuk zelf nog loopt. Geen "verstreken" tonen.
+  // Onroerende zaken zonder de tweede datum: de primaire termijn is voorbij,
+  // maar of de andere klok nog loopt weten we niet. Geen "verstreken" tonen.
   if (r.onvolledig) {
-    meta = '<div class="result-let-op">' + esc(TEKSTEN.tweedeVeldNodig) + '</div>' + meta;
+    const primair = TEKSTEN.kortGrondslag(r.bepalend.grondslag);
+    meta = '<div class="result-let-op">' + esc(TEKSTEN.tweedeVeldNodig(
+      primair, TEKSTEN.kortGrondslag(doc.tweedeTermijn.grondslag))) + '</div>' + meta;
     zet('is-indicatief', 'Onvolledig — vul ook de tweede datum in',
-      'Termijn art. 34a Wet OB liep t/m ' + formatDatumNl(b.laatsteBewaardag), '', meta);
+      'Termijn ' + primair + ' liep t/m ' + formatDatumNl(b.laatsteBewaardag), '', meta);
     return;
   }
 
