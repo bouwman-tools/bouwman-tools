@@ -676,6 +676,22 @@ const SRC_TERRITOIR = Object.freeze({
   url: 'https://taxation-customs.ec.europa.eu/territorial-status-eu-countries-and-certain-territories_en'
 });
 
+/* Nationale belastingdiensten die op een concreet punt actueler of
+   specifieker zijn dan OB 412. Alleen opgenomen waar zij een
+   bronconflict beslechten. */
+const SRC_FURS = Object.freeze({
+  label: 'FURS (Slovenië) — Value added tax, detailed description (7e versie, januari 2025)',
+  url: 'https://www.fu.gov.si/en/taxes_and_other_duties/areas_of_work/value_added_tax_vat'
+});
+const SRC_NAV = Object.freeze({
+  label: 'NAV (Hongarije) — teruggaaf van btw aan in een andere lidstaat gevestigde belastingplichtigen',
+  url: 'https://nav.gov.hu/en/taxation/taxinfo'
+});
+const SRC_FSSR = Object.freeze({
+  label: 'Finančná správa (Slowakije) — vrátenie dane zahraničnej osobe z iného členského štátu',
+  url: 'https://www.financnasprava.sk/sk/podnikatelia/dane/dan-z-pridanej-hodnoty'
+});
+
 /* ── Talen (ISO 639-1) ── */
 const TAAL = {
   BG: { iso: 'BG', name: 'Bulgaars',   scope: 'volledig' },
@@ -906,17 +922,18 @@ const LANDEN = [
     shortPeriodThreshold: { status: 'bekend', display: 'HUF 100.000' },
     thirdPartyFiling: 'ja',
     thirdPartyFilingNotes: 'Machtiging vereist; de gemachtigde moet gekwalificeerd zijn.',
-    thirdPartyPayment: 'nee',
-    thirdPartyPaymentNotes: 'Volgens OB 412 niet toegestaan; twee Europese bronnen zeggen van wel. Zie het bronconflict.',
+    thirdPartyPayment: 'ja',
+    thirdPartyPaymentNotes: 'Gezamenlijk opgemaakte machtiging vereist; de rekening moet bij een bank in de EU worden aangehouden.',
     limitNotes: 'De gemachtigde moet gekwalificeerd zijn: belastingadviseur, fiscaal deskundige, accountant, advocaat of iemand die bevoegd is tot het verrichten van boekhouddiensten. Maximaal 5 verzoeken per jaar.',
+    bankNotes: 'IBAN en BIC verplicht. Gaat de teruggaaf naar een gemachtigde, dan moet diens rekening bij een bank in een EU-lidstaat worden aangehouden.',
     sourceConflicts: [{
       field: 'thirdPartyPayment',
-      summary: 'Mag de teruggaaf naar de rekening van een derde?',
+      summary: 'Mag de teruggaaf naar de rekening van een derde? OB 412 zegt nee, Hongarije zelf zegt ja.',
       dutchSource: 'OB 412: nee.',
-      otherSource: 'Het EC-vademecum voor Hongarije zegt: "Yes, but the payment accounts of the agents have to be opened in a Member State". De opgave van Hongarije aan de Europese Commissie zegt "Yes, at taxable person’s request", met de eis dat de rekening in de EU ligt.',
-      resolution: 'De tool volgt OB 412 ("nee"), omdat dat de bron is die het Nederlandse portaal toepast en de Europese bronnen deels uit 2015 stammen. Wilt u naar de rekening van een derde laten uitbetalen, verifieer dat dan eerst bij de Hongaarse belastingdienst (NAV) en houd rekening met de eis van een EU-rekening en een gezamenlijk opgemaakte papieren machtiging.'
+      otherSource: 'De actuele NAV-voorlichting: uitbetaling aan een andere persoon of gemachtigde is mogelijk op basis van een gezamenlijk opgemaakte machtiging (joint authorization statement), waarbij de rekening moet worden aangehouden bij een bank die in de EU is gevestigd. Het EC-vademecum voor Hongarije zei al: "Yes, but the payment accounts of the agents have to be opened in a Member State", en de opgave van Hongarije aan de Europese Commissie: "Yes, at taxable person’s request".',
+      resolution: 'De tool volgt de Hongaarse belastingdienst en toont "Ja", met de twee voorwaarden erbij: een gezamenlijk opgemaakte machtiging en een rekening bij een EU-bank. OB 412 loopt hier achter. Drie bronnen wijzen dezelfde kant op, waarvan de NAV-voorlichting de actuele en de nationale is.'
     }],
-    sources: [SRC_OB412, SRC_EC, SRC_TIC], verifiedAt: '2026-08-21',
+    sources: [SRC_OB412, SRC_NAV, SRC_EC, SRC_TIC], verifiedAt: '2026-08-21',
     searchAliases: ['hungary', 'magyarorszag', 'forint', 'nav']
   },
   {
@@ -1160,7 +1177,7 @@ const LANDEN = [
     invoices: 'drempel',
     invoiceThresholdFuel: '€ 250', invoiceThresholdOther: '€ 1.000',
     invoiceNote: 'Afwijking van OB 412 — zie het bronconflict.',
-    invoiceDetail: 'De Sloveense belastingdienst FURS schrijft in haar eigen beschrijving (7e versie, januari 2025) dat de aanvrager kopieën van facturen móet meesturen vanaf een maatstaf van heffing van € 1.000, en vanaf € 250 bij brandstof. OB 412 zegt daarentegen dat kopieën niet hoeven. Zie het bronconflict.',
+    invoiceDetail: 'FURS schrijft in Value added tax — detailed description (7e versie, januari 2025) dat de aanvrager kopieën van facturen móet meesturen vanaf een maatstaf van heffing van € 1.000, en vanaf € 250 bij brandstof. OB 412 zegt daarentegen dat kopieën niet hoeven. Zie het bronconflict.',
     languages: [TAAL.SL, TAAL.EN],
     annualThreshold: EUR_50, shortPeriodThreshold: EUR_400,
     thirdPartyFiling: 'ja',
@@ -1173,10 +1190,10 @@ const LANDEN = [
       field: 'invoices',
       summary: 'Moeten er factuurkopieën worden meegestuurd?',
       dutchSource: 'OB 412: nee. Ook de opgave van Slovenië aan de Europese Commissie zegt nee, maar die dateert uit 2012.',
-      otherSource: 'De Sloveense belastingdienst FURS (januari 2025): "The applicant must also submit copies of invoices … at least EUR 1000 … for fuel … at least EUR 250." Het EC-vademecum voor Slovenië zegt hetzelfde.',
-      resolution: 'De tool volgt FURS en toont de drempels, omdat dat de meest recente en de nationale bron is en omdat het risico asymmetrisch is: onnodig meesturen kost niets, niet meesturen kan het verzoek onvolledig maken. Dit punt verdient navraag bij FURS of de Belastingdienst.'
+      otherSource: 'De Sloveense belastingdienst FURS, Value added tax — detailed description, 7e versie januari 2025: "The applicant must also submit copies of invoices … at least EUR 1000 … for fuel … at least EUR 250." Het EC-vademecum voor Slovenië zegt hetzelfde.',
+      resolution: 'De tool volgt FURS en toont de drempels, omdat dat de meest recente en de nationale bron is en omdat het risico asymmetrisch is: onnodig meesturen kost niets, niet meesturen kan het verzoek onvolledig maken. OB 412 en de opgave van Slovenië aan de Europese Commissie (2012) lopen hier achter.'
     }],
-    sources: [SRC_OB412, SRC_EC, SRC_TIC], verifiedAt: '2026-08-21',
+    sources: [SRC_OB412, SRC_FURS, SRC_EC, SRC_TIC], verifiedAt: '2026-08-21',
     searchAliases: ['slovenia', 'slovenija', 'furs']
   },
   {
@@ -1184,17 +1201,25 @@ const LANDEN = [
     subcodes: 'ja',
     invoices: 'drempel',
     invoiceThresholdFuel: '€ 250', invoiceThresholdOther: '€ 1.000',
-    languages: [TAAL.SK],
-    languageNotes: 'Ga uit van Slowaaks. De Slowaakse belastingdienst staat Engels toe voor de gegevens in het verzoek, maar de volmacht moet in het Slowaaks.',
+    languages: [TAAL.SK, TAAL.EN],
+    languageNotes: 'De gegevens in het verzoek mogen in het Slowaaks of het Engels. Let op twee uitzonderingen: de omschrijving bij goederencode 10 moet in de taal van het land van teruggaaf, en voor de volmacht wordt het Slowaaks verlangd.',
     annualThreshold: EUR_50, shortPeriodThreshold: EUR_400,
     thirdPartyFiling: 'ja',
-    thirdPartyFilingNotes: 'Originele volmacht per post, opgesteld in het Slowaaks, naar de Daňový úrad Bratislava.',
+    thirdPartyFilingNotes: 'Originele volmacht per post naar de Daňový úrad Bratislava; in het Slowaaks.',
     thirdPartyPayment: 'ja',
     thirdPartyPaymentNotes: 'Op verzoek van de ondernemer.',
+    bankNotes: 'Uitbetaling op een Slowaakse bankrekening of, op verzoek, op een rekening bij een bank in een andere EU-lidstaat.',
     subcodesNote: 'Volgens de Slowaakse belastingdienst en de EU-subcodelijst alleen bij de code voor weelde-, ontspannings- en representatie-uitgaven. Controleer de actuele codelijst in het portaal.',
     deductionNotes: 'Btw op representatiekosten is in Slowakije uitgesloten van aftrek.',
-    limitNotes: 'De wettekst noemt bij uitbetaling alleen de rekening van de aanvrager; uitbetaling aan een derde is alleen bestuurlijk bevestigd. De omschrijving bij code 10 moet in de taal van het land van teruggaaf. Bijzonder: Slowaakse tijdvakken mogen overlappen, en bij bijlagen groter dan 5 MB mogen zelfs meerdere verzoeken over dezelfde periode worden ingediend. Voeg dan eerst de facturen met de hoogste btw-bedragen bij. Vergeten facturen mogen mee, maar alleen als ze in hetzelfde kalenderjaar zijn opgemaakt als het tijdvak van het verzoek.',
-    sources: [SRC_OB412, SRC_OB409, SRC_TIC], verifiedAt: '2026-08-21',
+    limitNotes: 'Open detailpunt: de precieze taal- en vormeisen aan de volmacht zijn niet uit de wettekst zelf vastgesteld — § 55b van wet 222/2004 is niet ingezien. Ga uit van een origineel op papier in het Slowaaks. Bijzonder: Slowaakse tijdvakken mogen overlappen, en bij bijlagen groter dan 5 MB mogen zelfs meerdere verzoeken over dezelfde periode worden ingediend. Voeg dan eerst de facturen met de hoogste btw-bedragen bij. Vergeten facturen mogen mee, maar alleen als ze in hetzelfde kalenderjaar zijn opgemaakt als het tijdvak van het verzoek.',
+    sourceConflicts: [{
+      field: 'languages',
+      summary: 'Is Engels toegestaan? OB 412 zegt alleen Slowaaks.',
+      dutchSource: 'OB 412: alleen Slowaaks. De opgave van Slowakije aan de Europese Commissie zegt hetzelfde, maar dat record dateert uit 2012.',
+      otherSource: 'De actuele Finančná správa vermeldt uitdrukkelijk dat de gegevens in het verzoek in het Slowaaks óf het Engels mogen worden ingevuld, in het deel dat over de buitenlandse aanvrager gaat.',
+      resolution: 'De tool volgt de Slowaakse belastingdienst en toont Slowaaks en Engels. Het land van teruggaaf stelt op grond van artikel 12 Richtlijn 2008/9/EG zijn eigen taaleis vast. Twee uitzonderingen blijven staan: de omschrijving bij goederencode 10 moet in de taal van het land van teruggaaf, en voor de volmacht wordt het Slowaaks verlangd.'
+    }],
+    sources: [SRC_OB412, SRC_OB409, SRC_FSSR, SRC_TIC], verifiedAt: '2026-08-21',
     searchAliases: ['slovakia', 'slovensko']
   },
   {
@@ -1323,9 +1348,9 @@ const META = {
       type: 'warn',
       html: '<strong>OB 412 loopt op enkele punten aantoonbaar achter.</strong> De Belastingdienst publiceert nog steeds versiecode *23FD. ' +
             'Bulgarije voerde per 1 januari 2026 de euro in, maar OB 412 noemt daar nog bedragen in Bulgaarse lev; Finland schafte de ' +
-            'meestuurplicht voor facturen al in 2017 af; en voor Polen en Slovenië wijkt OB 412 af van de eigen belastingdienst van dat land. ' +
+            'meestuurplicht voor facturen al in 2017 af; en voor Polen, Slovenië en Slowakije wijkt OB 412 af van de eigen belastingdienst van dat land. ' +
             'Waar een nationale of Europese bron aantoonbaar actueler is, volgt deze tool die bron en staat de afwijking als bronconflict in de ' +
-            'detailweergave van het land. Twaalf landen hebben zo’n conflict — zoek op <em>bronconflict</em>.'
+            'detailweergave van het land. Dertien landen hebben zo’n conflict — zoek op <em>bronconflict</em>.'
     },
     {
       type: 'info',
