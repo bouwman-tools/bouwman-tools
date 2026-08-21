@@ -610,7 +610,10 @@ const BRONNEN = {
     omschrijving: 'Beide bepalingen luiden gelijk: de inhoudingsplichtige bewaart de gegevens ' +
       '“ten minste vijf jaren na het einde van het kalenderjaar waarin de dienstbetrekking is ' +
       'geëindigd”. Art. 7.5 ziet op het afschrift van het identiteitsbewijs, art. 7.9 op de opgaaf ' +
-      'gegevens voor de loonheffingen.',
+      'gegevens voor de loonheffingen. Het Handboek Loonheffingen schrijft in §3.5.2 losjes “5 ' +
+      'kalenderjaren na het einde van de dienstbetrekking”, maar corrigeert zichzelf in §17.2 met ' +
+      '“na het kalenderjaar waarin de dienstbetrekking eindigt”. Deze tool volgt de wettekst, die ' +
+      'met §17.2 overeenkomt; dat scheelt tot elf maanden.',
   },
   handboekLh: {
     icoon: '\u{1F4D8}', kort: 'Handboek Loonheffingen 2026', host: 'belastingdienst.nl',
@@ -765,10 +768,35 @@ const CATEGORIEEN = [
   { id: 'overig',        naam: 'Correspondentie & overig',    icoon: '\u{1F48C}' },
 ];
 
-// Naast de OB-termijn van negen jaren blijft op het stuk zelf de gewone
-// zevenjaarstermijn van art. 52 AWR lopen. Die kan later aflopen — bijvoorbeeld
-// bij een recente onderhoudsfactuur op een pand dat al lang in gebruik is.
+// Onroerende zaken kennen twee klokken naast elkaar, en welke van de twee de
+// hoofdvraag is verschilt per stuk.
+//
+// Art. 34a Wet OB bepaalt de SCOPE ruim ("betreffende onroerende zaken") maar de
+// TERMIJN smal: negen jaren volgend op het jaar waarin de ondernemer *het goed*
+// in gebruik nam. Het anker is dus het pand, niet het stuk. Een onderhoudsfactuur
+// of een nieuwe huurovereenkomst start daarom géén nieuwe tienjaarsklok — bij een
+// pand uit 1995 is de OB-termijn allang uitgewerkt en resteert art. 52 AWR.
+//
+// Daarom staat bij stukken met een eigen ankermoment (facturen, huurcontracten)
+// de zevenjaarstermijn vooraan: die geldt altijd. De OB-termijn is daar het
+// optionele tweede veld, dat alleen bijdraagt zolang het pand nog binnen zijn
+// termijn zit. Bij stukken die het pand zelf betreffen (akte, overige gegevens)
+// is het andersom.
 const OG_PRIMAIRE_GRONDSLAG = 'art. 34a Wet OB — negen jaren na ingebruikneming';
+const OG_AWR_GRONDSLAG = 'art. 52 lid 4 AWR — zeven jaar op het stuk zelf';
+const OG_TEKST_34A = 'negen jaren volgend op het jaar van ingebruikneming (art. 34a Wet OB)';
+
+// Tweede termijn voor stukken waarbij art. 52 AWR de hoofdregel is: de OB-klok
+// van het pand kan er nog overheen lopen, maar alleen als het pand recent genoeg
+// in gebruik is genomen.
+const OG_TERMIJN_34A = {
+  termijn: 9,
+  datumLabel: 'Datum van eerste ingebruikneming van het pand (optioneel)',
+  datumHint: 'Alleen nodig als het pand nog binnen de termijn van art. 34a Wet OB valt: negen jaren ' +
+    'volgend op het jaar van ingebruikneming. Is het pand langer geleden in gebruik genomen, dan ' +
+    'voegt dit veld niets toe. Laat leeg als u de datum niet weet.',
+  grondslag: OG_PRIMAIRE_GRONDSLAG,
+};
 
 const OG_TWEEDE_TERMIJN = {
   termijn: 7,
@@ -809,7 +837,14 @@ const DOCUMENT_TYPES = [
     datumLabel: 'Datum van het afschrift',
     datumHint: 'Het afschrift verliest zijn actuele waarde in het boekjaar waarin het is verwerkt.',
     startMoment: '1 januari na het boekjaar van het afschrift',
-    basis: true, basisNoot: 'Draagt het grootboek en de debiteuren- en crediteurenadministratie.',
+    // De officiële basislijst noemt grootboek, debiteuren/crediteuren, voorraad,
+    // in-/verkoop, loonadministratie en gegevens voor de heffing bij derden.
+    // Bankafschriften staan daar niet categorisch tussen: zeven jaar bewaren dus
+    // wel, maar zonder het label basisgegeven.
+    basis: false,
+    basisNoot: 'Draagt het grootboek en de debiteuren- en crediteurenadministratie, maar staat zelf ' +
+      'niet in de opsomming van basisgegevens. Een kortere termijn is in overleg met de ' +
+      'Belastingdienst mogelijk.',
     bronnen: ['awr52', 'bdBewaartermijnen'],
   },
   {
@@ -1025,30 +1060,50 @@ const DOCUMENT_TYPES = [
     bronnen: ['handboekLh', 'urlb'],
   },
   {
-    id: 'verlof-ziekte', categorie: 'loon',
-    naam: 'Verlof- en ziektestaten (loondoorbetaling)',
+    // Bewust twee documenttypen in plaats van één. Een urenstaat waaruit blijkt
+    // dat iemand in maart 160 uur betaald kreeg waarvan 16 verlofuren, is nodig
+    // om de loonberekening te reconstrueren en hoort bij de loonadministratie.
+    // "Zes ziekmeldingen" of een verzuimdossier is privacyrechtelijk iets heel
+    // anders. Eén gedeelde termijn zou betekenen dat je uit angst voor de fiscale
+    // bewaarplicht zeven jaar een volledige ziektehistorie vasthoudt.
+    id: 'verlof-uren', categorie: 'loon',
+    naam: 'Verlof- en urenregistratie (onderbouwing loonbetaling)',
     termijn: 7, badge: '7 jaar', methode: 'jaareinde',
     datumLabel: 'Laatste dag van het kalenderjaar',
-    datumHint: 'Het Handboek Loonheffingen rekent verlof- en ziektestaten tot de gegevens die u bij de ' +
-      'loonadministratie bewaart — anders dan vaak wordt aangenomen vallen die dus onder de fiscale ' +
-      'bewaarplicht, voor zover zij de loonbetaling onderbouwen.',
+    datumHint: 'Gewerkte en geplande uren en opgenomen verlof onderbouwen de loonbetaling en de ' +
+      'verlofrechten. Het Handboek Loonheffingen rekent verlof- en ziektestaten tot de gegevens die ' +
+      'u bij de loonadministratie bewaart.',
     startMoment: '1 januari na het kalenderjaar',
-    // Het Handboek noemt verlof- en ziektestaten bij de "overige gegevens" die u
-    // bij de loonadministratie bewaart, niet in de opsomming van basisgegevens.
-    // Daarom basis:false — dat houdt bovendien de route naar een kortere termijn
-    // open, en die is hier door de AVG juist nodig.
+    // Het Handboek noemt deze staten bij de "overige gegevens" die u bij de
+    // loonadministratie bewaart, niet in de opsomming van basisgegevens. Daarom
+    // basis:false — dat houdt bovendien de route naar een kortere termijn open.
     basis: false,
     basisNoot: 'Overig gegeven bij de loonadministratie: een kortere termijn is in overleg met de ' +
       'Belastingdienst mogelijk.',
-    toelichting: 'Zeven jaar geldt voor de staten voor zover die de loondoorbetaling en de ' +
-      'loonheffingen onderbouwen. De verzuimfrequentie in het personeelsdossier is iets anders: ' +
-      'daarvoor noemt de Autoriteit Persoonsgegevens maximaal twee jaar na uitdiensttreding. Bewaar ' +
-      'die twee dus niet in één bak.',
-    waarschuwing: 'Verzuimgegevens zijn niet hetzelfde als medische gegevens. Een werkgever mag een ' +
-      'beperkte set verzuimgegevens vastleggen (bijvoorbeeld verpleegadres, verwachte duur en lopende ' +
-      'werkzaamheden), maar geen gegevens over aard en oorzaak van de ziekte. Het medisch dossier ' +
-      'hoort bij de arbodienst, niet bij de werkgever.',
-    bronnen: ['awr52', 'handboekLh', 'apDossier'],
+    toelichting: 'Dit gaat om wat nodig is om loon, verlofrechten en betalingen te reconstrueren. ' +
+      'De ziekteverzuimkant — ziekmeldingen, hersteldata, verzuimfrequentie — staat hiernaast als ' +
+      'eigen documenttype met een privacytermijn. Bewaar die twee ook technisch gescheiden.',
+    waarschuwing: 'Voor de verlofaanspraken zelf is de civiele termijn juist korter: wettelijke ' +
+      'vakantiedagen vervallen zes maanden na het kalenderjaar waarin ze zijn verworven ' +
+      '(art. 7:640a BW), bovenwettelijke verjaren na vijf jaar (art. 7:642 BW).',
+    bronnen: ['awr52', 'handboekLh'],
+  },
+  {
+    id: 'verzuimregistratie', categorie: 'loon',
+    naam: 'Ziekteverzuimregistratie (ziekmeldingen, hersteldata, verzuimfrequentie)',
+    termijn: null, badge: 'geen wettelijke termijn', methode: 'indicatief',
+    startMoment: 'geen wettelijke bewaartermijn',
+    basis: false,
+    basisNoot: 'Geen fiscaal stuk: hier geldt de AVG, niet art. 52 AWR.',
+    indicatief: 'Hiervoor geldt geen fiscale bewaartermijn. De Autoriteit Persoonsgegevens hanteert ' +
+      'als richtsnoer dat administratieve verzuimgegevens maximaal twee jaar na het einde van de ' +
+      'arbeidsrelatie worden bewaard. Uitzonderingen zijn er wel: bij eigenrisicodragerschap of een ' +
+      'lopend geschil kan langer bewaren nodig zijn. Wat de loonbetaling onderbouwt hoort niet hier ' +
+      'maar bij de verlof- en urenregistratie, die wél zeven jaar meegaat.',
+    waarschuwing: 'Een werkgever mag alleen een beperkte set verzuimgegevens vastleggen — denk aan ' +
+      'verpleegadres, verwachte duur en lopende werkzaamheden — en geen gegevens over aard en ' +
+      'oorzaak van de ziekte. Het medisch dossier hoort bij de arbodienst, niet bij de werkgever.',
+    bronnen: ['apDossier', 'avg5'],
   },
   {
     id: 'leerwerkovereenkomst', categorie: 'loon',
@@ -1120,6 +1175,7 @@ const DOCUMENT_TYPES = [
       'levering, dan telt de ingebruikneming.',
     startMoment: '1 januari na het jaar van ingebruikneming',
     basis: false, basisNoot: 'Eigen wettelijke termijn in de Wet OB.',
+    primaireGrondslag: OG_PRIMAIRE_GRONDSLAG, termijnTekst: OG_TEKST_34A,
     tweedeTermijn: OG_TWEEDE_TERMIJN,
     toelichting: 'Negen jaren volgend op het jaar van ingebruikneming; samen met dat jaar tien ' +
       'boekjaren — en zo noemt de Belastingdienst het ook. Die termijn loopt één op één mee met de ' +
@@ -1128,34 +1184,46 @@ const DOCUMENT_TYPES = [
   },
   {
     id: 'og-onderhoud', categorie: 'og', naam: 'Onderhouds- of investeringsfactuur onroerende zaak',
-    termijn: 9, badge: '10 jaar', methode: 'jaareinde',
-    datumLabel: 'Datum van ingebruikneming van de onroerende zaak',
-    datumHint: 'Ook voor facturen rekent art. 34a Wet OB vanaf het jaar van ingebruikneming van de ' +
-      'zaak, niet vanaf de factuurdatum. Leidt een verbouwing tot een nieuwe ingebruikneming, vul dan ' +
-      'die datum in.',
-    startMoment: '1 januari na het jaar van ingebruikneming',
-    basis: false, basisNoot: 'Eigen wettelijke termijn in de Wet OB.',
-    tweedeTermijn: OG_TWEEDE_TERMIJN,
-    toelichting: 'Is de OB-termijn al verstreken — bijvoorbeeld bij een factuur uit 2024 op een pand ' +
-      'dat sinds 2010 in gebruik is — dan blijft de gewone zevenjaarstermijn van art. 52 AWR op de ' +
-      'factuur zelf gewoon lopen. Vul daarom ook het tweede veld in. Voor investeringsdiensten vanaf ' +
-      '€ 30.000 geldt sinds 1 januari 2026 bovendien een eigen btw-herziening over vijf boekjaren.',
-    bronnen: ['ob34a', 'ubob13', 'awr52', 'bdBewaartermijnen'],
+    termijn: 7, badge: '7 of 10 jaar', methode: 'jaareinde',
+    datumLabel: 'Datum waarop de factuur haar actuele waarde verliest',
+    datumHint: 'In de praktijk het jaar waarin de factuur is verwerkt en afgewikkeld. Hierop loopt ' +
+      'altijd de zevenjaarstermijn van art. 52 AWR; de OB-termijn van het pand is het tweede veld.',
+    startMoment: '1 januari na het jaar van de factuur',
+    basis: false,
+    basisNoot: 'Overig gegeven: een kortere termijn is in overleg met de Belastingdienst mogelijk.',
+    primaireGrondslag: OG_AWR_GRONDSLAG,
+    tweedeTermijn: OG_TERMIJN_34A,
+    toelichting: 'Onderhoud start géén nieuwe tienjaarsklok. Art. 34a Wet OB rekent vanaf de ' +
+      'ingebruikneming van het pánd: bij een pand uit 1995 is die termijn allang uitgewerkt en ' +
+      'resteert de zevenjaarstermijn op de factuur zelf. Is het pand recenter in gebruik genomen — ' +
+      'zeg 2024 bij een factuur uit 2027 — dan loopt de OB-termijn er nog overheen; vul dan het ' +
+      'tweede veld in, de tool neemt de langste. Voor investeringsdiensten vanaf € 30.000 die vanaf ' +
+      '1 januari 2026 in gebruik zijn genomen geldt een btw-herziening over vijf boekjaren; art. 34a ' +
+      'is daar niet op aangepast en geeft die facturen dus geen eigen tienjaarstermijn.',
+    waarschuwing: 'Uitzondering: naar aanleiding van het arrest Drebers kan een investeringsdienst in ' +
+      'bijzondere gevallen een langere herzieningsperiode vergen. Speelt dat, beoordeel de ' +
+      'bewaartermijn dan apart in plaats van op deze uitkomst te varen.',
+    bronnen: ['awr52', 'ob34a', 'ubob13', 'bdBewaartermijnen'],
   },
   {
     id: 'og-huur-verhuurder', categorie: 'og',
     naam: 'Huurovereenkomst onroerende zaak (als verhuurder)',
-    termijn: 9, badge: '10 jaar', methode: 'jaareinde',
-    datumLabel: 'Datum van ingebruikneming van de onroerende zaak',
-    datumHint: 'Art. 34a Wet OB knoopt aan bij de ingebruikneming van het pand, niet bij het einde van ' +
-      'de huurperiode. Het einde van de huur is wél het moment waarop de zevenjaarstermijn van ' +
-      'art. 52 AWR op het contract gaat lopen — dat is het tweede veld.',
-    startMoment: '1 januari na het jaar van ingebruikneming',
-    basis: false, basisNoot: 'Eigen wettelijke termijn in de Wet OB.',
-    tweedeTermijn: OG_TWEEDE_TERMIJN,
+    termijn: 7, badge: '7 of 10 jaar', methode: 'jaareinde',
+    datumLabel: 'Einddatum van de huurperiode',
+    datumHint: 'Zolang de huur loopt houdt het contract actuele waarde; daarna gaat de ' +
+      'zevenjaarstermijn van art. 52 AWR lopen. Die geldt altijd. De OB-termijn van het pand is het ' +
+      'tweede veld.',
+    startMoment: '1 januari na het jaar waarin de huurperiode eindigt',
+    basis: false,
+    basisNoot: 'Overig gegeven: een kortere termijn is in overleg met de Belastingdienst mogelijk.',
+    primaireGrondslag: OG_AWR_GRONDSLAG,
+    tweedeTermijn: OG_TERMIJN_34A,
     toelichting: 'Bij btw-belaste verhuur onderbouwt de huurovereenkomst de optie en de herziening; ' +
-      'daarmee is zij een bescheid “betreffende onroerende zaken” in de zin van art. 34a Wet OB.',
-    bronnen: ['ob34a', 'awr52'],
+      'daarmee is zij een bescheid “betreffende onroerende zaken” in de zin van art. 34a Wet OB. Maar ' +
+      'een nieuwe huurovereenkomst start geen nieuwe tienjaarsklok: die termijn blijft hangen aan de ' +
+      'ingebruikneming van het pand. Bij een langlopende huur komt art. 52 AWR juist vaak later uit, ' +
+      'omdat die pas na afloop van de huurperiode begint te lopen.',
+    bronnen: ['awr52', 'ob34a'],
   },
   {
     id: 'og-overig', categorie: 'og', naam: 'Overige gegevens over een onroerende zaak',
@@ -1165,6 +1233,7 @@ const DOCUMENT_TYPES = [
       'rechten waaraan deze zijn onderworpen”.',
     startMoment: '1 januari na het jaar van ingebruikneming',
     basis: false, basisNoot: 'Eigen wettelijke termijn in de Wet OB.',
+    primaireGrondslag: OG_PRIMAIRE_GRONDSLAG, termijnTekst: OG_TEKST_34A,
     tweedeTermijn: OG_TWEEDE_TERMIJN,
     // awr52 hoort erbij omdat dit documenttype een tweede termijn kent die
     // daarop is gegrond; zonder die bron mist de grondslagregel die link.
@@ -1265,7 +1334,10 @@ const DOCUMENT_TYPES = [
       'bepaald”. Eerder wissen mag dus niet, en langer bewaren alleen als u het andere wettelijke ' +
       'voorschrift kunt benoemen.',
     waarschuwing: 'Anders dan de fiscale termijnen is dit geen ondergrens waar u veilig overheen kunt ' +
-      'gaan. Houd het Wwft-dossier administratief gescheiden van de fiscale zevenjaarsbak.',
+      'gaan. Houd het Wwft-dossier administratief gescheiden van de fiscale zevenjaarsbak, en ' +
+      'beoordeel per document of daarop zelfstandig nog een andere bewaarplicht rust — dát is wat ' +
+      'de uitzondering “tenzij bij wettelijk voorschrift anders is bepaald” bedoelt. Is die er niet, ' +
+      'dan volgt na vijf jaar vernietiging.',
     bronnen: ['wwft', 'avg5'],
   },
   {
@@ -1316,7 +1388,11 @@ const AANDACHTSPUNTEN = [
       'leesbaar kunt maken en controle binnen redelijke termijn mogelijk is. Twee uitzonderingen: een ' +
       'op papier gestelde balans en staat van baten en lasten mag u niet converteren (art. 52 lid 5 ' +
       'AWR), en van douanedocumenten die de rechten bij in- of uitvoer bepalen bewaart u het origineel. ' +
-      'Let bij scannen op echtheidskenmerken; gaan die verloren, compenseer dat dan.',
+      'Let bij scannen op echtheidskenmerken; gaan die verloren, compenseer dat dan. Een notariële ' +
+      'akte staat níet in dat rijtje: die mag gewoon worden geconverteerd. Verwar dat niet met de ' +
+      'vraag hóé lang hij bewaard moet blijven — als bescheid betreffende een onroerende zaak kan ' +
+      'een akte wel onder art. 34a Wet OB vallen. Voor notarissen zelf geldt daarnaast eigen ' +
+      'regelgeving over de minuutakte.',
   },
   {
     titel: 'AVG: het fiscale minimum is geen AVG-maximum',
@@ -1333,7 +1409,12 @@ const AANDACHTSPUNTEN = [
       '“onmiddellijk na het verstrijken van de termijn … te vernietigen, tenzij bij wettelijk ' +
       'voorschrift anders is bepaald”. Vijf jaar is daar dus ondergrens én bovengrens: eerder wissen ' +
       'mag niet, en langer bewaren alleen als u dat andere wettelijke voorschrift kunt benoemen. ' +
-      'Wwft-dossiers horen niet in de fiscale zevenjaarsbak.',
+      'Wwft-dossiers horen niet in de fiscale zevenjaarsbak. Die uitzondering werkt op ' +
+      '<em>documentniveau</em>, niet op dossierniveau: de wetsgeschiedenis licht toe dat dezelfde ' +
+      'persoonsgegevens ook voor een ánder doel verzameld kunnen zijn en dáárvoor een eigen ' +
+      'bewaartermijn kunnen hebben. Beoordeel dus per stuk of er zelfstandig een tweede grondslag ' +
+      'is — voor een advieskantoor bijvoorbeeld art. 52 AWR op het cliëntendossier. Gegevens die ' +
+      'alleen voor de Wwft zijn verzameld, gaan na vijf jaar weg.',
   },
   {
     titel: 'Naast de fiscale bewaarplicht',
@@ -1413,12 +1494,10 @@ function termijnOmschrijving(doc) {
   if (doc.methode === 'datum') {
     return doc.termijn + ' jaar vanaf de ingevulde datum';
   }
-  // Op de aanwezigheid van een tweede termijn sturen, net als bij de grondslag
-  // hieronder — niet op termijn === 9. Zou er ooit een negenjaarstermijn uit een
-  // andere bron bij komen, dan ging die stilzwijgend "art. 34a Wet OB" heten.
-  if (doc.tweedeTermijn) {
-    return 'negen jaren volgend op het jaar van ingebruikneming (art. 34a Wet OB)';
-  }
+  // Uit de configuratie, niet uit termijn === 9 en ook niet uit de aanwezigheid
+  // van een tweede termijn: welke van de twee OG-klokken vooraan staat verschilt
+  // per documenttype, dus dat signaal is niet betrouwbaar.
+  if (doc.termijnTekst) return doc.termijnTekst;
   return doc.termijn + ' jaar';
 }
 
@@ -1459,7 +1538,7 @@ function berekenBewaarplicht(docId, invoer, vandaag) {
     rol: 'primair',
     datum: primair,
     omschrijving: termijnOmschrijving(doc),
-    grondslag: doc.tweedeTermijn ? OG_PRIMAIRE_GRONDSLAG : null,
+    grondslag: doc.primaireGrondslag || null,
     termijn: doc.methode === 'datum'
       ? bewaartermijnVanafDatum(primair, doc.termijn)
       : bewaartermijnUitJaar(primair.jaar, doc.termijn),
