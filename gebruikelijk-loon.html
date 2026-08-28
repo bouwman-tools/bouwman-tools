@@ -321,10 +321,45 @@
 </div><!-- .content -->
 
 <script>
-const MINIMA = { 2026: 56000, 2025: 56000, 2024: 56000 };
+// Wettelijk minimumbedrag gebruikelijk loon - art. 12a, eerste lid, onderdeel c, Wet LB 1964.
+// Geconsolideerde tekst: wetten.overheid.nl/BWBR0002471 (per jaarversie opgevraagd).
+//
+// 2026: EUR 58.000  Bijstellingsregeling directe belastingen 2026, art. II onderdeel B
+//                   (Stcrt. 2025, 40487): "EUR 56.000" wordt vervangen door "EUR 58.000".
+//                   Reguliere indexatie op grond van art. 12a, zevende lid; geen
+//                   beleidsmatige verhoging. Geldend vanaf 01-01-2026.
+// 2025: EUR 56.000  Ongewijzigd t.o.v. 2024. De Bijstellingsregeling directe belastingen
+//                   2025 (Stcrt. 2024, 38492) vermeldt art. 12a, eerste lid, in de tabel
+//                   "Niet vervangen bedragen ... vanwege afrondingsregel".
+// 2024: EUR 56.000  Geldend vanaf 01-01-2024.
+//
+// Bronnen gecontroleerd op 28-08-2026.
+// NIEUW JAAR TOEVOEGEN: eerst het bedrag verifieren in de Bijstellingsregeling directe
+// belastingen van dat jaar (verschijnt eind december). Nooit het vorige jaar overnemen -
+// 2025 en 2026 laten zien dat een jaar zowel gelijk kan blijven als met EUR 2.000 kan
+// springen. Voeg het jaar ook toe aan de <select id="jaar">.
+const MINIMA = { 2026: 58000, 2025: 56000, 2024: 56000 };
 
 function fmt(n) {
   return '€ ' + Math.round(n).toLocaleString('nl-NL');
+}
+
+function toonJaarfout(jaar) {
+  const jaren = Object.keys(MINIMA).sort().join(', ');
+  const c = document.getElementById('conclusieCard');
+  c.className = 'conclusie-card warn';
+  c.innerHTML = `
+    <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen normbedrag voor ${jaar}</div></div>
+    <div class="c-body">
+      Voor ${jaar} is het wettelijk minimumbedrag van artikel 12a, eerste lid, onderdeel c, Wet LB 1964
+      niet in deze tool vastgelegd. De tool rekent bewust <strong>niet</strong> door met het bedrag van een
+      ander jaar: dat zou een onjuiste norm opleveren.<br><br>
+      Beschikbare jaren: <strong>${jaren}</strong>.
+    </div>`;
+  document.getElementById('normenGrid').innerHTML = '';
+  document.getElementById('normenTabel').innerHTML = '';
+  document.getElementById('wetsgrondslag').innerHTML = '';
+  document.getElementById('resultSection').style.display = 'block';
 }
 
 function toggleAfroom() {
@@ -341,7 +376,13 @@ function bereken() {
   const afroomAan    = document.getElementById('afroomCheck').checked;
   const omzet        = parseFloat(document.getElementById('omzet').value) || 0;
   const overigeKost  = parseFloat(document.getElementById('overigeKosten').value) || 0;
-  const minimum      = MINIMA[jaar] || 56000;
+  const minimum      = MINIMA[jaar];
+
+  // Geen stille terugval op een ander jaar: een onbekend jaar levert geen uitkomst.
+  if (minimum === undefined) {
+    toonJaarfout(jaar);
+    return;
+  }
 
   const normen = [];
 
@@ -401,7 +442,7 @@ function bereken() {
 
   // Wetsgrondslag
   document.getElementById('wetsgrondslag').innerHTML =
-    `<strong>Wettelijke basis:</strong> Art. 12a Wet LB 1964. Sinds 1 januari 2023 geldt geen doelmatigheidsmarge meer — het gebruikelijk loon is gelijk aan het vergelijkingsloon (100%). De afroommethode blijft van toepassing als de BV-omzet grotendeels voortkomt uit de persoonlijke arbeid van de DGA.`;
+    `<strong>Wettelijke basis:</strong> Art. 12a Wet LB 1964. Het wettelijk minimum voor ${jaar} bedraagt <strong>${fmt(minimum)}</strong> (art. 12a, eerste lid, onderdeel c). Sinds 1 januari 2023 geldt geen doelmatigheidsmarge meer — het gebruikelijk loon is gelijk aan het vergelijkingsloon (100%). De afroommethode blijft van toepassing als de BV-omzet grotendeels voortkomt uit de persoonlijke arbeid van de DGA.<br><span style="font-size:11px;color:#6B7280">Normbedrag ${jaar} gecontroleerd op 28-08-2026 tegen de geconsolideerde tekst van art. 12a Wet LB 1964 (wetten.overheid.nl/BWBR0002471, jaarversie ${jaar}).</span>`;
 
   // Conclusie
   const tekort    = maatgevend - huidigLoon;
@@ -452,7 +493,7 @@ bereken();
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Geen data verlaat uw browser — volledig privé</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 23:21</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 28 aug 2026, 16:21</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Geen data verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
