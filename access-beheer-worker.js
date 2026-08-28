@@ -16,12 +16,6 @@ const APP_IDS = {
   'herstructurering-assistent-v3.html':  '7f21b48f-27eb-4609-b6c7-ea860acdd85b',
   'nhg-werkgeversverklaring-wizard.html':'e3163f39-b8bc-4e78-9bdd-6215a2f3903e',
   'kennisgroepen-zoeker.html':           '64df23ef-f0d3-4fbb-8663-fdd8d087b58d',
-  'gebruikelijk-loon.html':              '62f3756e-4c80-4a07-b273-dae319c0515e',
-  'dividend-uitkeringstoets.html':       '0af36641-be18-415d-a6d8-c938fa8575da',
-  'join-wkr-agent.html':                 'f143b890-7309-4d08-9768-a3b23e38f2b6',
-  'btw-teruggaaf-eu.html':               'c0002856-50d1-49b9-b900-d5b782fdb766',
-  'bewaarplicht.html':                   '51e5b742-ea7a-49ef-830d-4cb99a1a6f3b',
-  'kvk-zoeker.html':                     '5efecdef-90f4-4067-8e6d-fe4091b17065',
   'join-prijsafspraken.html':            '58eeec00-dc06-4b2f-ae46-08855ad22a8f',
 };
 
