@@ -17,7 +17,7 @@ Bijgewerkt: 2026-08-28
 
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | **nee** |
+| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja |
 
 ## Arbeidsrecht & Compliance
 
@@ -37,15 +37,15 @@ Bijgewerkt: 2026-08-28
 
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | **nee** |
+| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja |
 
 ## BV & DGA
 
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja |
-| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | **nee** |
-| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | **nee** |
+| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja |
+| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja |
@@ -67,26 +67,14 @@ Bijgewerkt: 2026-08-28
 
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | **nee** |
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja |
 
 ## Overig
 
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | **nee** |
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- Gebruikelijk loon (`gebruikelijk-loon.html`)
-- Dividend & Uitkeringstoets (`dividend-uitkeringstoets.html`)
-- WKR Agent (`join-wkr-agent.html`)
-- BTW Teruggaaf EU (`btw-teruggaaf-eu.html`)
-- Bewaarplicht Checker (`bewaarplicht.html`)
-- KvK Nummers Zoeken (`kvk-zoeker.html`)
+| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja |
 
 ## Vervallen
 
