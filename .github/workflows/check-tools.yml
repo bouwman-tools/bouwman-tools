@@ -1,0 +1,35 @@
+name: Controleer tools.json
+
+# tools.json is de enige bron van waarheid voor de toolportefeuille. Deze controle
+# faalt zodra portal.html, beheer.html of access-beheer-worker.js daarvan afwijken,
+# of zodra er een HTML-bestand gepubliceerd staat dat nergens is vastgelegd.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  controleer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Drift tussen tools.json en portal/beheer/worker
+        run: python tools/check_tools.py
+
+      - name: TOOLS.md is bijgewerkt
+        run: |
+          python tools/check_tools.py --schrijf-tools-md
+          if ! git diff --quiet -- TOOLS.md; then
+            echo "::error::TOOLS.md loopt achter op tools.json."
+            echo "Draai lokaal: python tools/check_tools.py --schrijf-tools-md"
+            git --no-pager diff -- TOOLS.md
+            exit 1
+          fi
+          echo "TOOLS.md komt overeen met tools.json."

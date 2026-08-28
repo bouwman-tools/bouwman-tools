@@ -7,7 +7,6 @@ const CF_ACCOUNT_ID = '9f2508dc476f0183404720277152eb16';
 
 const APP_IDS = {
   'portal.html':                         '4f132e0b-6557-4726-8371-111024d21f39',
-  'betalingskenmerk.html':               'd0924bf1-e6c1-4098-8573-ac651b860b51',
   'Join-jaarrekening-review.html':       '8a515a1c-6b83-4d4c-9c1d-b42a7a9b61a8',
   'auto-fiscaal-2027.html':              'a504237d-750a-476b-95e8-2396a872e6fa',
   'join-auto-rekenmodel.html':           '484f3fb2-f173-44df-9d69-6f6aefbccdac',
@@ -15,8 +14,6 @@ const APP_IDS = {
   'join-bv-documenten.html':             '221ef623-dadc-4421-be69-efe6ee3c774f',
   'rc-schuld-dga.html':                  '287f71cc-2a57-473c-a23a-a9b79eb908f7',
   'herstructurering-assistent-v3.html':  '7f21b48f-27eb-4609-b6c7-ea860acdd85b',
-  'join-wkr-agent-intern.html':          '85322344-25d4-41cd-9b08-9c79da74bb28',
-  'join-wkr-agent-extern.html':          'b98bbe15-1440-4ca4-8af1-cc12517e098f',
   'nhg-werkgeversverklaring-wizard.html':'e3163f39-b8bc-4e78-9bdd-6215a2f3903e',
   'kennisgroepen-zoeker.html':           '64df23ef-f0d3-4fbb-8663-fdd8d087b58d',
   'join-prijsafspraken.html':            '58eeec00-dc06-4b2f-ae46-08855ad22a8f',

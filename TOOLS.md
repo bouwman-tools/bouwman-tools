@@ -1,110 +1,97 @@
 # Tools — bouwman.tools
 
-Centraal overzicht van alle tools in AI_kopgroep en hun status op bouwman.tools.
-Dit bestand wordt bijgehouden door Claude en weerspiegelt altijd de actuele stand van zaken.
+> **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
+> Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-**Laatste update:** 17 jul 2026 — Bewaarplicht Checker toegevoegd; Auditfile, DBA, WWFT live als Streamlit-links
+Bijgewerkt: 2026-08-28
 
----
+## Accountancy & Jaarrekening
 
-## 🟢 Live op bouwman.tools
-
-Alle tools hieronder zijn zichtbaar in het portaal via bouwman.tools/portal.html.
-
-### BV & DGA
-
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | 19 jun 2026 | 14 jul 2026 |
-| Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | 19 jun 2026 | 14 jul 2026 |
-| Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | 19 jun 2026 | 15 jul 2026 |
-| Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | 23 jun 2026 | 14 jul 2026 |
-| Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | 16 jul 2026 | 16 jul 2026 |
-| Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | 16 jul 2026 | 16 jul 2026 |
+| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. |
+| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja |
+| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. |
 
-### Auto & Mobiliteit
+## Administratie & Archief
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | 27 jun 2026 | 14 jul 2026 |
-| Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | 19 jun 2026 | 14 jul 2026 |
+| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | **nee** |
 
-### Loonheffing & WKR
+## Arbeidsrecht & Compliance
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| WKR Agent (intern) | `/join-wkr-agent-intern.html` | bouwman-tools/WKR_agent | 22 jun 2026 | 14 jul 2026 |
-| WKR Agent (extern) | `/join-wkr-agent-extern.html` | bouwman-tools/WKR_agent (zelfde) | 22 jun 2026 | 14 jul 2026 |
-| Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | 19 jun 2026 | 14 jul 2026 |
+| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. |
+| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. |
 
-### Accountancy & Jaarrekening
+## Auto & Mobiliteit
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| XAF Raw Export | `xaf.bouwman.tools` | bouwman-tools/xaf-export-tool | 28 jun 2026 | 14 jul 2026 |
-| Auditfile App | `auditfile-app.streamlit.app` | bouwman-tools/Auditfile_app | 17 jun 2026 | 17 jul 2026 |
+| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja |
+| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja |
 
-### BTW & Omzetbelasting
+## BTW & Omzetbelasting
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | 13 jul 2026 | 16 jul 2026 |
+| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | **nee** |
 
-### Belastingdienst
+## BV & DGA
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | 22 jun 2026 | 16 jul 2026 |
+| 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja |
+| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | **nee** |
+| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | **nee** |
+| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja |
+| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja |
+| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja |
 
-### Administratie & Archief
+## Belastingdienst
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | 17 jul 2026 | 17 jul 2026 |
+| 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. |
+| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja |
 
-### Arbeidsrecht & Compliance
+## Kantoor
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| DBA Risicoscan | `dba-risicoscan.streamlit.app` | bouwman-tools/DBA-helper | 3 jul 2026 | 17 jul 2026 |
-| WWFT Check | `wwft-check.streamlit.app` | bouwman-tools/WWFT-check | 1 jul 2026 | 17 jul 2026 |
+| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja |
 
-### Overig
+## Loonheffing & WKR
 
-| Tool | URL | Repo | Start | Laatste aanpassing |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | 13 jul 2026 | 16 jul 2026 |
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | **nee** |
+| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja |
 
----
+## Overig
 
-## 🟡 In AI_kopgroep — nog niet op bouwman.tools
-
-| Tool | Repo | Start | Laatste aanpassing | Advies |
+| | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
-| Anonimiseren | bouwman-tools/Anonimiseren | 18 jun 2026 | 14 jul 2026 | 🟡 Publiceren met "nog in test" label — hosting beslissen (Flask) |
+| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | **nee** |
 
----
+## Let op: niet afgeschermd
 
-## 🔧 Aandachtspunten
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
 
-| # | Punt | Actie |
-|---|---|---|
-| 1 | Dividend & Uitkeringstoets mist Word-sjablonen | Sjablonen uit map opnemen in de tool |
-| 2 | BV Ja/Nee en Gebruikelijk loon | Laten beoordelen door fiscalisten |
-| 3 | XAF Raw Export heeft geen sync workflow | Werkt via eigen subdomein, geen actie nodig |
-| 4 | Anonimiseren | Hosting beslissen — Flask app, niet direct op bouwman.tools |
+- Gebruikelijk loon (`gebruikelijk-loon.html`)
+- Dividend & Uitkeringstoets (`dividend-uitkeringstoets.html`)
+- WKR Agent (`join-wkr-agent.html`)
+- BTW Teruggaaf EU (`btw-teruggaaf-eu.html`)
+- Bewaarplicht Checker (`bewaarplicht.html`)
+- KvK Nummers Zoeken (`kvk-zoeker.html`)
 
----
+## Vervallen
 
-## Een tool toevoegen aan bouwman.tools
-
-1. Voeg de tool toe aan het `TOOLS`-array in `portal.html`
-2. Voeg de sync workflow toe aan de tool-repo (zie README.md)
-3. Stel de `BOUWMAN_TOOLS_PAT` secret in voor de tool-repo
-4. Update dit bestand (TOOLS.md)
-
-## Een tool verwijderen uit bouwman.tools
-
-1. Verwijder de regel in het `TOOLS`-array in `portal.html` — tool verdwijnt uit het portaal
-2. (Optioneel) Verwijder het HTML-bestand uit de bouwman-tools repo — URL wordt onbereikbaar
-3. De eigen map en repo in AI_kopgroep blijven onaangetast
+| Bestand | Reden |
+|---|---|
+| `betalingskenmerk.html` | Repository hernoemd naar belastingtooljoindk; het bestand bestaat niet meer. De Access-app d0924bf1-e6c1-4098-8573-ac651b860b51 kan worden opgeruimd. |
+| `join-wkr-agent-intern.html` | Op 18-08-2026 vervangen door join-wkr-agent.html. Access-app 85322344-25d4-41cd-9b08-9c79da74bb28 kan worden opgeruimd. |
+| `join-wkr-agent-extern.html` | Op 18-08-2026 vervangen door join-wkr-agent.html. Access-app b98bbe15-1440-4ca4-8af1-cc12517e098f kan worden opgeruimd. |

@@ -22,6 +22,24 @@ projectspecifieke informatie op; geen klantnamen, secretwaarden of absolute pade
   **teruggedraaid**, omdat de toolrepo de kopie overschrijft. Dit is in aug 2026
   aantoonbaar gebeurd.
 
+## tools.json is de enige bron van de toolportefeuille
+
+`tools.json` legt per tool vast: naam, bestand of URL, categorie, status, bronrepo,
+het Cloudflare Access-app-id en welke jaarafhankelijke waarden erin zitten. Voeg je een
+tool toe of haal je er een weg, dan begin je daar.
+
+- `portal.html`, `beheer.html`, `access-beheer-worker.js` (APP_IDS) en `TOOLS.md` moeten
+  daarmee overeenkomen. Houd nergens een tweede lijst bij.
+- `TOOLS.md` wordt **gegenereerd**: `python tools/check_tools.py --schrijf-tools-md`.
+  Bewerk dat bestand niet met de hand.
+- `python tools/check_tools.py` faalt bij drift, en draait ook in CI
+  (`.github/workflows/check-tools.yml`). Een tool die gepubliceerd staat maar niet in
+  `tools.json` voorkomt, laat de controle falen.
+- Een tool zonder `access_app_id` is **niet afgeschermd**: het bestand is voor iedereen
+  met de URL bereikbaar en rechten toekennen in `beheer.html` heeft er geen effect op.
+  De controle rapporteert dat apart. `tools/maak_access_apps.py` maakt de ontbrekende
+  apps aan; dat script draait de eigenaar zelf met een eigen `CF_API_TOKEN`.
+
 ## Sync-mechanisme
 
 - Elke toolrepo heeft `.github/workflows/sync-to-bouwman-tools.yml`.
