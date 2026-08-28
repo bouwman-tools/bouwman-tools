@@ -47,6 +47,23 @@ tool toe of haal je er een weg, dan begin je daar.
 - De job cloont deze repo, kopieert één HTML-bestand en pusht; bij geen wijziging volgt
   geen commit.
 
+## De workers worden niet vanuit deze repo gedeployd
+
+Vastgesteld op 28-08-2026. Er draaien drie workers op het account: `access-beheer`,
+`wkr-agent` en `kennisgroepen-agent`. Geen daarvan heeft een deploy-configuratie in deze
+repository; ze zijn los geupload.
+
+- `access-beheer-worker.js` hier is een **kopie**. De gedeployde versie was op 28-08-2026
+  byte-identiek aan deze kopie, maar dat is niet geborgd: een wijziging hier gaat pas live
+  als je de worker apart deployt.
+- **Let op de valstrik:** `wrangler.toml` in deze repo beschrijft een worker `kvk-proxy`
+  met `main = kvk-worker.js`. Die worker bestaat niet op het account. `wrangler deploy`
+  vanuit deze map maakt dus een nieuwe, ongebruikte worker aan en werkt `access-beheer`
+  *niet* bij.
+- Wijzig je `APP_IDS`, deploy de worker dan bewust (dashboard of een eigen
+  wrangler-config met de juiste KV-binding en route) en controleer daarna dat
+  `beheer.html` rechten kan toekennen aan de gewijzigde tools.
+
 ## Secrets — let op: de organisatie staat op GitHub Free
 
 - Op **Free** werken **organisatie-Actions-secrets alleen voor publieke repos**. De private
