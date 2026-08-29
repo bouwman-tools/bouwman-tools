@@ -57,6 +57,29 @@ wachten op de fiscale beoordeling. Voorwaarde is wel dat de Access-app er eerst
 staat (nooit onafgeschermd het portaal in). De bèta-status en `status_reden`
 blijven staan tot de beoordeling is afgerond.
 
+## Onderhoud van de jaarwaarden
+
+De tools zijn fiscaal jaargebonden; onderhoud volgt de Belastingplan-cyclus:
+
+- **September (Prinsjesdag):** per tool inventariseren welke voorstellen de
+  jaarwaarden raken. Een voorstel is nog geen recht: niets wijzigen, alleen
+  open punten vastleggen.
+- **December (na het Staatsblad):** per tool het nieuwe jaarblok toevoegen in de
+  **bronrepo** — elke waarde geverifieerd met vindplaats (skill
+  `fiscale-bron-verificatie`), tests per rekenregel en grens — en syncen vóór
+  1 januari. Daarna hier `jaarwaarden_gecontroleerd` bijwerken.
+- **Tussentijds:** bevindingen van gebruikers, besluiten of rechtspraak worden een
+  issue in de bronrepo en gaan door dezelfde molen: bron erbij, test erbij, nooit
+  stil fixen.
+
+De bewaking zit in `check_tools.py`: een controle op of na 1 september van het
+voorgaande jaar telt als actueel voor het lopende jaar; ouder geeft een
+waarschuwing, meer dan een jaar oud laat de controle falen. De check draait bij
+elke push en maandelijks op schema. Een tool met jaarwaarden zonder controledatum
+geeft een waarschuwing: leg de datum vast zodra de waarden in de bronrepo zijn
+geverifieerd. Het vangnet in de tools zelf blijft leidend: een onbekend boekjaar
+geeft een melding en rekent nooit stil door op oude waarden.
+
 ## Sync-mechanisme
 
 - Elke toolrepo heeft `.github/workflows/sync-to-bouwman-tools.yml`.

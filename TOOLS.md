@@ -7,75 +7,75 @@ Bijgewerkt: 2026-08-29
 
 ## Accountancy & Jaarrekening
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. |
-| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja |
-| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. |
+| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. |
+| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. | n.v.t. |
 
 ## Administratie & Archief
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. |
 
 ## Arbeidsrecht & Compliance
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. |
-| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. |
+| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. | n.v.t. |
 
 ## Auto & Mobiliteit
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja |
-| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | **ontbreekt** |
+| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | n.v.t. |
 
 ## BTW & Omzetbelasting
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. |
 
 ## BV & DGA
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja |
-| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja |
-| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja |
-| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja |
-| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja |
-| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja |
-| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 |
+| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. |
+| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 |
+| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 |
+| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. |
+| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | n.v.t. |
+| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 |
 
 ## Belastingdienst
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. |
-| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. |
+| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. |
 
 ## Kantoor
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. |
 
 ## Loonheffing & WKR
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja |
-| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | **ontbreekt** |
+| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. |
 
 ## Overig
 
-| | Tool | Locatie | Bronrepo | Afgeschermd |
-|---|---|---|---|---|
-| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
+|---|---|---|---|---|---|
+| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. |
 
 ## Vervallen
 

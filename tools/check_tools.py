@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Controleert of portal.html, beheer.html en access-beheer-worker.js overeenkomen
-met tools.json, de enige bron van waarheid voor de toolportefeuille.
+met tools.json, de enige bron van waarheid voor de toolportefeuille, en bewaakt de
+actualiteit van de jaargebonden waarden per tool.
 
-Faalt met exitcode 1 zodra er drift is. Draait lokaal en in CI.
+Faalt met exitcode 1 zodra er drift is of jaarwaarden meer dan een jaar niet zijn
+gecontroleerd. Draait lokaal en in CI (bij elke push en maandelijks op schema).
 
     python tools/check_tools.py
 """
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import re
@@ -27,6 +30,38 @@ def lees(naam: str) -> str:
 def sleutel(tool: dict) -> str:
     """De verwijzing waarmee een tool in portal/beheer voorkomt."""
     return tool.get("bestand") or tool.get("url") or ""
+
+
+def jaarwaarden_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
+    """Beoordeelt de actualiteit van de jaargebonden waarden van een tool.
+
+    De jaarcyclus volgt het Belastingplan: definitieve waarden voor jaar X
+    verschijnen tussen Prinsjesdag en het Staatsblad in het najaar van X-1.
+    Een controle op of na 1 september van het voorgaande jaar telt daarom als
+    actueel voor het lopende jaar.
+
+    Retourneert (soort, tekst) met soort:
+      'nvt'        — tool heeft geen jaargebonden waarden;
+      'ok'         — gecontroleerd voor het lopende jaar;
+      'ontbreekt'  — wel jaarwaarden, geen controledatum (waarschuwing);
+      'verouderd'  — niet gecontroleerd voor het lopende jaar (waarschuwing);
+      'verlopen'   — meer dan een jaar niet gecontroleerd (fout);
+      'ongeldig'   — onbruikbare datum (fout).
+    """
+    if not tool.get("jaarwaarden"):
+        return "nvt", "n.v.t."
+    ruw = tool.get("jaarwaarden_gecontroleerd")
+    if not ruw:
+        return "ontbreekt", "controledatum ontbreekt"
+    try:
+        datum = datetime.date.fromisoformat(str(ruw))
+    except ValueError:
+        return "ongeldig", f"onbruikbare datum {ruw!r} (verwacht JJJJ-MM-DD)"
+    if datum < vandaag - datetime.timedelta(days=365):
+        return "verlopen", f"laatst gecontroleerd {datum}, meer dan een jaar geleden"
+    if datum < datetime.date(vandaag.year - 1, 9, 1):
+        return "verouderd", f"laatst gecontroleerd {datum}, nog niet voor {vandaag.year}"
+    return "ok", str(datum)
 
 
 def main() -> int:
@@ -53,6 +88,8 @@ def main() -> int:
 
     fouten: list[str] = []
     waarschuwingen: list[str] = []
+    jaarwaarden_meldingen: list[str] = []
+    vandaag = datetime.date.today()
 
     ids = [t["id"] for t in tools]
     if len(ids) != len(set(ids)):
@@ -89,7 +126,17 @@ def main() -> int:
                 "met de URL bereikbaar en rechten toekennen in beheer.html heeft geen effect."
             )
 
-    # 4. Verwijzingen die nergens meer op slaan
+        # 4. Actualiteit van de jaargebonden waarden
+        soort, tekst = jaarwaarden_status(tool, vandaag)
+        if soort in ("verlopen", "ongeldig"):
+            fouten.append(
+                f"{naam}: jaarwaarden ({', '.join(tool['jaarwaarden'])}): {tekst}. "
+                "Verifieer de waarden in de bronrepo en werk jaarwaarden_gecontroleerd bij."
+            )
+        elif soort in ("verouderd", "ontbreekt"):
+            jaarwaarden_meldingen.append(f"{naam}: {tekst}.")
+
+    # 5. Verwijzingen die nergens meer op slaan
     bekend = {sleutel(t) for t in tools}
     for ref in sorted(portal_refs - bekend):
         fouten.append(f"portal.html verwijst naar {ref}, dat niet in tools.json staat.")
@@ -101,7 +148,7 @@ def main() -> int:
             + (" (staat wel onder 'vervallen')." if ref in vervallen else ".")
         )
 
-    # 5. Gepubliceerd maar nergens vastgelegd
+    # 6. Gepubliceerd maar nergens vastgelegd
     gepubliceerd = html_in_repo - INFRA
     for ref in sorted(gepubliceerd - bekend):
         fouten.append(
@@ -118,6 +165,16 @@ def main() -> int:
         print(f"NIET AFGESCHERMD ({len(waarschuwingen)}):")
         for w in waarschuwingen:
             print(f"  - {w}")
+        print()
+
+    if jaarwaarden_meldingen:
+        print(f"JAARWAARDEN NIET ACTUEEL ({len(jaarwaarden_meldingen)}):")
+        for m in jaarwaarden_meldingen:
+            print(f"  - {m}")
+            # In GitHub Actions ook als annotatie op de run, zodat de melding
+            # zichtbaar is zonder de log te openen.
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::warning::Jaarwaarden: {m}")
         print()
 
     if fouten:
@@ -153,12 +210,19 @@ def schrijf_tools_md() -> None:
         per_categorie.setdefault(tool["categorie"], []).append(tool)
 
     for categorie in sorted(per_categorie):
-        regels += [f"## {categorie}", "", "| | Tool | Locatie | Bronrepo | Afgeschermd |", "|---|---|---|---|---|"]
+        regels += [f"## {categorie}", "", "| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |", "|---|---|---|---|---|---|"]
         for tool in sorted(per_categorie[categorie], key=lambda t: t["naam"]):
             doel = tool.get("url") or ("/" + tool["bestand"])
             schild = "ja" if tool.get("access_app_id") else ("n.v.t." if tool.get("extern") else "**nee**")
             status = ICOON.get(tool["status"], "") + " " + tool["status"]
-            regels.append(f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} |")
+            # Bewust alleen de kale datum (geen actualiteitsoordeel): dat oordeel
+            # hangt van de dag af en zou dit gegenereerde bestand laten verouderen
+            # zonder dat tools.json wijzigt. Het oordeel geeft check_tools.py zelf.
+            if not tool.get("jaarwaarden"):
+                jw = "n.v.t."
+            else:
+                jw = tool.get("jaarwaarden_gecontroleerd") or "**ontbreekt**"
+            regels.append(f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} | {jw} |")
         regels.append("")
 
     onbeschermd = [t for t in bron["tools"] if not t.get("access_app_id") and not t.get("extern")]
