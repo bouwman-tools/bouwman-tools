@@ -45,6 +45,7 @@ Bijgewerkt: 2026-08-29
 |---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja |
+| ⚪ verborgen | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | **nee** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja |
@@ -75,6 +76,13 @@ Bijgewerkt: 2026-08-29
 | | Tool | Locatie | Bronrepo | Afgeschermd |
 |---|---|---|---|---|
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja |
+
+## Let op: niet afgeschermd
+
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
+
+- Earningsstripping (`earningsstripping.html`)
 
 ## Vervallen
 
