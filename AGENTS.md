@@ -49,6 +49,14 @@ tool toe of haal je er een weg, dan begin je daar.
   De controle rapporteert dat apart. `tools/maak_access_apps.py` maakt de ontbrekende
   apps aan; dat script draait de eigenaar zelf met een eigen `CF_API_TOKEN`.
 
+## Nieuwe tools gaan direct het portaal in
+
+Vaste afspraak (Sylvain, 29-08-2026): een nieuwe tool gaat meteen als `beta` het
+portaal en het beheer in, zodat testgebruikers ermee aan de slag kunnen — niet
+wachten op de fiscale beoordeling. Voorwaarde is wel dat de Access-app er eerst
+staat (nooit onafgeschermd het portaal in). De bèta-status en `status_reden`
+blijven staan tot de beoordeling is afgerond.
+
 ## Sync-mechanisme
 
 - Elke toolrepo heeft `.github/workflows/sync-to-bouwman-tools.yml`.
