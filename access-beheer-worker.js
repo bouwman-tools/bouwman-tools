@@ -23,6 +23,7 @@ const APP_IDS = {
   'bewaarplicht.html':                   'bcfa2467-4927-4a2f-8b4d-52742455ac3f',
   'kvk-zoeker.html':                     'ecff168d-1414-4714-9081-1e41a1bee156',
   'join-prijsafspraken.html':            '58eeec00-dc06-4b2f-ae46-08855ad22a8f',
+  'earningsstripping.html':              'a1b924eb-7479-4917-bdff-be5a0152713b',
 };
 
 export default {
