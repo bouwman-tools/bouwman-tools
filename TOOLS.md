@@ -45,7 +45,7 @@ Bijgewerkt: 2026-08-29
 |---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja |
-| ⚪ verborgen | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja |
+| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja |
