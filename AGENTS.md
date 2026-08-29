@@ -22,6 +22,15 @@ projectspecifieke informatie op; geen klantnamen, secretwaarden of absolute pade
   **teruggedraaid**, omdat de toolrepo de kopie overschrijft. Dit is in aug 2026
   aantoonbaar gebeurd.
 
+## Werk altijd vanuit een bijgewerkte kloon
+
+Begin werk in deze repo altijd met `git status` gevolgd door `git pull --ff-only`:
+de remote beweegt door de sync-workflows van de toolrepo's en door andere sessies,
+zonder dat een lokale kloon dat vanzelf ziet (`git status` raadpleegt de remote
+niet). Commit nooit vanuit een kopie waarvan je de achterstand niet hebt
+gecontroleerd; `--ff-only` maakt een scheefgelopen kopie zichtbaar in plaats van
+stil te mergen.
+
 ## tools.json is de enige bron van de toolportefeuille
 
 `tools.json` legt per tool vast: naam, bestand of URL, categorie, status, bronrepo,
