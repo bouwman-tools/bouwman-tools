@@ -8,6 +8,13 @@ weggeschreven of getoond.
     python tools/access_apps.py --lijst          # toon alle Access-apps
     python tools/access_apps.py --verwijder      # proefdraai van de terugrol
     python tools/access_apps.py --verwijder --uitvoeren
+    python tools/access_apps.py --proef          # maak een proefapplicatie aan
+    python tools/access_apps.py --proef-weg      # haal die proefapplicatie weer weg
+
+--proef maakt EEN applicatie aan op bouwman.tools/proef-toegang.html. Dat pad
+bestaat niet en er hangt geen tool aan; het dient uitsluitend om vast te stellen of
+een extra Access-applicatie het ophalen van de identiteit verstoort. Haal hem na de
+meting meteen weg met --proef-weg.
 
 --verwijder haalt uitsluitend de zes applicaties weg die op 28-08-2026 zijn
 aangemaakt voor tools die daarvoor onbeschermd waren. Dat herstelt de situatie van
@@ -25,6 +32,9 @@ import urllib.request
 
 WORTEL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = "https://api.cloudflare.com/client/v4"
+
+# De eigenaar houdt altijd toegang; zelfde policy als bij de zes van 28-08.
+EIGENAAR = "s.bouwman@joinadministraties.nl"
 
 # Aangemaakt op 28-08-2026; dit zijn de enige apps die --verwijder aanraakt.
 NIEUW_28_08 = {
@@ -45,9 +55,11 @@ def account_id() -> str:
     return m.group(1)
 
 
-def api(token: str, pad: str, methode: str = "GET"):
+def api(token: str, pad: str, methode: str = "GET", body: dict | None = None):
+    data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
         f"{API}{pad}",
+        data=data,
         method=methode,
         headers={
             "Authorization": f"Bearer {token}",
@@ -71,17 +83,59 @@ def main() -> int:
 
     if "--lijst" in sys.argv:
         print(f"{len(apps)} Access-applicatie(s) op dit account:\n")
-        print("%-38s %-46s %s" % ("domein / pad", "naam", "aangemaakt"))
-        print("-" * 110)
-        for a in sorted(apps, key=lambda x: str(x.get("domain") or "")):
-            dom = str(a.get("domain") or "(geen domein)")
+        print("%-40s %-30s %-16s %s" % ("domein(en) / pad", "naam", "type", "aangemaakt"))
+        print("-" * 112)
+        for a in sorted(apps, key=lambda x: str(x.get("domain") or "zzz")):
+            doms = a.get("self_hosted_domains") or ([a["domain"]] if a.get("domain") else [])
+            dom = " , ".join(doms) if doms else "(GEEN DOMEIN)"
             merk = "  <-- 28-08 door Claude" if a.get("id") in NIEUW_28_08 else ""
-            print("%-38s %-46s %s%s" % (dom[:38], str(a.get("name"))[:46], str(a.get("created_at"))[:10], merk))
+            print("%-40s %-30s %-16s %s%s" % (dom[:40], str(a.get("name"))[:30], str(a.get("type"))[:16], str(a.get("created_at"))[:10], merk))
         print()
         heel_domein = [a for a in apps if str(a.get("domain") or "").rstrip("/") == "bouwman.tools"]
         print("Apps die het HELE domein bouwman.tools dekken: %d" % len(heel_domein))
         print("(Zonder zo'n app valt /cdn-cgi/access/get-identity buiten elke applicatie,")
         print(" en kan portal.html het e-mailadres van de bezoeker niet ophalen.)")
+        return 0
+
+    PROEF_DOMEIN = "bouwman.tools/proef-toegang.html"
+
+    if "--proef" in sys.argv:
+        bestaand = [a for a in apps if str(a.get("domain") or "").rstrip("/") == PROEF_DOMEIN]
+        if bestaand:
+            print("De proefapplicatie bestaat al: %s" % bestaand[0]["id"])
+            return 0
+        # Exact dezelfde velden als bij de zes van 28-08, anders is het geen
+        # geldige reproductie.
+        app = api(token, f"/accounts/{acc}/access/apps", "POST", {
+            "name": "PROEF - mag weg",
+            "domain": PROEF_DOMEIN,
+            "type": "self_hosted",
+            "session_duration": "720h",
+            "app_launcher_visible": False,
+        })["result"]
+        api(token, f"/accounts/{acc}/access/apps/{app['id']}/policies", "POST", {
+            "name": "Eigenaar",
+            "decision": "allow",
+            "include": [{"email": {"email": EIGENAAR}}],
+        })
+        print("Proefapplicatie aangemaakt op %s" % PROEF_DOMEIN)
+        print("  id: %s" % app["id"])
+        print()
+        print("Meet nu in je browser, in deze volgorde:")
+        print("  1. https://bouwman.tools/cdn-cgi/access/get-identity")
+        print("  2. https://bouwman.tools/portal.html   (zie je nog tegels?)")
+        print()
+        print("Haal hem daarna weg met:  python tools/access_apps.py --proef-weg")
+        return 0
+
+    if "--proef-weg" in sys.argv:
+        bestaand = [a for a in apps if str(a.get("domain") or "").rstrip("/") == PROEF_DOMEIN]
+        if not bestaand:
+            print("Geen proefapplicatie gevonden; er is niets te verwijderen.")
+            return 0
+        for a in bestaand:
+            api(token, f"/accounts/{acc}/access/apps/{a['id']}", "DELETE")
+            print("Proefapplicatie verwijderd: %s" % a["id"])
         return 0
 
     if "--verwijder" in sys.argv:

@@ -69,6 +69,43 @@ def api(token: str, pad: str, methode: str = "GET", body: dict | None = None) ->
         sys.exit(f"Cloudflare gaf HTTP {fout.code} op {methode} {pad}:\n{tekst[:800]}")
 
 
+def api_zacht(token: str, pad: str, methode: str = "GET", body: dict | None = None):
+    """Als api(), maar stopt het programma niet bij een fout. Retourneert (ok, data)."""
+    data = json.dumps(body).encode() if body is not None else None
+    verzoek = urllib.request.Request(
+        f"{API}{pad}",
+        data=data,
+        method=methode,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(verzoek, timeout=30) as antwoord:
+            return True, json.loads(antwoord.read())
+    except urllib.error.HTTPError as fout:
+        return False, fout.read().decode(errors="ignore")[:400]
+    except Exception as fout:  # netwerk, timeout
+        return False, str(fout)[:400]
+
+
+def policies_van(token: str, acc: str, app_id: str):
+    ok, data = api_zacht(token, f"/accounts/{acc}/access/apps/{app_id}/policies")
+    return (data.get("result") or []) if ok and isinstance(data, dict) else []
+
+
+def zet_policy(token: str, acc: str, app_id: str, naam: str):
+    """Zorgt dat de applicatie minstens een allow-policy heeft. Retourneert True/False."""
+    if policies_van(token, acc, app_id):
+        return True
+    ok, _ = api_zacht(token, f"/accounts/{acc}/access/apps/{app_id}/policies", "POST", {
+        "name": "Eigenaar",
+        "decision": "allow",
+        "include": [{"email": {"email": EIGENAAR}}],
+    })
+    if not ok:
+        return False
+    return bool(policies_van(token, acc, app_id))
+
+
 def main() -> int:
     uitvoeren = "--uitvoeren" in sys.argv
     token = os.environ.get("CF_API_TOKEN", "").strip()
@@ -111,11 +148,21 @@ def main() -> int:
         return 0
 
     resultaten = []
+    mislukt = []
     for t in ontbreekt:
         dom = f"{DOMEIN}/{t['bestand']}"
         if dom in bestaand:
-            print(f"  overgeslagen (bestaat al): {t['naam']} -> {bestaand[dom]}")
-            resultaten.append((t["id"], t["bestand"], bestaand[dom]))
+            app_id = bestaand[dom]
+            if zet_policy(token, acc, app_id, t["naam"]):
+                print(f"  bestond al, policy in orde: {t['naam']:28} {app_id}")
+                resultaten.append((t["id"], t["bestand"], app_id))
+            else:
+                # Applicatie zonder werkende policy sluit IEDEREEN buiten. Liever
+                # terug naar de uitgangssituatie dan een tool die niemand bereikt.
+                ok, _ = api_zacht(token, f"/accounts/{acc}/access/apps/{app_id}", "DELETE")
+                print(f"  PROBLEEM: {t['naam']} had geen policy en die lukt niet.")
+                print(f"      applicatie {'verwijderd' if ok else 'NIET verwijderd - doe dit met de hand'}: {app_id}")
+                mislukt.append(t["naam"])
             continue
 
         app = api(token, f"/accounts/{acc}/access/apps", "POST", {
@@ -126,16 +173,35 @@ def main() -> int:
             "app_launcher_visible": False,
         })["result"]
 
-        api(token, f"/accounts/{acc}/access/apps/{app['id']}/policies", "POST", {
-            "name": "Eigenaar",
-            "decision": "allow",
-            "include": [{"email": {"email": EIGENAAR}}],
-        })
+        if not zet_policy(token, acc, app["id"], t["naam"]):
+            ok, _ = api_zacht(token, f"/accounts/{acc}/access/apps/{app['id']}", "DELETE")
+            print(f"  PROBLEEM: policy aanmaken mislukte voor {t['naam']}.")
+            print(f"      applicatie {'weer verwijderd' if ok else 'NIET verwijderd - doe dit met de hand'}: {app['id']}")
+            print("      De tool blijft daarmee zoals hij was, in plaats van voor iedereen dicht.")
+            mislukt.append(t["naam"])
+            continue
 
+        # Terugzien wat er werkelijk staat: een aangemaakte policy kan er anders
+        # uitzien dan bedoeld, en dat merk je anders pas als iemand erbij kan.
+        pols = api(token, f"/accounts/{acc}/access/apps/{app['id']}/policies").get("result") or []
+        omschrijving = []
+        for pol in pols:
+            inc = pol.get("include") or []
+            soorten = sorted({list(regel.keys())[0] for regel in inc if isinstance(regel, dict)})
+            omschrijving.append("%s/%s: %d regel(s) [%s]" % (
+                pol.get("name"), pol.get("decision"), len(inc), ",".join(soorten) or "LEEG"))
         print(f"  aangemaakt: {t['naam']:32} {app['id']}")
+        print("      policy: %s" % ("; ".join(omschrijving) or "GEEN POLICY - iedereen wordt geweigerd"))
         resultaten.append((t["id"], t["bestand"], app["id"]))
 
     print()
+    if mislukt:
+        print("NIET AFGESCHERMD gebleven (%d): %s" % (len(mislukt), ", ".join(mislukt)))
+        print("Die tools zijn nog steeds zonder login bereikbaar; er staat geen half")
+        print("werkende applicatie voor. Draai het script gerust opnieuw.")
+        print()
+    if not resultaten:
+        return 1
     print("Zet deze id's in tools.json (access_app_id) en in APP_IDS van de worker:")
     for tool_id, bestand, app_id in resultaten:
         print(f"  '{bestand}': '{app_id}',")
