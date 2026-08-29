@@ -1341,7 +1341,7 @@
 <!-- ═══════════════════════ 2. ADVIES ═══════════════════════ -->
 <div class="section-head" id="secAdvies" style="display:none;">
   <h2>2 · Advies</h2>
-  <p>Route met de laagste directe kosten (box 2-heffing + RC-rente) binnen de opgegeven middelen.</p>
+  <p>Route met de laagste totale box 2-heffing binnen de opgegeven middelen. RC-rente is een interne geldstroom tussen DGA en BV: de bijschrijving verhoogt de schuld en telt zo vanzelf mee in de heffing.</p>
 </div>
 
 <div id="cardModeToggle" style="display:none; text-align:center; margin-bottom:16px;">
@@ -1362,7 +1362,7 @@
 
 <div class="card" id="cardRoutes" style="display:none;">
   <div class="card-title">Routevergelijking</div>
-  <p class="blok-intro">Alle doorgerekende routes, gesorteerd op directe kosten. Elke route gebruikt dezelfde rekenkern; routes die niet volledig aflossen of niet passen binnen de beschikbare middelen zijn grijs.</p>
+  <p class="blok-intro">Alle doorgerekende routes, gesorteerd op totale box 2-heffing. Elke route gebruikt dezelfde rekenkern; routes die niet volledig aflossen of niet passen binnen de beschikbare middelen zijn grijs.</p>
   <div class="table-scroll wide"><div id="routes"></div></div>
   <div class="scroll-hint">Tabel is horizontaal te scrollen.</div>
 </div>
@@ -1955,9 +1955,11 @@ function simulateRoute(inp, policy) {
     if (geenActie && !laterMiddelen) break;
   }
 
-  var pv = 0;
+  var pvTax = 0, pvAll = 0;
   for (var i = 0; i < rows.length; i++) {
-    pv += (rows[i].box2Total + rows[i].interestTotal) / Math.pow(1 + inp.discountRate, i);
+    var disc = Math.pow(1 + inp.discountRate, i);
+    pvTax += rows[i].box2Total / disc;
+    pvAll += (rows[i].box2Total + rows[i].interestTotal) / disc;
   }
 
   var route = {
@@ -1982,15 +1984,24 @@ function simulateRoute(inp, policy) {
     bvCashAdded: Math.max(0, bv - (inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, rows.length - 1))),
     cumulativeFictief: cumFictief,
     lossCarryRemaining: lossCarry,
-    directCost: T.box2Total + T.interest,
-    directCostPV: pv,
+    // De maatstaf voor het advies: de totale box 2-heffing. De RC-rente is een
+    // interne geldstroom tussen de DGA en zijn eigen BV; de bijschrijving
+    // verhoogt de schuld en daarmee het benodigde dividend, dus haar fiscale
+    // effect zit al volledig in de heffing. Zij telt daarom niet nog eens als
+    // afzonderlijke kostenpost mee.
+    taxCost: T.box2Total,
+    taxCostPV: pvTax,
+    directCost: T.box2Total + T.interest,   // informatief: heffing plus interne rente
+    directCostPV: pvAll,
     latentCredit: inp.latentRate * T.grossDividend,
     hitsHighRate: T.box2HighPart > EPS,
     reachedMaxYears: rows.length >= maxY && debt > SETTLE,
     liquidityChecked: true
   };
-  route.economicCost = route.directCost - route.latentCredit;
-  route.burden = route.directCost + route.remainingDebt;   // maatstaf bij gedeeltelijke aflossing
+  route.economicCost = route.taxCost - route.latentCredit;
+  // Maatstaf bij gedeeltelijke aflossing. De restschuld bevat de bijgeschreven
+  // rente al; de rente hier nogmaals optellen zou dubbel tellen.
+  route.burden = route.taxCost + route.remainingDebt;
   var chk = checkRouteInvariants(inp, route);
   route.invariants = chk;
   route.liquidityOk = chk.liquidity.length === 0;
@@ -2111,13 +2122,22 @@ function checkRouteInvariants(inp, route) {
 
 /* ────────── 7. OPTIMIZER: kandidaatroutes genereren en vergelijken ─────────
    Doelfunctie voor routes die de schuld volledig aflossen:
-     minimaliseer de directe kosten = totale box 2-heffing + totale RC-rente
-     (desgewenst contant gemaakt), binnen de beschikbare liquiditeit.
-   Er wordt dus niet uitsluitend op belasting geoptimaliseerd: een stukje hoog
-   tarief nu kan goedkoper zijn dan jaren rente.
+     minimaliseer de totale box 2-heffing (desgewenst contant gemaakt),
+     binnen de beschikbare liquiditeit.
+
+   De RC-rente telt bewust NIET als afzonderlijke kostenpost mee. De DGA
+   betaalt die rente aan zijn eigen BV: een interne geldstroom, geen extern
+   verlies. Het fiscale effect van wachten zit al in de heffing zelf — de
+   bijgeschreven rente verhoogt de schuld, dus het benodigde bruto dividend,
+   dus de box 2-heffing. Bij een hoge rente kan een stukje hoog tarief nu
+   daardoor alsnog voordeliger zijn dan lang doorschuiven; die afweging maakt
+   de heffing vanzelf. (Regressie 29-08-2026: met rente als kostenpost werd
+   bij elke realistische rente "alles in één jaar" geadviseerd, dwars door
+   het hoge tarief. Zie tests, groep "vaste praktijkcasussen".)
 
    Lost geen enkele route volledig af, dan wordt vergeleken op de som van de
-   restschuld en de gemaakte kosten — beide zijn een last voor de DGA.
+   restschuld en de betaalde heffing — de restschuld bevat de bijgeschreven
+   rente al.
    ─────────────────────────────────────────────────────────────────────────── */
 var LEVEL_BISECT_STEPS = 28;
 
@@ -2126,18 +2146,19 @@ function routeRank(r) { return (r.fullyRepaid && r.liquidityOk !== false) ? 0 : 
 /**
  * Vergelijkingsregel tussen twee routes:
  *   1. routes die volledig aflossen én liquide zijn gaan voor;
- *   2. daarbinnen: laagste directe kosten (box 2 + rente), contant gemaakt
- *      indien een discontovoet is ingesteld;
- *   3. bij gelijke kosten: de minste inzet van privéliquiditeit;
+ *   2. daarbinnen: laagste totale box 2-heffing, contant gemaakt indien een
+ *      discontovoet is ingesteld (de RC-rente is een interne geldstroom en
+ *      werkt al via de schuldopbouw in de heffing door);
+ *   3. bij gelijke heffing: de minste inzet van privéliquiditeit;
  *   4. daarna: de kortste looptijd.
- * Bij routes die niet volledig aflossen: laagste som van restschuld en kosten.
+ * Bij routes die niet volledig aflossen: laagste som van restschuld en heffing.
  */
 function betterRoute(a, b) {
   var ra = routeRank(a), rb = routeRank(b);
   if (ra !== rb) return ra < rb;
   if (ra === 0) {
-    if (a.directCostPV < b.directCostPV - EPS) return true;
-    if (b.directCostPV < a.directCostPV - EPS) return false;
+    if (a.taxCostPV < b.taxCostPV - EPS) return true;
+    if (b.taxCostPV < a.taxCostPV - EPS) return false;
     if (a.privateUsed < b.privateUsed - EPS) return true;
     if (b.privateUsed < a.privateUsed - EPS) return false;
     var ba = a.bvCashAdded || 0, bb = b.bvCashAdded || 0;
@@ -2348,11 +2369,13 @@ function referenceFullDividend(inp) {
     bvCashAdded: 0,
     privateRemaining: res.privateClosing,
     bvCashRemaining: res.bvCashClosing,
+    taxCost: res.box2Total,
+    taxCostPV: res.box2Total,
     directCost: directCost,
     directCostPV: directCost,
-    burden: directCost + res.closingDebt,
+    burden: res.box2Total + res.closingDebt,
     latentCredit: inp.latentRate * res.grossDividend,
-    economicCost: directCost - inp.latentRate * res.grossDividend,
+    economicCost: res.box2Total - inp.latentRate * res.grossDividend,
     hitsHighRate: res.box2HighPart > EPS,
     liquidityChecked: false,
     liquidityOk: !res.privateShortfall && !res.bvShortfall,
@@ -2728,15 +2751,6 @@ function renderGates(res) {
   return html;
 }
 
-function routeCostSummary(route) {
-  return kpiRow([
-    kpi('Looptijd', route.years + (route.years === 1 ? ' jaar' : ' jaar')),
-    kpi('Totale box 2', euro(route.totals.box2Total), route.hitsHighRate ? 'warn' : ''),
-    kpi('RC-rente', euro(route.totals.interest)),
-    kpi('Directe kosten', euro(route.directCost))
-  ]);
-}
-
 /** Detailkaart voor één route: alle grootheden die de mandaatlijst voorschrijft. */
 function renderRouteCard(route, inp, opts) {
   opts = opts || {};
@@ -2860,11 +2874,12 @@ function renderRouteCard(route, inp, opts) {
 
   // ── Kosten ──
   var costRows = [
-    row('Totale box 2-heffing', euro(T.box2Total)),
-    row('Totale RC-rente', euro(T.interest)),
-    row('<strong>Directe kosten</strong>', '<strong>' + euro(route.directCost) + '</strong>')
+    row('<strong>Totale box 2-heffing</strong>', '<strong>' + euro(T.box2Total) + '</strong>', route.hitsHighRate ? 'warn' : '')
   ];
-  if (inp.discountRate > 0) costRows.push(rowMuted('Contante waarde tegen ' + pct(inp.discountRate), euro(route.directCostPV)));
+  if (inp.discountRate > 0) costRows.push(rowMuted('Contante waarde box 2 tegen ' + pct(inp.discountRate), euro(route.taxCostPV)));
+  if (T.interest > EPS) {
+    costRows.push(rowMuted('Bijgeschreven RC-rente — interne geldstroom van de DGA naar de eigen BV; verhoogt de schuld en zit daardoor al in de heffing hierboven', euro(T.interest)));
+  }
   if (route.latentCredit > EPS) {
     costRows.push(rowMuted('Af: latente aanmerkelijkbelangclaim die met dit dividend is afgerekend (' + pct(inp.latentRate) + ' × bruto dividend)',
       '− ' + euro(route.latentCredit)));
@@ -2882,17 +2897,17 @@ function renderRoutesTable(res) {
   list.push({ r: res.reference, note: 'referentie' });
   for (i = 0; i < res.routes.length; i++) list.push({ r: res.routes[i], note: '' });
 
-  // sorteer: haalbare routes op kosten, daarna de rest
+  // sorteer: haalbare routes op box 2-heffing, daarna de rest
   list.sort(function (a, b) {
     var fa = a.r.fullyRepaid && a.r.liquidityOk !== false, fb = b.r.fullyRepaid && b.r.liquidityOk !== false;
     if (fa !== fb) return fa ? -1 : 1;
-    if (fa) return a.r.directCostPV - b.r.directCostPV;
+    if (fa) return a.r.taxCostPV - b.r.taxCostPV;
     return a.r.burden - b.r.burden;
   });
 
   var html = '<table class="routes"><thead><tr>' +
     '<th>Route</th><th>Looptijd</th><th>Bruto dividend</th><th>Box 2</th><th>Waarvan hoog</th><th>RC-rente</th>' +
-    '<th>Directe kosten</th><th>Privé netto</th><th>BV-kas ingezet</th><th>Restschuld</th>' +
+    '<th>Privé netto</th><th>BV-kas ingezet</th><th>Restschuld</th>' +
     '</tr></thead><tbody>';
 
   for (i = 0; i < list.length; i++) {
@@ -2909,7 +2924,6 @@ function renderRoutesTable(res) {
       '<td>' + euro(r.totals.box2Total) + '</td>' +
       '<td>' + (r.totals.box2TaxHigh > EPS ? euro(r.totals.box2TaxHigh) : '—') + '</td>' +
       '<td>' + euro(r.totals.interest) + '</td>' +
-      '<td>' + euro(r.directCost) + '</td>' +
       '<td>' + euro(r.privateNetUsed) + '</td>' +
       '<td>' + euro(r.bvOwnCashUsed) + '</td>' +
       '<td>' + (r.fullyRepaid ? '€ 0' : euro(r.remainingDebt)) + '</td>' +
@@ -2919,9 +2933,10 @@ function renderRoutesTable(res) {
   html += '<p class="blok-intro" style="margin-top:12px;">' + res.evaluated +
     ' routevarianten doorgerekend; hierboven staan de onderscheidende uitkomsten. ' +
     'De referentieregel toetst geen liquiditeit en dient alleen als vergelijking. ' +
+    '<strong>RC-rente</strong> is een interne geldstroom van de DGA naar de eigen BV: de bijschrijving verhoogt de schuld en telt daardoor al mee in de kolom Box 2; zij is geen afzonderlijke kostenpost. ' +
     '<strong>Privé netto</strong> = wat het privévermogen van de DGA netto verlaat: rechtstreekse aflossing plus aanvullende inkomstenbelasting, minus een eventuele uitbetaling in geld. ' +
     '<strong>BV-kas ingezet</strong> = de netto afname van de eigen kas van de BV; een privéstorting die direct wordt doorbetaald als dividendbelasting kost de BV zelf niets. ' +
-    'Routes die niet volledig aflossen zijn onderling vergeleken op de som van restschuld en gemaakte kosten.</p>';
+    'Routes die niet volledig aflossen zijn onderling vergeleken op de som van restschuld en betaalde heffing.</p>';
   return html;
 }
 
@@ -3030,7 +3045,7 @@ function renderOmgekeerd(res) {
   }
   var html = '<table class="omgekeerd-table"><thead><tr>' +
     '<th>Looptijd</th><th>Privé nodig per jaar</th><th>Totaal privé</th><th>Bruto dividend per jaar</th>' +
-    '<th>Totale box 2</th><th>Totale rente</th><th>Directe kosten</th></tr></thead><tbody>';
+    '<th>Totale box 2</th><th>Totale rente</th></tr></thead><tbody>';
   var i;
   for (i = 0; i < rev.rows.length; i++) {
     var r = rev.rows[i];
@@ -3041,8 +3056,7 @@ function renderOmgekeerd(res) {
       '<td>' + euro(r.privateNetUsed) + '</td>' +
       '<td>' + euro(perYear) + '</td>' +
       '<td>' + euro(r.totals.box2Total) + '</td>' +
-      '<td>' + euro(r.totals.interest) + '</td>' +
-      '<td>' + euro(r.directCost) + '</td></tr>';
+      '<td>' + euro(r.totals.interest) + '</td></tr>';
   }
   html += '</tbody></table>';
 
@@ -3052,8 +3066,7 @@ function renderOmgekeerd(res) {
       row('Privé nodig', euro(rev.ineens.annualPrivate)),
       row('Bruto dividend', euro(rev.ineens.totals.grossDividend)),
       row('Totale box 2', euro(rev.ineens.totals.box2Total), rev.ineens.hitsHighRate ? 'warn' : ''),
-      row('Waarvan tegen het hoge tarief', euro(rev.ineens.totals.box2TaxHigh), rev.ineens.hitsHighRate ? 'warn' : ''),
-      row('Directe kosten', euro(rev.ineens.directCost))
+      row('Waarvan tegen het hoge tarief', euro(rev.ineens.totals.box2TaxHigh), rev.ineens.hitsHighRate ? 'warn' : '')
     ]);
   }
 
@@ -3067,13 +3080,19 @@ function renderAdvies(res) {
   var inp = res.input, best = res.best, ref = res.reference;
   var html = '';
 
-  var saving = ref.directCost - (best ? best.directCost : ref.directCost);
+  // Vergelijkingsmaatstaf "ineens": de beste eenjarige route die binnen de
+  // middelen past. Alleen als die er niet is, valt de vergelijking terug op de
+  // referentie zonder liquiditeitstoets.
+  var ineens = (res.directNow && res.directNow.fullyRepaid && res.directNow.liquidityOk !== false)
+    ? res.directNow : ref;
+  var ineensGetoetst = ineens.liquidityChecked !== false;
+  var saving = ineens.totals.box2Total - (best ? best.totals.box2Total : ineens.totals.box2Total);
   var hasSaving = best && best.fullyRepaid && saving > EPS;
 
   var panel1 = '<div class="advies-panel">' +
     '<div class="advies-panel-label">Besparing t.o.v. ineens</div>' +
     '<div class="advies-panel-value' + (hasSaving ? '' : ' muted') + '">' + (hasSaving ? euro(saving) : '—') + '</div>' +
-    '<div class="advies-panel-text">Directe kosten: box 2-heffing plus RC-rente</div></div>';
+    '<div class="advies-panel-text">Minder box 2-heffing dan alles in één jaar uitkeren</div></div>';
 
   var panel2 = (best && best.shape !== 'geen-actie') ? '<div class="advies-panel">' +
     '<div class="advies-panel-label">Privé netto nodig</div>' +
@@ -3094,18 +3113,22 @@ function renderAdvies(res) {
     badge = 'Gedeeltelijke aflossing';
     tekst = 'Met de opgegeven middelen wordt de schuld niet volledig afgelost. De best haalbare route — ' +
       best.label.toLowerCase() + ' — brengt de schuld in ' + best.years + ' jaar terug tot ' + euro(best.remainingDebt) +
-      ' tegen ' + euro(best.directCost) + ' aan directe kosten. Routes die niet volledig aflossen zijn vergeleken op de som van restschuld en kosten. ' +
+      ' tegen ' + euro(best.totals.box2Total) + ' aan box 2-heffing. Routes die niet volledig aflossen zijn vergeleken op de som van restschuld en heffing. ' +
       'Gebruik "Wat heb ik nodig?" om te zien welke jaarlijkse inleg wél volstaat.';
   } else {
     badge = best.label;
-    tekst = best.description + ' De directe kosten bedragen ' + euro(best.directCost) +
-      ' (' + euro(best.totals.box2Total) + ' box 2' +
-      (best.totals.interest > EPS ? ' en ' + euro(best.totals.interest) + ' rente' : '') + '). ' +
-      'Ineens aflossen via dividend zou ' + euro(ref.directCost) + ' kosten' +
-      (ref.hitsHighRate ? ', omdat dan ' + euro(ref.totals.box2HighPart) + ' in het hoge tarief van ' + pct(inp.highRate) + ' valt' : '') + '.';
+    tekst = best.description + ' De totale box 2-heffing bedraagt ' + euro(best.totals.box2Total) + '.';
+    if (best.years > 1) {
+      tekst += ' Alles in één jaar aflossen zou ' + euro(ineens.totals.box2Total) + ' aan heffing kosten' +
+        (ineens.hitsHighRate ? ', omdat dan ' + euro(ineens.totals.box2HighPart) + ' in het hoge tarief van ' + pct(inp.highRate) + ' valt' : '') +
+        (ineensGetoetst ? '' : ' — daarbij is de liquiditeit niet getoetst') + '.';
+    }
+    if (best.totals.interest > EPS) {
+      tekst += ' De ' + euro(best.totals.interest) + ' RC-rente over de looptijd is een interne geldstroom naar de eigen BV; de bijschrijving verhoogt de schuld en is daardoor al in de heffing verwerkt.';
+    }
     if (best.totals.box2TaxHigh > EPS) {
       tekst += ' Deze route gebruikt bewust ' + euro(best.totals.box2TaxHigh) +
-        ' aan heffing tegen het hoge tarief: dat is goedkoper dan de rente van langer wachten.';
+        ' aan heffing tegen het hoge tarief: langer spreiden zou door de oplopende rentebijschrijving per saldo méér heffing kosten.';
     }
   }
 
@@ -3177,7 +3200,8 @@ function renderAannames(res) {
     '</p>';
   html += '<p class="blok-intro">' +
     '<strong>Belangrijke nuance bij de vergelijking.</strong> Privégeld dat rechtstreeks op de RC wordt afgelost is niet "weg": het wordt kas in de BV en draagt een latente aanmerkelijkbelangclaim. ' +
-    'Een route zonder dividend heeft daardoor lage directe kosten, maar stelt de heffing alleen uit. De regel "kosten na verrekening latente claim" bij elke route maakt dat verschil zichtbaar.' +
+    'Een route zonder dividend kent daardoor nu weinig heffing, maar stelt die alleen uit. De regel "kosten na verrekening latente claim" bij elke route maakt dat verschil zichtbaar. ' +
+    'De RC-rente is een interne geldstroom van de DGA naar de eigen BV en telt daarom niet als afzonderlijke kostenpost mee in de routevergelijking; de bijschrijving verhoogt wél de schuld en werkt zo door in de heffing.' +
     '</p>';
   html += '<div class="block-title" style="margin-top:22px;">Bronnen</div>';
   html += '<p class="blok-intro">' +
@@ -3314,6 +3338,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 21 aug 2026, 11:38</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 29 aug 2026, 18:24</div>
 </body>
 </html>
