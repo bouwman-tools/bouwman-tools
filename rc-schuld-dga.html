@@ -2043,15 +2043,52 @@ function describeRoute(route, inp) {
     return { label: label, description: desc };
   }
 
+  function n(v) { return Math.round(v).toLocaleString('nl-NL'); }
+
+  // Patroon in de jaren: een vast bruto dividend met hooguit een kleiner
+  // restant in het slotjaar. Dat patroon benoemen leest beter dan een
+  // gemiddelde, dat door het kleine slotjaar nergens op de werkelijke
+  // uitkering lijkt.
+  var patroon = null;
+  if (route.rows.length >= 2 && route.rows[0].grossDividend > EPS) {
+    var vast = route.rows[0].grossDividend, gelijk = true;
+    for (var pi = 1; pi < route.rows.length - 1; pi++) {
+      if (Math.abs(route.rows[pi].grossDividend - vast) > 1) { gelijk = false; break; }
+    }
+    if (gelijk) {
+      var slot = route.rows[route.rows.length - 1].grossDividend;
+      if (Math.abs(slot - vast) <= 1) patroon = { vast: vast, rest: null };
+      else if (slot < vast - 1) patroon = { vast: vast, rest: slot };
+    }
+  }
+  // De hele route rekent met de tarieven van het gekozen belastingjaar; de
+  // beschikbare eerste schijf is daardoor in elk jaar hetzelfde bedrag.
+  var isSchijfMax = patroon && Math.abs(patroon.vast - inp.lowBracketAvail) <= 1;
+
   var perJaar = Math.round(T.grossDividend / Math.max(1, route.years));
+  var jaarTekst;
+  if (route.years === 1) {
+    jaarTekst = 'een eenmalig bruto dividend van ' + n(T.grossDividend) + ' euro';
+  } else if (patroon && patroon.rest != null) {
+    jaarTekst = (route.years === 2 ? 'het eerste jaar' : 'de eerste ' + (route.years - 1) + ' jaar') +
+      ' een bruto dividend van ' + n(patroon.vast) + ' euro' +
+      (isSchijfMax ? ' — de volledige beschikbare eerste schijf —' : '') +
+      ' en in het slotjaar het restant van ' + n(patroon.rest) + ' euro';
+  } else if (patroon) {
+    jaarTekst = 'elk jaar een bruto dividend van ' + n(patroon.vast) + ' euro' +
+      (isSchijfMax ? ' — de volledige beschikbare eerste schijf' : '');
+  } else {
+    jaarTekst = 'een bruto dividend van gemiddeld ' + n(perJaar) + ' euro per jaar';
+  }
+
   if (route.shape === 'dividend') {
     label = 'Dividendroute in ' + jaar;
-    desc = 'Bruto dividend van gemiddeld ' + perJaar.toLocaleString('nl-NL') + ' euro per jaar; het netto dividend wordt met de RC-schuld verrekend.';
+    desc = jaarTekst.charAt(0).toUpperCase() + jaarTekst.slice(1) + '; het netto dividend wordt met de RC-schuld verrekend.';
   } else {
     label = 'Privéstorting plus dividend in ' + jaar;
-    desc = 'Combinatie van ' + Math.round(T.depositApplied).toLocaleString('nl-NL') +
-      ' euro rechtstreekse aflossing en ' + Math.round(T.grossDividend).toLocaleString('nl-NL') +
-      ' euro bruto dividend, gemiddeld ' + perJaar.toLocaleString('nl-NL') + ' euro per jaar.';
+    desc = 'Combinatie van ' + n(T.depositApplied) +
+      ' euro rechtstreekse aflossing en ' + n(T.grossDividend) +
+      ' euro bruto dividend' + (route.years > 1 ? ': ' + jaarTekst : '') + '.';
   }
   desc += route.hitsHighRate
     ? ' Een deel van het box 2-inkomen valt in het hoge tarief.'
@@ -3094,13 +3131,27 @@ function renderAdvies(res) {
     '<div class="advies-panel-value' + (hasSaving ? '' : ' muted') + '">' + (hasSaving ? euro(saving) : '—') + '</div>' +
     '<div class="advies-panel-text">Minder box 2-heffing dan alles in één jaar uitkeren</div></div>';
 
-  var panel2 = (best && best.shape !== 'geen-actie') ? '<div class="advies-panel">' +
-    '<div class="advies-panel-label">Privé netto nodig</div>' +
-    '<div class="advies-panel-value mint">' + euro(best.privateNetUsed) + '</div>' +
-    '<div class="advies-panel-text">' + euro(best.totals.depositApplied) + ' rechtstreekse aflossing en ' +
-    euro(best.totals.privateOutTax) + ' aanvullende IB' +
-    (best.totals.netPaidInCash > 1 ? ', minus ' + euro(best.totals.netPaidInCash) + ' dividend in geld' : '') +
-    '</div></div>' : '';
+  var panel2 = '';
+  if (best && best.shape !== 'geen-actie') {
+    var p2dep = best.totals.depositApplied, p2ib = best.totals.privateOutTax, p2cash = best.totals.netPaidInCash;
+    var p2tekst;
+    if (best.privateNetUsed <= 1 && p2dep <= 1) {
+      // De aanvullende IB is altijd een privéschuld van de DGA; zonder
+      // privémiddelen wordt zij betaald uit dividend dat in geld wordt
+      // uitbetaald in plaats van verrekend met de RC.
+      p2tekst = p2ib > 1
+        ? 'Geen beroep op privévermogen: de aanvullende IB van ' + euro(p2ib) +
+          ' wordt betaald uit dividend dat in geld wordt uitbetaald in plaats van verrekend met de RC'
+        : 'Geen beroep op privévermogen nodig';
+    } else {
+      p2tekst = euro(p2dep) + ' rechtstreekse aflossing plus ' + euro(p2ib) + ' aanvullende IB' +
+        (p2cash > 1 ? '; daarvan dekt ' + euro(p2cash) + ' dividend in geld een deel' : '');
+    }
+    panel2 = '<div class="advies-panel">' +
+      '<div class="advies-panel-label">Privé netto nodig</div>' +
+      '<div class="advies-panel-value mint">' + euro(best.privateNetUsed) + '</div>' +
+      '<div class="advies-panel-text">' + p2tekst + '</div></div>';
+  }
 
   var badge, tekst;
   if (!res.gates.dividendAllowed) {
@@ -3342,6 +3393,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 30 aug 2026, 10:26</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 30 aug 2026, 10:41</div>
 </body>
 </html>
