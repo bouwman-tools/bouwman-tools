@@ -25,6 +25,8 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* .main is een grid; zonder !important zou display:grid het hidden-attribuut winnen. */
+  [hidden] { display: none !important; }
   body { font-family: 'Nunito Sans', sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; }
 
   header { background: var(--navy-card); border-bottom: 1px solid var(--border); padding: 0 52px; height: 70px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 20px rgba(0,0,0,0.3); }
@@ -101,6 +103,49 @@
   .toelichting a:hover { color: var(--mint-h); }
   .toelichting code { background: var(--input-bg); border-radius: 4px; padding: 1px 6px; font-size: 12.5px; }
 
+  /* Weergavekeuze: een boekjaar of een reeks boekjaren */
+  .tabs { max-width: 1160px; margin: 0 auto; padding: 28px 52px 0; display: flex; gap: 8px; }
+  .tab { background: var(--card-bg); border: 1px solid var(--border); color: var(--dim); font-family: inherit; font-size: 13px; font-weight: 700; padding: 9px 18px; border-radius: 100px; cursor: pointer; transition: color 0.15s, background 0.15s; }
+  .tab:hover { color: var(--white); }
+  .tab.actief { background: rgba(61,217,160,0.12); border-color: rgba(61,217,160,0.35); color: var(--mint); }
+
+  .main-breed { max-width: 1160px; margin: 0 auto; padding: 20px 52px 24px; }
+  /* Brede tabellen mogen zelf schuiven; de pagina schuift nooit horizontaal mee. */
+  .tabel-scroll { overflow-x: auto; }
+
+  table.invoer-tabel, table.reeks-uit { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 780px; }
+  table.invoer-tabel th, table.reeks-uit th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 800; padding: 0 8px 8px 0; white-space: nowrap; }
+  table.reeks-uit th.rechts { text-align: right; }
+  .th-sub { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 10.5px; }
+  table.invoer-tabel td { padding: 0 8px 8px 0; }
+  table.invoer-tabel input, table.invoer-tabel select { width: 100%; min-width: 112px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--white); font-family: inherit; font-size: 14px; font-weight: 600; padding: 8px 10px; outline: none; transition: border-color 0.15s; }
+  table.invoer-tabel input:focus, table.invoer-tabel select:focus { border-color: var(--mint); }
+  table.invoer-tabel input.ongeldig { border-color: var(--red); }
+  table.invoer-tabel select option { background: var(--navy-card); color: var(--white); }
+
+  .knop { background: rgba(61,217,160,0.12); border: 1px solid rgba(61,217,160,0.3); color: var(--mint); font-family: inherit; font-size: 13px; font-weight: 700; padding: 8px 16px; border-radius: 9px; cursor: pointer; }
+  .knop:hover { background: rgba(61,217,160,0.2); }
+  .knop:disabled { opacity: 0.35; cursor: default; background: rgba(61,217,160,0.12); }
+  .knop-weg { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 11px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; line-height: 1; }
+  .knop-weg:hover { color: var(--red); border-color: rgba(255,107,107,0.4); }
+  .knop-weg:disabled { opacity: 0.3; cursor: default; }
+  .reeks-knoppen { margin-top: 4px; }
+
+  table.reeks-uit td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--dim); }
+  table.reeks-uit td.bedrag { text-align: right; font-weight: 700; color: var(--white); }
+  table.reeks-uit td.jaar { font-weight: 800; color: var(--white); }
+  table.reeks-uit td.rood { color: var(--red); }
+  table.reeks-uit td.groen { color: var(--mint); }
+  table.reeks-uit tr.totaal td { border-bottom: none; border-top: 1px solid rgba(61,217,160,0.3); color: var(--mint); font-weight: 800; padding-top: 11px; }
+
+  .waarschuwing { background: rgba(255,209,0,0.08); border: 1px solid rgba(255,209,0,0.25); border-radius: 9px; padding: 10px 14px; margin-bottom: 14px; font-size: 12.5px; color: var(--dim); line-height: 1.65; }
+  .waarschuwing b { color: var(--yellow); }
+
+  @media (max-width: 900px) {
+    .tabs { padding: 20px 20px 0; }
+    .main-breed { padding: 16px 20px 8px; }
+  }
+
   footer { text-align: center; font-size: 12px; color: var(--muted); padding: 0 20px 40px; line-height: 1.7; }
 </style>
 </head>
@@ -127,7 +172,12 @@
   </div>
 </div>
 
-<div class="main">
+<div class="tabs">
+  <button type="button" class="tab actief" id="tab-jaar">E&eacute;n boekjaar</button>
+  <button type="button" class="tab" id="tab-reeks">Meerdere boekjaren</button>
+</div>
+
+<div class="main" id="weergave-jaar">
 
   <div>
     <div class="card">
@@ -193,6 +243,52 @@
 
 </div>
 
+<div class="main-breed" id="weergave-reeks" hidden>
+
+  <div class="card">
+    <h2>Meerdere boekjaren achter elkaar</h2>
+    <p class="card-sub">E&eacute;n rij per boekjaar, oplopend op aanvangsjaar. Het voort te wentelen saldo van een jaar
+    is automatisch het beginsaldo van het volgende jaar (art. 15b lid 5), zodat je niets hoeft over te typen.
+    De reeks veronderstelt dezelfde belastingplichtige in alle jaren: geen verval bij een belangrijke
+    belangenwijziging (art. 15ba) en geen voeging of ontvoeging (art. 15aha en 15ahb).
+    Zelfde schrijfwijze voor bedragen als bij &eacute;&eacute;n boekjaar.</p>
+
+    <div class="veld" style="max-width: 440px;">
+      <label for="beginsaldo">Voortgewenteld saldo bij aanvang van het eerste boekjaar
+        <span class="hint">&mdash; zoals vastgesteld bij beschikking, art. 15b lid 5 (leeg = 0)</span></label>
+      <input type="text" id="beginsaldo" inputmode="decimal" placeholder="0">
+    </div>
+
+    <div class="tabel-scroll">
+      <table class="invoer-tabel">
+        <thead>
+          <tr>
+            <th>Boekjaar<span class="th-sub">aanvangsjaar</span></th>
+            <th>Winst<span class="th-sub">v&oacute;&oacute;r art. 15b</span></th>
+            <th>Rentelasten<span class="th-sub">geldleningen</span></th>
+            <th>Rentebaten<span class="th-sub">geldleningen</span></th>
+            <th>Afschrijvingen<span class="th-sub">optioneel</span></th>
+            <th>Afwaarderingen<span class="th-sub">minus terugnamen</span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="reeks-rijen"></tbody>
+      </table>
+    </div>
+
+    <div class="reeks-knoppen">
+      <button type="button" class="knop" id="rij-toevoegen">+ Boekjaar toevoegen</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Resultaat per boekjaar</h2>
+    <p class="card-sub" id="reeks-sub"></p>
+    <div id="reeks-resultaat"></div>
+  </div>
+
+</div>
+
 <div class="onder">
   <div class="card toelichting">
     <h2>Toelichting en bronnen</h2>
@@ -239,6 +335,11 @@
       Stb. 2024, 434 art. LXV lid 1 onder e). Een boekjaar 1 juli 2024 t/m 30 juni 2025 rekent dus met 20%
       en niet met 24,5%. De drempel van &euro;&nbsp;1.000.000 kent geen tijdsgelange herrekening bij een kort of
       lang boekjaar; de wet geldt per boekjaar (art. 7 lid 4 Wet Vpb 1969).</li>
+      <li><b>Meerjarige reeks:</b> de weergave &ldquo;Meerdere boekjaren&rdquo; koppelt het voort te wentelen
+      saldo van een jaar aan het beginsaldo van het volgende jaar. Zij voegt geen rekenregel toe en
+      veronderstelt dezelfde belastingplichtige in alle jaren: geen verval bij belangenwijziging (art. 15ba)
+      en geen voeging of ontvoeging (art. 15aha en 15ahb). Ontbreken er boekjaren in de reeks, dan meldt de
+      tool dat en loopt het saldo in de tussenliggende jaren ongewijzigd door.</li>
       <li>Uitkomsten zijn een rekenhulp, geen fiscaal advies; aan de beschikkingseis van art. 15b lid 5 is
       in de aangiftepraktijk uitvoering nodig.</li>
     </ul>
@@ -517,6 +618,80 @@ function berekenEarningsstripping(invoer) {
     winstNaEarningsstripping,
   };
 }
+// Rekent een reeks boekjaren achter elkaar door: het voort te wentelen saldo van een
+// jaar is het beginsaldo van het volgende jaar (art. 15b lid 5). De reeks voegt geen
+// rekenregel toe; zij herhaalt de jaarberekening met een gekoppeld saldo, zodat de
+// gebruiker het saldo niet met de hand hoeft over te nemen.
+//
+// De reeks veronderstelt dezelfde belastingplichtige gedurende alle jaren: geen verval
+// bij een belangrijke belangenwijziging (art. 15ba) en geen voeging of ontvoeging
+// (art. 15aha en 15ahb), want die veranderen welk deel van het saldo benut mag worden.
+//
+// Invoer: { beginsaldo, jaren: [{ jaar, winst, rentelasten, rentebaten, afschrijvingen,
+//           afwaarderingen }, ...] }. Het veld `jaar` is het aanvangsjaar (zie boven).
+// Retourneert { ok: false, fouten: [...] } of { ok: true, ... }.
+function berekenReeks(invoer) {
+  const inv = invoer || {};
+  const jaren = Array.isArray(inv.jaren) ? inv.jaren : [];
+  const fouten = [];
+
+  if (jaren.length === 0) fouten.push('Voeg ten minste een boekjaar toe.');
+
+  if (ontbreekt(inv.beginsaldo)) {
+    fouten.push('Vul het voortgewentelde saldo bij aanvang van het eerste boekjaar in (eventueel 0).');
+  } else if (!isBedrag(inv.beginsaldo)) {
+    fouten.push(onherkenbaarBedrag('Het beginsaldo'));
+  } else if (inv.beginsaldo < 0) {
+    fouten.push('Een voortgewenteld saldo aan renten kan niet negatief zijn.');
+  }
+
+  // De voortwenteling gaat naar het volgende jaar, dus de aanvangsjaren moeten
+  // oplopen; een herhaald of teruglopend jaar maakt de keten betekenisloos.
+  for (let i = 1; i < jaren.length; i++) {
+    const vorig = (jaren[i - 1] || {}).jaar;
+    const huidig = (jaren[i] || {}).jaar;
+    if (Number.isInteger(vorig) && Number.isInteger(huidig) && huidig <= vorig) {
+      fouten.push(`De boekjaren moeten oplopen: ${huidig} staat na ${vorig}.`);
+    }
+  }
+
+  // Eerst alle jaren afzonderlijk keuren, zodat de gebruiker in een keer alle
+  // onvolledige rijen ziet in plaats van rij voor rij.
+  jaren.forEach((rij, i) => {
+    const keuring = berekenEarningsstripping(Object.assign({}, rij, { voortgewenteldSaldo: 0 }));
+    if (!keuring.ok) {
+      const naam = Number.isInteger((rij || {}).jaar) ? `Boekjaar ${rij.jaar}` : `Rij ${i + 1}`;
+      keuring.fouten.forEach((f) => fouten.push(`${naam}: ${f}`));
+    }
+  });
+
+  if (fouten.length > 0) return { ok: false, fouten };
+
+  const waarschuwingen = [];
+  const rijen = [];
+  let saldo = inv.beginsaldo;
+
+  for (let i = 0; i < jaren.length; i++) {
+    if (i > 0 && jaren[i].jaar !== jaren[i - 1].jaar + 1) {
+      waarschuwingen.push(`Tussen ${jaren[i - 1].jaar} en ${jaren[i].jaar} ontbreken boekjaren; ` +
+        'het saldo loopt in de tussenliggende jaren ongewijzigd door.');
+    }
+    const r = berekenEarningsstripping(Object.assign({}, jaren[i], { voortgewenteldSaldo: saldo }));
+    rijen.push(Object.assign({}, r, { beginsaldoJaar: saldo }));
+    saldo = r.voortTeWentelen;
+  }
+
+  return {
+    ok: true,
+    beginsaldo: inv.beginsaldo,
+    rijen,
+    eindsaldo: saldo,
+    totaalNietAftrekbaar: rijen.reduce((t, r) => t + r.nietAftrekbaar, 0),
+    totaalBenut: rijen.reduce((t, r) => t + r.benutVoortgewenteld, 0),
+    waarschuwingen,
+  };
+}
+
 // FISCALE KERN — EINDE
 
 // ---------------------------------------------------------------------------
@@ -630,6 +805,179 @@ function berekenEarningsstripping(invoer) {
     el(naam).addEventListener('input', toon);
   }
   toon();
+
+  // -------------------------------------------------------------------------
+  // Weergave "Meerdere boekjaren": een rij per boekjaar, met een saldo dat
+  // automatisch doorloopt naar het volgende jaar (art. 15b lid 5).
+  // -------------------------------------------------------------------------
+  const LAATSTE_JAAR = ONDERSTEUNDE_JAREN[ONDERSTEUNDE_JAREN.length - 1];
+  const EERSTE_JAAR = ONDERSTEUNDE_JAREN[0];
+  const RIJVELDEN = ['winst', 'rentelasten', 'rentebaten', 'afschrijvingen', 'afwaarderingen'];
+  const RIJ_OPTIONEEL = ['afschrijvingen', 'afwaarderingen'];
+  const rijenLichaam = el('reeks-rijen');
+
+  function jaarKeuze(waarde) {
+    const sel = document.createElement('select');
+    for (const j of ONDERSTEUNDE_JAREN) {
+      const opt = document.createElement('option');
+      opt.value = String(j);
+      opt.textContent = String(j);
+      sel.appendChild(opt);
+    }
+    sel.value = String(waarde);
+    return sel;
+  }
+
+  function stelKnoppenIn() {
+    const rijen = rijenLichaam.querySelectorAll('tr');
+    // De laatste rij blijft staan: een reeks zonder boekjaar heeft geen betekenis.
+    rijen.forEach((tr) => { tr.querySelector('button').disabled = rijen.length === 1; });
+    // Verder dan het laatst ondersteunde jaar valt er niets toe te voegen; een rij
+    // erbij zou alleen een dubbel jaar en dus een foutmelding opleveren.
+    const vol = rijen.length > 0 &&
+      Number(rijen[rijen.length - 1].querySelector('select').value) >= LAATSTE_JAAR;
+    const toevoegen = el('rij-toevoegen');
+    toevoegen.disabled = vol;
+    toevoegen.title = vol
+      ? `Het laatste ondersteunde boekjaar (${LAATSTE_JAAR}) staat al in de reeks.`
+      : '';
+  }
+
+  function voegRijToe(jaar) {
+    const tr = document.createElement('tr');
+
+    const tdJaar = document.createElement('td');
+    tdJaar.appendChild(jaarKeuze(jaar));
+    tr.appendChild(tdJaar);
+
+    for (const naam of RIJVELDEN) {
+      const td = document.createElement('td');
+      const invoer = document.createElement('input');
+      invoer.type = 'text';
+      invoer.inputMode = 'decimal';
+      invoer.dataset.veld = naam;
+      invoer.placeholder = RIJ_OPTIONEEL.includes(naam) ? '0' : '';
+      td.appendChild(invoer);
+      tr.appendChild(td);
+    }
+
+    const tdWeg = document.createElement('td');
+    const weg = document.createElement('button');
+    weg.type = 'button';
+    weg.className = 'knop-weg';
+    weg.textContent = '×';
+    weg.title = 'Dit boekjaar verwijderen';
+    weg.addEventListener('click', () => { tr.remove(); stelKnoppenIn(); toonReeks(); });
+    tdWeg.appendChild(weg);
+    tr.appendChild(tdWeg);
+
+    rijenLichaam.appendChild(tr);
+    stelKnoppenIn();
+  }
+
+  function volgendJaar() {
+    const rijen = rijenLichaam.querySelectorAll('tr');
+    if (rijen.length === 0) return LAATSTE_JAAR;
+    const laatste = Number(rijen[rijen.length - 1].querySelector('select').value);
+    return Math.min(laatste + 1, LAATSTE_JAAR);
+  }
+
+  function leesReeks() {
+    const rijen = [...rijenLichaam.querySelectorAll('tr')];
+    let allesLeeg = true;
+    const jaren = rijen.map((tr) => {
+      const waarden = { jaar: Number(tr.querySelector('select').value) };
+      for (const invoer of tr.querySelectorAll('input')) {
+        if ((invoer.value || '').trim() !== '') allesLeeg = false;
+        const geparsed = parseBedrag(invoer.value);
+        invoer.classList.toggle('ongeldig', Number.isNaN(geparsed));
+        const naam = invoer.dataset.veld;
+        // Leeg optioneel veld telt als 0; leeg verplicht veld blijft ontbrekend.
+        waarden[naam] = geparsed !== null ? geparsed
+          : (RIJ_OPTIONEEL.includes(naam) ? 0 : undefined);
+      }
+      return waarden;
+    });
+
+    const beginVeld = el('beginsaldo');
+    const begin = parseBedrag(beginVeld.value);
+    beginVeld.classList.toggle('ongeldig', Number.isNaN(begin));
+    if ((beginVeld.value || '').trim() !== '') allesLeeg = false;
+
+    return { beginsaldo: begin === null ? 0 : begin, jaren, onaangeraakt: allesLeeg };
+  }
+
+  function uitRij(cellen, cls) {
+    return `<tr${cls ? ` class="${cls}"` : ''}>${cellen.join('')}</tr>`;
+  }
+
+  function toonReeks() {
+    const invoer = leesReeks();
+    const doel = el('reeks-resultaat');
+    const sub = el('reeks-sub');
+
+    if (invoer.onaangeraakt) {
+      sub.textContent = 'Vul de boekjaren in; het overzicht verschijnt direct.';
+      doel.innerHTML = '';
+      return;
+    }
+
+    const r = berekenReeks({ beginsaldo: invoer.beginsaldo, jaren: invoer.jaren });
+    if (!r.ok) {
+      sub.textContent = '';
+      doel.innerHTML = `<div class="fouten"><ul>${r.fouten.map((f) => `<li>${f}</li>`).join('')}</ul></div>`;
+      return;
+    }
+
+    sub.textContent = `${r.rijen.length} ${r.rijen.length === 1 ? 'boekjaar' : 'boekjaren'} · ` +
+      `beginsaldo ${fmt.format(r.beginsaldo)} · saldo aan het eind ${fmt.format(r.eindsaldo)}`;
+
+    const waarschuwing = r.waarschuwingen.length === 0 ? ''
+      : `<div class="waarschuwing"><b>Let op.</b> ${r.waarschuwingen.join(' ')}</div>`;
+
+    const koppen = ['Boekjaar', 'Saldo aan renten', 'Gecorrigeerde winst', 'Aftrekruimte',
+      'Niet-aftrekbaar', 'Benut uit eerdere jaren', 'Saldo einde jaar'];
+    const kop = `<tr>${koppen.map((k, i) => `<th${i === 0 ? '' : ' class="rechts"'}>${k}</th>`).join('')}</tr>`;
+
+    const regels = r.rijen.map((x) => uitRij([
+      `<td class="jaar">${x.jaar}</td>`,
+      `<td class="bedrag">${fmt.format(x.saldoRenten)}</td>`,
+      `<td class="bedrag">${fmt.format(x.gecorrigeerdeWinst)}</td>`,
+      `<td class="bedrag">${fmt.format(x.aftrekruimte)}</td>`,
+      `<td class="bedrag${x.nietAftrekbaar > 0 ? ' rood' : ''}">${fmt.format(x.nietAftrekbaar)}</td>`,
+      `<td class="bedrag${x.benutVoortgewenteld > 0 ? ' groen' : ''}">${fmt.format(x.benutVoortgewenteld)}</td>`,
+      `<td class="bedrag">${fmt.format(x.voortTeWentelen)}</td>`,
+    ])).join('');
+
+    const totaal = uitRij([
+      '<td>Totaal</td>', '<td></td>', '<td></td>', '<td></td>',
+      `<td class="bedrag">${fmt.format(r.totaalNietAftrekbaar)}</td>`,
+      `<td class="bedrag">${fmt.format(r.totaalBenut)}</td>`,
+      `<td class="bedrag">${fmt.format(r.eindsaldo)}</td>`,
+    ], 'totaal');
+
+    doel.innerHTML = waarschuwing +
+      `<div class="tabel-scroll"><table class="reeks-uit"><thead>${kop}</thead><tbody>${regels}${totaal}</tbody></table></div>`;
+  }
+
+  function kiesWeergave(modus) {
+    const isJaar = modus === 'jaar';
+    el('weergave-jaar').hidden = !isJaar;
+    el('weergave-reeks').hidden = isJaar;
+    el('tab-jaar').classList.toggle('actief', isJaar);
+    el('tab-reeks').classList.toggle('actief', !isJaar);
+  }
+
+  el('tab-jaar').addEventListener('click', () => kiesWeergave('jaar'));
+  el('tab-reeks').addEventListener('click', () => kiesWeergave('reeks'));
+  el('rij-toevoegen').addEventListener('click', () => { voegRijToe(volgendJaar()); toonReeks(); });
+  el('beginsaldo').addEventListener('input', toonReeks);
+  rijenLichaam.addEventListener('input', toonReeks);
+  rijenLichaam.addEventListener('change', () => { stelKnoppenIn(); toonReeks(); });
+
+  // Drie opeenvolgende boekjaren tot en met het laatst ondersteunde jaar.
+  for (let i = 2; i >= 0; i--) voegRijToe(Math.max(EERSTE_JAAR, LAATSTE_JAAR - i));
+  toonReeks();
 })();
 </script>
 
