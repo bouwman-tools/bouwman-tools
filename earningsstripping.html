@@ -249,6 +249,7 @@
     <h2>Meerdere boekjaren achter elkaar</h2>
     <p class="card-sub">E&eacute;n rij per boekjaar, oplopend op aanvangsjaar. Het voort te wentelen saldo van een jaar
     is automatisch het beginsaldo van het volgende jaar (art. 15b lid 5), zodat je niets hoeft over te typen.
+    Verander je een boekjaar, dan schuiven de jaren eronder mee met behoud van de onderlinge afstand.
     De reeks veronderstelt dezelfde belastingplichtige in alle jaren: geen verval bij een belangrijke
     belangenwijziging (art. 15ba) en geen voeging of ontvoeging (art. 15aha en 15ahb).
     Zelfde schrijfwijze voor bedragen als bij &eacute;&eacute;n boekjaar.</p>
@@ -825,7 +826,37 @@ function berekenReeks(invoer) {
       sel.appendChild(opt);
     }
     sel.value = String(waarde);
+    // De vorige keuze onthouden, zodat een wijziging als verschuiving te lezen is.
+    sel.dataset.vorig = sel.value;
     return sel;
+  }
+
+  // Een boekjaar verplaatsen verplaatst de jaren eronder mee, met behoud van de
+  // onderlinge afstand: wie het eerste jaar op 2021 zet, wil de hele reeks
+  // verschuiven en niet elk jaar apart bijstellen. Een bewust gat (bijvoorbeeld na
+  // een lang boekjaar dat twee kalenderjaren beslaat) blijft daardoor staan.
+  function verschuifJaren(gewijzigd) {
+    const keuzes = [...rijenLichaam.querySelectorAll('select')];
+    const i = keuzes.indexOf(gewijzigd);
+    if (i === -1) return;
+
+    const vorig = Number(gewijzigd.dataset.vorig);
+    let delta = Number(gewijzigd.value) - vorig;
+    const onder = keuzes.slice(i + 1);
+
+    if (delta > 0 && onder.length > 0) {
+      // Niet voorbij het laatst ondersteunde boekjaar schuiven.
+      const laatsteOnder = Number(onder[onder.length - 1].dataset.vorig);
+      delta = Math.min(delta, LAATSTE_JAAR - laatsteOnder);
+    } else if (delta < 0 && i > 0) {
+      // Niet onder het jaar erboven zakken; de reeks moet oplopend blijven.
+      const minimum = Number(keuzes[i - 1].value) + 1;
+      if (vorig + delta < minimum) delta = minimum - vorig;
+    }
+
+    gewijzigd.value = String(vorig + delta);
+    for (const sel of onder) sel.value = String(Number(sel.dataset.vorig) + delta);
+    keuzes.forEach((sel) => { sel.dataset.vorig = sel.value; });
   }
 
   function stelKnoppenIn() {
@@ -973,7 +1004,11 @@ function berekenReeks(invoer) {
   el('rij-toevoegen').addEventListener('click', () => { voegRijToe(volgendJaar()); toonReeks(); });
   el('beginsaldo').addEventListener('input', toonReeks);
   rijenLichaam.addEventListener('input', toonReeks);
-  rijenLichaam.addEventListener('change', () => { stelKnoppenIn(); toonReeks(); });
+  rijenLichaam.addEventListener('change', (e) => {
+    if (e.target.tagName === 'SELECT') verschuifJaren(e.target);
+    stelKnoppenIn();
+    toonReeks();
+  });
 
   // Drie opeenvolgende boekjaren tot en met het laatst ondersteunde jaar.
   for (let i = 2; i >= 0; i--) voegRijToe(Math.max(EERSTE_JAAR, LAATSTE_JAAR - i));
