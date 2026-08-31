@@ -2422,15 +2422,33 @@ const BVJN = (function () {
     const u = el('nota-uitg');
     u.innerHTML = '';
     notaItem(u, 'Winst uit onderneming', fmt(i.winst));
+    notaItem(u, 'Leeftijd / beoogde pensioenleeftijd', i.leeftijd + ' / ' + i.pensioenLeeftijd + ' jaar');
     notaItem(u, 'Urencriterium', i.urencriterium ? 'ja' : 'nee');
-    notaItem(u, 'Zelfstandigenaftrek', fmt(ib.za));
-    notaItem(u, 'Investeringsaftrek (KIA)', fmt(i.kia) + ' — ' + (i.kiaScope === 'beide' ? 'beide scenario\'s' : (i.kiaScope === 'ib' ? 'alleen IB' : 'alleen BV')));
-    notaItem(u, 'MKB-winstvrijstelling', fmt(ib.mkb) + ' (' + pct(T.onderneming.mkbVrijstelling, 1) + ')');
+    notaItem(u, 'Zelfstandigenaftrek', fmt(Math.min(ib.za, ib.zaBasis))
+      + (ib.zaOnbenut > 0.5 ? ' (\u20ac ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL')
+        + ' niet gerealiseerd, art. 3.76 lid 5)' : ''));
+    notaItem(u, 'Startersaftrek', ib.startersAftrek > 0
+      ? fmt(ib.za - Math.min(ib.za, ib.zaBasis)) : 'niet van toepassing');
+    notaItem(u, 'Investeringsbedrag', i.kiaBron === 'investering'
+      ? fmt(i.investering) : 'niet ingevuld, de KIA is handmatig opgegeven');
+    notaItem(u, 'Investeringsaftrek (KIA)', fmt(Math.max(ib.kia, bv.kia))
+      + (i.kiaBron === 'investering' ? ' volgens de tabel van art. 3.41 lid 2' : ' handmatig ingevuld')
+      + ', toegepast in ' + (i.kiaScope === 'beide' ? 'beide situaties' : (i.kiaScope === 'ib' ? 'alleen de IB-onderneming' : 'alleen de BV')));
+    notaItem(u, 'MKB-winstvrijstelling', fmt(ib.mkb) + ' (' + pct(T.onderneming.mkbVrijstelling, 1) + ' over ' + fmt(ib.mkbGrondslag) + ')');
     notaItem(u, 'WOZ-waarde eigen woning', i.woz > 0 ? fmt(i.woz) : 'geen eigen woning');
     notaItem(u, 'Hypotheekrente', fmt(i.rente));
     notaItem(u, 'Eigenwoningforfait', fmt(ib.ew.ewf));
     notaItem(u, 'Aftrek Wet Hillen', fmt(ib.ew.hillen));
     notaItem(u, 'Saldo eigen woning', fmt(ib.ew.saldo));
+    if (ib.pga > 0) notaItem(u, 'Persoonsgebonden aftrek', fmt(ib.pga));
+    if (ib.uitkeringBox1 !== 0) notaItem(u, 'Uitkering of loon uit vroegere arbeid', fmt(ib.uitkeringBox1));
+    if (ib.rowBox1 !== 0) notaItem(u, 'Resultaat uit overige werkzaamheden', fmt(ib.rowBox1));
+    if (ib.beroepspensioen > 0) notaItem(u, 'Premie beroepspensioenregeling',
+      fmt(ib.beroepspensioen) + ' (art. 3.18, ten laste van de winst)');
+    if (ib.lijfrentePremie > 0) notaItem(u, 'Lijfrentepremie',
+      fmt(ib.lijfrentePremie) + ' (afdeling 3.7, aftrek op het inkomen)');
+    if (bv.wevab > 0) notaItem(u, 'WEVAB landbouwgrond',
+      fmt(bv.wevab) + ', verwachte stijging ' + pct(i.wevabStijging / 100, 1) + ' per jaar');
     notaItem(u, 'DGA-salaris', fmt(i.salaris));
     notaItem(u, 'Zvw-situatie DGA', i.dgaVerzekerd ? 'wél verzekerd voor de werknemersverzekeringen' : 'niet verzekerd voor de werknemersverzekeringen');
     notaItem(u, 'Premies werknemersverzekeringen', i.dgaVerzekerd ? pct(i.wgLastenPct / 100, 2) + ' (' + fmt(bv.premiesWnv) + ')' : 'n.v.t.');
@@ -2443,7 +2461,14 @@ const BVJN = (function () {
     notaItem(u, 'Vennootschapsbelasting', fmt(bv.vpb));
     notaItem(u, 'Box-2-heffing dividend', fmt(bv.box2));
     notaItem(u, 'Winst die in de BV achterblijft', fmt(bv.ingehoudenWinst));
-    notaItem(u, 'Nominale toekomstige box-2-claim', fmt(bv.claimNominaal) + (i.claimTarief === 'top' ? ' (toptarief)' : ' (marginaal, schijven 2026)'));
+    const claimUitleg = i.claimTarief === 'top' ? ' (toptarief box 2)'
+      : (i.claimTarief === 'vast' ? ' (vast aangenomen tarief van ' + pct(i.claimTariefVast / 100, 1) + ')'
+        : ' (marginaal, schijven 2026)');
+    notaItem(u, 'Nominale toekomstige box-2-claim', fmt(bv.claimNominaal) + claimUitleg);
+    if (bv.wevabClaimContant > 0) notaItem(u, 'Contante waarde box-2-claim landbouwgrond',
+      fmt(bv.wevabClaimContant));
+    if (ib.oudedagsinleg > 0) notaItem(u, 'Contante waarde latente IB oudedagsvoorziening',
+      fmt(ib.oudedagClaimContant) + ' (aangenomen tarief ' + pct(i.claimTariefVast / 100, 1) + ')');
     notaItem(u, 'Jaren uitstel / disconteringsvoet', bv.jaren + ' jaar / ' + pct(bv.disco / 100, 1));
     notaItem(u, 'Contante waarde box-2-claim', fmt(bv.claimContant));
     notaItem(u, 'Algemene heffingskorting IB / BV', fmt(ib.ahk) + ' / ' + fmt(bv.ahk));
@@ -2818,6 +2843,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:48</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:52</div>
 </body>
 </html>
