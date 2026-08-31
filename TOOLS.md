@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-08-29
+Bijgewerkt: 2026-08-31
 
 ## Accountancy & Jaarrekening
 
@@ -30,7 +30,7 @@ Bijgewerkt: 2026-08-29
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
 |---|---|---|---|---|---|
-| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | **ontbreekt** |
+| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 |
 | 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | n.v.t. |
 
 ## BTW & Omzetbelasting
@@ -68,7 +68,7 @@ Bijgewerkt: 2026-08-29
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
 |---|---|---|---|---|---|
-| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | **ontbreekt** |
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. |
 
 ## Overig
