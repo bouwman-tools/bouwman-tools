@@ -109,6 +109,18 @@
   .tab:hover { color: var(--white); }
   .tab.actief { background: rgba(61,217,160,0.12); border-color: rgba(61,217,160,0.35); color: var(--mint); }
 
+  /* Dossierbalk: geldt voor beide weergaven, dus boven de weergavekeuze-inhoud. */
+  .dossierbalk { max-width: 1160px; margin: 0 auto; padding: 14px 52px 0; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+  .dossier-veld { display: flex; flex-direction: column; gap: 5px; }
+  .dossier-veld label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 800; }
+  .dossier-veld input { width: 260px; max-width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 9px; color: var(--white); font-family: inherit; font-size: 14px; font-weight: 600; padding: 8px 11px; outline: none; }
+  .dossier-veld input:focus { border-color: var(--mint); }
+  .knop.knop-stil { background: var(--card-bg); border-color: var(--border); color: var(--dim); }
+  .knop.knop-stil:hover { background: rgba(255,255,255,0.09); color: var(--white); }
+  .dossier-melding { font-size: 12.5px; color: var(--dim); line-height: 1.5; flex: 1 1 220px; }
+  .dossier-melding.fout { color: var(--red); }
+  @media (max-width: 900px) { .dossierbalk { padding: 12px 20px 0; } }
+
   .main-breed { max-width: 1160px; margin: 0 auto; padding: 20px 52px 24px; }
   /* Brede tabellen mogen zelf schuiven; de pagina schuift nooit horizontaal mee. */
   .tabel-scroll { overflow-x: auto; }
@@ -175,6 +187,17 @@
 <div class="tabs">
   <button type="button" class="tab actief" id="tab-jaar">E&eacute;n boekjaar</button>
   <button type="button" class="tab" id="tab-reeks">Meerdere boekjaren</button>
+</div>
+
+<div class="dossierbalk">
+  <div class="dossier-veld">
+    <label for="kenmerk">Kenmerk</label>
+    <input type="text" id="kenmerk" maxlength="60" autocomplete="off" placeholder="bijv. klantnaam of dossiernummer">
+  </div>
+  <button type="button" class="knop" id="dossier-opslaan">Opslaan als bestand</button>
+  <button type="button" class="knop knop-stil" id="dossier-openen">Bestand openen</button>
+  <input type="file" id="dossier-bestand" accept="application/json,.json" hidden>
+  <span class="dossier-melding" id="dossier-melding">Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer. De tool bewaart zelf niets.</span>
 </div>
 
 <div class="main" id="weergave-jaar">
@@ -341,6 +364,10 @@
       veronderstelt dezelfde belastingplichtige in alle jaren: geen verval bij belangenwijziging (art. 15ba)
       en geen voeging of ontvoeging (art. 15aha en 15ahb). Ontbreken er boekjaren in de reeks, dan meldt de
       tool dat en loopt het saldo in de tussenliggende jaren ongewijzigd door.</li>
+      <li><b>Dossier:</b> met &ldquo;Opslaan als bestand&rdquo; schrijf je de ingevulde gegevens naar een klein
+      JSON-bestand dat je zelf een plek geeft, bijvoorbeeld in de klantmap. De tool bewaart niets in de browser
+      en verstuurt niets. Een geopend bestand wordt gelezen als gegeven: onbekende velden worden genegeerd en
+      een niet-ondersteund boekjaar geeft een melding in plaats van een stille terugval.</li>
       <li>Uitkomsten zijn een rekenhulp, geen fiscaal advies; aan de beschikkingseis van art. 15b lid 5 is
       in de aangiftepraktijk uitvoering nodig.</li>
     </ul>
@@ -375,7 +402,8 @@
 </div>
 
 <footer>
-  Lokale rekenhulp &middot; er worden geen gegevens verzonden of opgeslagen.<br>
+  Lokale rekenhulp &middot; er worden geen gegevens verzonden. De tool bewaart zelf niets:
+  opslaan gebeurt alleen als je zelf een dossierbestand bewaart.<br>
   Waarden geverifieerd tegen wetten.overheid.nl; peildatum 29-08-2026.
 </footer>
 
@@ -690,6 +718,127 @@ function berekenReeks(invoer) {
     totaalNietAftrekbaar: rijen.reduce((t, r) => t + r.nietAftrekbaar, 0),
     totaalBenut: rijen.reduce((t, r) => t + r.benutVoortgewenteld, 0),
     waarschuwingen,
+  };
+}
+
+// Dossier: de ingevulde gegevens als bestand, zodat een klantdossier in de klantmap
+// kan staan en volgend jaar weer geopend kan worden. De tool slaat zelf niets op;
+// opslaan is een handeling van de gebruiker naar een plek die hij kiest.
+//
+// Bewaard worden de ingetypte teksten, niet de geparseerde bedragen: bij het openen
+// staat er dan exact wat er stond, inclusief een veld dat nog niet klopte. Een dossier
+// wordt gelezen als gegeven, nooit als opdracht: alleen bekende velden worden gebruikt,
+// alles wordt begrensd, en een niet-ondersteund boekjaar geeft een melding in plaats
+// van een stille terugval.
+const DOSSIER_FORMAATVERSIE = 1;
+const DOSSIER_MAX_RIJEN = 40;
+const DOSSIER_MAX_KENMERK = 60;
+const DOSSIER_MAX_BEDRAG = 32;
+const DOSSIER_JAARVELDEN = ['winst', 'rentelasten', 'rentebaten', 'afschrijvingen',
+  'afwaarderingen', 'voortgewenteld'];
+const DOSSIER_REEKSVELDEN = ['winst', 'rentelasten', 'rentebaten', 'afschrijvingen',
+  'afwaarderingen'];
+
+function dossierTekst(waarde, maximum) {
+  if (waarde === undefined || waarde === null) return '';
+  if (typeof waarde === 'object') return '';
+  return String(waarde).trim().slice(0, maximum);
+}
+
+// Zet de huidige stand om in de tekst van een dossierbestand.
+function maakDossierTekst(stand) {
+  const s = stand || {};
+  const jaar = s.jaar || {};
+  const reeks = s.reeks || {};
+  const rijen = Array.isArray(reeks.jaren) ? reeks.jaren : [];
+
+  const dossier = {
+    tool: 'earningsstripping',
+    formaatversie: DOSSIER_FORMAATVERSIE,
+    kenmerk: dossierTekst(s.kenmerk, DOSSIER_MAX_KENMERK),
+    weergave: s.weergave === 'reeks' ? 'reeks' : 'jaar',
+    jaar: DOSSIER_JAARVELDEN.reduce((o, naam) => {
+      o[naam] = dossierTekst(jaar[naam], DOSSIER_MAX_BEDRAG);
+      return o;
+    }, { jaar: jaar.jaar }),
+    reeks: {
+      beginsaldo: dossierTekst(reeks.beginsaldo, DOSSIER_MAX_BEDRAG),
+      jaren: rijen.slice(0, DOSSIER_MAX_RIJEN).map((rij) =>
+        DOSSIER_REEKSVELDEN.reduce((o, naam) => {
+          o[naam] = dossierTekst((rij || {})[naam], DOSSIER_MAX_BEDRAG);
+          return o;
+        }, { jaar: (rij || {}).jaar })),
+    },
+  };
+  return JSON.stringify(dossier, null, 2);
+}
+
+// Leest de tekst van een dossierbestand. Retourneert { ok: false, fouten: [...] }
+// of { ok: true, dossier: <stand> } met uitsluitend genormaliseerde, begrensde waarden.
+function leesDossier(tekst) {
+  let rauw;
+  try {
+    rauw = JSON.parse(String(tekst));
+  } catch (e) {
+    return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+  }
+  if (rauw.tool !== 'earningsstripping') {
+    return { ok: false, fouten: ['Dit dossier hoort niet bij de earningsstrippingtool.'] };
+  }
+  const versie = rauw.formaatversie;
+  if (!Number.isInteger(versie) || versie < 1) {
+    return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+  }
+  if (versie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fouten: [`Dit dossier is gemaakt met een nieuwere versie van de tool ` +
+      `(formaat ${versie}, deze tool leest ${DOSSIER_FORMAATVERSIE}). Werk de tool bij.`] };
+  }
+
+  const fouten = [];
+  const leesJaar = (waarde, waar) => {
+    if (!Number.isInteger(waarde) || !(waarde in FISCAAL_PER_JAAR)) {
+      fouten.push(`${waar}: boekjaar ${waarde === undefined || waarde === null ? '(leeg)' : waarde} ` +
+        `wordt niet ondersteund. Deze tool ondersteunt ` +
+        `${ONDERSTEUNDE_JAREN[0]} tot en met ${ONDERSTEUNDE_JAREN[ONDERSTEUNDE_JAREN.length - 1]}.`);
+      return null;
+    }
+    return waarde;
+  };
+
+  const jaarBron = (rauw.jaar && typeof rauw.jaar === 'object' && !Array.isArray(rauw.jaar))
+    ? rauw.jaar : {};
+  const jaar = DOSSIER_JAARVELDEN.reduce((o, naam) => {
+    o[naam] = dossierTekst(jaarBron[naam], DOSSIER_MAX_BEDRAG);
+    return o;
+  }, { jaar: leesJaar(jaarBron.jaar, 'Weergave een boekjaar') });
+
+  const reeksBron = (rauw.reeks && typeof rauw.reeks === 'object' && !Array.isArray(rauw.reeks))
+    ? rauw.reeks : {};
+  const rijenBron = Array.isArray(reeksBron.jaren) ? reeksBron.jaren : [];
+  if (rijenBron.length > DOSSIER_MAX_RIJEN) {
+    fouten.push(`Het dossier bevat ${rijenBron.length} boekjaren; deze tool leest er hoogstens ${DOSSIER_MAX_RIJEN}.`);
+  }
+  const jaren = rijenBron.slice(0, DOSSIER_MAX_RIJEN).map((rij, i) => {
+    const bron = (rij && typeof rij === 'object' && !Array.isArray(rij)) ? rij : {};
+    return DOSSIER_REEKSVELDEN.reduce((o, naam) => {
+      o[naam] = dossierTekst(bron[naam], DOSSIER_MAX_BEDRAG);
+      return o;
+    }, { jaar: leesJaar(bron.jaar, `Rij ${i + 1} van de reeks`) });
+  });
+
+  if (fouten.length > 0) return { ok: false, fouten };
+
+  return {
+    ok: true,
+    dossier: {
+      kenmerk: dossierTekst(rauw.kenmerk, DOSSIER_MAX_KENMERK),
+      weergave: rauw.weergave === 'reeks' ? 'reeks' : 'jaar',
+      jaar,
+      reeks: { beginsaldo: dossierTekst(reeksBron.beginsaldo, DOSSIER_MAX_BEDRAG), jaren },
+    },
   };
 }
 
@@ -1013,6 +1162,108 @@ function berekenReeks(invoer) {
   // Drie opeenvolgende boekjaren tot en met het laatst ondersteunde jaar.
   for (let i = 2; i >= 0; i--) voegRijToe(Math.max(EERSTE_JAAR, LAATSTE_JAAR - i));
   toonReeks();
+
+  // -------------------------------------------------------------------------
+  // Dossier: de ingevulde gegevens als bestand bewaren en weer openen. De tool
+  // bewaart zelf niets; het bestand komt op de plek die de gebruiker kiest, zodat
+  // een klantdossier in de klantmap staat en meegaat in de back-up.
+  // -------------------------------------------------------------------------
+  function verzamelStand() {
+    return {
+      kenmerk: el('kenmerk').value,
+      weergave: el('weergave-reeks').hidden ? 'jaar' : 'reeks',
+      jaar: DOSSIER_JAARVELDEN.reduce((o, naam) => {
+        o[naam] = el(naam).value;
+        return o;
+      }, { jaar: Number(jaarSelect.value) }),
+      reeks: {
+        beginsaldo: el('beginsaldo').value,
+        jaren: [...rijenLichaam.querySelectorAll('tr')].map((tr) => {
+          const rij = { jaar: Number(tr.querySelector('select').value) };
+          for (const invoer of tr.querySelectorAll('input')) rij[invoer.dataset.veld] = invoer.value;
+          return rij;
+        }),
+      },
+    };
+  }
+
+  function pasStandToe(d) {
+    el('kenmerk').value = d.kenmerk;
+
+    jaarSelect.value = String(d.jaar.jaar);
+    for (const naam of DOSSIER_JAARVELDEN) el(naam).value = d.jaar[naam];
+
+    el('beginsaldo').value = d.reeks.beginsaldo;
+    rijenLichaam.replaceChildren();
+    const rijen = d.reeks.jaren.length > 0 ? d.reeks.jaren : [{ jaar: LAATSTE_JAAR }];
+    for (const rij of rijen) {
+      voegRijToe(rij.jaar);
+      const tr = rijenLichaam.lastElementChild;
+      for (const invoer of tr.querySelectorAll('input')) invoer.value = rij[invoer.dataset.veld] || '';
+    }
+    stelKnoppenIn();
+
+    kiesWeergave(d.weergave);
+    toon();
+    toonReeks();
+  }
+
+  function bestandsnaam() {
+    const kern = el('kenmerk').value.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '');
+    return 'earningsstripping-' + (kern || 'dossier') + '.json';
+  }
+
+  function meld(tekst, isFout) {
+    const doel = el('dossier-melding');
+    // textContent, niet innerHTML: een kenmerk uit een bestand is gegeven, geen opmaak.
+    doel.textContent = tekst;
+    doel.classList.toggle('fout', Boolean(isFout));
+  }
+
+  el('dossier-opslaan').addEventListener('click', () => {
+    const naam = bestandsnaam();
+    const blob = new Blob([maakDossierTekst(verzamelStand())], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const koppeling = document.createElement('a');
+    koppeling.href = url;
+    koppeling.download = naam;
+    document.body.appendChild(koppeling);
+    koppeling.click();
+    koppeling.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    meld('Opgeslagen als ' + naam + '. Zet het bestand in de klantmap.', false);
+  });
+
+  el('dossier-openen').addEventListener('click', () => el('dossier-bestand').click());
+
+  el('dossier-bestand').addEventListener('change', async (gebeurtenis) => {
+    const bestanden = gebeurtenis.target.files;
+    const bestand = bestanden && bestanden[0];
+    // Leegmaken, zodat hetzelfde bestand daarna nogmaals geopend kan worden.
+    gebeurtenis.target.value = '';
+    if (!bestand) return;
+    if (bestand.size > 512 * 1024) {
+      meld('Dit bestand is te groot voor een dossier (hoogstens 512 kB).', true);
+      return;
+    }
+    let tekst;
+    try {
+      tekst = await bestand.text();
+    } catch (fout) {
+      meld('Het bestand kon niet worden gelezen.', true);
+      return;
+    }
+    const gelezen = leesDossier(tekst);
+    if (!gelezen.ok) {
+      meld(gelezen.fouten.join(' '), true);
+      return;
+    }
+    pasStandToe(gelezen.dossier);
+    meld('Dossier geopend' + (gelezen.dossier.kenmerk ? ': ' + gelezen.dossier.kenmerk : '') + '.', false);
+  });
 })();
 </script>
 
