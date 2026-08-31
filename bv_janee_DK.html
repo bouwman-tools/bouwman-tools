@@ -186,6 +186,7 @@
 
 <div class="tabs" role="tablist" aria-label="Onderdelen">
   <button class="tab active" id="tabbtn-invoer" role="tab" aria-selected="true" aria-controls="tab-invoer" onclick="switchTab('invoer')">Invoer &amp; berekening</button>
+  <button class="tab" id="tabbtn-inbreng" role="tab" aria-selected="false" aria-controls="tab-inbreng" onclick="switchTab('inbreng')">Inbreng in de BV</button>
   <button class="tab" id="tabbtn-nota" role="tab" aria-selected="false" aria-controls="tab-nota" onclick="switchTab('nota')">Adviesnota</button>
 </div>
 
@@ -213,12 +214,26 @@
           </div>
         </div>
         <div class="fld">
-          <label for="kia">Kleinschaligheidsinvesteringsaftrek (KIA)</label>
+          <span class="lbl" id="lbl-starter">Recht op startersaftrek? <span class="tipw"><span class="tip" title="Art. 3.76 lid 3: verhoging van de zelfstandigenaftrek met € 2.123 voor wie in een of meer van de vijf voorafgaande jaren geen ondernemer was en in die periode hoogstens tweemaal zelfstandigenaftrek toepaste. De winstbegrenzing van lid 5 geldt dan niet.">?</span></span></span>
+          <div class="tog" role="group" aria-labelledby="lbl-starter">
+            <button type="button" id="starter-ja" aria-pressed="false" onclick="setStarter(true)">Ja</button>
+            <button type="button" id="starter-nee" aria-pressed="true" onclick="setStarter(false)">Nee</button>
+          </div>
+          <div class="hint">Vereist het urencriterium; de startersaftrek is een verhoging van de zelfstandigenaftrek.</div>
+        </div>
+        <div class="fld">
+          <label for="investering">Investering in bedrijfsmiddelen dit jaar</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="investering" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen (personenauto's, grond) tellen niet mee.</div>
+          <div class="fmsg" id="msg-investering"></div>
+        </div>
+        <div class="fld">
+          <label for="kia">Of: KIA zelf invullen <span class="tipw"><span class="tip" title="Laat dit veld op € 0 staan als u het investeringsbedrag gebruikt. Vult u hier een bedrag in en laat u de investering op nul, dan rekent de tool met uw bedrag zonder het aan de tabel te toetsen.">?</span></span></label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="kia" value="0" step="500" min="0" inputmode="numeric"></div>
           <div class="fmsg" id="msg-kia"></div>
         </div>
         <div class="fld">
-          <label for="kiaScope">KIA toepassen in</label>
+          <label for="kiaScope">Investeringsaftrek toepassen in</label>
           <select id="kiaScope">
             <option value="beide" selected>Beide scenario's (zelfde investering)</option>
             <option value="ib">Alleen IB-onderneming</option>
@@ -275,12 +290,49 @@
         <div class="fld">
           <label for="rente">Aftrekbare hypotheekrente eigen woning</label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="rente" value="0" step="500" min="0" inputmode="numeric"></div>
-          <div class="hint">Het eigenwoningsaldo (forfait − rente, met Wet Hillen) wordt in beide scenario's in box 1 verwerkt.</div>
+          <div class="hint">Het eigenwoningsaldo (forfait − rente, met Wet Hillen) wordt in beide scenario's in box 1 verwerkt. Voor de tariefsaanpassing telt de bruto rente (art. 2.10 lid 3 onderdeel d jo. art. 3.120), niet het saldo.</div>
           <div class="fmsg" id="msg-rente"></div>
+        </div>
+        <div class="fld">
+          <label for="pga">Persoonsgebonden aftrek</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="pga" value="0" step="500" min="0" inputmode="numeric"></div>
+          <div class="hint">Art. 6.1: onder meer alimentatie, specifieke zorgkosten en giften. Telt mee voor de tariefsaanpassing (art. 2.10 lid 3 onderdeel e).</div>
+          <div class="fmsg" id="msg-pga"></div>
+        </div>
+        <div class="fld">
+          <label for="uitkeringBox1">Uitkering of loon uit vroegere arbeid</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="uitkeringBox1" value="0" step="1000" inputmode="numeric"></div>
+          <div class="hint">Pensioen, WW, WIA, lijfrente-uitkering of ontvangen alimentatie. Telt mee in het verzamelinkomen en in het bijdrage-inkomen Zvw, maar niet in het arbeidsinkomen: dat vraagt tegenwoordige arbeid (art. 8.1 lid 1 onderdeel e).</div>
+          <div class="fmsg" id="msg-uitkeringBox1"></div>
+        </div>
+        <div class="fld">
+          <label for="rowBox1">Resultaat uit overige werkzaamheden</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="rowBox1" value="0" step="1000" inputmode="numeric"></div>
+          <div class="hint">Bijvoorbeeld freelancewerk naast de onderneming. Telt in alle drie de grondslagen mee: arbeidskorting, verzamelinkomen en Zvw. Terbeschikkingstelling valt hierbuiten.</div>
+          <div class="fmsg" id="msg-rowBox1"></div>
         </div>
       </div>
       <div class="card">
-        <div class="slabel">WKR en modelaannames</div>
+        <div class="slabel">Oudedagsvoorziening (beide scenario's)</div>
+        <div class="fld">
+          <label for="beroepspensioen">Premie verplichte beroepspensioenregeling</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="beroepspensioen" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="hint">Komt ten laste van de winst (art. 3.18 Wet IB 2001) respectievelijk van de BV, en verlaagt dus ook de MKB-winstvrijstelling, het bijdrage-inkomen Zvw en het arbeidsinkomen.</div>
+          <div class="fmsg" id="msg-beroepspensioen"></div>
+        </div>
+        <div class="fld">
+          <label for="lijfrentePremie">Lijfrentepremie (jaarruimte of reserveringsruimte)</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="lijfrentePremie" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="hint" id="hint-jaarruimte">Aftrekpost op het inkomen (afdeling 3.7), geen winstpost. De tool toetst niet aan art. 3.127.</div>
+          <div class="fmsg" id="msg-lijfrentePremie"></div>
+        </div>
+        <div class="hint">Beide bedragen zijn een besteding, geen last: ze verlaten het besteedbare inkomen maar vormen vermogen. De latente belasting bij uitkering wordt contant gemaakt meegeteld, in beide scenario's gelijk.</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <div class="slabel">Werkkostenregeling</div>
         <div class="fld">
           <label for="wkr">Onbelaste WKR-vergoeding aan DGA (vrije ruimte)</label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="wkr" value="0" step="100" min="0" inputmode="numeric"></div>
@@ -293,8 +345,33 @@
           <div class="hint">Alleen als grondslag voor de vrije ruimte. Deze loonkosten zitten al in de ingevoerde winst.</div>
           <div class="fmsg" id="msg-loonsomOverig"></div>
         </div>
+        <div class="hint" id="hint-vrijeruimte">De vrije ruimte volgt uit de fiscale loonsom: 2,00% tot € 400.000 en 1,18% daarboven (art. 31a lid 3 Wet LB 1964).</div>
+      </div>
+
+      <div class="card">
+        <div class="slabel">Modelaannames</div>
+        <div class="grid2">
+          <div class="fld">
+            <label for="leeftijd">Leeftijd ondernemer</label>
+            <input type="number" id="leeftijd" value="45" step="1" min="16" max="100" inputmode="numeric">
+            <div class="fmsg" id="msg-leeftijd"></div>
+          </div>
+          <div class="fld">
+            <label for="pensioenLeeftijd">Beoogde pensioenleeftijd</label>
+            <input type="number" id="pensioenLeeftijd" value="67" step="1" min="16" max="100" inputmode="numeric">
+            <div class="fmsg" id="msg-pensioenLeeftijd"></div>
+          </div>
+        </div>
         <div class="fld">
-          <label for="jaren">Jaren tot uitkering van de ingehouden winst</label>
+          <label for="jarenBron">Jaren tot uitkering van de ingehouden winst</label>
+          <select id="jarenBron">
+            <option value="leeftijd" selected>Afleiden uit leeftijd en pensioenleeftijd</option>
+            <option value="handmatig">Zelf invullen</option>
+          </select>
+          <div class="hint" id="hint-jaren"></div>
+        </div>
+        <div class="fld" id="fld-jaren" style="display:none">
+          <label for="jaren">Aantal jaren</label>
           <input type="number" id="jaren" value="15" step="1" min="0" max="60" inputmode="numeric">
           <div class="fmsg" id="msg-jaren"></div>
         </div>
@@ -309,11 +386,35 @@
           <select id="claimTarief">
             <option value="marginaal" selected>Box-2-schijven 2026, marginaal boven het dividend van dit jaar</option>
             <option value="top">Toptarief box 2 (2026: 31%)</option>
+            <option value="vast">Eigen vast percentage</option>
           </select>
           <div class="hint">Modelaanname: het toekomstige box-2-tarief staat juridisch niet vast.</div>
         </div>
+        <div class="fld">
+          <label for="claimTariefVast">Vast percentage box 2 en oudedagsuitkering (%)</label>
+          <input type="number" id="claimTariefVast" value="24.5" step="0.5" min="0" max="100" inputmode="decimal">
+          <div class="hint">Wordt gebruikt bij de keuze "eigen vast percentage" en altijd voor de latente belasting over de oudedagsvoorziening.</div>
+          <div class="fmsg" id="msg-claimTariefVast"></div>
+        </div>
       </div>
     </div>
+
+    <details class="card" style="margin-top:14px">
+      <summary class="slabel" style="cursor:pointer">Landbouwgrond met landbouwvrijstelling (optioneel)</summary>
+      <div class="grid2" style="margin-top:10px">
+        <div class="fld">
+          <label for="wevab">WEVAB landbouwgrond</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="wevab" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-wevab"></div>
+        </div>
+        <div class="fld">
+          <label for="wevabStijging">Verwachte WEVAB-stijging per jaar (%)</label>
+          <input type="number" id="wevabStijging" value="0" step="0.5" min="-25" max="25" inputmode="decimal">
+          <div class="fmsg" id="msg-wevabStijging"></div>
+        </div>
+      </div>
+      <div class="hint">De waardestijging tot de WEVAB is vrijgesteld (art. 3.12 Wet IB 2001), ook binnen een BV (art. 8 lid 1 Wet Vpb). Zij verhoogt de verkrijgingsprijs van de aandelen echter niet (art. 4.21 lid 1), zodat zij bij uitkering of vervreemding alsnog in box 2 wordt belast. Dat verschil komt als nadeel van de BV in de vergelijking. De omvang van de stijging en het realisatiemoment zijn aannames.</div>
+    </details>
 
     <div class="card" style="margin-top:14px">
       <div class="fld" style="margin-bottom:0">
@@ -396,6 +497,214 @@
           <button onclick="printNota()" style="background:#fff;color:var(--dk-antr)">PDF opslaan ↓</button>
           <button onclick="alert('AFAS-koppeling – in ontwikkeling voor UC00')">Opslaan in dossier →</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-inbreng" role="tabpanel" aria-labelledby="tabbtn-inbreng" style="display:none">
+    <div style="height:16px"></div>
+    <h1 class="pg-title">Ruisend of geruisloos inbrengen?</h1>
+    <p class="pg-sub">Is de uitkomst "ja, een BV", dan volgt de tweede vraag: hoe gaat de onderneming erin? Ruisend betekent afrekenen over de stakingswinst, waarna de BV de activa op de waarde in het economische verkeer zet. Geruisloos (art. 3.65 Wet IB 2001) betekent geen afrekening, waarbij de claim meeverhuist naar de vennootschapsbelasting en box 2.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="slabel">Wat er in de onderneming zit</div>
+        <div class="fld">
+          <label for="in-goodwill">Goodwill (niet geactiveerd)</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-goodwill" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-goodwill"></div>
+        </div>
+        <div class="fld">
+          <label for="in-stilleReserves">Stille reserves (pand en overige)</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-stilleReserves" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="hint">Waarde in het economische verkeer minus de fiscale boekwaarde. Een vrijgestelde WEVAB-stijging op landbouwgrond (art. 3.12) hoort hier niet bij.</div>
+          <div class="fmsg" id="msg-stilleReserves"></div>
+        </div>
+        <div class="fld">
+          <label for="in-desinvestering">Desinvesteringsbijtelling</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-desinvestering" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-desinvestering"></div>
+        </div>
+        <div class="fld">
+          <label for="in-oudedagsreserve">Vrijval oudedagsreserve</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-oudedagsreserve" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="hint">Dotatie is sinds 2023 niet meer mogelijk; een bestaande stand valt bij staking vrij (overgangsrecht art. 10a.29 Wet IB 2001).</div>
+          <div class="fmsg" id="msg-oudedagsreserve"></div>
+        </div>
+        <div class="fld">
+          <label for="in-onroerendeZaak">Waarde onroerende zaken in de inbreng</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-onroerendeZaak" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-onroerendeZaak"></div>
+        </div>
+        <div class="fld">
+          <span class="lbl" id="lbl-ob">Vrijstelling overdrachtsbelasting van toepassing? <span class="tipw"><span class="tip" title="Art. 15 lid 1 onderdeel e onder 2e WBR jo. art. 5 Uitvoeringsbesluit BRV: alle activa en passiva die een functie in de onderneming vervullen worden tegen aandelen ingebracht, met beperkte bijbetaling in geld. De vrijstelling geldt bij beide routes. Vervreemding binnen drie jaar kan haar alsnog doen vervallen.">?</span></span></span>
+          <div class="tog" role="group" aria-labelledby="lbl-ob">
+            <button type="button" id="ob-ja" aria-pressed="true" onclick="setObVrij(true)">Ja</button>
+            <button type="button" id="ob-nee" aria-pressed="false" onclick="setObVrij(false)">Nee</button>
+          </div>
+          <div class="hint" id="hint-ob"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="slabel">Ondernemer en oudedagsvoorziening</div>
+        <div class="grid2">
+          <div class="fld">
+            <label for="in-leeftijd">Leeftijd bij staken</label>
+            <input type="number" id="in-leeftijd" value="55" step="1" min="16" max="100" inputmode="numeric">
+            <div class="fmsg" id="msg-in-leeftijd"></div>
+          </div>
+          <div class="fld">
+            <label for="in-pensioenLeeftijd">Ingangsleeftijd lijfrente</label>
+            <input type="number" id="in-pensioenLeeftijd" value="67" step="1" min="16" max="100" inputmode="numeric">
+            <div class="fmsg" id="msg-in-pensioenLeeftijd"></div>
+          </div>
+        </div>
+        <div class="fld">
+          <span class="lbl" id="lbl-ao">Ten minste 45% arbeidsongeschikt? <span class="tipw"><span class="tip" title="Art. 3.129 lid 2 onderdeel a onder 2 en lid 5. In combinatie met termijnen die binnen zes maanden ingaan geeft dit recht op het hoogste maximum.">?</span></span></span>
+          <div class="tog" role="group" aria-labelledby="lbl-ao">
+            <button type="button" id="ao-ja" aria-pressed="false" onclick="setAo(true)">Ja</button>
+            <button type="button" id="ao-nee" aria-pressed="true" onclick="setAo(false)">Nee</button>
+          </div>
+        </div>
+        <div class="fld">
+          <span class="lbl" id="lbl-di">Gaan de lijfrentetermijnen direct in?</span>
+          <div class="tog" role="group" aria-labelledby="lbl-di">
+            <button type="button" id="di-ja" aria-pressed="false" onclick="setDirect(true)">Ja</button>
+            <button type="button" id="di-nee" aria-pressed="true" onclick="setDirect(false)">Nee</button>
+          </div>
+          <div class="hint" id="hint-categorie"></div>
+        </div>
+        <div class="fld">
+          <label for="in-reedsOpgebouwd">Reeds opgebouwde voorzieningen</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-reedsOpgebouwd" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="hint">Art. 3.129 lid 3: waarde van bestaande aanspraken, plus wat eerder op grond van art. 3.127 en 3.129 in aftrek is gebracht. Dit bedrag gaat van het maximum af.</div>
+          <div class="fmsg" id="msg-reedsOpgebouwd"></div>
+        </div>
+        <div class="fld">
+          <label for="in-eerderStakingsaftrek">Eerder genoten stakingsaftrek</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-eerderStakingsaftrek" value="0" step="500" min="0" inputmode="numeric"></div>
+          <div class="hint">Art. 3.79 lid 4: het levenslange maximum van € 3.630 wordt hiermee verminderd.</div>
+          <div class="fmsg" id="msg-eerderStakingsaftrek"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <div class="slabel">Jaarruimte en reserveringsruimte</div>
+        <div class="fld">
+          <label for="in-winstJaar">Winst uit onderneming in het stakingsjaar (exclusief stakingswinst)</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-winstJaar" value="0" step="5000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-winstJaar"></div>
+        </div>
+        <div class="fld">
+          <label for="in-pensioenaangroei">Pensioenaangroei in het voorafgaande jaar</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-pensioenaangroei" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="hint">Art. 3.127 lid 4: dit bedrag gaat van de jaarruimte af.</div>
+          <div class="fmsg" id="msg-pensioenaangroei"></div>
+        </div>
+        <div class="fld">
+          <label for="in-reserveringsruimte">Beschikbare reserveringsruimte</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-reserveringsruimte" value="0" step="5000" min="0" inputmode="numeric"></div>
+          <div class="hint" id="hint-ruimte"></div>
+          <div class="fmsg" id="msg-reserveringsruimte"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="slabel">Aannames</div>
+        <div class="grid2">
+          <div class="fld">
+            <label for="in-tariefStaking">Marginaal IB-tarief stakingswinst (%)</label>
+            <input type="number" id="in-tariefStaking" value="49.5" step="0.5" min="0" max="100" inputmode="decimal">
+            <div class="fmsg" id="msg-tariefStaking"></div>
+          </div>
+          <div class="fld">
+            <label for="in-tariefUitkering">IB-tarief bij uitkering lijfrente (%)</label>
+            <input type="number" id="in-tariefUitkering" value="40" step="0.5" min="0" max="100" inputmode="decimal">
+            <div class="fmsg" id="msg-tariefUitkering"></div>
+          </div>
+          <div class="fld">
+            <label for="in-vpbTarief">VPB-tarief (%)</label>
+            <input type="number" id="in-vpbTarief" value="19" step="0.1" min="0" max="100" inputmode="decimal">
+            <div class="fmsg" id="msg-vpbTarief"></div>
+          </div>
+          <div class="fld">
+            <label for="in-box2Tarief">Toekomstig box 2-tarief (%)</label>
+            <input type="number" id="in-box2Tarief" value="24.5" step="0.5" min="0" max="100" inputmode="decimal">
+            <div class="fmsg" id="msg-box2Tarief"></div>
+          </div>
+          <div class="fld">
+            <label for="in-disco">Disconteringsvoet (%)</label>
+            <input type="number" id="in-disco" value="2" step="0.1" min="-10" max="25" inputmode="decimal">
+            <div class="fmsg" id="msg-in-disco"></div>
+          </div>
+          <div class="fld">
+            <label for="in-jarenGoodwill">Afschrijvingstermijn goodwill (jaren)</label>
+            <input type="number" id="in-jarenGoodwill" value="10" step="1" min="1" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-jarenGoodwill"></div>
+          </div>
+          <div class="fld">
+            <label for="in-jarenPand">Jaren tot realisatie stille reserves</label>
+            <input type="number" id="in-jarenPand" value="20" step="1" min="0" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-jarenPand"></div>
+          </div>
+          <div class="fld">
+            <label for="in-jarenAb">Jaren tot de box 2-heffing</label>
+            <input type="number" id="in-jarenAb" value="12" step="1" min="0" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-jarenAb"></div>
+          </div>
+        </div>
+        <div class="hint">Alleen het tarief en het moment van realisatie volgen uit de wet. Hoe lang de claim uitstaat en welk tarief dan geldt, is een aanname. Verander deze waarden en kijk of de conclusie standhoudt.</div>
+      </div>
+    </div>
+
+    <details class="card" style="margin-top:14px">
+      <summary class="slabel" style="cursor:pointer">Creditering bij geruisloze inbreng (optioneel)</summary>
+      <div class="grid2" style="margin-top:10px">
+        <div class="fld">
+          <label for="in-latenteIbCreditering">Materieel verschuldigde heffing op het overgangstijdstip</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-latenteIbCreditering" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-latenteIbCreditering"></div>
+        </div>
+        <div class="fld">
+          <label for="in-aandelenkapitaal">Op de aandelen gestort bedrag</label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-aandelenkapitaal" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <div class="fmsg" id="msg-aandelenkapitaal"></div>
+        </div>
+      </div>
+      <div class="hint" id="hint-creditering"></div>
+    </details>
+
+    <div id="in-box-err" class="msgbox e" style="display:none"><div class="mt">De berekening is niet uitgevoerd — corrigeer de volgende invoer:</div><ul id="in-list-err"></ul></div>
+    <div id="in-box-warn" class="msgbox w" style="display:none"><div class="mt">Aandachtspunten bij deze vergelijking</div><ul id="in-list-warn"></ul></div>
+
+    <button class="btn-calc" style="margin-top:14px" onclick="berekenInbrengUI()">Inbreng vergelijken →</button>
+
+    <div id="in-res" class="res" style="margin-top:16px" aria-live="polite">
+      <div id="in-verd" class="verd bv">
+        <div class="vico" id="in-vico" aria-hidden="true">✓</div>
+        <div>
+          <div class="vtitle" id="in-vtitle">—</div>
+          <div class="vsub" id="in-vsub">—</div>
+          <div class="vamt" id="in-vamt">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="slabel">Ruisende inbreng · afrekenen bij de ondernemer</div>
+        <div class="tblwrap"><table class="ctable"><tbody id="in-tb-ruisend"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Geruisloze inbreng · de claim verhuist mee (art. 3.65)</div>
+        <div class="tblwrap"><table class="ctable"><tbody id="in-tb-geruisloos"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Wat deze vergelijking niet doet</div>
+        <div class="hint" id="in-afbakening"></div>
       </div>
     </div>
   </div>
@@ -488,8 +797,28 @@ const BVJN = (function () {
   const TARIEVEN = {
     jaar: 2026,
 
-    // Box 1 (IB + premies volksverzekeringen), jonger dan AOW-leeftijd
-    box1: { grens1: 38883, grens2: 78426, t1: 0.3575, t2: 0.3756, t3: 0.495 },
+    // Box 1, jonger dan AOW-leeftijd. De heffing bestaat uit twee delen.
+    //
+    // Belastingdeel: de tabel van art. 2.10 lid 1 Wet IB 2001, tekst per 2026-01-01.
+    // Kolom I is de schijfgrens, kolom III het cumulatieve bedrag en kolom IV het
+    // percentage over het meerdere. De bedragen in kolom III zijn wettekst, met de
+    // afronding die de wetgever zelf heeft aangebracht (3.149 waar 8,10% × 38.883 op
+    // 3.149,52 uitkomt, en 18.001 waar de optelling op 18.001,87 uitkomt). Ze worden
+    // daarom letterlijk overgenomen en niet uit de percentages afgeleid.
+    //
+    // Premiedeel: 27,65% over het premie-inkomen tot € 38.883 (art. 8 lid 3 jo. art. 11
+    // Wfsv, Regeling premiepercentages 2026: AOW 17,90% + Anw 0,10% + Wlz 9,65%). Voor
+    // het gecombineerde tarief bestaat geen wettelijke tabel met cumulatieve bedragen.
+    //
+    // t1, t2 en t3 zijn de gecombineerde tarieven; die worden alleen in teksten gebruikt.
+    // Gecontroleerd 2026-08-31.
+    box1: {
+      grens1: 38883, grens2: 78426,
+      ibPct1: 0.0810, ibPct2: 0.3756, ibPct3: 0.4950,
+      ibVast2: 3149, ibVast3: 18001,
+      premiePct: 0.2765, premieMax: 38883,
+      t1: 0.3575, t2: 0.3756, t3: 0.495
+    },
 
     // Algemene heffingskorting (art. 8.10 Wet IB 2001) — grondslag: verzamelinkomen
     ahk: { max: 3115, afbouwStart: 29736, afbouwPct: 0.06398 },
@@ -502,7 +831,26 @@ const BVJN = (function () {
     },
 
     // Ondernemersfaciliteiten
-    onderneming: { zelfstandigenAftrek: 1200, mkbVrijstelling: 0.127 },
+    // Zelfstandigenaftrek: art. 3.76 lid 2 Wet IB 2001, tekst per 2026-01-01 (per 2027: € 900).
+    // Startersaftrek: art. 3.76 lid 3. Beide bedragen staan niet in art. 10.1 lid 1 en worden
+    // dus niet geïndexeerd. Stakingsaftrek: art. 3.79 lid 2 (levenslang maximum).
+    // MKB-winstvrijstelling: art. 3.79a, over de met de ondernemersaftrek verminderde winst.
+    // Gecontroleerd 2026-08-31 op wetten.overheid.nl/BWBR0011353/2026-01-01.
+    onderneming: {
+      zelfstandigenAftrek: 1200,
+      startersAftrek: 2123,
+      mkbVrijstelling: 0.127,
+      stakingsAftrek: 3630
+    },
+
+    // Kleinschaligheidsinvesteringsaftrek — art. 3.41 lid 2 Wet IB 2001, bedragen 2026.
+    // Tabel: nihil t/m € 2.900 · 28% tot € 71.683 · vast € 20.072 tot € 132.746 ·
+    // afbouw met 7,56% tot € 398.236 · daarboven nihil.
+    // Gecontroleerd 2026-08-31. De bedragen worden jaarlijks geïndexeerd (art. 10.1 lid 1).
+    kia: {
+      drempel: 2900, pct: 0.28, grens2: 71683,
+      vast: 20072, grens3: 132746, afbouwPct: 0.0756, grens4: 398236
+    },
 
     // Vennootschapsbelasting
     vpb: { grens: 200000, laag: 0.19, hoog: 0.258 },
@@ -513,8 +861,40 @@ const BVJN = (function () {
     // Zorgverzekeringswet
     zvw: { maxBijdrageInkomen: 79409, bijdrage: 0.0485, werkgeversheffing: 0.0610 },
 
-    // Gebruikelijk loon DGA (art. 12a Wet LB) — wettelijke ondergrens
+    // Gebruikelijk loon DGA (art. 12a Wet LB) — wettelijke ondergrens.
+    // De doelmatigheidsmarge en de start-upregeling bestaan in 2026 niet meer.
     dga: { gebruikelijkLoonNorm: 58000 },
+
+    // AOW-leeftijd, art. 7a lid 1 AOW. Vastgesteld tot en met 2031; voor latere jaren is
+    // de leeftijd nog niet bekendgemaakt. Peilmoment is 1 januari van het belastingjaar
+    // (vergelijk art. 3.76 lid 4). Gecontroleerd 2026-08-31.
+    aow: {
+      leeftijd: 67,
+      perJaar: { 2026: 67, 2027: 67, 2028: 67.25, 2029: 67.25, 2030: 67.25, 2031: 67.25 }
+    },
+
+    // Lijfrente en staking — art. 3.127 en 3.129 Wet IB 2001, bedragen 2026 vastgesteld
+    // bij de Bijstellingsregeling directe belastingen 2026. Gecontroleerd 2026-08-31.
+    // De maximale jaarruimte staat niet als bedrag in de wet: zij volgt uit
+    // 30% × (137.800 − 19.172) = € 35.588,40.
+    lijfrente: {
+      jaarruimtePct: 0.30,
+      maxPremiegrondslag: 137800,
+      franchise: 19172,
+      maxReserveringsruimte: 42753,
+      stakingHoog: 574867,       // art. 3.129 lid 2 onderdeel a
+      stakingMedium: 287445,     // art. 3.129 lid 2 onderdeel b
+      stakingLaag: 143732        // art. 3.129 lid 2 onderdeel c
+    },
+
+    // Omzetting in een BV. De maximale creditering bij geruisloze inbreng volgt uit de
+    // vierde standaardvoorwaarde bij art. 3.65 Wet IB 2001: 5% van het op de aandelen
+    // gestorte bedrag, met een absoluut maximum per inbrenger.
+    // Overdrachtsbelasting 2026 (art. 14 WBR): 10,4% voor niet-woningen (lid 1) en 8%
+    // voor een woning die niet als hoofdverblijf gaat dienen (lid 2). Het tarief van 2%
+    // van lid 3 vraagt een natuurlijk persoon en kan bij een BV nooit gelden.
+    // Gecontroleerd 2026-08-31.
+    inbreng: { crediteringMax: 30000, obTariefNietWoning: 0.104, obTariefWoning: 0.08 },
 
     // Werkkostenregeling
     wkr: { grens: 400000, pctLaag: 0.02, pctHoog: 0.0118, eindheffing: 0.80 },
@@ -539,12 +919,23 @@ const BVJN = (function () {
   function pos(v) { return Math.max(0, num(v)); }
 
   /* ---------------------- box 1 ---------------------- */
+  /**
+   * Belasting én premie volksverzekeringen over het belastbare inkomen uit werk en woning.
+   * Het belastingdeel volgt de tabel van art. 2.10 lid 1 letterlijk, inclusief de door de
+   * wetgever afgeronde bedragen in kolom III. Zelf de percentages optellen zou tot € 0,87
+   * hoger uitkomen dan de wet voorschrijft. Het premiedeel is een plat percentage over het
+   * premie-inkomen tot de eerste schijfgrens (art. 8 lid 3 jo. art. 11 Wfsv).
+   */
   function box1Belasting(inkomen) {
     const b = TARIEVEN.box1;
     const x = pos(inkomen);
-    if (x <= b.grens1) return x * b.t1;
-    if (x <= b.grens2) return b.grens1 * b.t1 + (x - b.grens1) * b.t2;
-    return b.grens1 * b.t1 + (b.grens2 - b.grens1) * b.t2 + (x - b.grens2) * b.t3;
+    const ib = x <= b.grens1
+      ? x * b.ibPct1
+      : (x <= b.grens2
+        ? b.ibVast2 + (x - b.grens1) * b.ibPct2
+        : b.ibVast3 + (x - b.grens2) * b.ibPct3);
+    const pvv = Math.min(x, b.premieMax) * b.premiePct;
+    return ib + pvv;
   }
 
   /* ---------------------- heffingskortingen ---------------------- */
@@ -555,14 +946,41 @@ const BVJN = (function () {
     return Math.max(0, a.max - (y - a.afbouwStart) * a.afbouwPct);
   }
 
+  /**
+   * Arbeidskorting, art. 8.11 lid 2 Wet IB 2001. De wet werkt niet met knikpunten maar
+   * met een maximum op de CUMULATIEVE som na elk onderdeel. Dat maakt verschil: onderdeel
+   * c loopt bij een arbeidsinkomen van € 45.592 op tot € 5.685,07, en de wet kapt dat af
+   * op € 5.685. Onderdeel d bouwt af, doch niet verder dan tot nihil; de wet noemt geen
+   * bovengrens van het afbouwtraject. Gecontroleerd 2026-08-31.
+   *
+   * De minimum-arbeidskorting van de slotzin (ten minste de in de loonbelasting toegekende
+   * korting bij een arbeidsinkomen tot € 45.592) blijft buiten dit model: die grijpt aan
+   * op loon dat volgens de tijdvaktabellen is belast en valt buiten de opzet van een
+   * jaarvergelijking.
+   */
   function arbeidskorting(arbeidsinkomen) {
     const a = TARIEVEN.ak;
     const g = pos(arbeidsinkomen);
     if (g === 0) return 0;
-    if (g <= a.g1) return g * a.p1;
-    if (g <= a.g2) return a.m1 + (g - a.g1) * a.p2;
-    if (g <= a.g3) return a.m2 + (g - a.g2) * a.p3;
-    if (g <= a.g4) return Math.max(0, a.max - (g - a.g3) * a.p4);
+    let k = Math.min(g * a.p1, a.m1);                            // onderdeel a
+    k = Math.min(k + Math.max(0, g - a.g1) * a.p2, a.m2);        // onderdeel b
+    k = Math.min(k + Math.max(0, g - a.g2) * a.p3, a.max);       // onderdeel c
+    return Math.max(0, k - Math.max(0, g - a.g3) * a.p4);        // onderdeel d
+  }
+
+  /**
+   * Kleinschaligheidsinvesteringsaftrek, art. 3.41 lid 2 Wet IB 2001 (bedragen 2026).
+   * Buiten deze berekening blijven de drempel van € 450 per bedrijfsmiddel
+   * (art. 3.45 lid 2 onderdeel b) en de uitgesloten bedrijfsmiddelen van art. 3.45 lid 1,
+   * zoals personenauto's en grond. De tool waarschuwt daarvoor in plaats van te rekenen.
+   */
+  function kiaBedrag(investering) {
+    const k = TARIEVEN.kia;
+    const I = pos(investering);
+    if (I <= k.drempel) return 0;
+    if (I <= k.grens2) return I * k.pct;
+    if (I <= k.grens3) return k.vast;
+    if (I <= k.grens4) return Math.max(0, k.vast - (I - k.grens3) * k.afbouwPct);
     return 0;
   }
 
@@ -642,14 +1060,40 @@ const BVJN = (function () {
   }
 
   /* ---------------------- invoer normaliseren ---------------------- */
+  /** Aanwezig betekent: expliciet meegegeven en leesbaar als getal. */
+  function gegeven(v) {
+    if (v === undefined || v === null || v === '') return false;
+    return Number.isFinite(typeof v === 'number' ? v : parseFloat(v));
+  }
+
   function normaliseer(raw) {
     const r = raw || {};
+    // De KIA volgt standaard uit het investeringsbedrag. Wordt alleen een KIA-bedrag
+    // meegegeven, dan wordt dat gebruikt; die keuze is expliciet zichtbaar in kiaBron.
+    const kiaBron = (r.kiaBron === 'handmatig' || r.kiaBron === 'investering')
+      ? r.kiaBron
+      : (gegeven(r.investering) ? 'investering' : (gegeven(r.kia) ? 'handmatig' : 'investering'));
+    // De periode tot de box-2-heffing volgt standaard uit de leeftijden. Wordt alleen een
+    // aantal jaren meegegeven, dan telt dat.
+    const jarenBron = (r.jarenBron === 'handmatig' || r.jarenBron === 'leeftijd')
+      ? r.jarenBron
+      : ((gegeven(r.leeftijd) || gegeven(r.pensioenLeeftijd)) ? 'leeftijd'
+        : (gegeven(r.jaren) ? 'handmatig' : 'leeftijd'));
     return {
+      kiaBron: kiaBron,
+      jarenBron: jarenBron,
       naam: typeof r.naam === 'string' ? r.naam : '',
       winst: num(r.winst),
       urencriterium: r.urencriterium !== false,
+      starter: r.starter === true,
+      investering: num(r.investering),
       kia: num(r.kia),
       kiaScope: r.kiaScope === 'ib' || r.kiaScope === 'bv' ? r.kiaScope : 'beide',
+      beroepspensioen: num(r.beroepspensioen),
+      lijfrentePremie: num(r.lijfrentePremie),
+      pga: num(r.pga),
+      uitkeringBox1: num(r.uitkeringBox1, num(r.overigBox1)),
+      rowBox1: num(r.rowBox1),
       woz: num(r.woz),
       rente: num(r.rente),
       salaris: num(r.salaris),
@@ -659,62 +1103,141 @@ const BVJN = (function () {
       loonsomOverig: num(r.loonsomOverig),
       dgaVerzekerd: r.dgaVerzekerd === true,
       wgLastenPct: num(r.wgLastenPct),
+      leeftijd: num(r.leeftijd, 45),
+      pensioenLeeftijd: num(r.pensioenLeeftijd, 67),
       jaren: num(r.jaren, 15),
       disco: num(r.disco, 0),
-      claimTarief: r.claimTarief === 'top' ? 'top' : 'marginaal'
+      claimTarief: (r.claimTarief === 'top' || r.claimTarief === 'vast') ? r.claimTarief : 'marginaal',
+      claimTariefVast: num(r.claimTariefVast, TARIEVEN.box2.laag * 100),
+      wevab: num(r.wevab),
+      wevabStijging: num(r.wevabStijging)
     };
+  }
+
+  /** De KIA volgt uit het investeringsbedrag, tenzij de gebruiker haar zelf invult. */
+  function kiaVanInvoer(i) {
+    return i.kiaBron === 'handmatig' ? pos(i.kia) : kiaBedrag(i.investering);
+  }
+
+  /**
+   * De periode tot de heffing over de ingehouden winst. Standaard volgt die uit de
+   * leeftijd en de gekozen pensioenleeftijd; dat is een modelaanname, geen rekenregel.
+   */
+  function jarenTotHeffing(i) {
+    if (i.jarenBron === 'handmatig') return Math.max(0, Math.round(i.jaren));
+    return Math.max(0, Math.round(i.pensioenLeeftijd - i.leeftijd));
   }
 
   /* ---------------------- IB-scenario ---------------------- */
   function berekenIB(inp) {
     const i = normaliseer(inp);
     const T = TARIEVEN;
-    const kia = (i.kiaScope === 'bv') ? 0 : pos(i.kia);
+    const kia = (i.kiaScope === 'bv') ? 0 : kiaVanInvoer(i);
 
-    const winstNaKia = i.winst - kia;
-    const zaRecht = i.urencriterium ? T.onderneming.zelfstandigenAftrek : 0;
-    const za = Math.min(zaRecht, Math.max(0, winstNaKia));      // art. 3.76 lid 5: max. de winst
-    const zaOnbenut = zaRecht - za;
-    const mkbGrondslag = winstNaKia - za;
+    // Premie voor een verplichte beroepspensioenregeling komt ten laste van de winst
+    // (art. 3.18 Wet IB 2001) en verlaagt dus ook de grondslag van de
+    // MKB-winstvrijstelling, het bijdrage-inkomen Zvw en het arbeidsinkomen.
+    const beroepspensioen = pos(i.beroepspensioen);
+    const winstNaKia = i.winst - kia - beroepspensioen;
+
+    // Art. 3.76: de zelfstandigenaftrek geldt voor wie aan het urencriterium voldoet (lid 1).
+    // De startersaftrek van lid 3 is een verhoging daarvan en veronderstelt dus hetzelfde.
+    const zaBasis = i.urencriterium ? T.onderneming.zelfstandigenAftrek : 0;
+    const starter = i.urencriterium && i.starter;
+    const startersAftrek = starter ? T.onderneming.startersAftrek : 0;
+    const zaRecht = zaBasis + startersAftrek;
+    // Art. 3.76 lid 5: de zelfstandigenaftrek bedraagt niet meer dan de winst. Die
+    // begrenzing geldt volgens de tweede volzin NIET voor wie recht heeft op de
+    // verhoging van lid 3; de starter mag de aftrek dus tot onder nul doorzetten.
+    const za = starter ? zaRecht : Math.min(zaRecht, Math.max(0, winstNaKia));
+    const zaOnbenut = zaRecht - za;                              // art. 3.76 lid 5 en 7
+
+    // Art. 3.74: de ondernemersaftrek is het gezamenlijke bedrag van onder meer de
+    // zelfstandigenaftrek (inclusief de startersaftrek). De meewerkaftrek, de S&O-aftrek
+    // en de stakingsaftrek vallen buiten dit jaarmodel; zie de toelichting.
+    const ondernemersaftrek = za;
+    const mkbGrondslag = winstNaKia - ondernemersaftrek;         // art. 3.79a: winst na ondernemersaftrek
     const mkb = mkbGrondslag * T.onderneming.mkbVrijstelling;    // ook bij verlies (art. 3.79a)
-    const belastbareWinst = mkbGrondslag - mkb;
+    const belastbareWinst = mkbGrondslag - mkb;                  // art. 3.2
 
     const ew = eigenwoningSaldo(i.woz, i.rente);
-    const inkomenBox1 = belastbareWinst + ew.saldo;
+    const pga = pos(i.pga);                                      // art. 6.1
+    const lijfrentePremie = pos(i.lijfrentePremie);              // afdeling 3.7, geen winstpost
+    // Twee soorten overig box 1-inkomen, die verschillend doorwerken. Uitkeringen en
+    // loon uit vroegere arbeid (art. 3.1 lid 2 onderdelen b en d) tellen niet mee in het
+    // arbeidsinkomen (art. 8.1 lid 1 onderdeel e vraagt tegenwoordige arbeid), wel in het
+    // verzamelinkomen (art. 2.18) en wel in het bijdrage-inkomen Zvw (art. 43 lid 2).
+    // Resultaat uit overige werkzaamheden (onderdeel c) telt in alle drie mee.
+    const uitkeringBox1 = num(i.uitkeringBox1);
+    const rowBox1 = num(i.rowBox1);
+    const overigBox1 = uitkeringBox1 + rowBox1;
+    const inkomenBox1 = belastbareWinst + ew.saldo + overigBox1 - lijfrentePremie - pga;
     const box1Belastbaar = Math.max(0, inkomenBox1);
 
     const ibBruto = box1Belasting(box1Belastbaar);
-    const aftrekposten = za + Math.max(0, mkb) + ew.aftrekpost;
+    // Art. 2.10 lid 3: de grondslagverminderende posten zijn limitatief opgesomd:
+    // a de ondernemersaftrek (art. 3.74), b de MKB-winstvrijstelling mits de met de
+    // ondernemersaftrek verminderde winst positief is, c de tbs-vrijstelling,
+    // d de aftrekbare kosten eigen woning van art. 3.120 (dus de BRUTO rente en kosten,
+    // niet het saldo met het eigenwoningforfait) en e de persoonsgebonden aftrek.
+    // De KIA staat er niet in (die werkt bij het bepalen van de winst, art. 3.40) en de
+    // Hillen-aftrek van art. 3.123a evenmin. Gecontroleerd 2026-08-31.
+    const aftrekposten = ondernemersaftrek
+      + (mkbGrondslag > 0 ? Math.max(0, mkb) : 0)
+      + ew.kosten
+      + pga;
     const ta = tariefsaanpassing(inkomenBox1, aftrekposten);
     const heffingVoorKortingen = ibBruto + ta;
 
     const verzamelinkomen = box1Belastbaar;
     const ahk = algemeneHeffingskorting(verzamelinkomen);
-    // Arbeidsinkomen (art. 8.1 Wet IB 2001): winst uit onderneming VOOR de
-    // ondernemersaftrek en de MKB-winstvrijstelling. De investeringsaftrek is
-    // wel al ten laste van de winst gebracht (art. 3.40).
-    const arbeidsinkomen = Math.max(0, winstNaKia);
+    // Arbeidsinkomen (art. 8.1 lid 1 onderdeel e Wet IB 2001): winst uit onderneming VOOR
+    // de ondernemersaftrek en de MKB-winstvrijstelling. De investeringsaftrek is wel al ten
+    // laste van de winst gebracht (art. 3.40), net als de premie van art. 3.18. Overige
+    // inkomsten box 1 tellen niet mee: alleen wat met tegenwoordige arbeid is genoten.
+    const arbeidsinkomen = Math.max(0, winstNaKia) + Math.max(0, rowBox1);
     const ak = arbeidskorting(arbeidsinkomen);
     const kortingenRecht = ahk + ak;
     const kortingen = Math.min(kortingenRecht, heffingVoorKortingen);
     const kortingenOnbenut = kortingenRecht - kortingen;
     const heffingNaKortingen = heffingVoorKortingen - kortingen;
 
-    const zvwGrondslag = Math.max(0, belastbareWinst);           // belastbare winst, excl. eigen woning
+    // Art. 43 lid 2 Zvw somt het bijdrage-inkomen limitatief op: onder meer de belastbare
+    // winst uit onderneming (onderdeel b, dus ná ondernemersaftrek en MKB-winstvrijstelling),
+    // resultaat uit overige werkzaamheden (c) en periodieke uitkeringen (d). Het saldo
+    // eigen woning, de lijfrentepremie en de persoonsgebonden aftrek staan er niet in.
+    const zvwGrondslag = Math.max(0, belastbareWinst + uitkeringBox1 + rowBox1);
     const zvw = zvwOverGrondslag(zvwGrondslag, T.zvw.bijdrage);
 
     const belastingenPremies = heffingNaKortingen + zvw;
     const overigeKosten = 0;
     const totaleLasten = belastingenPremies + overigeKosten;
-    const nettoPrive = i.winst - totaleLasten;
+    // De lijfrentepremie en de premie beroepspensioen zijn een besteding, geen last: het
+    // bedrag verlaat de vrije bestedingsruimte maar vormt vermogen. Zij worden hier van het
+    // netto privé afgehaald en bij de vermogensvorming weer opgeteld.
+    const oudedagsinleg = beroepspensioen + lijfrentePremie;
+    const nettoPrive = i.winst + overigBox1 - totaleLasten - oudedagsinleg - pga;
+
+    // Latente IB-claim over de opgebouwde oudedagsvoorziening: bij uitkering is het
+    // volledige bedrag belast in box 1 (art. 3.100 en verder). Het tarief bij uitkering is
+    // een aanname, geen rekenregel.
+    const claimTariefOudedag = pos(i.claimTariefVast) / 100;
+    const jaren = jarenTotHeffing(i);
+    const factor = Math.pow(1 + i.disco / 100, jaren);
+    const oudedagClaimNominaal = oudedagsinleg * claimTariefOudedag;
+    const oudedagClaimContant = Number.isFinite(factor) && factor > 0
+      ? oudedagClaimNominaal / factor : oudedagClaimNominaal;
 
     return {
-      kia, winstNaKia, zaRecht, za, zaOnbenut, mkbGrondslag, mkb, belastbareWinst,
+      kia, beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1, oudedagsinleg,
+      winstNaKia, starter, zaBasis, startersAftrek, zaRecht, za, zaOnbenut,
+      ondernemersaftrek, mkbGrondslag, mkb, belastbareWinst,
       ew, inkomenBox1, box1Belastbaar, ibBruto, aftrekposten, ta, heffingVoorKortingen,
       verzamelinkomen, ahk, arbeidsinkomen, ak, kortingenRecht, kortingen, kortingenOnbenut,
       heffingNaKortingen, zvwGrondslag, zvw,
       belastingenPremies, overigeKosten, totaleLasten, nettoPrive,
-      economisch: nettoPrive
+      jaren, oudedagClaimNominaal, oudedagClaimContant,
+      economisch: nettoPrive + oudedagsinleg - oudedagClaimContant
     };
   }
 
@@ -722,8 +1245,18 @@ const BVJN = (function () {
   function berekenBV(inp) {
     const i = normaliseer(inp);
     const T = TARIEVEN;
-    const kia = (i.kiaScope === 'ib') ? 0 : pos(i.kia);
+    const kia = (i.kiaScope === 'ib') ? 0 : kiaVanInvoer(i);
     const salaris = pos(i.salaris);
+    // De premie voor een verplichte beroepspensioenregeling van de DGA wordt door de BV
+    // gedragen en is voor haar een aftrekbare last; bij de DGA is de aanspraak niet belast
+    // (art. 11 lid 1 onderdeel c Wet LB 1964). De lijfrentepremie is daarentegen een
+    // privé-aftrekpost van de DGA (afdeling 3.7 Wet IB 2001).
+    const beroepspensioen = pos(i.beroepspensioen);
+    const lijfrentePremie = pos(i.lijfrentePremie);
+    const pga = pos(i.pga);
+    const uitkeringBox1 = num(i.uitkeringBox1);
+    const rowBox1 = num(i.rowBox1);
+    const overigBox1 = uitkeringBox1 + rowBox1;
 
     // Werkgeverslasten
     const werkgeversheffingZvw = i.dgaVerzekerd ? zvwOverGrondslag(salaris, T.zvw.werkgeversheffing) : 0;
@@ -739,7 +1272,8 @@ const BVJN = (function () {
     const wkrEindheffing = wkrOverschrijding * T.wkr.eindheffing;
 
     // Winst BV
-    const aftrekbareLasten = salaris + werkgeverslasten + wkrAangewezen + wkrEindheffing + pos(i.bvKosten);
+    const aftrekbareLasten = salaris + werkgeverslasten + wkrAangewezen + wkrEindheffing
+      + beroepspensioen + pos(i.bvKosten);
     const winstVoorVpbCommercieel = i.winst - aftrekbareLasten;
     const vpbGrondslag = winstVoorVpbCommercieel - kia;
     const vpb = vpbBelasting(Math.max(0, vpbGrondslag));
@@ -750,40 +1284,79 @@ const BVJN = (function () {
 
     // DGA privé
     const ew = eigenwoningSaldo(i.woz, i.rente);
-    const inkomenBox1 = salaris + ew.saldo;
+    const inkomenBox1 = salaris + ew.saldo + overigBox1 - lijfrentePremie - pga;
     const box1Belastbaar = Math.max(0, inkomenBox1);
     const ibBruto = box1Belasting(box1Belastbaar);
-    const ta = tariefsaanpassing(inkomenBox1, ew.aftrekpost);
+    // Art. 2.10 lid 3: voor de DGA blijven onderdeel d (bruto aftrekbare kosten eigen
+    // woning, art. 3.120) en onderdeel e (persoonsgebonden aftrek) over. De
+    // ondernemersaftrek en de MKB-winstvrijstelling spelen in dit scenario niet.
+    const ta = tariefsaanpassing(inkomenBox1, ew.kosten + pga);
     const box2 = box2Belasting(dividend);
     const heffingVoorKortingen = ibBruto + ta + box2;
 
     const verzamelinkomen = box1Belastbaar + dividend;
     const ahk = algemeneHeffingskorting(verzamelinkomen);
-    const ak = arbeidskorting(salaris);
+    const arbeidsinkomen = salaris + Math.max(0, rowBox1);
+    const ak = arbeidskorting(arbeidsinkomen);
     const kortingenRecht = ahk + ak;
     const kortingen = Math.min(kortingenRecht, heffingVoorKortingen);
     const kortingenOnbenut = kortingenRecht - kortingen;
     const heffingNaKortingen = heffingVoorKortingen - kortingen;
 
-    const zvwGrondslag = i.dgaVerzekerd ? 0 : salaris;
-    const zvwDga = i.dgaVerzekerd ? 0 : zvwOverGrondslag(salaris, T.zvw.bijdrage);
+    // Art. 5.6 Regeling zorgverzekering: loon waarover de werkgeversheffing al is geheven,
+    // telt niet nogmaals mee in het bijdrage-inkomen. Is de DGA verzekerd, dan blijft het
+    // loon dus buiten de bijdrage en resteren alleen de overige bestanddelen.
+    const zvwGrondslag = Math.max(0, (i.dgaVerzekerd ? 0 : salaris) + uitkeringBox1 + rowBox1);
+    const zvwDga = zvwOverGrondslag(zvwGrondslag, T.zvw.bijdrage);
 
-    const nettoPrive = salaris + dividend + wkrAangewezen - heffingNaKortingen - zvwDga;
+    const nettoPrive = salaris + dividend + wkrAangewezen + overigBox1
+      - heffingNaKortingen - zvwDga - lijfrentePremie - pga;
 
     const belastingenPremies = vpb + heffingNaKortingen + zvwDga + wkrEindheffing + werkgeverslasten;
     const overigeKosten = pos(i.bvKosten);
     const totaleLasten = belastingenPremies + overigeKosten;
 
-    // Latente box-2-claim op de ingehouden winst
+    const jaren = jarenTotHeffing(i);
+    const factor = Math.pow(1 + i.disco / 100, jaren);
+    const contant = function (x) {
+      return Number.isFinite(factor) && factor > 0 ? x / factor : x;
+    };
+
+    // Latente box-2-claim op de ingehouden winst. Het toekomstige tarief is een aanname:
+    // marginaal boven het dividend van dit jaar, het toptarief, of een zelfgekozen
+    // vast percentage. Alleen de schijven zelf volgen uit art. 2.12 Wet IB 2001.
     const claimNominaal = i.claimTarief === 'top'
       ? ingehoudenWinst * T.box2.hoog
-      : box2Belasting(Math.max(0, dividend + ingehoudenWinst)) - box2Belasting(dividend);
-    const jaren = Math.max(0, Math.round(i.jaren));
-    const factor = Math.pow(1 + i.disco / 100, jaren);
-    const claimContant = Number.isFinite(factor) && factor > 0 ? claimNominaal / factor : claimNominaal;
+      : i.claimTarief === 'vast'
+        ? ingehoudenWinst * (pos(i.claimTariefVast) / 100)
+        : box2Belasting(Math.max(0, dividend + ingehoudenWinst)) - box2Belasting(dividend);
+    const claimContant = contant(claimNominaal);
+
+    // De premie beroepspensioen bouwt ook in dit scenario een aanspraak op die bij
+    // uitkering in box 1 belast is. Zelfde behandeling als in het IB-scenario, zodat de
+    // twee scenario's op dit punt vergelijkbaar blijven.
+    const oudedagsinleg = beroepspensioen + lijfrentePremie;
+    const oudedagClaimNominaal = oudedagsinleg * (pos(i.claimTariefVast) / 100);
+    const oudedagClaimContant = contant(oudedagClaimNominaal);
+
+    // Landbouwvrijstelling (art. 3.12 Wet IB 2001). Bij de IB-ondernemer blijft de
+    // WEVAB-stijging definitief onbelast. Zit de grond in een BV, dan is de stijging voor
+    // de vennootschapsbelasting eveneens vrijgesteld (art. 8 lid 1 Wet Vpb jo. art. 3.12),
+    // maar zij verhoogt de verkrijgingsprijs van de aandelen niet (art. 4.21 lid 1) en
+    // wordt dus bij uitkering of vervreemding in box 2 belast (art. 4.12 jo. art. 4.19).
+    // De omvang van de stijging, het realisatiemoment en het tarief zijn aannames; alleen
+    // het tarief zelf volgt uit art. 2.12. Gecontroleerd 2026-08-31.
+    const wevab = pos(i.wevab);
+    const wevabGroei = num(i.wevabStijging) / 100;
+    const wevabStijging = (wevab > 0 && jaren > 0)
+      ? wevab * (Math.pow(1 + wevabGroei, jaren) - 1) : 0;
+    const wevabClaimNominaal = wevabStijging * T.box2.hoog;
+    const wevabClaimContant = contant(wevabClaimNominaal);
 
     return {
-      kia, salaris, werkgeversheffingZvw, premiesWnv, werkgeverslasten,
+      kia, salaris, beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1,
+      arbeidsinkomen, oudedagsinleg,
+      werkgeversheffingZvw, premiesWnv, werkgeverslasten,
       fiscaleLoonsom, vrijeRuimte, wkrAangewezen, wkrBenut, wkrOverschrijding, wkrEindheffing,
       aftrekbareLasten, winstVoorVpbCommercieel, vpbGrondslag, vpb, winstNaVpb,
       dividend, ingehoudenWinst,
@@ -792,7 +1365,10 @@ const BVJN = (function () {
       zvwGrondslag, zvwDga, nettoPrive,
       belastingenPremies, overigeKosten, totaleLasten,
       claimNominaal, jaren, disco: i.disco, claimContant,
+      oudedagClaimNominaal, oudedagClaimContant,
+      wevab, wevabStijging, wevabClaimNominaal, wevabClaimContant,
       economisch: nettoPrive + ingehoudenWinst - claimContant
+        + oudedagsinleg - oudedagClaimContant - wevabClaimContant
     };
   }
 
@@ -808,15 +1384,27 @@ const BVJN = (function () {
     function waarschuw(veld, tekst) { waarschuwingen.push(tekst); if (veld && !veldWaarschuwingen[veld]) veldWaarschuwingen[veld] = tekst; }
 
     const numeriek = [
-      ['winst', 'Winst uit onderneming'], ['kia', 'KIA'], ['woz', 'WOZ-waarde'],
+      ['winst', 'Winst uit onderneming'], ['investering', 'Investeringsbedrag'],
+      ['kia', 'KIA'], ['woz', 'WOZ-waarde'],
       ['rente', 'Hypotheekrente'], ['salaris', 'DGA-salaris'], ['dividend', 'Dividend'],
       ['bvKosten', 'Extra kosten BV'], ['wkr', 'WKR-vergoeding'],
       ['loonsomOverig', 'Overige fiscale loonsom'], ['jaren', 'Jaren tot uitkering'],
-      ['disco', 'Disconteringsvoet'], ['wgLastenPct', 'Premies werknemersverzekeringen']
+      ['disco', 'Disconteringsvoet'], ['wgLastenPct', 'Premies werknemersverzekeringen'],
+      ['beroepspensioen', 'Premie beroepspensioenregeling'],
+      ['lijfrentePremie', 'Lijfrentepremie'], ['pga', 'Persoonsgebonden aftrek'],
+      ['uitkeringBox1', 'Uitkering of loon uit vroegere arbeid'],
+      ['rowBox1', 'Resultaat uit overige werkzaamheden'], ['leeftijd', 'Leeftijd'],
+      ['pensioenLeeftijd', 'Beoogde pensioenleeftijd'],
+      ['claimTariefVast', 'Aangenomen toekomstig box-2-tarief'],
+      ['wevab', 'WEVAB landbouwgrond'], ['wevabStijging', 'Verwachte WEVAB-stijging per jaar']
     ];
     for (const [veld, label] of numeriek) {
       const v = r[veld];
-      if (v === '' || v === null || v === undefined) { fout(veld, label + ': vul een getal in (het veld is leeg).'); continue; }
+      // Niet meegegeven (undefined) betekent: de aanroeper gebruikt de standaardwaarde.
+      // Leeg meegegeven ('' of null) betekent: een invoerveld in de UI is leeggelaten,
+      // en dat is wel een fout.
+      if (v === undefined) continue;
+      if (v === '' || v === null) { fout(veld, label + ': vul een getal in (het veld is leeg).'); continue; }
       const n = typeof v === 'number' ? v : parseFloat(v);
       if (!Number.isFinite(n)) { fout(veld, label + ': geen geldig getal.'); continue; }
       if (Math.abs(n) > 1e12) fout(veld, label + ': de waarde is onrealistisch groot.');
@@ -832,13 +1420,29 @@ const BVJN = (function () {
     else if (i.winst > 10000000) waarschuw('winst', 'De ingevoerde winst is uitzonderlijk hoog; controleer of dit bedrag juist is.');
 
     const negatief = [
+      ['investering', 'Investeringsbedrag'],
       ['kia', 'KIA'], ['woz', 'WOZ-waarde'], ['rente', 'Hypotheekrente'],
       ['salaris', 'DGA-salaris'], ['dividend', 'Dividend'], ['bvKosten', 'Extra kosten BV'],
-      ['wkr', 'WKR-vergoeding'], ['loonsomOverig', 'Overige fiscale loonsom'], ['wgLastenPct', 'Premies werknemersverzekeringen']
+      ['wkr', 'WKR-vergoeding'], ['loonsomOverig', 'Overige fiscale loonsom'],
+      ['wgLastenPct', 'Premies werknemersverzekeringen'],
+      ['beroepspensioen', 'Premie beroepspensioenregeling'],
+      ['lijfrentePremie', 'Lijfrentepremie'], ['pga', 'Persoonsgebonden aftrek'],
+      ['wevab', 'WEVAB landbouwgrond']
     ];
     for (const [veld, label] of negatief) {
       if (i[veld] < 0) fout(veld, label + ': een negatief bedrag is niet mogelijk.');
     }
+
+    // De tarieftabel, de heffingskortingen en de zelfstandigenaftrek in dit model gelden
+    // voor wie de AOW-leeftijd nog niet heeft bereikt. Vanaf die leeftijd geldt een lager
+    // gecombineerd tarief en de helft van de zelfstandigenaftrek (art. 3.76 lid 4). Die
+    // varianten zijn niet gemodelleerd, dus wordt hier niet gerekend in plaats van fout.
+    if (i.leeftijd < 16 || i.leeftijd > 100) fout('leeftijd', 'Leeftijd: vul een leeftijd tussen 16 en 100 jaar in.');
+    else if (i.leeftijd >= TARIEVEN.aow.leeftijd) fout('leeftijd', 'Leeftijd: dit model rekent uitsluitend met de tarieven en kortingen voor wie op 1 januari de AOW-leeftijd (' + TARIEVEN.aow.leeftijd + ' jaar in 2026) nog niet heeft bereikt. Vanaf die leeftijd verandert er drie keer iets in het IB-scenario: de zelfstandigenaftrek en de startersaftrek worden gehalveerd (art. 3.76 lid 4), het gecombineerde tarief in de eerste schijf daalt doordat de AOW-premie wegvalt, en de algemene heffingskorting is lager met een ander afbouwpercentage. Die varianten zijn niet gemodelleerd, dus wordt er niet gerekend.');
+    if (i.pensioenLeeftijd < i.leeftijd) fout('pensioenLeeftijd', 'Beoogde pensioenleeftijd: die kan niet lager zijn dan de huidige leeftijd.');
+    else if (i.pensioenLeeftijd > 100) fout('pensioenLeeftijd', 'Beoogde pensioenleeftijd: kies een leeftijd van maximaal 100 jaar.');
+    if (i.claimTariefVast < 0 || i.claimTariefVast > 100) fout('claimTariefVast', 'Aangenomen toekomstig box-2-tarief: kies een percentage tussen 0% en 100%.');
+    if (i.wevabStijging < -25 || i.wevabStijging > 25) fout('wevabStijging', 'Verwachte WEVAB-stijging per jaar: kies een percentage tussen −25% en 25%.');
 
     if (i.jaren < 0) fout('jaren', 'Jaren tot uitkering: een negatief aantal jaren is niet mogelijk.');
     if (i.jaren > 60) fout('jaren', 'Jaren tot uitkering: kies een periode van maximaal 60 jaar.');
@@ -863,13 +1467,284 @@ const BVJN = (function () {
     if (bv.wkrOverschrijding > 0) waarschuw('wkr', 'De aangewezen WKR-vergoeding overschrijdt de vrije ruimte van € ' + Math.round(bv.vrijeRuimte).toLocaleString('nl-NL') + '. Over de overschrijding is 80% eindheffing berekend (€ ' + Math.round(bv.wkrEindheffing).toLocaleString('nl-NL') + ').');
     if (i.wkr > 0) waarschuw(null, 'De WKR-vergoeding is als netto privévoordeel meegenomen. Doe dat alleen als daar economisch een werkelijke vergoeding of verstrekking tegenover staat die een privé-uitgave vervangt.');
     if (i.dgaVerzekerd && i.wgLastenPct === 0) waarschuw('wgLastenPct', 'De DGA is als verzekerd voor de werknemersverzekeringen aangemerkt, maar er zijn geen premies werknemersverzekeringen ingevoerd. De werkgeverslasten worden daardoor onderschat.');
-    if (i.kia > 0 && i.kiaScope !== 'beide') waarschuw('kia', 'De investeringsaftrek wordt maar in één scenario toegepast. Dat is alleen juist als de investering ook werkelijk alleen in dat scenario plaatsvindt.');
-    if (i.kia > i.winst) waarschuw('kia', 'De investeringsaftrek is hoger dan de winst; controleer het bedrag.');
+    const kiaGebruikt = kiaVanInvoer(i);
+    if (kiaGebruikt > 0 && i.kiaScope !== 'beide') waarschuw('kia', 'De investeringsaftrek wordt maar in één scenario toegepast. Dat is alleen juist als de investering ook werkelijk alleen in dat scenario plaatsvindt.');
+    if (kiaGebruikt > i.winst) waarschuw('kia', 'De investeringsaftrek is hoger dan de winst; controleer het bedrag.');
+    if (i.kiaBron === 'handmatig' && i.kia > 0) waarschuw('kia', 'De KIA is handmatig ingevuld en niet aan de tabel van art. 3.41 getoetst. Vul liever het investeringsbedrag in, dan berekent de tool de aftrek zelf.');
+    if (i.kiaBron === 'investering' && i.investering > 0) {
+      if (i.investering <= TARIEVEN.kia.drempel) waarschuw('investering', 'Bij een investering tot en met € ' + TARIEVEN.kia.drempel.toLocaleString('nl-NL') + ' bestaat geen recht op kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2).');
+      else if (i.investering > TARIEVEN.kia.grens4) waarschuw('investering', 'Boven € ' + TARIEVEN.kia.grens4.toLocaleString('nl-NL') + ' is de kleinschaligheidsinvesteringsaftrek nihil (art. 3.41 lid 2).');
+      waarschuw(null, 'De KIA is berekend over het volledige investeringsbedrag. Bedrijfsmiddelen van minder dan € 450 (art. 3.45 lid 2 onderdeel b) en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond (art. 3.45 lid 1) tellen niet mee; corrigeer het bedrag zo nodig zelf.');
+    }
+
+    if (i.starter && !i.urencriterium) waarschuw(null, 'De startersaftrek is een verhoging van de zelfstandigenaftrek (art. 3.76 lid 3) en veronderstelt dus het urencriterium. Zonder urencriterium is geen startersaftrek toegepast.');
+    else if (i.starter) waarschuw(null, 'De startersaftrek is toegepast. Voorwaarde is dat de ondernemer in een of meer van de vijf voorafgaande jaren geen ondernemer was en de zelfstandigenaftrek in die periode hoogstens tweemaal is toegepast (art. 3.76 lid 3). De tool controleert dat niet.');
+
+    if (i.beroepspensioen > 0) waarschuw('beroepspensioen', 'De premie is als last van de onderneming respectievelijk van de BV verwerkt. Dat is alleen juist bij een verplichte beroepspensioenregeling (art. 3.18 Wet IB 2001). Een vrijwillige oudedagsvoorziening hoort in het veld lijfrentepremie.');
+    if (i.lijfrentePremie > 0) waarschuw('lijfrentePremie', 'De lijfrentepremie is als aftrekpost op het inkomen verwerkt (afdeling 3.7 Wet IB 2001). De tool toetst niet of het bedrag binnen de jaarruimte en reserveringsruimte van art. 3.127 blijft.');
+    if (i.wevab > 0) waarschuw(null, 'Voor de landbouwgrond is een aanmerkelijkbelangclaim over de verwachte WEVAB-stijging in de BV meegenomen. De omvang van die stijging en het moment van realisatie zijn aannames; alleen het box-2-tarief volgt uit de wet.');
 
     const ib = berekenIB(i);
     if (ib.zaOnbenut > 0.5) waarschuw(null, 'De zelfstandigenaftrek kan door de lage winst niet volledig worden benut (€ ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL') + ' onbenut). Voortwenteling naar volgende jaren is niet gemodelleerd.');
     if (ib.kortingenOnbenut > 0.5 || bv.kortingenOnbenut > 0.5) waarschuw(null, 'De heffingskortingen kunnen niet volledig worden verrekend met de verschuldigde belasting; het niet-verrekende deel vervalt (art. 8.8 Wet IB 2001).');
     if (ib.inkomenBox1 < 0 || bv.inkomenBox1 < 0) waarschuw(null, 'Het box-1-inkomen is in ten minste één scenario negatief. Het model rekent dan met € 0; verliesverrekening is niet gemodelleerd.');
+
+    return { ok: true, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+  }
+
+  /* ==========================================================================
+     INBRENG IN EEN BV — ruisend tegenover geruisloos
+     ==========================================================================
+     Is de uitkomst van de jaarvergelijking "ja, een BV", dan volgt de tweede vraag:
+     hoe gaat de onderneming erin? Ruisend betekent afrekenen over de stakingswinst,
+     waarna de BV de activa op de waarde in het economische verkeer zet. Geruisloos
+     (art. 3.65 Wet IB 2001) betekent geen afrekening, waarbij de BV de boekwaarden
+     overneemt en de claim dus meeverhuist naar de vennootschapsbelasting en box 2.
+
+     Dit onderdeel maakt beide routes contant en zet ze naast elkaar. De rekenregels
+     volgen uit de wet; de PERIODEN en de TOEKOMSTIGE TARIEVEN zijn aannames van het
+     model en staan daarom als invoerveld in de tool, niet als vaste waarde in de code.
+     ========================================================================== */
+
+  function normaliseerInbreng(raw) {
+    const r = raw || {};
+    return {
+      goodwill: pos(r.goodwill),
+      stilleReserves: pos(r.stilleReserves),          // pand en overige stille reserves
+      desinvestering: pos(r.desinvestering),          // desinvesteringsbijtelling art. 3.47
+      oudedagsreserve: pos(r.oudedagsreserve),        // vrijval FOR, art. 10a.29 overgangsrecht
+      eerderStakingsaftrek: pos(r.eerderStakingsaftrek),
+      reedsOpgebouwd: pos(r.reedsOpgebouwd),          // art. 3.129 lid 3
+      leeftijd: num(r.leeftijd, 45),
+      pensioenLeeftijd: num(r.pensioenLeeftijd, 67),
+      arbeidsongeschikt: r.arbeidsongeschikt === true,
+      directIngaand: r.directIngaand === true,
+      winstJaar: pos(r.winstJaar),                    // premiegrondslag art. 3.127 lid 3
+      pensioenaangroei: pos(r.pensioenaangroei),      // vermindering art. 3.127 lid 4
+      reserveringsruimte: pos(r.reserveringsruimte),  // beschikbaar, art. 3.127 lid 2
+      benutJaarruimte: r.benutJaarruimte !== false,
+      tariefStaking: num(r.tariefStaking, TARIEVEN.box1.t3 * 100),
+      tariefUitkering: num(r.tariefUitkering, 40),
+      vpbTarief: num(r.vpbTarief, TARIEVEN.vpb.laag * 100),
+      box2Tarief: num(r.box2Tarief, TARIEVEN.box2.laag * 100),
+      disco: num(r.disco, 2),
+      jarenGoodwill: num(r.jarenGoodwill, 10),        // art. 3.30 lid 2: ten hoogste 10% per jaar
+      jarenPand: num(r.jarenPand, 20),
+      jarenAb: num(r.jarenAb, Math.max(0, num(r.pensioenLeeftijd, 67) - num(r.leeftijd, 45))),
+      onroerendeZaak: pos(r.onroerendeZaak),
+      obVrijstelling: r.obVrijstelling !== false,     // art. 15 lid 1 onderdeel e WBR
+      aandelenkapitaal: pos(r.aandelenkapitaal),
+      latenteIbCreditering: pos(r.latenteIbCreditering)
+    };
+  }
+
+  /**
+   * Het maximum van de stakingslijfrente, art. 3.129 lid 2. Welk van de drie bedragen
+   * geldt, volgt uit de leeftijd bij staken ten opzichte van de AOW-leeftijd, uit
+   * arbeidsongeschiktheid en uit het direct ingaan van de termijnen. Dat is een
+   * rekenregel, geen keuze van de gebruiker.
+   */
+  function stakingslijfrenteMax(i) {
+    const L = TARIEVEN.lijfrente;
+    const aow = TARIEVEN.aow.leeftijd;
+    // onderdeel a: ten hoogste vijf jaar jonger dan de AOW-leeftijd, of ten minste 45%
+    // arbeidsongeschikt met termijnen die binnen zes maanden ingaan
+    if (i.leeftijd >= aow - 5 || (i.arbeidsongeschikt && i.directIngaand)) {
+      return { bedrag: L.stakingHoog, onderdeel: 'a' };
+    }
+    // onderdeel b: ten hoogste vijftien jaar jonger dan de AOW-leeftijd, of direct
+    // ingaande termijnen
+    if (i.leeftijd >= aow - 15 || i.directIngaand) {
+      return { bedrag: L.stakingMedium, onderdeel: 'b' };
+    }
+    return { bedrag: L.stakingLaag, onderdeel: 'c' };
+  }
+
+  /** Jaarruimte, art. 3.127 lid 1 en 3. */
+  function jaarruimte(winst, pensioenaangroei) {
+    const L = TARIEVEN.lijfrente;
+    const grondslag = Math.max(0, Math.min(pos(winst), L.maxPremiegrondslag) - L.franchise);
+    return Math.max(0, grondslag * L.jaarruimtePct - pos(pensioenaangroei));
+  }
+
+  function berekenInbreng(raw) {
+    const i = normaliseerInbreng(raw);
+    const T = TARIEVEN;
+    const disco = i.disco / 100;
+    const cw = function (bedrag, jaren) {
+      const n = Math.max(0, Math.round(jaren));
+      const f = Math.pow(1 + disco, n);
+      return Number.isFinite(f) && f > 0 ? bedrag / f : bedrag;
+    };
+    // Contante waarde van een gelijke reeks van n jaar, aan het eind van elk jaar.
+    const cwReeks = function (bedragPerJaar, n) {
+      const m = Math.max(0, Math.round(n));
+      if (m === 0) return 0;
+      if (disco === 0) return bedragPerJaar * m;
+      return bedragPerJaar * (1 - Math.pow(1 + disco, -m)) / disco;
+    };
+
+    const reserves = i.goodwill + i.stilleReserves;
+
+    /* ---------- Ruisende inbreng ---------- */
+    // Stakingswinst: goodwill en stille reserves die bij de overdracht aan de BV worden
+    // gerealiseerd, plus de desinvesteringsbijtelling en de vrijval van de oudedagsreserve.
+    const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve;
+
+    // Stakingsaftrek, art. 3.79: gelijk aan de stakingswinst maar ten hoogste € 3.630,
+    // levenslang, verminderd met wat eerder is genoten.
+    const stakingsaftrekRuimte = Math.max(0, T.onderneming.stakingsAftrek - i.eerderStakingsaftrek);
+    const stakingsaftrek = Math.min(stakingswinst, stakingsaftrekRuimte);
+
+    // Stakingslijfrente, art. 3.129 lid 1: ten hoogste de stakingswinst, en niet meer dan
+    // het maximum van lid 2 verminderd met de reeds opgebouwde voorzieningen van lid 3.
+    const maxCat = stakingslijfrenteMax(i);
+    const stakingslijfrenteRuimte = Math.max(0, maxCat.bedrag - i.reedsOpgebouwd);
+    const stakingslijfrente = Math.min(stakingswinst, stakingslijfrenteRuimte);
+
+    // Daarnaast kan de gewone jaarruimte en reserveringsruimte van art. 3.127 worden
+    // benut. Art. 3.127 lid 5 laat bij staking toe uit te gaan van het jaar zelf.
+    const jr = i.benutJaarruimte ? jaarruimte(i.winstJaar + stakingswinst, i.pensioenaangroei) : 0;
+    const rr = i.benutJaarruimte ? Math.min(pos(i.reserveringsruimte), T.lijfrente.maxReserveringsruimte) : 0;
+    const overigeLijfrente = Math.min(Math.max(0, stakingswinst - stakingslijfrente), jr + rr);
+    const lijfrenteTotaal = stakingslijfrente + overigeLijfrente;
+
+    // Ondernemersaftrek en MKB-winstvrijstelling over het restant.
+    const naOndernemersaftrek = Math.max(0, stakingswinst - stakingsaftrek);
+    const mkbInbreng = naOndernemersaftrek * T.onderneming.mkbVrijstelling;
+    const belastbaarRestant = Math.max(0, naOndernemersaftrek - mkbInbreng - lijfrenteTotaal);
+    const ibDirect = belastbaarRestant * (i.tariefStaking / 100);
+    // De stakingswinst hoort tot de belastbare winst uit onderneming en dus tot het
+    // bijdrage-inkomen Zvw (art. 43 lid 2 onderdeel b Zvw). Het maximum werkt per jaar.
+    const zvwStaking = zvwOverGrondslag(Math.max(0, naOndernemersaftrek - mkbInbreng - lijfrenteTotaal), T.zvw.bijdrage);
+
+    // Latente IB over de lijfrentetermijnen: bij uitkering volledig belast in box 1.
+    const jarenTotUitkering = Math.max(0, Math.round(i.pensioenLeeftijd - i.leeftijd));
+    const latenteIbLijfrente = cw(lijfrenteTotaal * (i.tariefUitkering / 100), jarenTotUitkering);
+
+    // Overdrachtsbelasting: de vrijstelling van art. 15 lid 1 onderdeel e WBR geldt
+    // onafhankelijk van de keuze ruisend of geruisloos, mits aan de voorwaarden van
+    // art. 5 Uitvoeringsbesluit BRV is voldaan. Zij is dus niet onderscheidend.
+    const ob = i.obVrijstelling ? 0 : i.onroerendeZaak * T.inbreng.obTariefNietWoning;
+
+    // Wat de ruisende route kost, is wat er nu wordt afgerekend plus de latente heffing
+    // over de lijfrentetermijnen. De gevolgen in de BV staan hieronder bij de geruisloze
+    // route, telkens als het VERSCHIL met de ruisende route. Zo wordt niets dubbel geteld.
+    const ruisendLast = ibDirect + zvwStaking + latenteIbLijfrente + ob;
+
+    /* ---------- Geruisloze inbreng (art. 3.65) ---------- */
+    // Geen afrekening bij de ondernemer. Daar staan drie nadelen tegenover, elk uitgedrukt
+    // als het verschil met de ruisende route:
+    //
+    // 1. De BV neemt de boekwaarde van de goodwill over (nihil bij zelf opgebouwde
+    //    goodwill) en kan dus niet afschrijven. Bij een ruisende inbreng zou zij de
+    //    goodwill op de waarde in het economische verkeer activeren en daarop afschrijven
+    //    (art. 3.30 jo. art. 8 Wet Vpb). Het nadeel is de contante waarde van die gemiste
+    //    afschrijving. In beide routes staat de goodwill na de termijn op nihil, dus over
+    //    de latere realisatie verschillen de routes niet.
+    const afschrijvingPerJaar = i.jarenGoodwill > 0 ? i.goodwill / i.jarenGoodwill : 0;
+    const gemisteAfschrijving = cwReeks(afschrijvingPerJaar * (i.vpbTarief / 100), i.jarenGoodwill);
+    // 2. De stille reserves blijven op de oude boekwaarde staan, zodat bij realisatie wél
+    //    vennootschapsbelasting over die meerwaarde verschuldigd is. Bij een ruisende
+    //    inbreng is die meerwaarde al in de inkomstenbelasting afgerekend.
+    const vpbClaimReserves = cw(i.stilleReserves * (i.vpbTarief / 100), i.jarenPand);
+    // 3. Wat na vennootschapsbelasting van de reserves overblijft, komt bij uitkering of
+    //    vervreemding in box 2 (art. 4.12 jo. art. 4.19 en 4.21 Wet IB 2001). Bij een
+    //    ruisende inbreng verhoogt de tegenprestatie de verkrijgingsprijs (art. 4.21 lid 1)
+    //    en ontstaat over die tranche juist geen aanmerkelijkbelangclaim.
+    const naVpb = reserves * (1 - i.vpbTarief / 100);
+    const abClaim = cw(naVpb * (i.box2Tarief / 100), i.jarenAb);
+
+    // Creditering, vierde standaardvoorwaarde bij art. 3.65: de op het overgangstijdstip
+    // materieel verschuldigde heffing, plus een afrondingscreditering van ten hoogste 5%
+    // van het op de aandelen gestorte bedrag met een absoluut maximum per inbrenger.
+    const afrondingscreditering = Math.min(i.aandelenkapitaal * 0.05, T.inbreng.crediteringMax);
+    const crediteringMax = i.latenteIbCreditering + afrondingscreditering;
+
+    const geruislozeLast = gemisteAfschrijving + vpbClaimReserves + abClaim + ob;
+
+    const voordeelGeruisloos = ruisendLast - geruislozeLast;
+
+    return {
+      input: i,
+      reserves, stakingswinst,
+      stakingsaftrek, stakingsaftrekRuimte,
+      lijfrenteCategorie: maxCat.onderdeel, lijfrenteMaximum: maxCat.bedrag,
+      stakingslijfrenteRuimte, stakingslijfrente,
+      jaarruimte: jr, reserveringsruimte: rr, overigeLijfrente, lijfrenteTotaal,
+      mkbInbreng, belastbaarRestant, ibDirect, zvwStaking,
+      jarenTotUitkering, latenteIbLijfrente,
+      afschrijvingPerJaar, gemisteAfschrijving, vpbClaimReserves,
+      ob, ruisendLast,
+      naVpb, abClaim, geruislozeLast,
+      afrondingscreditering, crediteringMax,
+      voordeelGeruisloos,
+      route: Math.abs(voordeelGeruisloos) < 250 ? 'gelijk' : (voordeelGeruisloos > 0 ? 'geruisloos' : 'ruisend')
+    };
+  }
+
+  /** Invoercontrole voor de inbrengmodule. */
+  function valideerInbreng(raw) {
+    const fouten = [];
+    const waarschuwingen = [];
+    const veldFouten = {};
+    const veldWaarschuwingen = {};
+    const r = raw || {};
+    function fout(veld, tekst) { fouten.push(tekst); if (veld) veldFouten[veld] = tekst; }
+    function waarschuw(veld, tekst) { waarschuwingen.push(tekst); if (veld && !veldWaarschuwingen[veld]) veldWaarschuwingen[veld] = tekst; }
+
+    const numeriek = [
+      ['goodwill', 'Goodwill'], ['stilleReserves', 'Stille reserves'],
+      ['desinvestering', 'Desinvesteringsbijtelling'], ['oudedagsreserve', 'Oudedagsreserve'],
+      ['eerderStakingsaftrek', 'Eerder genoten stakingsaftrek'],
+      ['reedsOpgebouwd', 'Reeds opgebouwde voorzieningen'],
+      ['winstJaar', 'Winst van het jaar'], ['pensioenaangroei', 'Pensioenaangroei'],
+      ['reserveringsruimte', 'Beschikbare reserveringsruimte'],
+      ['tariefStaking', 'Tarief over de stakingswinst'],
+      ['tariefUitkering', 'Tarief bij uitkering van de lijfrente'],
+      ['vpbTarief', 'VPB-tarief'], ['box2Tarief', 'Box 2-tarief'],
+      ['disco', 'Disconteringsvoet'], ['jarenGoodwill', 'Afschrijvingstermijn goodwill'],
+      ['jarenPand', 'Jaren tot realisatie stille reserves'],
+      ['jarenAb', 'Jaren tot de box 2-heffing'],
+      ['onroerendeZaak', 'Waarde onroerende zaken'],
+      ['aandelenkapitaal', 'Gestort aandelenkapitaal'],
+      ['latenteIbCreditering', 'Materieel verschuldigde heffing op het overgangstijdstip'],
+      ['leeftijd', 'Leeftijd'], ['pensioenLeeftijd', 'Pensioenleeftijd']
+    ];
+    for (const [veld, label] of numeriek) {
+      const v = r[veld];
+      if (v === undefined) continue;
+      if (v === '' || v === null) { fout(veld, label + ': vul een getal in (het veld is leeg).'); continue; }
+      const n = typeof v === 'number' ? v : parseFloat(v);
+      if (!Number.isFinite(n)) { fout(veld, label + ': geen geldig getal.'); continue; }
+      if (n < 0 && veld !== 'disco') fout(veld, label + ': een negatief bedrag is niet mogelijk.');
+      if (Math.abs(n) > 1e12) fout(veld, label + ': de waarde is onrealistisch groot.');
+    }
+    if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+
+    const i = normaliseerInbreng(r);
+    for (const [veld, label] of [['tariefStaking', 'Tarief over de stakingswinst'],
+      ['tariefUitkering', 'Tarief bij uitkering'], ['vpbTarief', 'VPB-tarief'], ['box2Tarief', 'Box 2-tarief']]) {
+      if (i[veld] > 100) fout(veld, label + ': kies een percentage van maximaal 100%.');
+    }
+    if (i.jarenGoodwill < 1 || i.jarenGoodwill > 60) fout('jarenGoodwill', 'Afschrijvingstermijn goodwill: kies een periode tussen 1 en 60 jaar.');
+    if (i.jarenPand < 0 || i.jarenPand > 60) fout('jarenPand', 'Jaren tot realisatie: kies een periode van maximaal 60 jaar.');
+    if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
+    if (i.goodwill + i.stilleReserves + i.desinvestering + i.oudedagsreserve <= 0) {
+      fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling of oudedagsreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
+    }
+    if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+
+    const u = berekenInbreng(r);
+    if (i.jarenGoodwill < 10) waarschuw('jarenGoodwill', 'Op goodwill wordt ten hoogste 10% van de aanschaffingskosten per jaar afgeschreven (art. 3.30 lid 2 Wet IB 2001, via art. 8 lid 1 Wet Vpb ook in de BV), dus over ten minste tien jaar. Een kortere termijn overschat het voordeel van de ruisende route.');
+    if (i.stilleReserves > 0) waarschuw(null, 'Zit de meerwaarde in een gebouw, houd dan rekening met art. 3.30a: afschrijven kan alleen zolang de boekwaarde boven de bodemwaarde ligt, en die bodemwaarde is sinds 2024 de volledige WOZ-waarde. De step-up geeft dan wel een hogere boekwaarde bij verkoop, maar niet altijd meer afschrijving.');
+    if (u.stakingslijfrente >= u.stakingslijfrenteRuimte - 0.5 && u.stakingslijfrenteRuimte > 0) {
+      waarschuw(null, 'De stakingslijfrente loopt tegen het maximum van art. 3.129 lid 2 onderdeel ' + u.lijfrenteCategorie + ' aan (€ ' + Math.round(u.lijfrenteMaximum).toLocaleString('nl-NL') + ' minus de reeds opgebouwde voorzieningen).');
+    }
+    if (i.reserveringsruimte > 0) waarschuw('reserveringsruimte', 'De reserveringsruimte is alleen beschikbaar voor zover de jaarruimte in de tien voorafgaande jaren niet is benut (art. 3.127 lid 2). De tool controleert dat niet.');
+    if (i.onroerendeZaak > 0 && i.obVrijstelling) waarschuw(null, 'De vrijstelling van overdrachtsbelasting is verondersteld. Zij geldt alleen als alle activa en passiva die een functie in de onderneming vervullen tegen aandelen worden ingebracht en aan de overige voorwaarden van art. 5 Uitvoeringsbesluit BRV is voldaan; vervreemding binnen drie jaar kan de vrijstelling alsnog doen vervallen.');
+    if (i.oudedagsreserve > 0) waarschuw(null, 'Dotatie aan de oudedagsreserve is sinds 2023 niet meer mogelijk. Een bestaande stand valt bij staking vrij; het overgangsrecht staat in art. 10a.29 Wet IB 2001.');
+    waarschuw(null, 'De perioden en de toekomstige tarieven in deze vergelijking zijn aannames. De wet geeft alleen het tarief en het moment van realisatie, niet hoe lang de claim uitstaat.');
 
     return { ok: true, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
   }
@@ -953,6 +1828,9 @@ const BVJN = (function () {
     TARIEVEN: TARIEVEN,
     box1Belasting, algemeneHeffingskorting, arbeidskorting, box2Belasting, vpbBelasting,
     eigenwoningforfait, eigenwoningSaldo, tariefsaanpassing, zvwOverGrondslag, wkrVrijeRuimte,
+    kiaBedrag, kiaVanInvoer, jarenTotHeffing,
+    stakingslijfrenteMax, jaarruimte,
+    normaliseerInbreng, berekenInbreng, valideerInbreng,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
   };
@@ -966,12 +1844,17 @@ const BVJN = (function () {
 
   const T = BVJN.TARIEVEN;
   let urencriterium = true;
+  let starter = false;
   let dgaVerzekerd = false;
   let state = null;
   let laatsteInvoerSleutel = null;
 
-  const VELDEN = ['winst', 'kia', 'kiaScope', 'woz', 'rente', 'salaris', 'dividend',
-    'bvkosten', 'wkr', 'loonsomOverig', 'wglasten', 'jaren', 'disco', 'claimTarief', 'naam'];
+  const VELDEN = ['winst', 'investering', 'kia', 'kiaScope', 'woz', 'rente', 'pga',
+    'uitkeringBox1', 'rowBox1',
+    'beroepspensioen', 'lijfrentePremie', 'salaris', 'dividend',
+    'bvkosten', 'wkr', 'loonsomOverig', 'wglasten', 'leeftijd', 'pensioenLeeftijd',
+    'jarenBron', 'jaren', 'disco', 'claimTarief', 'claimTariefVast',
+    'wevab', 'wevabStijging', 'naam'];
 
   function el(id) { return document.getElementById(id); }
 
@@ -990,10 +1873,20 @@ const BVJN = (function () {
       naam: el('naam').value.trim(),
       winst: el('winst').value,
       urencriterium: urencriterium,
+      starter: starter,
+      investering: el('investering').value,
       kia: el('kia').value,
+      // De KIA volgt uit de investering, tenzij die nul is en er wel een KIA is ingevuld.
+      kiaBron: (parseFloat(el('investering').value) > 0 || !(parseFloat(el('kia').value) > 0))
+        ? 'investering' : 'handmatig',
       kiaScope: el('kiaScope').value,
       woz: el('woz').value,
       rente: el('rente').value,
+      pga: el('pga').value,
+      uitkeringBox1: el('uitkeringBox1').value,
+      rowBox1: el('rowBox1').value,
+      beroepspensioen: el('beroepspensioen').value,
+      lijfrentePremie: el('lijfrentePremie').value,
       salaris: el('salaris').value,
       dividend: el('dividend').value,
       bvKosten: el('bvkosten').value,
@@ -1001,24 +1894,40 @@ const BVJN = (function () {
       loonsomOverig: el('loonsomOverig').value,
       dgaVerzekerd: dgaVerzekerd,
       wgLastenPct: el('wglasten').value,
+      leeftijd: el('leeftijd').value,
+      pensioenLeeftijd: el('pensioenLeeftijd').value,
+      jarenBron: el('jarenBron').value,
       jaren: el('jaren').value,
       disco: el('disco').value,
-      claimTarief: el('claimTarief').value
+      claimTarief: el('claimTarief').value,
+      claimTariefVast: el('claimTariefVast').value,
+      wevab: el('wevab').value,
+      wevabStijging: el('wevabStijging').value
     };
   }
 
   function invoerSleutel() { return JSON.stringify(leesInvoer()); }
 
   const VELD_MSG = {
-    winst: 'msg-winst', kia: 'msg-kia', woz: 'msg-woz', rente: 'msg-rente',
+    winst: 'msg-winst', investering: 'msg-investering', kia: 'msg-kia',
+    woz: 'msg-woz', rente: 'msg-rente', pga: 'msg-pga',
+    uitkeringBox1: 'msg-uitkeringBox1', rowBox1: 'msg-rowBox1',
+    beroepspensioen: 'msg-beroepspensioen', lijfrentePremie: 'msg-lijfrentePremie',
     salaris: 'msg-salaris', dividend: 'msg-dividend', bvKosten: 'msg-bvkosten',
     wkr: 'msg-wkr', loonsomOverig: 'msg-loonsomOverig', jaren: 'msg-jaren',
+    leeftijd: 'msg-leeftijd', pensioenLeeftijd: 'msg-pensioenLeeftijd',
+    claimTariefVast: 'msg-claimTariefVast', wevab: 'msg-wevab', wevabStijging: 'msg-wevabStijging',
     disco: 'msg-disco', wgLastenPct: 'msg-wglasten'
   };
   const VELD_INPUT = {
-    winst: 'winst', kia: 'kia', woz: 'woz', rente: 'rente', salaris: 'salaris',
+    winst: 'winst', investering: 'investering', kia: 'kia', woz: 'woz', rente: 'rente',
+    pga: 'pga', uitkeringBox1: 'uitkeringBox1', rowBox1: 'rowBox1',
+    beroepspensioen: 'beroepspensioen',
+    lijfrentePremie: 'lijfrentePremie', salaris: 'salaris',
     dividend: 'dividend', bvKosten: 'bvkosten', wkr: 'wkr',
-    loonsomOverig: 'loonsomOverig', jaren: 'jaren', disco: 'disco', wgLastenPct: 'wglasten'
+    loonsomOverig: 'loonsomOverig', jaren: 'jaren', leeftijd: 'leeftijd',
+    pensioenLeeftijd: 'pensioenLeeftijd', claimTariefVast: 'claimTariefVast',
+    wevab: 'wevab', wevabStijging: 'wevabStijging', disco: 'disco', wgLastenPct: 'wglasten'
   };
 
   function wisVeldmeldingen() {
@@ -1112,31 +2021,47 @@ const BVJN = (function () {
 
   function rijenLiquiditeit(s) {
     const ib = s.ib, bv = s.bv;
-    return [
+    const r = [
       ['Netto privé beschikbaar dit jaar', ib.nettoPrive, bv.nettoPrive],
       ['Winst die in de BV achterblijft', null, bv.ingehoudenWinst],
       ['Nominale toekomstige box-2-claim', null, -bv.claimNominaal, 'sub'],
-      ['Contante waarde box-2-claim (' + bv.jaren + ' jaar, ' + pct(bv.disco / 100, 1) + ')', null, -bv.claimContant, 'sub'],
-      ['Perspectief 1 · totale lasten dit jaar', ib.totaleLasten, bv.totaleLasten, 'tot'],
-      ['Perspectief 2 · economische positie', ib.economisch, bv.economisch, 'tot']
+      ['Contante waarde box-2-claim (' + bv.jaren + ' jaar, ' + pct(bv.disco / 100, 1) + ')', null, -bv.claimContant, 'sub']
     ];
+    if (ib.oudedagsinleg > 0 || bv.oudedagsinleg > 0) {
+      r.push(['Inleg oudedagsvoorziening (vermogen, geen last)', ib.oudedagsinleg, bv.oudedagsinleg]);
+      r.push(['Contante waarde latente IB over die voorziening', -ib.oudedagClaimContant, -bv.oudedagClaimContant, 'sub']);
+    }
+    if (bv.wevabClaimContant > 0) {
+      r.push(['Contante waarde box-2-claim landbouwgrond', null, -bv.wevabClaimContant, 'sub']);
+    }
+    r.push(['Perspectief 1 · totale lasten dit jaar', ib.totaleLasten, bv.totaleLasten, 'tot']);
+    r.push(['Perspectief 2 · economische positie', ib.economisch, bv.economisch, 'tot']);
+    return r;
   }
 
   function rijenDetailIB(s) {
     const d = s.ib, i = s.input;
-    const r = [
-      ['Winst uit onderneming', i.winst],
-      ['Kleinschaligheidsinvesteringsaftrek', -d.kia],
-      ['Zelfstandigenaftrek', -d.za],
-      ['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ')', -d.mkb],
-      ['Belastbare winst uit onderneming', d.belastbareWinst, undefined, 'tot']
-    ];
+    const r = [['Winst uit onderneming', i.winst]];
+    if (d.kia > 0 || i.investering > 0) r.push(['Kleinschaligheidsinvesteringsaftrek' + (i.kiaBron === 'investering' ? ' (investering ' + fmt(i.investering) + ')' : ' (handmatig ingevuld)'), -d.kia]);
+    if (d.beroepspensioen > 0) r.push(['Premie beroepspensioenregeling (art. 3.18)', -d.beroepspensioen]);
+    // De aftrek kan door de winstbegrenzing van art. 3.76 lid 5 lager uitvallen dan het
+    // recht. De basis wordt dan eerst gevuld, het startersdeel als laatste.
+    const zaToegepast = Math.min(d.za, d.zaBasis);
+    r.push(['Zelfstandigenaftrek', -zaToegepast]);
+    if (d.startersAftrek > 0) r.push(['Startersaftrek (art. 3.76 lid 3)', -(d.za - zaToegepast)]);
+    if (d.zaOnbenut > 0.5) r.push(['Niet gerealiseerde zelfstandigenaftrek (art. 3.76 lid 5)', d.zaOnbenut, undefined, 'sub']);
+    r.push(['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ' over ' + fmt(d.mkbGrondslag) + ')', -d.mkb]);
+    r.push(['Belastbare winst uit onderneming', d.belastbareWinst, undefined, 'tot']);
     if (!d.ew.geenWoning) {
       r.push(['Eigenwoningforfait', d.ew.ewf]);
       r.push(['Aftrekbare hypotheekrente', -d.ew.kosten]);
       if (d.ew.hillen > 0) r.push(['Aftrek geen/geringe eigenwoningschuld (Hillen, ' + pct(T.ew.hillenPct, 3) + ')', -d.ew.hillen]);
       r.push(['Saldo eigen woning', d.ew.saldo]);
     }
+    if (d.uitkeringBox1 !== 0) r.push(['Uitkering of loon uit vroegere arbeid', d.uitkeringBox1]);
+    if (d.rowBox1 !== 0) r.push(['Resultaat uit overige werkzaamheden', d.rowBox1]);
+    if (d.lijfrentePremie > 0) r.push(['Lijfrentepremie (afdeling 3.7)', -d.lijfrentePremie]);
+    if (d.pga > 0) r.push(['Persoonsgebonden aftrek (art. 6.1)', -d.pga]);
     r.push(['Belastbaar inkomen box 1', d.box1Belastbaar, undefined, 'tot']);
     r.push(['IB/PVV box 1 vóór heffingskortingen', d.ibBruto]);
     r.push(['Tariefsaanpassing aftrekposten', d.ta]);
@@ -1157,6 +2082,7 @@ const BVJN = (function () {
       ['Winst vóór DGA-loon', i.winst],
       ['DGA-loon', -d.salaris]
     ];
+    if (d.beroepspensioen > 0) r.push(['Premie beroepspensioenregeling (last van de BV)', -d.beroepspensioen]);
     if (d.werkgeversheffingZvw > 0) r.push(['Werkgeversheffing Zvw (' + pct(T.zvw.werkgeversheffing, 2) + ')', -d.werkgeversheffingZvw]);
     if (d.premiesWnv > 0) r.push(['Premies werknemersverzekeringen', -d.premiesWnv]);
     if (d.wkrAangewezen > 0) {
@@ -1179,19 +2105,28 @@ const BVJN = (function () {
       if (d.ew.hillen > 0) r.push(['Aftrek geen/geringe eigenwoningschuld (Hillen)', -d.ew.hillen]);
       r.push(['Saldo eigen woning', d.ew.saldo]);
     }
+    if (d.uitkeringBox1 !== 0) r.push(['Uitkering of loon uit vroegere arbeid', d.uitkeringBox1]);
+    if (d.rowBox1 !== 0) r.push(['Resultaat uit overige werkzaamheden', d.rowBox1]);
+    if (d.lijfrentePremie > 0) r.push(['Lijfrentepremie (afdeling 3.7)', -d.lijfrentePremie]);
+    if (d.pga > 0) r.push(['Persoonsgebonden aftrek (art. 6.1)', -d.pga]);
     r.push(['Belastbaar inkomen box 1', d.box1Belastbaar, undefined, 'tot']);
     r.push(['IB/PVV box 1 vóór heffingskortingen', d.ibBruto]);
     r.push(['Tariefsaanpassing aftrekposten', d.ta]);
     r.push(['Box-2-heffing over dividend', d.box2]);
     r.push(['Algemene heffingskorting (verzamelinkomen ' + fmt(d.verzamelinkomen) + ')', -d.ahk]);
-    r.push(['Arbeidskorting (arbeidsinkomen ' + fmt(d.salaris) + ')', -d.ak]);
+    r.push(['Arbeidskorting (arbeidsinkomen ' + fmt(d.arbeidsinkomen) + ')', -d.ak]);
     if (d.kortingenOnbenut > 0.5) r.push(['Niet-verrekenbare heffingskorting', d.kortingenOnbenut, undefined, 'sub']);
     r.push(['Verschuldigde IB/PVV en box 2', d.heffingNaKortingen, undefined, 'tot']);
-    r.push(['Bijdrage Zvw DGA', d.zvwDga]);
+    r.push(['Grondslag bijdrage Zvw', d.zvwGrondslag, undefined, 'sub']);
+    r.push(['Bijdrage Zvw DGA (' + pct(T.zvw.bijdrage, 2) + ')', d.zvwDga]);
     r.push(['Netto privé beschikbaar', d.nettoPrive, undefined, 'tot']);
-    r.push(['— Latente claim —', null, undefined, 'sec']);
+    r.push(['— Latente claims —', null, undefined, 'sec']);
     r.push(['Nominale box-2-claim op ingehouden winst', d.claimNominaal]);
     r.push(['Contante waarde (' + d.jaren + ' jaar, ' + pct(d.disco / 100, 1) + ')', d.claimContant]);
+    if (d.wevabClaimNominaal > 0) {
+      r.push(['Verwachte WEVAB-stijging in de BV over ' + d.jaren + ' jaar', d.wevabStijging, undefined, 'sub']);
+      r.push(['Contante waarde box-2-claim landbouwgrond (art. 3.12)', d.wevabClaimContant]);
+    }
     r.push(['Economische positie BV', d.economisch, undefined, 'tot']);
     return r;
   }
@@ -1414,6 +2349,50 @@ const BVJN = (function () {
     markeerStale();
   }
 
+  function setStarter(v) {
+    starter = v;
+    el('starter-ja').setAttribute('aria-pressed', String(v));
+    el('starter-nee').setAttribute('aria-pressed', String(!v));
+    markeerStale();
+  }
+
+  /** Toont het aantal jaren dat uit de leeftijden volgt, of het handmatige veld. */
+  function ververseJaren() {
+    const handmatig = el('jarenBron').value === 'handmatig';
+    el('fld-jaren').style.display = handmatig ? '' : 'none';
+    const n = Math.max(0, Math.round(parseFloat(el('pensioenLeeftijd').value) - parseFloat(el('leeftijd').value)));
+    el('hint-jaren').textContent = handmatig
+      ? 'De periode wordt hieronder zelf ingevuld.'
+      : (Number.isFinite(n) ? 'Uit de ingevulde leeftijden volgt ' + n + ' jaar.' : 'Vul een leeftijd en een pensioenleeftijd in.');
+  }
+
+  /** Toont wat de tool met het investeringsbedrag en de vrije ruimte doet. */
+  function ververseAfgeleid() {
+    const inv = parseFloat(el('investering').value);
+    const handmatigeKia = parseFloat(el('kia').value);
+    const h = el('hint-kia');
+    if (Number.isFinite(inv) && inv > 0) {
+      h.textContent = 'Bij deze investering bedraagt de KIA € '
+        + Math.round(BVJN.kiaBedrag(inv)).toLocaleString('nl-NL')
+        + ' (art. 3.41 lid 2). Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen tellen niet mee.';
+    } else if (Number.isFinite(handmatigeKia) && handmatigeKia > 0) {
+      h.textContent = 'Er is geen investeringsbedrag ingevuld; de tool rekent met de handmatig ingevulde KIA en toetst die niet aan de tabel.';
+    } else {
+      h.textContent = 'De KIA volgt uit de tabel van art. 3.41. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen (personenauto\'s, grond) tellen niet mee.';
+    }
+    const loonsom = (parseFloat(el('salaris').value) || 0) + (parseFloat(el('loonsomOverig').value) || 0);
+    el('hint-vrijeruimte').textContent = 'Bij een fiscale loonsom van € '
+      + Math.round(loonsom).toLocaleString('nl-NL') + ' is de vrije ruimte € '
+      + Math.round(BVJN.wkrVrijeRuimte(loonsom)).toLocaleString('nl-NL')
+      + ' (2,00% tot € 400.000 en 1,18% daarboven, art. 31a lid 3 Wet LB 1964).';
+    const grondslag = Math.max(0, Math.min(T.lijfrente.maxPremiegrondslag, parseFloat(el('winst').value) || 0) - T.lijfrente.franchise);
+    el('hint-jaarruimte').textContent = 'Aftrekpost op het inkomen (afdeling 3.7), geen winstpost. '
+      + 'De jaarruimte bedraagt bij deze winst en zonder pensioenaangroei ten hoogste € '
+      + Math.round(T.lijfrente.jaarruimtePct * grondslag).toLocaleString('nl-NL')
+      + ' (art. 3.127 lid 1 en 3), plus maximaal € ' + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
+      + ' reserveringsruimte. De tool toetst dat niet.';
+  }
+
   function setWnv(v) {
     dgaVerzekerd = v;
     el('wnv-ja').setAttribute('aria-pressed', String(v));
@@ -1426,14 +2405,200 @@ const BVJN = (function () {
   }
 
   function switchTab(id) {
-    const isInvoer = id === 'invoer';
-    el('tab-invoer').style.display = isInvoer ? '' : 'none';
-    el('tab-nota').style.display = isInvoer ? 'none' : '';
-    el('tabbtn-invoer').classList.toggle('active', isInvoer);
-    el('tabbtn-nota').classList.toggle('active', !isInvoer);
-    el('tabbtn-invoer').setAttribute('aria-selected', String(isInvoer));
-    el('tabbtn-nota').setAttribute('aria-selected', String(!isInvoer));
-    if (!isInvoer && state) buildNota();
+    const tabs = ['invoer', 'inbreng', 'nota'];
+    tabs.forEach(function (t) {
+      const paneel = el('tab-' + t);
+      const knop = el('tabbtn-' + t);
+      if (!paneel || !knop) return;
+      const actief = t === id;
+      paneel.style.display = actief ? '' : 'none';
+      knop.classList.toggle('active', actief);
+      knop.setAttribute('aria-selected', String(actief));
+    });
+    if (id === 'nota' && state) buildNota();
+  }
+
+  /* ---------------- inbreng: ruisend of geruisloos ---------------- */
+  let obVrijstelling = true;
+  let arbeidsongeschikt = false;
+  let directIngaand = false;
+
+  const IN_VELDEN = ['in-goodwill', 'in-stilleReserves', 'in-desinvestering', 'in-oudedagsreserve',
+    'in-onroerendeZaak', 'in-leeftijd', 'in-pensioenLeeftijd', 'in-reedsOpgebouwd',
+    'in-eerderStakingsaftrek', 'in-winstJaar', 'in-pensioenaangroei', 'in-reserveringsruimte',
+    'in-tariefStaking', 'in-tariefUitkering', 'in-vpbTarief', 'in-box2Tarief', 'in-disco',
+    'in-jarenGoodwill', 'in-jarenPand', 'in-jarenAb', 'in-latenteIbCreditering', 'in-aandelenkapitaal'];
+
+  const IN_VELD_MSG = {
+    goodwill: 'msg-goodwill', stilleReserves: 'msg-stilleReserves',
+    desinvestering: 'msg-desinvestering', oudedagsreserve: 'msg-oudedagsreserve',
+    onroerendeZaak: 'msg-onroerendeZaak', leeftijd: 'msg-in-leeftijd',
+    pensioenLeeftijd: 'msg-in-pensioenLeeftijd', reedsOpgebouwd: 'msg-reedsOpgebouwd',
+    eerderStakingsaftrek: 'msg-eerderStakingsaftrek', winstJaar: 'msg-winstJaar',
+    pensioenaangroei: 'msg-pensioenaangroei', reserveringsruimte: 'msg-reserveringsruimte',
+    tariefStaking: 'msg-tariefStaking', tariefUitkering: 'msg-tariefUitkering',
+    vpbTarief: 'msg-vpbTarief', box2Tarief: 'msg-box2Tarief', disco: 'msg-in-disco',
+    jarenGoodwill: 'msg-jarenGoodwill', jarenPand: 'msg-jarenPand', jarenAb: 'msg-jarenAb',
+    latenteIbCreditering: 'msg-latenteIbCreditering', aandelenkapitaal: 'msg-aandelenkapitaal'
+  };
+
+  function leesInbreng() {
+    const g = function (id) { return el('in-' + id).value; };
+    return {
+      goodwill: g('goodwill'), stilleReserves: g('stilleReserves'),
+      desinvestering: g('desinvestering'), oudedagsreserve: g('oudedagsreserve'),
+      onroerendeZaak: g('onroerendeZaak'), obVrijstelling: obVrijstelling,
+      leeftijd: g('leeftijd'), pensioenLeeftijd: g('pensioenLeeftijd'),
+      arbeidsongeschikt: arbeidsongeschikt, directIngaand: directIngaand,
+      reedsOpgebouwd: g('reedsOpgebouwd'), eerderStakingsaftrek: g('eerderStakingsaftrek'),
+      winstJaar: g('winstJaar'), pensioenaangroei: g('pensioenaangroei'),
+      reserveringsruimte: g('reserveringsruimte'),
+      tariefStaking: g('tariefStaking'), tariefUitkering: g('tariefUitkering'),
+      vpbTarief: g('vpbTarief'), box2Tarief: g('box2Tarief'), disco: g('disco'),
+      jarenGoodwill: g('jarenGoodwill'), jarenPand: g('jarenPand'), jarenAb: g('jarenAb'),
+      latenteIbCreditering: g('latenteIbCreditering'), aandelenkapitaal: g('aandelenkapitaal')
+    };
+  }
+
+  function setObVrij(v) {
+    obVrijstelling = v;
+    el('ob-ja').setAttribute('aria-pressed', String(v));
+    el('ob-nee').setAttribute('aria-pressed', String(!v));
+    el('hint-ob').textContent = v
+      ? 'Er is geen overdrachtsbelasting berekend. De vrijstelling geldt bij beide routes en is dus niet onderscheidend.'
+      : 'Over de onroerende zaken is ' + pct(T.inbreng.obTariefNietWoning, 1) + ' overdrachtsbelasting berekend, het tarief voor niet-woningen (art. 14 lid 1 WBR). Gaat er een woning naar de BV, dan geldt ' + pct(T.inbreng.obTariefWoning, 0) + ' (lid 2); het tarief van 2% vraagt een natuurlijk persoon die er zelf gaat wonen en kan bij een BV nooit gelden. Reken dat deel zo nodig apart.';
+    ververseInbrengHints();
+  }
+  function setAo(v) {
+    arbeidsongeschikt = v;
+    el('ao-ja').setAttribute('aria-pressed', String(v));
+    el('ao-nee').setAttribute('aria-pressed', String(!v));
+    ververseInbrengHints();
+  }
+  function setDirect(v) {
+    directIngaand = v;
+    el('di-ja').setAttribute('aria-pressed', String(v));
+    el('di-nee').setAttribute('aria-pressed', String(!v));
+    ververseInbrengHints();
+  }
+
+  function ververseInbrengHints() {
+    const i = BVJN.normaliseerInbreng(leesInbreng());
+    const cat = BVJN.stakingslijfrenteMax(i);
+    const uitleg = {
+      a: 'ten hoogste vijf jaar jonger dan de AOW-leeftijd, of arbeidsongeschikt met direct ingaande termijnen',
+      b: 'ten hoogste vijftien jaar jonger dan de AOW-leeftijd, of direct ingaande termijnen',
+      c: 'geen van beide'
+    };
+    el('hint-categorie').textContent = 'Art. 3.129 lid 2 onderdeel ' + cat.onderdeel + ': maximaal € '
+      + cat.bedrag.toLocaleString('nl-NL') + ' (' + uitleg[cat.onderdeel] + '). De categorie volgt uit de wet en is geen keuze.';
+    const jr = BVJN.jaarruimte(i.winstJaar, i.pensioenaangroei);
+    el('hint-ruimte').textContent = 'Art. 3.127 lid 2: ten hoogste € '
+      + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
+      + ', en alleen voor zover de jaarruimte van de tien voorafgaande jaren niet is benut. '
+      + 'De jaarruimte over de ingevulde winst is € ' + Math.round(jr).toLocaleString('nl-NL') + '.';
+    const afr = Math.min(i.aandelenkapitaal * 0.05, T.inbreng.crediteringMax);
+    el('hint-creditering').textContent = 'Vierde standaardvoorwaarde bij art. 3.65: creditering van de op het '
+      + 'overgangstijdstip materieel verschuldigde heffing, plus een afrondingscreditering van ten hoogste 5% van '
+      + 'het gestorte bedrag met een absoluut maximum van € ' + T.inbreng.crediteringMax.toLocaleString('nl-NL')
+      + ' per inbrenger. Bij de ingevulde bedragen is dat € ' + Math.round(afr).toLocaleString('nl-NL')
+      + ' afrondingscreditering, samen € ' + Math.round(i.latenteIbCreditering + afr).toLocaleString('nl-NL') + '.';
+  }
+
+  function toonInbrengMeldingen(v) {
+    Object.keys(IN_VELD_MSG).forEach(function (k) {
+      const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = ''; m.className = 'fmsg'; }
+    });
+    Object.keys(v.veldFouten).forEach(function (k) {
+      const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = v.veldFouten[k]; m.className = 'fmsg e'; }
+    });
+    Object.keys(v.veldWaarschuwingen).forEach(function (k) {
+      if (v.veldFouten[k]) return;
+      const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = v.veldWaarschuwingen[k]; m.className = 'fmsg w'; }
+    });
+    const be = el('in-box-err'), le = el('in-list-err');
+    le.innerHTML = '';
+    if (v.fouten.length) {
+      v.fouten.forEach(function (t) { const li = document.createElement('li'); li.textContent = t; le.appendChild(li); });
+      be.style.display = '';
+    } else be.style.display = 'none';
+    const bw = el('in-box-warn'), lw = el('in-list-warn');
+    lw.innerHTML = '';
+    if (v.waarschuwingen.length) {
+      v.waarschuwingen.forEach(function (t) { const li = document.createElement('li'); li.textContent = t; lw.appendChild(li); });
+      bw.style.display = '';
+    } else bw.style.display = 'none';
+  }
+
+  function berekenInbrengUI() {
+    const raw = leesInbreng();
+    const v = BVJN.valideerInbreng(raw);
+    toonInbrengMeldingen(v);
+    if (!v.ok) {
+      el('in-res').classList.remove('show');
+      el('in-box-err').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    const u = BVJN.berekenInbreng(raw);
+
+    const verd = el('in-verd');
+    verd.className = 'verd ' + (u.route === 'gelijk' ? 'gelijk' : (u.route === 'geruisloos' ? 'bv' : 'ib'));
+    el('in-vico').textContent = u.route === 'gelijk' ? '≈' : '✓';
+    el('in-vtitle').textContent = u.route === 'gelijk'
+      ? 'Beide routes komen op contante waarde vrijwel gelijk uit'
+      : (u.route === 'geruisloos'
+        ? 'Geruisloos inbrengen is op contante waarde voordeliger'
+        : 'Ruisend inbrengen is op contante waarde voordeliger');
+    el('in-vsub').textContent = 'Ruisend € ' + Math.round(u.ruisendLast).toLocaleString('nl-NL')
+      + ' tegenover geruisloos € ' + Math.round(u.geruislozeLast).toLocaleString('nl-NL')
+      + ', beide als contante waarde van de totale fiscale last.';
+    el('in-vamt').textContent = fmt(Math.abs(u.voordeelGeruisloos)) + ' verschil op contante waarde';
+
+    vulTabel('in-tb-ruisend', [
+      ['Goodwill', u.input.goodwill],
+      ['Stille reserves', u.input.stilleReserves],
+      ['Desinvesteringsbijtelling', u.input.desinvestering],
+      ['Vrijval oudedagsreserve', u.input.oudedagsreserve],
+      ['Stakingswinst', u.stakingswinst, undefined, 'tot'],
+      ['Stakingsaftrek (art. 3.79, ruimte ' + fmt(u.stakingsaftrekRuimte) + ')', -u.stakingsaftrek],
+      ['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ')', -u.mkbInbreng],
+      ['Stakingslijfrente (art. 3.129 lid 2 onderdeel ' + u.lijfrenteCategorie + ', maximaal ' + fmt(u.stakingslijfrenteRuimte) + ')', -u.stakingslijfrente],
+      ['Jaarruimte (art. 3.127 lid 1)', -Math.min(u.overigeLijfrente, u.jaarruimte), undefined, 'sub'],
+      ['Reserveringsruimte (art. 3.127 lid 2)', -Math.max(0, u.overigeLijfrente - u.jaarruimte), undefined, 'sub'],
+      ['Belastbaar restant', u.belastbaarRestant, undefined, 'tot'],
+      ['Inkomstenbelasting over het restant (' + pct(u.input.tariefStaking / 100, 1) + ')', u.ibDirect],
+      ['Bijdrage Zvw over het restant', u.zvwStaking],
+      ['Contante waarde IB over de lijfrentetermijnen (' + u.jarenTotUitkering + ' jaar, ' + pct(u.input.tariefUitkering / 100, 1) + ')', u.latenteIbLijfrente],
+      ['Overdrachtsbelasting', u.ob],
+      ['Totale last ruisende inbreng, contante waarde', u.ruisendLast, undefined, 'tot']
+    ]);
+
+    vulTabel('in-tb-geruisloos', [
+      ['Directe heffing bij de ondernemer', 0],
+      ['Gemiste afschrijving op de goodwill: ' + fmt(u.afschrijvingPerJaar) + ' per jaar, ' + u.input.jarenGoodwill + ' jaar', u.gemisteAfschrijving],
+      ['Contante waarde VPB-claim over de stille reserves (' + u.input.jarenPand + ' jaar)', u.vpbClaimReserves],
+      ['Reserves na vennootschapsbelasting', u.naVpb, undefined, 'sub'],
+      ['Contante waarde box 2-claim daarover (' + u.input.jarenAb + ' jaar, ' + pct(u.input.box2Tarief / 100, 1) + ')', u.abClaim],
+      ['Overdrachtsbelasting', u.ob],
+      ['Totale last geruisloze inbreng, contante waarde', u.geruislozeLast, undefined, 'tot'],
+      ['— Creditering —', null, undefined, 'sec'],
+      ['Materieel verschuldigde heffing op het overgangstijdstip', u.input.latenteIbCreditering],
+      ['Afrondingscreditering (5%, maximaal ' + fmt(T.inbreng.crediteringMax) + ')', u.afrondingscreditering],
+      ['Maximale creditering', u.crediteringMax, undefined, 'tot']
+    ]);
+
+    el('in-afbakening').textContent =
+      'Deze vergelijking toetst niet of aan de voorwaarden van art. 3.65 is voldaan: een materiële onderneming, '
+      + 'gelijke gerechtigdheid van de oprichters, een tijdig ingediend verzoek en aanvaarding van de '
+      + 'standaardvoorwaarden. Zij rekent evenmin met het overgangstijdstip en de terugwerkende kracht '
+      + '(voorovereenkomst binnen negen maanden, oprichting en inbreng binnen vijftien maanden), met de '
+      + 'sanctie bij vervreemding van de aandelen binnen drie jaar, met de verkrijgingsprijs van het '
+      + 'aanmerkelijk belang, met de bosbouw- en landbouwvrijstelling in de stakingswinst, met een '
+      + 'terugkeerreserve, en met de bedrijfsfusie van art. 14 Wet Vpb 1969 wanneer er meerdere '
+      + 'firmanten zijn. De perioden en de toekomstige tarieven zijn aannames; verander ze en kijk of de '
+      + 'conclusie standhoudt.';
+
+    el('in-res').classList.add('show');
   }
 
   function printNota() {
@@ -1454,18 +2619,38 @@ const BVJN = (function () {
   // exporteer de handlers die de HTML aanroept
   window.bereken = bereken;
   window.setUren = setUren;
+  window.setStarter = setStarter;
   window.setWnv = setWnv;
+  window.setObVrij = setObVrij;
+  window.setAo = setAo;
+  window.setDirect = setDirect;
+  window.berekenInbrengUI = berekenInbrengUI;
   window.switchTab = switchTab;
   window.printNota = printNota;
 
   document.addEventListener('DOMContentLoaded', function () {
     setWnv(false);
     setUren(true);
+    setStarter(false);
+    // Het lage box 2-tarief is de standaardaanname voor het toekomstige tarief.
+    el('claimTariefVast').value = String(T.box2.laag * 100);
+    setObVrij(true);
+    setAo(false);
+    setDirect(false);
+    ververseJaren();
+    ververseAfgeleid();
+    IN_VELDEN.forEach(function (id) {
+      const n = el(id);
+      if (!n) return;
+      n.addEventListener('input', ververseInbrengHints);
+      n.addEventListener('change', ververseInbrengHints);
+    });
     VELDEN.forEach(function (id) {
       const n = el(id);
       if (!n) return;
-      n.addEventListener('input', markeerStale);
-      n.addEventListener('change', markeerStale);
+      const bij = function () { ververseJaren(); ververseAfgeleid(); markeerStale(); };
+      n.addEventListener('input', bij);
+      n.addEventListener('change', bij);
     });
     // stale-banner ook op het notablad
     const nb = document.createElement('div');
@@ -1479,6 +2664,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 28 aug 2026, 00:14</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:38</div>
 </body>
 </html>
