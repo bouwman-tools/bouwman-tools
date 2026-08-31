@@ -483,6 +483,15 @@
       </div>
 
       <div class="card" style="margin-top:14px">
+        <div class="slabel">Loon of dividend voor de volgende euro's winst</div>
+        <div class="tblwrap"><table class="ctable">
+          <thead><tr><th scope="col">Route</th><th scope="col">Netto privé beschikbaar</th><th scope="col">Marginale druk</th></tr></thead>
+          <tbody id="tb-loondiv"></tbody>
+        </table></div>
+        <div class="hint" id="hint-loondiv" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
         <div class="slabel">Gevoeligheidsanalyse winstniveau</div>
         <div class="tblwrap"><table class="ctable">
           <thead><tr><th scope="col">Winst</th><th scope="col">Voordeel BV (economisch)</th><th scope="col">Druk IB</th><th scope="col">Druk BV</th><th scope="col">Netto privé IB</th><th scope="col">Netto privé BV</th><th scope="col">Ingehouden in BV</th></tr></thead>
@@ -1492,6 +1501,49 @@ const BVJN = (function () {
     return { ok: true, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
   }
 
+  /**
+   * Loon of dividend? Een euro winst in de BV kan twee kanten op: als loon naar de DGA,
+   * of eerst door de vennootschapsbelasting en daarna als dividend. Deze functie rekent
+   * dat uit met de rekenkern zelf, dus met de werkelijke marginale druk inclusief de
+   * afbouw van de heffingskortingen, en niet met ingetypte marginale tarieven.
+   *
+   * Beide varianten gaan uit van hetzelfde bedrag aan winst vóór vennootschapsbelasting.
+   * In de loonvariant gaat het bedrag als loon naar de DGA en verdwijnt het uit de
+   * VPB-grondslag. In de dividendvariant blijft het in de BV, wordt het belast met
+   * vennootschapsbelasting en wordt het restant uitgekeerd. Beide routes onttrekken
+   * daarmee precies evenveel aan de BV, zodat het uitstelvoordeel van de latente
+   * box-2-claim in beide gelijk is en buiten de vergelijking kan blijven. Vergeleken
+   * wordt dus wat er netto privé beschikbaar komt.
+   */
+  function loonOfDividend(raw, bedrag) {
+    const i = normaliseer(raw);
+    const d = Math.abs(num(bedrag, 10000)) || 10000;
+    const basis = berekenBV(i);
+
+    // Marginaal VPB-tarief bij de huidige grondslag (art. 22 Wet Vpb 1969).
+    const vpbMarginaal = basis.vpbGrondslag > TARIEVEN.vpb.grens
+      ? TARIEVEN.vpb.hoog : TARIEVEN.vpb.laag;
+    const netVpb = d * (1 - vpbMarginaal);
+
+    const viaLoon = berekenBV(Object.assign({}, i, { salaris: pos(i.salaris) + d }));
+    const viaDividend = berekenBV(Object.assign({}, i, { dividend: pos(i.dividend) + netVpb }));
+
+    const winstLoon = viaLoon.nettoPrive - basis.nettoPrive;
+    const winstDividend = viaDividend.nettoPrive - basis.nettoPrive;
+
+    return {
+      bedrag: d, vpbMarginaal, netVpb,
+      basis, viaLoon, viaDividend,
+      resultaatLoon: winstLoon,
+      resultaatDividend: winstDividend,
+      verschil: winstLoon - winstDividend,
+      // De marginale druk is wat er van het bedrag NIET overblijft.
+      drukLoon: d > 0 ? 1 - winstLoon / d : null,
+      drukDividend: d > 0 ? 1 - winstDividend / d : null,
+      keuze: Math.abs(winstLoon - winstDividend) < 1 ? 'gelijk' : (winstLoon > winstDividend ? 'loon' : 'dividend')
+    };
+  }
+
   /* ==========================================================================
      INBRENG IN EEN BV — ruisend tegenover geruisloos
      ==========================================================================
@@ -1829,7 +1881,7 @@ const BVJN = (function () {
     box1Belasting, algemeneHeffingskorting, arbeidskorting, box2Belasting, vpbBelasting,
     eigenwoningforfait, eigenwoningSaldo, tariefsaanpassing, zvwOverGrondslag, wkrVrijeRuimte,
     kiaBedrag, kiaVanInvoer, jarenTotHeffing,
-    stakingslijfrenteMax, jaarruimte,
+    stakingslijfrenteMax, jaarruimte, loonOfDividend,
     normaliseerInbreng, berekenInbreng, valideerInbreng,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
@@ -2179,6 +2231,17 @@ const BVJN = (function () {
     vulTabel('tb-belasting', rijenBelasting(s));
     vulTabel('tb-kosten', rijenKosten(s));
     vulTabel('tb-liq', rijenLiquiditeit(s));
+    const ld = BVJN.loonOfDividend(raw, 10000);
+    s.loonDividend = ld;
+    vulTabel('tb-loondiv', [
+      ['Als brutoloon aan de DGA', ld.resultaatLoon, pct(ld.drukLoon, 1)],
+      ['Als dividend, na ' + pct(ld.vpbMarginaal, 1) + ' vennootschapsbelasting', ld.resultaatDividend, pct(ld.drukDividend, 1)],
+      ['Verschil in het voordeel van ' + (ld.keuze === 'gelijk' ? 'geen van beide' : ld.keuze), Math.abs(ld.verschil), '', 'tot']
+    ]);
+    el('hint-loondiv').textContent = ld.keuze === 'gelijk'
+      ? 'Bij dit inkomen maakt het nauwelijks uit of de volgende € ' + ld.bedrag.toLocaleString('nl-NL') + ' winst als loon of als dividend naar privé gaat.'
+      : 'Bij dit inkomen levert ' + ld.keuze + ' netto privé € ' + Math.round(Math.abs(ld.verschil)).toLocaleString('nl-NL')
+        + ' meer op over de volgende € ' + ld.bedrag.toLocaleString('nl-NL') + ' winst vóór vennootschapsbelasting. Beide routes onttrekken evenveel aan de BV, dus het uitstelvoordeel van de latente box-2-claim valt tegen elkaar weg. De marginale druk is berekend met de rekenkern zelf, dus inclusief de afbouw van de algemene heffingskorting en de arbeidskorting en inclusief de bijdrage Zvw. Let op: het loon moet hoe dan ook aan de gebruikelijkloonregeling van art. 12a Wet LB voldoen, en dividend vraagt een uitkeringstoets.';
     vulTabel('tb-detib', rijenDetailIB(s));
     vulTabel('tb-detbv', rijenDetailBV(s));
     vulGevoeligheid(s);
@@ -2664,6 +2727,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:38</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:44</div>
 </body>
 </html>
