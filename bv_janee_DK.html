@@ -483,6 +483,29 @@
       </div>
 
       <div class="card" style="margin-top:14px">
+        <div class="slabel">Meerjarig beeld</div>
+        <div class="grid2" style="margin-bottom:10px">
+          <div class="fld" style="margin-bottom:0">
+            <label for="mjJaren">Aantal jaren</label>
+            <input type="number" id="mjJaren" value="20" step="1" min="1" max="40" inputmode="numeric" onchange="bereken()">
+          </div>
+          <div class="fld" style="margin-bottom:0">
+            <label for="mjGroei">Winstgroei per jaar (%)</label>
+            <input type="number" id="mjGroei" value="0" step="0.5" min="-20" max="25" inputmode="decimal" onchange="bereken()">
+          </div>
+          <div class="fld" style="margin-bottom:0">
+            <label for="mjRendement">Nettorendement op het voordeel (%)</label>
+            <input type="number" id="mjRendement" value="0" step="0.5" min="-10" max="15" inputmode="decimal" onchange="bereken()">
+          </div>
+        </div>
+        <div class="tblwrap"><table class="ctable">
+          <thead><tr><th scope="col">Jaar</th><th scope="col">Winst</th><th scope="col">Voordeel BV dat jaar</th><th scope="col">Cumulatief, met rendement</th></tr></thead>
+          <tbody id="tb-meerjarig"></tbody>
+        </table></div>
+        <div class="hint" id="hint-meerjarig" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
         <div class="slabel">Loon of dividend voor de volgende euro's winst</div>
         <div class="tblwrap"><table class="ctable">
           <thead><tr><th scope="col">Route</th><th scope="col">Netto privé beschikbaar</th><th scope="col">Marginale druk</th></tr></thead>
@@ -832,9 +855,16 @@ const BVJN = (function () {
     // Algemene heffingskorting (art. 8.10 Wet IB 2001) — grondslag: verzamelinkomen
     ahk: { max: 3115, afbouwStart: 29736, afbouwPct: 0.06398 },
 
-    // Arbeidskorting (art. 8.11 Wet IB 2001) — grondslag: arbeidsinkomen
+    // Arbeidskorting (art. 8.11 lid 2 Wet IB 2001) — grondslag: arbeidsinkomen.
+    // g1, g2 en g3 zijn de bedragen waarboven de onderdelen b, c en d gaan lopen;
+    // m1, m2 en max zijn de maxima op de cumulatieve som na de onderdelen a, b en c.
+    // g4 wordt NIET gebruikt in de berekening en staat hier alleen ter documentatie: het
+    // is de door de Belastingdienst gepubliceerde bovengrens van het afbouwtraject,
+    // afgerond van het rekenkundige nulpunt 45.592 + 5.685 / 0,0651 = 132.919,19. De wet
+    // noemt die grens niet; art. 8.11 lid 2 onderdeel d bouwt af tot nihil en verder niet.
     ak: {
-      g1: 11965, g2: 25845, g3: 45592, g4: 132920,
+      g1: 11965, g2: 25845, g3: 45592,
+      g4: 132920,                       // informatief, zie hierboven
       p1: 0.08324, p2: 0.31009, p3: 0.0195, p4: 0.0651,
       m1: 996, m2: 5300, max: 5685
     },
@@ -909,7 +939,10 @@ const BVJN = (function () {
     wkr: { grens: 400000, pctLaag: 0.02, pctHoog: 0.0118, eindheffing: 0.80 },
 
     // Tariefsaanpassing aftrekposten (art. 2.10 lid 2 Wet IB 2001)
-    ta: { grens: 78426, maxAftrektarief: 0.3756, correctie: 0.1194 },
+    // maxAftrektarief wordt niet in de berekening gebruikt: het volgt uit 49,50% minus
+    // de correctie van 11,94% en staat hier omdat het de uitkomst van de regeling is die
+    // een lezer verwacht terug te zien.
+    ta: { grens: 78426, correctie: 0.1194, maxAftrektarief: 0.3756 },
 
     // Eigen woning (art. 3.112 / 3.123a Wet IB 2001)
     // schijven: [bovengrens WOZ, percentage over de HELE waarde]
@@ -1502,6 +1535,46 @@ const BVJN = (function () {
   }
 
   /**
+   * Meerjarig beeld van het jaarlijkse verschil in lasten. Het verschil van één jaar zegt
+   * weinig; een ondernemer wil weten wat het over de looptijd oplevert.
+   *
+   * Dit is een projectie en geen rekenregel. Zij veronderstelt dat de tarieven van 2026
+   * blijven gelden, dat de winst met een vast percentage groeit en dat het voordeel tegen
+   * een vast nettorendement wordt aangehouden. Het voordeel van een jaar valt gedurende
+   * dat jaar vrij en rendeert daarom in het eerste jaar over de helft van de periode.
+   * Latente claims blijven hier buiten beschouwing: die staan in perspectief 2.
+   */
+  function meerjarig(raw, opties) {
+    const o = opties || {};
+    const jaren = Math.max(1, Math.min(40, Math.round(num(o.jaren, 20))));
+    const groei = num(o.groei, 0) / 100;
+    const rendement = num(o.rendement, 0) / 100;
+    const basis = normaliseer(raw);
+
+    const rijen = [];
+    let cumulatief = 0;
+    for (let n = 1; n <= jaren; n++) {
+      const winst = basis.winst * Math.pow(1 + groei, n - 1);
+      const inp = metGecapteDividend(basis, winst);
+      const v = vergelijk(inp);
+      // Het bestaande saldo rendeert een vol jaar, het voordeel van dit jaar een half jaar.
+      cumulatief = cumulatief * (1 + rendement) + v.voordeelJaarlijks * (1 + rendement / 2);
+      rijen.push({
+        jaar: n, winst: winst,
+        voordeel: v.voordeelJaarlijks,
+        voordeelEconomisch: v.voordeelEconomisch,
+        cumulatief: cumulatief
+      });
+    }
+    const somNominaal = rijen.reduce(function (a, r) { return a + r.voordeel; }, 0);
+    return {
+      jaren, groei: o.groei, rendement: o.rendement,
+      rijen, somNominaal, eindsaldo: cumulatief,
+      rendementseffect: cumulatief - somNominaal
+    };
+  }
+
+  /**
    * Loon of dividend? Een euro winst in de BV kan twee kanten op: als loon naar de DGA,
    * of eerst door de vennootschapsbelasting en daarna als dividend. Deze functie rekent
    * dat uit met de rekenkern zelf, dus met de werkelijke marginale druk inclusief de
@@ -1881,7 +1954,7 @@ const BVJN = (function () {
     box1Belasting, algemeneHeffingskorting, arbeidskorting, box2Belasting, vpbBelasting,
     eigenwoningforfait, eigenwoningSaldo, tariefsaanpassing, zvwOverGrondslag, wkrVrijeRuimte,
     kiaBedrag, kiaVanInvoer, jarenTotHeffing,
-    stakingslijfrenteMax, jaarruimte, loonOfDividend,
+    stakingslijfrenteMax, jaarruimte, loonOfDividend, meerjarig,
     normaliseerInbreng, berekenInbreng, valideerInbreng,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
@@ -2231,6 +2304,24 @@ const BVJN = (function () {
     vulTabel('tb-belasting', rijenBelasting(s));
     vulTabel('tb-kosten', rijenKosten(s));
     vulTabel('tb-liq', rijenLiquiditeit(s));
+    const mj = BVJN.meerjarig(raw, {
+      jaren: el('mjJaren').value, groei: el('mjGroei').value, rendement: el('mjRendement').value
+    });
+    s.meerjarig = mj;
+    const toon = mj.rijen.filter(function (r) {
+      return r.jaar === 1 || r.jaar === mj.jaren || r.jaar % 5 === 0;
+    });
+    vulTabel('tb-meerjarig', toon.map(function (r) {
+      return ['Jaar ' + r.jaar, fmt(r.winst), fmt(r.voordeel), fmt(r.cumulatief)];
+    }).concat([['Totaal nominaal over ' + mj.jaren + ' jaar', '', fmt(mj.somNominaal), fmt(mj.eindsaldo), 'tot']]));
+    el('hint-meerjarig').textContent = 'Projectie op basis van de tarieven van 2026, een winstgroei van '
+      + pct(mj.groei / 100, 1) + ' per jaar en een nettorendement van ' + pct(mj.rendement / 100, 1)
+      + ' op het opgebouwde voordeel. Van het eindsaldo komt ' + fmt(mj.rendementseffect)
+      + ' uit het rendement en de rest uit het jaarlijkse verschil zelf. Dit is perspectief 1: '
+      + 'alleen het verschil in jaarlijkse lasten, zonder de latente box-2-claim. Het is een '
+      + 'projectie en geen rekenregel: tarieven veranderen, en een winst die twintig jaar '
+      + 'gelijk blijft bestaat niet.';
+
     const ld = BVJN.loonOfDividend(raw, 10000);
     s.loonDividend = ld;
     vulTabel('tb-loondiv', [
@@ -2727,6 +2818,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:44</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:48</div>
 </body>
 </html>
