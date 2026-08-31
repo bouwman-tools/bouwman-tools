@@ -167,6 +167,24 @@
     .lk { background: #2D2D2D !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page { margin: 0; size: A4; }
   }
+
+  /* Dossierbalk: de ingevulde gegevens als bestand in de klantmap */
+  .dossierbalk { max-width: 1160px; margin: 0 auto; padding: 12px 24px 0; display: flex;
+    flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+  .dossier-veld { display: flex; flex-direction: column; gap: 5px; }
+  .dossier-veld label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    font-weight: 800; opacity: .75; }
+  .dossier-veld input { width: 280px; max-width: 100%; font: inherit; font-size: 14px;
+    font-weight: 600; padding: 8px 11px; border: 1px solid #cbd5d0; border-radius: 9px; }
+  .dossier-knop { font: inherit; font-size: 13px; font-weight: 700; padding: 9px 14px;
+    border-radius: 9px; border: 1px solid var(--dk-groen, #1f5c3a); cursor: pointer;
+    background: var(--dk-groen, #1f5c3a); color: #fff; }
+  .dossier-knop.stil { background: #fff; color: var(--dk-antr, #24303a); border-color: #cbd5d0; }
+  .dossier-knop:hover { filter: brightness(1.08); }
+  .dossier-melding { font-size: 12.5px; line-height: 1.5; flex: 1 1 240px; opacity: .8; }
+  .dossier-melding.fout { color: #b42318; opacity: 1; font-weight: 600; }
+  .dossier-melding.goed { color: #1f5c3a; opacity: 1; font-weight: 600; }
+  @media (max-width: 900px) { .dossierbalk { padding: 10px 16px 0; } }
 </style>
 </head>
 <body>
@@ -182,6 +200,17 @@
     <div class="lname"><p>DK Accountants &amp; Adviseurs</p><p>Indicatief fiscaal rekenmodel · BV ja/nee 2026</p></div>
   </div>
   <div class="hbadge">Tarieven 2026</div>
+</div>
+
+<div class="dossierbalk noprint">
+  <div class="dossier-veld">
+    <label for="kenmerk">Kenmerk (komt terug in de bestandsnaam)</label>
+    <input type="text" id="kenmerk" maxlength="80" autocomplete="off" placeholder="bijv. klantnaam of dossiernummer">
+  </div>
+  <button type="button" class="dossier-knop" id="dossier-opslaan">Opslaan als bestand</button>
+  <button type="button" class="dossier-knop stil" id="dossier-openen">Bestand openen</button>
+  <input type="file" id="dossier-bestand" accept="application/json,.json" hidden>
+  <span class="dossier-melding" id="dossier-melding">Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer. De tool bewaart zelf niets en verstuurt niets.</span>
 </div>
 
 <div class="tabs" role="tablist" aria-label="Onderdelen">
@@ -1534,6 +1563,130 @@ const BVJN = (function () {
     return { ok: true, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
   }
 
+  /* ==========================================================================
+     DOSSIER — de ingevulde gegevens als bestand
+     ==========================================================================
+     Zodat een berekening in de klantmap kan staan en volgend jaar weer geopend kan
+     worden. De tool bewaart zelf niets: opslaan is een handeling van de gebruiker naar
+     een plek die hij kiest, en er gaat niets naar buiten.
+
+     Bewaard worden de ingetypte teksten en niet de geparseerde bedragen. Bij het openen
+     staat er dan exact wat er stond, inclusief een veld dat nog niet klopte.
+
+     Een dossier wordt gelezen als GEGEVEN, nooit als opdracht: alleen bekende velden
+     worden gebruikt, elke waarde wordt begrensd, en een bestand van een andere tool of
+     van een nieuwere formaatversie wordt geweigerd met een melding in plaats van half
+     ingelezen.
+     ========================================================================== */
+
+  const DOSSIER_TOOL = 'bv-janee';
+  const DOSSIER_FORMAATVERSIE = 1;
+  const DOSSIER_MAX_TEKST = 40;
+  const DOSSIER_MAX_KENMERK = 80;
+
+  const DOSSIER_HOOFD = ['winst', 'investering', 'kia', 'woz', 'rente', 'pga',
+    'uitkeringBox1', 'rowBox1', 'beroepspensioen', 'lijfrentePremie', 'salaris',
+    'dividend', 'bvkosten', 'wkr', 'loonsomOverig', 'wglasten', 'leeftijd',
+    'pensioenLeeftijd', 'jaren', 'disco', 'claimTariefVast', 'wevab', 'wevabStijging',
+    'mjJaren', 'mjGroei', 'mjRendement'];
+  const DOSSIER_HOOFD_KEUZE = {
+    kiaScope: ['beide', 'ib', 'bv'],
+    jarenBron: ['leeftijd', 'handmatig'],
+    claimTarief: ['marginaal', 'top', 'vast']
+  };
+  const DOSSIER_HOOFD_SCHAKELAAR = ['urencriterium', 'starter', 'dgaVerzekerd'];
+
+  const DOSSIER_INBRENG = ['goodwill', 'stilleReserves', 'desinvestering',
+    'oudedagsreserve', 'onroerendeZaak', 'leeftijd', 'pensioenLeeftijd',
+    'reedsOpgebouwd', 'eerderStakingsaftrek', 'winstJaar', 'pensioenaangroei',
+    'reserveringsruimte', 'tariefStaking', 'tariefUitkering', 'vpbTarief',
+    'box2Tarief', 'disco', 'jarenGoodwill', 'jarenPand', 'jarenAb',
+    'latenteIbCreditering', 'aandelenkapitaal'];
+  const DOSSIER_INBRENG_SCHAKELAAR = ['obVrijstelling', 'arbeidsongeschikt', 'directIngaand'];
+
+  function dossierTekst(waarde, maximum) {
+    if (waarde === undefined || waarde === null) return '';
+    if (typeof waarde === 'object') return '';
+    return String(waarde).trim().slice(0, maximum === undefined ? DOSSIER_MAX_TEKST : maximum);
+  }
+
+  function dossierBlok(bron, velden, schakelaars, keuzes) {
+    const b = (bron && typeof bron === 'object' && !Array.isArray(bron)) ? bron : {};
+    const uit = {};
+    velden.forEach(function (n) { uit[n] = dossierTekst(b[n]); });
+    (schakelaars || []).forEach(function (n) { uit[n] = b[n] === true; });
+    Object.keys(keuzes || {}).forEach(function (n) {
+      uit[n] = keuzes[n].indexOf(b[n]) >= 0 ? b[n] : keuzes[n][0];
+    });
+    return uit;
+  }
+
+  /** Zet de huidige stand om in de tekst van een dossierbestand. */
+  function maakDossierTekst(stand) {
+    const s = stand || {};
+    return JSON.stringify({
+      tool: DOSSIER_TOOL,
+      formaatversie: DOSSIER_FORMAATVERSIE,
+      belastingjaar: TARIEVEN.jaar,
+      kenmerk: dossierTekst(s.kenmerk, DOSSIER_MAX_KENMERK),
+      naam: dossierTekst(s.naam, DOSSIER_MAX_KENMERK),
+      hoofd: dossierBlok(s.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
+      inbreng: dossierBlok(s.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, null)
+    }, null, 2);
+  }
+
+  /**
+   * Leest de tekst van een dossierbestand.
+   * @returns {ok:false, fouten:[...]} of {ok:true, dossier:<stand>, waarschuwingen:[...]}
+   */
+  function leesDossier(tekst) {
+    let rauw;
+    try { rauw = JSON.parse(String(tekst)); }
+    catch (e) {
+      return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+    }
+    if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+      return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+    }
+    if (rauw.tool !== DOSSIER_TOOL) {
+      return { ok: false, fouten: ['Dit dossier hoort niet bij de tool BV ja/nee.'] };
+    }
+    const versie = rauw.formaatversie;
+    if (!Number.isInteger(versie) || versie < 1) {
+      return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+    }
+    if (versie > DOSSIER_FORMAATVERSIE) {
+      return { ok: false, fouten: ['Dit dossier is gemaakt met een nieuwere versie van de tool (formaat '
+        + versie + ', deze tool leest ' + DOSSIER_FORMAATVERSIE + '). Werk de tool bij.'] };
+    }
+    const waarschuwingen = [];
+    if (Number.isInteger(rauw.belastingjaar) && rauw.belastingjaar !== TARIEVEN.jaar) {
+      waarschuwingen.push('Dit dossier is gemaakt voor belastingjaar ' + rauw.belastingjaar
+        + '. Deze tool rekent met de tarieven van ' + TARIEVEN.jaar
+        + '; de uitkomst wijkt dus af van wat er destijds uitkwam.');
+    }
+    return {
+      ok: true,
+      waarschuwingen: waarschuwingen,
+      dossier: {
+        kenmerk: dossierTekst(rauw.kenmerk, DOSSIER_MAX_KENMERK),
+        naam: dossierTekst(rauw.naam, DOSSIER_MAX_KENMERK),
+        hoofd: dossierBlok(rauw.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
+        inbreng: dossierBlok(rauw.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, null)
+      }
+    };
+  }
+
+  /** Bestandsnaam voor een dossier: het kenmerk, ontdaan van wat een pad kan breken. */
+  function dossierBestandsnaam(kenmerk) {
+    const schoon = dossierTekst(kenmerk, DOSSIER_MAX_KENMERK)
+      .replace(/[^\wÀ-ɏ -]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 60);
+    return 'bv-janee-' + (schoon ? schoon.replace(/ /g, '-') : 'dossier') + '.json';
+  }
+
   /**
    * Meerjarig beeld van het jaarlijkse verschil in lasten. Het verschil van één jaar zegt
    * weinig; een ondernemer wil weten wat het over de looptijd oplevert.
@@ -1955,6 +2108,7 @@ const BVJN = (function () {
     eigenwoningforfait, eigenwoningSaldo, tariefsaanpassing, zvwOverGrondslag, wkrVrijeRuimte,
     kiaBedrag, kiaVanInvoer, jarenTotHeffing,
     stakingslijfrenteMax, jaarruimte, loonOfDividend, meerjarig,
+    maakDossierTekst, leesDossier, dossierBestandsnaam,
     normaliseerInbreng, berekenInbreng, valideerInbreng,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
@@ -2520,6 +2674,96 @@ const BVJN = (function () {
     a.appendChild(p);
   }
 
+  /* ---------------- dossier: opslaan en openen ---------------- */
+  function dossierStand() {
+    const lees = function (id) { const n = el(id); return n ? n.value : ''; };
+    const hoofd = {};
+    ['winst', 'investering', 'kia', 'woz', 'rente', 'pga', 'uitkeringBox1', 'rowBox1',
+      'beroepspensioen', 'lijfrentePremie', 'salaris', 'dividend', 'bvkosten', 'wkr',
+      'loonsomOverig', 'wglasten', 'leeftijd', 'pensioenLeeftijd', 'jaren', 'disco',
+      'claimTariefVast', 'wevab', 'wevabStijging', 'mjJaren', 'mjGroei', 'mjRendement',
+      'kiaScope', 'jarenBron', 'claimTarief'].forEach(function (id) { hoofd[id] = lees(id); });
+    hoofd.urencriterium = urencriterium;
+    hoofd.starter = starter;
+    hoofd.dgaVerzekerd = dgaVerzekerd;
+
+    const inbreng = {};
+    ['goodwill', 'stilleReserves', 'desinvestering', 'oudedagsreserve', 'onroerendeZaak',
+      'leeftijd', 'pensioenLeeftijd', 'reedsOpgebouwd', 'eerderStakingsaftrek', 'winstJaar',
+      'pensioenaangroei', 'reserveringsruimte', 'tariefStaking', 'tariefUitkering',
+      'vpbTarief', 'box2Tarief', 'disco', 'jarenGoodwill', 'jarenPand', 'jarenAb',
+      'latenteIbCreditering', 'aandelenkapitaal'].forEach(function (n) { inbreng[n] = lees('in-' + n); });
+    inbreng.obVrijstelling = obVrijstelling;
+    inbreng.arbeidsongeschikt = arbeidsongeschikt;
+    inbreng.directIngaand = directIngaand;
+
+    return { kenmerk: lees('kenmerk'), naam: lees('naam'), hoofd: hoofd, inbreng: inbreng };
+  }
+
+  function zetDossier(d) {
+    const zet = function (id, waarde) { const n = el(id); if (n) n.value = waarde; };
+    zet('kenmerk', d.kenmerk);
+    zet('naam', d.naam);
+    Object.keys(d.hoofd).forEach(function (id) {
+      if (id === 'urencriterium' || id === 'starter' || id === 'dgaVerzekerd') return;
+      zet(id, d.hoofd[id]);
+    });
+    Object.keys(d.inbreng).forEach(function (n) {
+      if (n === 'obVrijstelling' || n === 'arbeidsongeschikt' || n === 'directIngaand') return;
+      zet('in-' + n, d.inbreng[n]);
+    });
+    setUren(d.hoofd.urencriterium);
+    setStarter(d.hoofd.starter);
+    setWnv(d.hoofd.dgaVerzekerd);
+    setObVrij(d.inbreng.obVrijstelling);
+    setAo(d.inbreng.arbeidsongeschikt);
+    setDirect(d.inbreng.directIngaand);
+    ververseJaren();
+    ververseAfgeleid();
+    ververseInbrengHints();
+  }
+
+  function dossierMelding(tekst, soort) {
+    const m = el('dossier-melding');
+    if (!m) return;
+    m.textContent = tekst;
+    m.className = 'dossier-melding' + (soort ? ' ' + soort : '');
+  }
+
+  function dossierOpslaan() {
+    const tekst = BVJN.maakDossierTekst(dossierStand());
+    const naam = BVJN.dossierBestandsnaam(el('kenmerk').value || el('naam').value);
+    const blob = new Blob([tekst], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = naam;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    dossierMelding('Opgeslagen als ' + naam + '. Zet het bestand in de klantmap, dan gaat het mee in de back-up en kan een collega het openen.', 'goed');
+  }
+
+  function dossierOpenen(bestand) {
+    if (!bestand) return;
+    const lezer = new FileReader();
+    lezer.onerror = function () { dossierMelding('Het bestand kon niet worden gelezen.', 'fout'); };
+    lezer.onload = function () {
+      const uit = BVJN.leesDossier(lezer.result);
+      if (!uit.ok) { dossierMelding(uit.fouten.join(' '), 'fout'); return; }
+      zetDossier(uit.dossier);
+      state = null;
+      el('res').classList.remove('show');
+      el('in-res').classList.remove('show');
+      el('nota-leeg').style.display = '';
+      el('nota-inhoud').style.display = 'none';
+      const extra = (uit.waarschuwingen && uit.waarschuwingen.length) ? ' ' + uit.waarschuwingen.join(' ') : '';
+      dossierMelding('Dossier geopend' + (uit.dossier.kenmerk ? ' (' + uit.dossier.kenmerk + ')' : '')
+        + '. Voer de berekening opnieuw uit.' + extra, extra ? 'fout' : 'goed');
+    };
+    lezer.readAsText(bestand);
+  }
+
   /* ---------------- UI-handlers ---------------- */
   function setUren(v) {
     urencriterium = v;
@@ -2813,6 +3057,12 @@ const BVJN = (function () {
     setStarter(false);
     // Het lage box 2-tarief is de standaardaanname voor het toekomstige tarief.
     el('claimTariefVast').value = String(T.box2.laag * 100);
+    el('dossier-opslaan').addEventListener('click', dossierOpslaan);
+    el('dossier-openen').addEventListener('click', function () { el('dossier-bestand').click(); });
+    el('dossier-bestand').addEventListener('change', function (ev) {
+      dossierOpenen(ev.target.files && ev.target.files[0]);
+      ev.target.value = '';
+    });
     setObVrij(true);
     setAo(false);
     setDirect(false);
@@ -2843,6 +3093,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:52</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 23:57</div>
 </body>
 </html>
