@@ -95,6 +95,17 @@ tabblad openen.
 Een paar tools (Herstructurering, WKR Agent, Kennisgroepen-zoeker) zijn AI-assistenten
 die via de Anthropic API werken; daar hoort de regel bij dat er geen klantdata in gaat.
 
+## Hoe er gewerkt wordt
+
+Sylvain werkt in **VS Code**. Er is geen buildstap en geen framework: elke tool is één
+zelfstandig HTML-bestand met de CSS en JavaScript erin, dat direct in de browser opent.
+Geen `npm`, geen bundler, geen dependencies om te installeren. Wijzigingen gaan met git
+naar de eigen toolrepo; de sync-workflow doet de rest.
+
+Voor een gesprek betekent dat: geef codevoorstellen als een compleet, op zichzelf staand
+blok dat in dat ene bestand geplakt kan worden — geen imports, geen buildinstructies, en
+geen oplossing die een pakket of een server nodig heeft.
+
 ## Toegang en beveiliging
 
 - DNS en beveiliging lopen via Cloudflare (proxied + Cloudflare Access). Inloggen gaat
