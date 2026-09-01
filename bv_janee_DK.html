@@ -995,7 +995,38 @@ const BVJN = (function () {
       // en die op andere bedrijfsmiddelen ten hoogste 20% van de aanschaffingskosten per
       // jaar. Daaruit volgt de kortste termijn: tien respectievelijk vijf jaar.
       afschrijvingGoodwillMax: 0.10,
-      afschrijvingOverigMax: 0.20
+      afschrijvingOverigMax: 0.20,
+      // Art. 5 lid 2 Uitvoeringsbesluit BRV: bij een inbreng zonder art. 3.65 mag naast
+      // aandelen ten hoogste 10% van het op die aandelen gestorte bedrag worden bijbetaald.
+      obBijbetalingPct: 0.10,
+      // Zesde standaardvoorwaarde, onderdeel 10: een negatieve terugkeerreserve verhoogt de
+      // verkrijgingsprijs met tweemaal haar grootte.
+      terugkeerreserveFactor: 2.00
+    },
+
+    // Bedrijfsfusie, art. 14 Wet Vpb 1969
+    fusie: {
+      // Bedrijfsfusiebesluit 2025, par. 3.5. Beleid op grond van art. 63 AWR: art. 14 zelf
+      // kent geen bijbetalingsmarge en geen percentage. De wet eist dat de overdrager
+      // uitsluitend aandelen verkrijgt; deze afrondingscreditering is een goedkeuring.
+      crediteringPct: 0.01,
+      crediteringMax: 4500,
+      deelnemingMin: 0.05,                            // art. 13 lid 2 onderdeel a Wet Vpb
+      maandenVoorovereenkomst: 9,                     // Bedrijfsfusiebesluit 2025, par. 4.1
+      maandenOprichting: 15,
+      maandenEersteBoekjaar: 24,
+      jarenOntgaansvermoeden: 3                       // art. 14 lid 4 Wet Vpb 1969
+    },
+
+    // Firma met de eigen BV
+    firma: {
+      // Uitleg van "geheel of nagenoeg geheel". Dit is een algemene uitlegregel en geen
+      // percentage dat bij art. 5 Uitvoeringsbesluit BRV staat, dus een aanname.
+      gelijkeVerhoudingPct: 0.90,
+      maandenTerugwerkendeKracht: 9,                  // Besluit 19-01-2022, Stcrt. 2022, 1734
+      jarenVennootOvb: 3,                             // art. 4 Uitvoeringsbesluit BRV
+      bijschrijvingOvbPct: 0.90,                      // art. 15 lid 1 onderdeel e onder 1 WBR
+      gebruikelijkLoonOndergrens: 5000                // art. 12a lid 4 Wet LB 1964
     },
 
     // Werkkostenregeling
@@ -2206,11 +2237,11 @@ const BVJN = (function () {
     const naVpb = reserves * (1 - i.vpbTarief / 100);
     const abClaim = cw(naVpb * (i.box2Tarief / 100), i.jarenAb);
 
-    // Creditering, vierde standaardvoorwaarde bij art. 3.65: de op het overgangstijdstip
-    // materieel verschuldigde heffing, plus een afrondingscreditering van ten hoogste 5%
-    // van het op de aandelen gestorte bedrag met een absoluut maximum per inbrenger.
-    const afrondingscreditering = Math.min(i.aandelenkapitaal * T.inbreng.crediteringPct, T.inbreng.crediteringMax);
-    const crediteringMax = i.latenteIbCreditering + afrondingscreditering;
+    // Creditering: een plek, zodat het inbrengtabblad en de openingsbalans niet uiteen
+    // kunnen lopen.
+    const cred = crediteringsruimte(i.latenteIbCreditering, i.aandelenkapitaal);
+    const afrondingscreditering = cred.afronding;
+    const crediteringMax = cred.max;
 
     const geruislozeLast = gemisteAfschrijving + vpbClaimReserves + abClaim + ob
       + geruisloosFor.last;
@@ -2237,6 +2268,414 @@ const BVJN = (function () {
       afrondingscreditering, crediteringMax,
       voordeelGeruisloos,
       route: Math.abs(voordeelGeruisloos) < 250 ? 'gelijk' : (voordeelGeruisloos > 0 ? 'geruisloos' : 'ruisend')
+    };
+  }
+
+
+  /**
+   * Crediteringsruimte bij een geruisloze inbreng.
+   *
+   * Vierde standaardvoorwaarde bij art. 3.65 Wet IB 2001, Besluit 24-10-2025,
+   * Stcrt. 2025, 37092, bijlage 1 onder 4. Naast aandelen mag de vennootschap schuldig
+   * blijven: (a) de op het overgangstijdstip materieel verschuldigde inkomstenbelasting en
+   * premie volksverzekeringen, en (b) een afrondingsbedrag van ten hoogste 5% van het op
+   * zijn aandelen gestorte bedrag, met een absoluut maximum.
+   *
+   * Dit is beleid en geen wet: het staat in de voorwaarden die de inspecteur op grond van
+   * art. 3.65 lid 3 aan de beschikking verbindt. Het maximum was tot 04-11-2025 EUR 25.000.
+   * De grens geldt per deelnemer afzonderlijk en de 5% loopt over het op ZIJN aandelen
+   * gestorte bedrag, niet over het totale kapitaal.
+   */
+  function crediteringsruimte(materieelVerschuldigd, gestortOpEigenAandelen) {
+    const materieel = pos(materieelVerschuldigd);
+    const afronding = Math.min(pos(gestortOpEigenAandelen) * TARIEVEN.inbreng.crediteringPct,
+      TARIEVEN.inbreng.crediteringMax);
+    return { materieel: materieel, afronding: afronding, max: materieel + afronding };
+  }
+
+  /**
+   * Afschrijving op een gebouw in een jaar.
+   *
+   * Art. 3.30a lid 1 Wet IB 2001, via art. 8 lid 1 Wet Vpb 1969 ook in de BV: afschrijving
+   * op een gebouw is slechts mogelijk voor zover de boekwaarde de bodemwaarde overtreft, en
+   * dan ten hoogste tot dat verschil. Voor een gebouw in eigen gebruik is de bodemwaarde de
+   * WOZ-waarde (lid 2 en 3); ondergrond en aanhorigheden horen bij het gebouw.
+   *
+   * Let op de peildatum: de WOZ-waarde geldt op grond van art. 18 lid 2 Wet WOZ voor een
+   * waardepeildatum een jaar voor het kalenderjaar. In een stijgende markt kan er dus wel
+   * afschrijvingsruimte zijn waar men die niet verwacht. De tool rekent met de ingevulde
+   * WOZ-waarde en leidt daar niets uit af.
+   */
+  function afschrijvingGebouw(aanschaffingskosten, boekwaarde, wozWaarde, termijnJaren) {
+    const bw = pos(boekwaarde);
+    const bodem = pos(wozWaarde);
+    const n = Math.max(0, Math.round(num(termijnJaren, 0)));
+    if (n === 0 || bw <= bodem) return 0;
+    const naarTermijn = pos(aanschaffingskosten) / n;
+    return Math.min(naarTermijn, bw - bodem);
+  }
+
+  /**
+   * Bijbetalingsgrens voor de vrijstelling van overdrachtsbelasting bij inbreng van een
+   * onroerende zaak.
+   *
+   * Art. 15 lid 1 onderdeel e onder 2 WBR met art. 5 Uitvoeringsbesluit BRV. Lid 2 van dat
+   * artikel staat naast aandelen een bijbetaling toe van ten hoogste 10% van hetgeen op die
+   * aandelen is gestort. De verruiming naar de bij art. 3.65 toegestane creditering geldt
+   * alleen "ingeval de omzetting plaatsvindt met toepassing van artikel 3.65", dus niet bij
+   * een ruisende inbreng.
+   *
+   * Twee goedkeuringen verzachten dat bij ruisend (Besluit Ondernemingsfaciliteiten,
+   * BWBR0050370, beleid op grond van art. 63 AWR):
+   * - onderdeel 3.6: een creditering voor de door de inbrenger verschuldigde
+   *   inkomstenbelasting en premie volksverzekeringen geldt niet als creditering in de zin
+   *   van lid 2 en blijft dus buiten de toets;
+   * - onderdeel 3.7: is ten laste van de stakingswinst een lijfrente bedongen, dan komt de
+   *   waarde van die verplichting IN PLAATS VAN het 10%-maximum.
+   *
+   * Bij overschrijding valt de vrijstelling geheel weg, niet alleen over het meerdere.
+   *
+   * Open punt: of de inkomensafhankelijke bijdrage Zvw ook onder de goedkeuring van
+   * onderdeel 3.6 valt is niet vastgesteld. De tool houdt die daarom binnen de toets.
+   */
+  function bijbetalingsgrensOvb(gestort, credit, creditVoorIbPvv, lijfrenteVoorziening, metArt365) {
+    const c = pos(credit);
+    const buitenBeschouwing = metArt365 ? 0 : Math.min(c, pos(creditVoorIbPvv));
+    const getoetst = Math.max(0, c - buitenBeschouwing);
+    const lijfrente = pos(lijfrenteVoorziening);
+    const grens = lijfrente > 0
+      ? lijfrente
+      : pos(gestort) * TARIEVEN.inbreng.obBijbetalingPct;
+    return {
+      grens: grens,
+      getoetst: getoetst,
+      buitenBeschouwing: buitenBeschouwing,
+      overschrijding: Math.max(0, getoetst - grens),
+      grondslagVanDeGrens: lijfrente > 0 ? 'lijfrente' : 'tienprocent'
+    };
+  }
+
+  /**
+   * Verkrijgingsprijs van het aanmerkelijk belang na een omzetting op de voet van art. 3.65.
+   *
+   * Zesde standaardvoorwaarde, Besluit 24-10-2025, Stcrt. 2025, 37092, onderdeel 10. Dit is
+   * BELEID en geen wet: art. 4.21 lid 1 zou op de tegenprestatie wijzen, maar de
+   * standaardvoorwaarde stelt de verkrijgingsprijs vast en werkt via de voorwaarden in de
+   * beschikking van de inspecteur (art. 3.65 lid 3).
+   *
+   * De uitkomst mag negatief zijn; art. 4.21 lid 4 Wet IB 2001 staat dat uitdrukkelijk toe.
+   * Kap dus niet af op nul, want dan verdwijnt een claim die later wel wordt geheven.
+   *
+   * Bereken rechtstreeks met de formule en leid de uitkomst NIET af uit het eigen vermogen
+   * op de openingsbalans: de reserves, de lijfrenteverplichting en de creditering staan daar
+   * al in en zouden dan dubbel worden geteld.
+   *
+   * Let op de tekens: art. 3.54a lid 2 formuleert de negatieve terugkeerreserve als een
+   * grootte, dus hier telt de absolute waarde. Een POSITIEVE terugkeerreserve is niet
+   * uitgezocht (art. 3.54a lid 4 is niet woordelijk gelezen) en wordt door de validatie
+   * geblokkeerd.
+   *
+   * Niet uitgezocht en dus niet verwerkt: art. 4.21 lid 2 en 3 kunnen bij inbreng in een
+   * BESTAANDE vennootschap met aandelen van dezelfde soort tot een gemiddelde
+   * verkrijgingsprijs leiden. Deze functie gaat uit van een nieuw opgerichte BV.
+   */
+  function verkrijgingsprijsAb(raw) {
+    const b = raw || {};
+    const opbouw = [];
+    const tel = function (post, bedrag, grondslag) {
+      if (bedrag !== 0) opbouw.push({ post: post, bedrag: bedrag, grondslag: grondslag });
+      return bedrag;
+    };
+    let vp = 0;
+    vp += tel('Fiscale boekwaarde ingebracht ondernemingsvermogen', num(b.ondernemingsvermogen, 0),
+      'zesde standaardvoorwaarde, onderdeel 10');
+    vp += tel('Voordeel bosbouw- of landbouwvrijstelling', num(b.bosLandbouwVoordeel, 0),
+      'zesde standaardvoorwaarde; mag negatief zijn en verlaagt dan');
+    vp += tel('Tweemaal de negatieve terugkeerreserve',
+      TARIEVEN.inbreng.terugkeerreserveFactor * Math.abs(num(b.terugkeerreserve, 0)),
+      'zesde standaardvoorwaarde jo. art. 3.54a lid 2');
+    vp += tel('Egalisatiereserve', -pos(b.egalisatiereserve), 'zesde standaardvoorwaarde');
+    vp += tel('Herinvesteringsreserve', -pos(b.herinvesteringsreserve), 'zesde standaardvoorwaarde');
+    vp += tel('Bedongen lijfrenteverplichting', -pos(b.bedongenLijfrente), 'zesde standaardvoorwaarde');
+    vp += tel('Creditering', -pos(b.creditering), 'zesde standaardvoorwaarde');
+    return { verkrijgingsprijs: vp, opbouw: opbouw };
+  }
+
+  /**
+   * Normaliseert de invoer van de openingsbalansen. Hier staan alleen boekwaarden, schulden
+   * en de posten die de verkrijgingsprijs bepalen; de meerwaarden komen uit de bestaande
+   * invoervelden van het inbrengtabblad.
+   */
+  function normaliseerBalans(raw) {
+    const r = raw || {};
+    return {
+      // Zonder een fiscale boekwaarde valt er geen balans op te stellen. De vlag maakt het
+      // verschil tussen "nul ingevuld" en "niet ingevuld" zichtbaar.
+      ondernemingsvermogen: num(r.ondernemingsvermogen, 0),
+      ondernemingsvermogenGegeven: gegeven(r.ondernemingsvermogen),
+      bwPand: pos(r.bwPand),
+      bwMva: pos(r.bwMva),
+      bwVoorraad: pos(r.bwVoorraad),
+      bwVorderingen: pos(r.bwVorderingen),
+      bwLiquide: pos(r.bwLiquide),
+      schuldenLang: pos(r.schuldenLang),
+      schuldenKort: pos(r.schuldenKort),
+      wozPand: pos(r.wozPand),
+      pandIsWoning: r.pandIsWoning === true,
+      crediteringRuisend: pos(r.crediteringRuisend),
+      nominaalKapitaal: pos(r.nominaalKapitaal),
+      egalisatiereserve: pos(r.egalisatiereserve),
+      herinvesteringsreserve: pos(r.herinvesteringsreserve),
+      // Mag negatief zijn: art. 3.54a lid 2 kent een negatieve terugkeerreserve.
+      terugkeerreserve: num(r.terugkeerreserve, 0),
+      bedongenLijfrente: pos(r.bedongenLijfrente),
+      // Mag negatief zijn: de bosbouw- en landbouwvrijstelling kan ook een nadeel opleveren.
+      bosLandbouwVoordeel: num(r.bosLandbouwVoordeel, 0),
+      // Een latentie nominaal of op contante waarde opnemen is een keuze en geen
+      // rechtsregel. Nominaal is voorzichtig; contant sluit aan bij de rest van de tool.
+      latentieContant: r.latentieContant === true,
+      // Het percentage waartegen de overgenomen claim wordt gewaardeerd. Alleen het
+      // VPB-tarief van art. 22 Wet Vpb is wet; of box 2 erbij hoort is een keuze.
+      claimPct: num(r.claimPct, TARIEVEN.vpb.laag * 100),
+      // Niet-geactiveerde goodwill hoort of als balanspost of als jaarlijkse kasstroom in
+      // beeld te komen, nooit als beide.
+      goodwillSpoor: r.goodwillSpoor === 'balanspost' ? 'balanspost' : 'kasstroom',
+      // Onttrokken vermogensbestanddelen: daarover wordt bij een geruisloze inbreng wel
+      // afgerekend (onderdeel 4.1.2 en 6.1 van het Besluit standaardvoorwaarden).
+      onttrokkenBestanddelen: pos(r.onttrokkenBestanddelen),
+      onttrokkenMeerwaarde: pos(r.onttrokkenMeerwaarde)
+    };
+  }
+
+  /**
+   * Openingsbalans van de BV na een RUISENDE inbreng.
+   *
+   * Elke actiefpost komt op de waarde in het economische verkeer: dat is voor de BV de
+   * aanschaffingsprijs (art. 3.25 jo. art. 3.30 lid 1 Wet IB 2001 via art. 8 lid 1
+   * Wet Vpb 1969). Op deze balans staat GEEN belastinglatentie. Twee redenen: de
+   * boekwaarde is hier gelijk aan de waarde in het economische verkeer zodat er geen
+   * claim wordt overgenomen, en de vennootschapsbelasting komt op grond van art. 10 lid 1
+   * onderdeel e Wet Vpb 1969 niet in aftrek, zodat een voorziening daarvoor op een fiscale
+   * balans nooit thuishoort.
+   */
+  function openingsbalansRuisend(raw, inbreng) {
+    const b = normaliseerBalans(raw);
+    const i = normaliseerInbreng(inbreng);
+    const T = TARIEVEN;
+
+    // De meerwaarde per post. Goodwill is bij een ruisende inbreng activeerbaar, want de BV
+    // heeft haar gekocht; bij de ondernemer stond zij niet op de balans.
+    const activa = [
+      { post: 'Goodwill', boekwaardeIB: 0, meerwaarde: i.goodwill, boekwaardeBV: i.goodwill },
+      { post: 'Bedrijfsgebouw', boekwaardeIB: b.bwPand, meerwaarde: i.stilleReservesPand,
+        boekwaardeBV: b.bwPand + i.stilleReservesPand },
+      { post: 'Overige materiele vaste activa', boekwaardeIB: b.bwMva, meerwaarde: i.stilleReservesOverig,
+        boekwaardeBV: b.bwMva + i.stilleReservesOverig },
+      { post: 'Voorraden', boekwaardeIB: b.bwVoorraad, meerwaarde: 0, boekwaardeBV: b.bwVoorraad },
+      { post: 'Vorderingen', boekwaardeIB: b.bwVorderingen, meerwaarde: 0, boekwaardeBV: b.bwVorderingen },
+      { post: 'Liquide middelen', boekwaardeIB: b.bwLiquide, meerwaarde: 0, boekwaardeBV: b.bwLiquide }
+    ];
+    const balanstotaal = activa.reduce(function (t, a) { return t + a.boekwaardeBV; }, 0);
+
+    // De tegenprestatie. Wat niet in schulden of creditering zit, is kapitaal: het meerdere
+    // boven de nominale waarde is agio.
+    const schulden = b.schuldenLang + b.schuldenKort;
+    const eigenVermogen = balanstotaal - schulden - b.crediteringRuisend;
+    const agio = eigenVermogen - b.nominaalKapitaal;
+    const passiva = [
+      { post: 'Langlopende schulden', bedrag: b.schuldenLang },
+      { post: 'Kortlopende schulden', bedrag: b.schuldenKort },
+      { post: 'Rekening-courant inbrenger (creditering)', bedrag: b.crediteringRuisend },
+      { post: 'Gestort aandelenkapitaal', bedrag: b.nominaalKapitaal },
+      { post: 'Agio', bedrag: agio }
+    ];
+    const passivaTotaal = passiva.reduce(function (t, p) { return t + p.bedrag; }, 0);
+
+    // Afschrijving in het eerste jaar over de opgewaardeerde boekwaarden.
+    const pandBoekwaarde = b.bwPand + i.stilleReservesPand;
+    const pandAfschrijving = afschrijvingGebouw(pandBoekwaarde, pandBoekwaarde, b.wozPand, i.jarenPand);
+    const afschrijvingEersteJaar = {
+      goodwill: i.jarenGoodwill > 0 ? i.goodwill / i.jarenGoodwill : 0,
+      overig: i.jarenOverig > 0 ? (b.bwMva + i.stilleReservesOverig) / i.jarenOverig : 0,
+      pand: pandAfschrijving,
+      pandGeblokkeerd: pandBoekwaarde > 0 && pandAfschrijving === 0,
+      bodemwaarde: b.wozPand
+    };
+
+    // Overdrachtsbelasting. De vrijstelling van art. 15 lid 1 onderdeel e WBR geldt ook bij
+    // een ruisende inbreng, maar de bijbetalingsgrens van art. 5 lid 2 Uitvoeringsbesluit
+    // BRV is dan strakker: de verruiming naar de art. 3.65-creditering geldt alleen daar.
+    const grens = bijbetalingsgrensOvb(b.nominaalKapitaal + Math.max(0, agio),
+      b.crediteringRuisend, i.latenteIbCreditering, b.bedongenLijfrente, false);
+    const tarief = b.pandIsWoning ? T.inbreng.obTariefWoning : T.inbreng.obTariefNietWoning;
+    const vrijgesteld = i.obVrijstelling && grens.overschrijding === 0;
+    const ovb = {
+      vrijgesteld: vrijgesteld,
+      tarief: tarief,
+      bedrag: i.onroerendeZaak > 0 && !vrijgesteld ? i.onroerendeZaak * tarief : 0,
+      bijbetalingsgrens: grens.grens,
+      bijbetalingGetoetst: grens.getoetst,
+      buitenBeschouwing: grens.buitenBeschouwing,
+      overschrijding: grens.overschrijding,
+      grondslagVanDeGrens: grens.grondslagVanDeGrens,
+      getoetst: i.onroerendeZaak > 0
+    };
+
+    return {
+      input: b, inbreng: i,
+      activa: activa, passiva: passiva,
+      balanstotaal: balanstotaal, schulden: schulden,
+      eigenVermogen: eigenVermogen, agio: agio,
+      controle: { sluit: Math.abs(balanstotaal - passivaTotaal) < 0.5,
+        verschil: balanstotaal - passivaTotaal },
+      afschrijvingEersteJaar: afschrijvingEersteJaar,
+      ovb: ovb,
+      // Art. 4.21 lid 1: de verkrijgingsprijs is de tegenprestatie. Bij een ruisende
+      // inbreng is dat het op de aandelen gestorte bedrag, dus nominaal plus agio.
+      verkrijgingsprijs: b.nominaalKapitaal + Math.max(0, agio)
+    };
+  }
+
+  /**
+   * De fiscale openingsbalans na een GERUISLOZE inbreng, met daarnaast een economische
+   * waardering.
+   *
+   * Tweede standaardvoorwaarde en onderdeel 6.1, Besluit 24-10-2025, Stcrt. 2025, 37092:
+   * de vennootschap treedt voor de heffing in de plaats van de belastingplichtige. De
+   * boekwaarden gaan dus onveranderd over en de BV neemt de fiscale claim mee.
+   *
+   * Waarom twee tabellen:
+   * - Op de FISCALE balans staat geen latentie. Art. 10 lid 1 onderdeel e Wet Vpb 1969
+   *   sluit de vennootschapsbelasting van aftrek uit, dus een voorziening daarvoor hoort
+   *   niet op een fiscale balans. Onderdeel 15.1 van het Besluit standaardvoorwaarden eist
+   *   deze balans als bijlage bij het verzoek van art. 3.65 lid 3 onder e; dat is de reden
+   *   dat de tool hem opstelt.
+   * - De ECONOMISCHE waardering laat zien wat de overgenomen claim waard is. Dat is een
+   *   adviesopstelling en geen jaarrekening: art. 2:384 lid 1 BW laat de rechtspersoon
+   *   kiezen tussen verkrijgingsprijs en actuele waarde, en welke commerciele presentatie
+   *   juist is volgt uit de Richtlijnen voor de jaarverslaggeving, die hier niet zijn
+   *   geraadpleegd. Vandaar de naam: nooit "commerciele balans" en nooit "jaarrekening".
+   *
+   * Uitzondering op het doorschuiven: over de stille reserves in ONTTROKKEN
+   * vermogensbestanddelen wordt wel afgerekend, op het moment onmiddellijk voorafgaand aan
+   * het overgangstijdstip (onderdeel 4.1.2 en 6.1).
+   */
+  function openingsbalansGeruisloos(raw, inbreng) {
+    const b = normaliseerBalans(raw);
+    const i = normaliseerInbreng(inbreng);
+
+    /* ---------- de fiscale balans: boekwaarden gaan onveranderd over ---------- */
+    const activaFiscaal = [
+      { post: 'Bedrijfsgebouw', bedrag: b.bwPand },
+      { post: 'Overige materiele vaste activa', bedrag: b.bwMva },
+      { post: 'Voorraden', bedrag: b.bwVoorraad },
+      { post: 'Vorderingen', bedrag: b.bwVorderingen },
+      { post: 'Liquide middelen', bedrag: b.bwLiquide }
+    ];
+    const activaTotaal = activaFiscaal.reduce(function (t, a) { return t + a.bedrag; }, 0);
+
+    // De creditering is begrensd door de vierde standaardvoorwaarde.
+    const cred = crediteringsruimte(i.latenteIbCreditering, b.nominaalKapitaal);
+    const creditering = Math.min(b.crediteringRuisend > 0 ? b.crediteringRuisend : cred.max, cred.max);
+
+    const passivaFiscaal = [
+      { post: 'Langlopende schulden', bedrag: b.schuldenLang },
+      { post: 'Kortlopende schulden', bedrag: b.schuldenKort },
+      { post: 'Egalisatiereserve', bedrag: b.egalisatiereserve },
+      { post: 'Herinvesteringsreserve', bedrag: b.herinvesteringsreserve },
+      { post: 'Lijfrenteverplichting aan de inbrenger', bedrag: b.bedongenLijfrente },
+      { post: 'Rekening-courant inbrenger (creditering)', bedrag: creditering },
+      { post: 'Gestort aandelenkapitaal', bedrag: b.nominaalKapitaal }
+    ];
+    const passivaZonderAgio = passivaFiscaal.reduce(function (t, p) { return t + p.bedrag; }, 0);
+    const agioFiscaal = activaTotaal - passivaZonderAgio;
+    passivaFiscaal.push({ post: 'Agio', bedrag: agioFiscaal });
+
+    /* ---------- de economische waardering ---------- */
+    // De claim die de BV overneemt: de meerwaarde die niet in de boekwaarden zit.
+    const grondslag = i.goodwill + i.stilleReservesPand + i.stilleReservesOverig;
+    const pct = b.claimPct / 100;
+    const nominaal = grondslag * pct;
+    // De contante waarde gebruikt dezelfde perioden als de routevergelijking, zodat de twee
+    // niet uiteen kunnen lopen.
+    const disco = i.disco / 100;
+    const cwPost = function (bedrag, jaren) {
+      const n = Math.max(0, Math.round(jaren));
+      const f = Math.pow(1 + disco, n);
+      return Number.isFinite(f) && f > 0 ? bedrag / f : bedrag;
+    };
+    // Per post het moment waarop de claim wordt gerealiseerd, met dezelfde kanalen als de
+    // routevergelijking. De goodwill valt gespreid over haar afschrijvingstermijn vrij, de
+    // pandmeerwaarde in een keer bij verkoop, en de meerwaarde in overige bedrijfsmiddelen
+    // gespreid over de afschrijvingstermijn. Voor de twee gespreide posten is dat een reeks
+    // en geen enkel moment; een halve termijn als gemiddelde nemen zou een aanname zijn die
+    // nergens uit volgt.
+    const cwReeksPost = function (bedragTotaal, n) {
+      const m = Math.max(0, Math.round(n));
+      if (m === 0) return bedragTotaal;
+      const perJaar = bedragTotaal / m;
+      if (disco <= -1 || disco === 0) return bedragTotaal;
+      return perJaar * (1 - Math.pow(1 + disco, -m)) / disco;
+    };
+    const contant = cwReeksPost(i.goodwill * pct, i.jarenGoodwill)
+      + cwPost(i.stilleReservesPand * pct, i.jarenPand)
+      + cwReeksPost(i.stilleReservesOverig * pct, i.jarenOverig);
+    const gebruikt = b.latentieContant ? contant : nominaal;
+
+    const activaEconomisch = activaFiscaal.map(function (a) { return { post: a.post, bedrag: a.bedrag }; });
+    activaEconomisch[0] = { post: 'Bedrijfsgebouw', bedrag: b.bwPand + i.stilleReservesPand };
+    activaEconomisch[1] = { post: 'Overige materiele vaste activa', bedrag: b.bwMva + i.stilleReservesOverig };
+    // Niet-geactiveerde goodwill: of balanspost of kasstroom, nooit beide.
+    if (b.goodwillSpoor === 'balanspost' && i.goodwill > 0) {
+      activaEconomisch.unshift({ post: 'Goodwill (niet geactiveerd, economisch)', bedrag: i.goodwill });
+    }
+    const activaEconomischTotaal = activaEconomisch.reduce(function (t, a) { return t + a.bedrag; }, 0);
+    const eigenVermogenEconomisch = activaEconomischTotaal - passivaZonderAgio - gebruikt
+      + b.nominaalKapitaal;
+
+    /* ---------- onttrokken vermogensbestanddelen ---------- */
+    const onttrokken = {
+      bestanddelen: b.onttrokkenBestanddelen,
+      meerwaarde: b.onttrokkenMeerwaarde,
+      // Over die meerwaarde wordt wel afgerekend, tegen het tarief van de stakingswinst.
+      afrekening: b.onttrokkenMeerwaarde * (i.tariefStaking / 100)
+    };
+
+    /* ---------- de verkrijgingsprijs ---------- */
+    const vp = verkrijgingsprijsAb({
+      ondernemingsvermogen: b.ondernemingsvermogen,
+      bosLandbouwVoordeel: b.bosLandbouwVoordeel,
+      terugkeerreserve: b.terugkeerreserve,
+      egalisatiereserve: b.egalisatiereserve,
+      herinvesteringsreserve: b.herinvesteringsreserve,
+      bedongenLijfrente: b.bedongenLijfrente,
+      creditering: creditering
+    });
+
+    return {
+      input: b, inbreng: i,
+      fiscaal: {
+        activa: activaFiscaal, passiva: passivaFiscaal,
+        balanstotaal: activaTotaal, agio: agioFiscaal,
+        eigenVermogen: b.nominaalKapitaal + agioFiscaal,
+        creditering: creditering, lijfrente: b.bedongenLijfrente,
+        controle: { sluit: true, verschil: 0 }
+      },
+      economisch: {
+        activa: activaEconomisch,
+        balanstotaal: activaEconomischTotaal,
+        goodwill: b.goodwillSpoor === 'balanspost' ? i.goodwill : 0,
+        goodwillSpoor: b.goodwillSpoor,
+        latentie: { grondslag: grondslag, pct: b.claimPct, nominaal: nominaal,
+          contant: contant, gebruikt: gebruikt, contantGebruikt: b.latentieContant },
+        eigenVermogen: eigenVermogenEconomisch
+      },
+      onttrokken: onttrokken,
+      verkrijgingsprijs: vp.verkrijgingsprijs,
+      verkrijgingsprijsOpbouw: vp.opbouw,
+      crediteringRuimte: { materieel: cred.materieel, afronding: cred.afronding, max: cred.max,
+        gebruikt: creditering,
+        overschrijding: Math.max(0, b.crediteringRuisend - cred.max) }
     };
   }
 
@@ -2421,6 +2860,8 @@ const BVJN = (function () {
     stakingslijfrenteMax, jaarruimte, loonOfDividend, meerjarig,
     maakDossierTekst, leesDossier, dossierBestandsnaam,
     normaliseerInbreng, berekenInbreng, valideerInbreng,
+    crediteringsruimte, afschrijvingGebouw, bijbetalingsgrensOvb, verkrijgingsprijsAb,
+    normaliseerBalans, openingsbalansRuisend, openingsbalansGeruisloos,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
   };
@@ -3545,6 +3986,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 10:57</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:04</div>
 </body>
 </html>
