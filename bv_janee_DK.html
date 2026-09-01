@@ -580,10 +580,16 @@
           <div class="fmsg" id="msg-goodwill"></div>
         </div>
         <div class="fld">
-          <label for="in-stilleReserves">Stille reserves (pand en overige)</label>
-          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-stilleReserves" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <label for="in-stilleReservesPand">Stille reserves in gebouwen <span class="tipw"><span class="tip" title="Meerwaarde in een gebouw komt in de regel pas bij verkoop naar boven: de bodemwaarde van art. 3.30a Wet IB 2001 blokkeert de afschrijving zodra de boekwaarde op de WOZ-waarde zit. De tool rekent daarom met een claim na het aantal jaren tot realisatie.">?</span></span></label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-stilleReservesPand" value="0" step="10000" min="0" inputmode="numeric"></div>
           <div class="hint">Waarde in het economische verkeer minus de fiscale boekwaarde. Een vrijgestelde WEVAB-stijging op landbouwgrond (art. 3.12) hoort hier niet bij.</div>
-          <div class="fmsg" id="msg-stilleReserves"></div>
+          <div class="fmsg" id="msg-stilleReservesPand"></div>
+        </div>
+        <div class="fld">
+          <label for="in-stilleReservesOverig">Stille reserves in overige bedrijfsmiddelen <span class="tipw"><span class="tip" title="Meerwaarde in machines, inventaris en vervoermiddelen wordt juist via de afschrijving gerealiseerd. Bij een ruisende inbreng schrijft de BV over de hogere boekwaarde af; bij een geruisloze niet. Het nadeel van geruisloos is dan de contante waarde van die gemiste afschrijving, gespreid over de termijn, en niet een claim aan het eind.">?</span></span></label>
+          <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="in-stilleReservesOverig" value="0" step="10000" min="0" inputmode="numeric"></div>
+          <div class="hint" id="hint-stilleReserves">Art. 3.30 lid 2 staat hier ten hoogste 20% per jaar toe, dus afschrijving over ten minste vijf jaar.</div>
+          <div class="fmsg" id="msg-stilleReservesOverig"></div>
         </div>
         <div class="fld">
           <label for="in-desinvestering">Desinvesteringsbijtelling</label>
@@ -712,9 +718,14 @@
             <div class="fmsg" id="msg-jarenGoodwill"></div>
           </div>
           <div class="fld">
-            <label for="in-jarenPand">Jaren tot realisatie stille reserves</label>
+            <label for="in-jarenPand">Jaren tot realisatie pandmeerwaarde</label>
             <input type="number" id="in-jarenPand" value="20" step="1" min="0" max="60" inputmode="numeric">
             <div class="fmsg" id="msg-jarenPand"></div>
+          </div>
+          <div class="fld">
+            <label for="in-jarenOverig">Afschrijvingstermijn overige bedrijfsmiddelen (jaren)</label>
+            <input type="number" id="in-jarenOverig" value="5" step="1" min="0" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-jarenOverig"></div>
           </div>
           <div class="fld">
             <label for="in-jarenAb">Jaren tot de box 2-heffing</label>
@@ -972,7 +983,20 @@ const BVJN = (function () {
     // voor een woning die niet als hoofdverblijf gaat dienen (lid 2). Het tarief van 2%
     // van lid 3 vraagt een natuurlijk persoon en kan bij een BV nooit gelden.
     // Gecontroleerd 2026-08-31.
-    inbreng: { crediteringMax: 30000, obTariefNietWoning: 0.104, obTariefWoning: 0.08 },
+    inbreng: {
+      // Vierde standaardvoorwaarde bij art. 3.65, Besluit 24-10-2025, Stcrt. 2025, 37092.
+      // Het maximum was tot 04-11-2025 EUR 25.000. Beleid, geen wet: het staat in de
+      // voorwaarden die de inspecteur op grond van art. 3.65 lid 3 aan de beschikking stelt.
+      crediteringPct: 0.05,
+      crediteringMax: 30000,
+      obTariefNietWoning: 0.104,                      // art. 14 lid 1 WBR
+      obTariefWoning: 0.08,                           // art. 14 lid 2 WBR
+      // Art. 3.30 lid 2 Wet IB 2001: de afschrijving op goodwill bedraagt ten hoogste 10%
+      // en die op andere bedrijfsmiddelen ten hoogste 20% van de aanschaffingskosten per
+      // jaar. Daaruit volgt de kortste termijn: tien respectievelijk vijf jaar.
+      afschrijvingGoodwillMax: 0.10,
+      afschrijvingOverigMax: 0.20
+    },
 
     // Werkkostenregeling
     wkr: { grens: 400000, pctLaag: 0.02, pctHoog: 0.0118, eindheffing: 0.80 },
@@ -1683,11 +1707,11 @@ const BVJN = (function () {
   // wat geen gevolg heeft voor de uitkomst.
   const DOSSIER_HOOFD_SCHAKELAAR = ['urencriterium', 'starter', 'dgaVerzekerd'];
 
-  const DOSSIER_INBRENG = ['goodwill', 'stilleReserves', 'desinvestering',
+  const DOSSIER_INBRENG = ['goodwill', 'stilleReservesPand', 'stilleReservesOverig', 'desinvestering',
     'oudedagsreserve', 'onroerendeZaak', 'leeftijd', 'pensioenLeeftijd',
     'reedsOpgebouwd', 'eerderStakingsaftrek', 'winstJaar', 'pensioenaangroei',
     'reserveringsruimte', 'tariefStaking', 'tariefUitkering', 'vpbTarief',
-    'box2Tarief', 'disco', 'jarenGoodwill', 'jarenPand', 'jarenAb',
+    'box2Tarief', 'disco', 'jarenGoodwill', 'jarenPand', 'jarenOverig', 'jarenAb',
     'latenteIbCreditering', 'aandelenkapitaal'];
   // lijfrenteIngang is een keuzeveld en staat in DOSSIER_INBRENG_KEUZE.
   const DOSSIER_INBRENG_SCHAKELAAR = ['obVrijstelling', 'arbeidsongeschikt'];
@@ -1761,9 +1785,26 @@ const BVJN = (function () {
         kenmerk: dossierTekst(rauw.kenmerk, DOSSIER_MAX_KENMERK),
         naam: dossierTekst(rauw.naam, DOSSIER_MAX_KENMERK),
         hoofd: dossierBlok(rauw.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
-        inbreng: dossierBlok(rauw.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, DOSSIER_INBRENG_KEUZE)
+        inbreng: metOudeStilleReserves(rauw.inbreng,
+          dossierBlok(rauw.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, DOSSIER_INBRENG_KEUZE))
       }
     };
+  }
+
+  /**
+   * Terugvalregel voor een dossier van voor de splitsing van de stille reserves. Daarin
+   * staat een enkel veld stilleReserves. Dat gaat naar de pandpost, want dat is precies de
+   * behandeling die de tool die dossiers destijds gaf: een claim bij realisatie na het
+   * ingevulde aantal jaren. Zo levert een oud dossier dezelfde uitkomst als toen.
+   */
+  function metOudeStilleReserves(rauwInbreng, blok) {
+    if (!rauwInbreng || typeof rauwInbreng !== 'object') return blok;
+    // dossierBlok vult elk bekend veld, ontbrekend of niet, met een lege string. "Gesplitst"
+    // betekent dus: een van de twee nieuwe velden heeft werkelijk inhoud.
+    const heeftNieuw = blok.stilleReservesPand !== '' || blok.stilleReservesOverig !== '';
+    const oud = dossierTekst(rauwInbreng.stilleReserves);
+    if (!heeftNieuw && oud !== '') blok.stilleReservesPand = oud;
+    return blok;
   }
 
   /** Bestandsnaam voor een dossier: het kenmerk, ontdaan van wat een pad kan breken. */
@@ -1897,7 +1938,28 @@ const BVJN = (function () {
     const r = raw || {};
     return {
       goodwill: pos(r.goodwill),
-      stilleReserves: pos(r.stilleReserves),          // pand en overige stille reserves
+      // De stille reserves kennen twee realisatiekanalen, en het verschil bepaalt het
+      // nadeel van de geruisloze route.
+      //
+      // In een gebouw wordt de meerwaarde in de regel NIET via de afschrijving
+      // gerealiseerd: art. 3.30a lid 1 Wet IB 2001 staat afschrijving alleen toe zolang de
+      // boekwaarde boven de bodemwaarde ligt, en die bodemwaarde is voor een gebouw in
+      // eigen gebruik de WOZ-waarde (lid 2 en 3). Na een step-up zit de boekwaarde daar
+      // doorgaans op of onder. De meerwaarde komt dan pas bij verkoop naar boven, dus na
+      // jarenPand, in een keer.
+      //
+      // In afschrijfbare bedrijfsmiddelen gebeurt het omgekeerde: daar wordt de meerwaarde
+      // juist via de afschrijving gerealiseerd, gespreid over ten minste vijf jaar
+      // (art. 3.30 lid 2: ten hoogste 20% per jaar). Het nadeel van geruisloos is dan de
+      // contante waarde van de gemiste afschrijving, niet een claim aan het eind.
+      //
+      // Wie niet splitst, houdt de behandeling die de tool altijd had: het geheel loopt
+      // door het pandkanaal. Dat verandert geen enkele bestaande uitkomst, maar het
+      // onderschat het nadeel van de geruisloze route zodra er afschrijfbare
+      // bedrijfsmiddelen in de meerwaarde zitten. De validatie zegt dat met zoveel woorden.
+      stilleReservesPand: pos(gegeven(r.stilleReservesPand) || gegeven(r.stilleReservesOverig)
+        ? r.stilleReservesPand : r.stilleReserves),
+      stilleReservesOverig: pos(r.stilleReservesOverig),
       desinvestering: pos(r.desinvestering),          // desinvesteringsbijtelling art. 3.47
       oudedagsreserve: pos(r.oudedagsreserve),        // vrijval FOR, art. 10a.29 overgangsrecht
       eerderStakingsaftrek: pos(r.eerderStakingsaftrek),
@@ -1925,7 +1987,11 @@ const BVJN = (function () {
       box2Tarief: num(r.box2Tarief, TARIEVEN.box2.laag * 100),
       disco: num(r.disco, 2),
       jarenGoodwill: num(r.jarenGoodwill, 10),        // art. 3.30 lid 2: ten hoogste 10% per jaar
-      jarenPand: num(r.jarenPand, 20),
+      jarenPand: num(r.jarenPand, 20),                // realisatie van de pandmeerwaarde
+      // Vijf jaar is de kortste termijn die art. 3.30 lid 2 toestaat (20% per jaar). Dat is
+      // een ondergrens en geen voorschrift: de werkelijke termijn volgt uit de aard van het
+      // bedrijfsmiddel, dus dit veld is instelbaar.
+      jarenOverig: num(r.jarenOverig, 5),
       jarenAb: num(r.jarenAb, Math.max(0, num(r.pensioenLeeftijd, 67) - num(r.leeftijd, 45))),
       onroerendeZaak: pos(r.onroerendeZaak),
       obVrijstelling: r.obVrijstelling !== false,     // art. 15 lid 1 onderdeel e WBR
@@ -1993,7 +2059,10 @@ const BVJN = (function () {
       return bedragPerJaar * (1 - Math.pow(1 + disco, -m)) / disco;
     };
 
-    const reserves = i.goodwill + i.stilleReserves;
+    // De stille reserves zijn de som van de twee kanalen; reserves is het totaal waarover
+    // de aanmerkelijkbelangclaim rust, ongeacht via welk kanaal de meerwaarde vrijvalt.
+    const stilleReserves = i.stilleReservesPand + i.stilleReservesOverig;
+    const reserves = i.goodwill + stilleReserves;
 
     /* ---------- De afrekening over een stakingswinst ---------- */
     // Dezelfde reeks stappen geldt in beide routes; alleen het bedrag verschilt. Bij een
@@ -2115,11 +2184,21 @@ const BVJN = (function () {
     //    afschrijving. In beide routes staat de goodwill na de termijn op nihil, dus over
     //    de latere realisatie verschillen de routes niet.
     const afschrijvingPerJaar = i.jarenGoodwill > 0 ? i.goodwill / i.jarenGoodwill : 0;
-    const gemisteAfschrijving = cwReeks(afschrijvingPerJaar * (i.vpbTarief / 100), i.jarenGoodwill);
-    // 2. De stille reserves blijven op de oude boekwaarde staan, zodat bij realisatie wél
-    //    vennootschapsbelasting over die meerwaarde verschuldigd is. Bij een ruisende
-    //    inbreng is die meerwaarde al in de inkomstenbelasting afgerekend.
-    const vpbClaimReserves = cw(i.stilleReserves * (i.vpbTarief / 100), i.jarenPand);
+    const gemisteAfschrijvingGoodwill = cwReeks(afschrijvingPerJaar * (i.vpbTarief / 100), i.jarenGoodwill);
+    // 2. De stille reserves blijven op de oude boekwaarde staan. Hoe dat nadeel uitpakt,
+    //    hangt af van het bedrijfsmiddel, dus de twee kanalen worden apart gerekend en
+    //    nooit beide over dezelfde euro.
+    //
+    //    a. Afschrijfbare bedrijfsmiddelen: de BV mist de afschrijving over de meerwaarde.
+    //       Het nadeel is de contante waarde van die gemiste afschrijving, gespreid over de
+    //       termijn. Er volgt GEEN claim bij realisatie, want de afschrijving zelf is de
+    //       realisatie.
+    const afschrijvingOverigPerJaar = i.jarenOverig > 0 ? i.stilleReservesOverig / i.jarenOverig : 0;
+    const gemisteAfschrijvingOverig = cwReeks(afschrijvingOverigPerJaar * (i.vpbTarief / 100), i.jarenOverig);
+    //    b. Het gebouw: de bodemwaarde van art. 3.30a blokkeert de afschrijving, dus de
+    //       meerwaarde komt pas bij verkoop naar boven en de claim valt in een keer.
+    const vpbClaimReserves = cw(i.stilleReservesPand * (i.vpbTarief / 100), i.jarenPand);
+    const gemisteAfschrijving = gemisteAfschrijvingGoodwill + gemisteAfschrijvingOverig;
     // 3. Wat na vennootschapsbelasting van de reserves overblijft, komt bij uitkering of
     //    vervreemding in box 2 (art. 4.12 jo. art. 4.19 en 4.21 Wet IB 2001). Bij een
     //    ruisende inbreng verhoogt de tegenprestatie de verkrijgingsprijs (art. 4.21 lid 1)
@@ -2130,7 +2209,7 @@ const BVJN = (function () {
     // Creditering, vierde standaardvoorwaarde bij art. 3.65: de op het overgangstijdstip
     // materieel verschuldigde heffing, plus een afrondingscreditering van ten hoogste 5%
     // van het op de aandelen gestorte bedrag met een absoluut maximum per inbrenger.
-    const afrondingscreditering = Math.min(i.aandelenkapitaal * 0.05, T.inbreng.crediteringMax);
+    const afrondingscreditering = Math.min(i.aandelenkapitaal * T.inbreng.crediteringPct, T.inbreng.crediteringMax);
     const crediteringMax = i.latenteIbCreditering + afrondingscreditering;
 
     const geruislozeLast = gemisteAfschrijving + vpbClaimReserves + abClaim + ob
@@ -2150,7 +2229,9 @@ const BVJN = (function () {
       lijfrenteTegenOverigeWinst, lijfrenteOnbenut,
       ibDirect, tariefsaanpassing, zvwStaking,
       jarenTotUitkering, latenteIbLijfrente,
+      stilleReserves,
       afschrijvingPerJaar, gemisteAfschrijving, vpbClaimReserves,
+      gemisteAfschrijvingGoodwill, gemisteAfschrijvingOverig, afschrijvingOverigPerJaar,
       ob, ruisendLast,
       naVpb, abClaim, geruislozeLast,
       afrondingscreditering, crediteringMax,
@@ -2170,7 +2251,9 @@ const BVJN = (function () {
     function waarschuw(veld, tekst) { waarschuwingen.push(tekst); if (veld && !veldWaarschuwingen[veld]) veldWaarschuwingen[veld] = tekst; }
 
     const numeriek = [
-      ['goodwill', 'Goodwill'], ['stilleReserves', 'Stille reserves'],
+      ['goodwill', 'Goodwill'],
+      ['stilleReservesPand', 'Stille reserves in gebouwen'],
+      ['stilleReservesOverig', 'Stille reserves in overige bedrijfsmiddelen'],
       ['desinvestering', 'Desinvesteringsbijtelling'], ['oudedagsreserve', 'Oudedagsreserve'],
       ['eerderStakingsaftrek', 'Eerder genoten stakingsaftrek'],
       ['reedsOpgebouwd', 'Reeds opgebouwde voorzieningen'],
@@ -2209,16 +2292,25 @@ const BVJN = (function () {
     if (i.pensioenLeeftijd < i.leeftijd) fout('pensioenLeeftijd', 'Ingangsleeftijd lijfrente: die kan niet lager zijn dan de leeftijd bij staken. De periode tot de uitkering zou dan nul worden en de latente belasting helemaal niet worden gedisconteerd.');
     else if (i.pensioenLeeftijd > 100) fout('pensioenLeeftijd', 'Ingangsleeftijd lijfrente: kies een leeftijd van maximaal 100 jaar.');
     if (i.jarenGoodwill < 1 || i.jarenGoodwill > 60) fout('jarenGoodwill', 'Afschrijvingstermijn goodwill: kies een periode tussen 1 en 60 jaar.');
-    if (i.jarenPand < 0 || i.jarenPand > 60) fout('jarenPand', 'Jaren tot realisatie: kies een periode van maximaal 60 jaar.');
+    if (i.jarenPand < 0 || i.jarenPand > 60) fout('jarenPand', 'Jaren tot realisatie van de pandmeerwaarde: kies een periode van maximaal 60 jaar.');
+    if (i.jarenOverig < 0 || i.jarenOverig > 60) fout('jarenOverig', 'Afschrijvingstermijn overige bedrijfsmiddelen: kies een periode van maximaal 60 jaar.');
     if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
-    if (i.goodwill + i.stilleReserves + i.desinvestering + i.oudedagsreserve <= 0) {
+    const stilleReserves = i.stilleReservesPand + i.stilleReservesOverig;
+    if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve <= 0) {
       fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling of oudedagsreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
     }
     if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
 
     const u = berekenInbreng(r);
     if (i.jarenGoodwill < 10) waarschuw('jarenGoodwill', 'Op goodwill wordt ten hoogste 10% van de aanschaffingskosten per jaar afgeschreven (art. 3.30 lid 2 Wet IB 2001, via art. 8 lid 1 Wet Vpb ook in de BV), dus over ten minste tien jaar. Een kortere termijn overschat het voordeel van de ruisende route.');
-    if (i.stilleReserves > 0) waarschuw(null, 'Zit de meerwaarde in een gebouw, houd dan rekening met art. 3.30a: afschrijven kan alleen zolang de boekwaarde boven de bodemwaarde ligt, en die bodemwaarde is sinds 2024 de volledige WOZ-waarde. De step-up geeft dan wel een hogere boekwaarde bij verkoop, maar niet altijd meer afschrijving.');
+    if (i.jarenOverig > 0 && i.jarenOverig < 5) waarschuw('jarenOverig', 'Op andere bedrijfsmiddelen dan goodwill wordt ten hoogste 20% van de aanschaffingskosten per jaar afgeschreven (art. 3.30 lid 2 Wet IB 2001), dus over ten minste vijf jaar. Een kortere termijn overschat het nadeel van de geruisloze route.');
+    // De splitsing bepaalt door welk kanaal de meerwaarde vrijvalt en daarmee de uitkomst.
+    // Wie niet splitst, krijgt de behandeling die de tool altijd had, en hoort te weten dat
+    // die naar de geruisloze route helt.
+    if (i.stilleReservesPand > 0 && i.stilleReservesOverig === 0) {
+      waarschuw('stilleReservesOverig', 'De volledige meerwaarde is als pandmeerwaarde behandeld: zij komt pas bij verkoop naar boven, na ' + i.jarenPand + ' jaar. Zit een deel in afschrijfbare bedrijfsmiddelen, vul dat dan hieronder in. De tool onderschat anders het nadeel van de geruisloze route, want over dat deel wordt de gemiste afschrijving niet meegenomen.');
+    }
+    if (i.stilleReservesPand > 0) waarschuw('stilleReservesPand', 'Zit de meerwaarde in een gebouw, dan kan de BV daar na de step-up vaak niet op afschrijven: art. 3.30a lid 1 staat afschrijving alleen toe zolang de boekwaarde boven de bodemwaarde ligt, en die bodemwaarde is voor een gebouw in eigen gebruik de WOZ-waarde (lid 2 en 3). Let erop dat de WOZ-waarde een peildatum van een jaar eerder heeft (art. 18 lid 2 Wet WOZ), dus in een stijgende markt kan er wel afschrijvingsruimte zijn. De tool rekent die niet automatisch uit.');
     if (u.stakingslijfrente >= u.stakingslijfrenteRuimte - 0.5 && u.stakingslijfrenteRuimte > 0) {
       waarschuw(null, 'De stakingslijfrente loopt tegen het maximum van art. 3.129 lid 2 onderdeel ' + u.lijfrenteCategorie + ' aan (€ ' + Math.round(u.lijfrenteMaximum).toLocaleString('nl-NL') + ' minus de reeds opgebouwde voorzieningen).');
     }
@@ -2973,7 +3065,7 @@ const BVJN = (function () {
     hoofd.dgaVerzekerd = dgaVerzekerd;
 
     const inbreng = {};
-    ['goodwill', 'stilleReserves', 'desinvestering', 'oudedagsreserve', 'onroerendeZaak',
+    ['goodwill', 'stilleReservesPand', 'stilleReservesOverig', 'desinvestering', 'oudedagsreserve', 'onroerendeZaak',
       'leeftijd', 'pensioenLeeftijd', 'reedsOpgebouwd', 'eerderStakingsaftrek', 'winstJaar',
       'pensioenaangroei', 'reserveringsruimte', 'tariefStaking', 'tariefUitkering',
       'vpbTarief', 'box2Tarief', 'disco', 'jarenGoodwill', 'jarenPand', 'jarenAb',
@@ -3172,7 +3264,7 @@ const BVJN = (function () {
   let obVrijstelling = true;
   let arbeidsongeschikt = false;
 
-  const IN_VELDEN = ['in-goodwill', 'in-stilleReserves', 'in-desinvestering', 'in-oudedagsreserve',
+  const IN_VELDEN = ['in-goodwill', 'in-stilleReservesPand', 'in-stilleReservesOverig', 'in-desinvestering', 'in-oudedagsreserve',
     'in-onroerendeZaak', 'in-leeftijd', 'in-pensioenLeeftijd', 'in-reedsOpgebouwd',
     'in-eerderStakingsaftrek', 'in-winstJaar', 'in-pensioenaangroei', 'in-reserveringsruimte',
     'in-tariefStaking', 'in-tariefUitkering', 'in-vpbTarief', 'in-box2Tarief', 'in-disco',
@@ -3180,7 +3272,9 @@ const BVJN = (function () {
     'in-aandelenkapitaal', 'in-lijfrenteIngang'];
 
   const IN_VELD_MSG = {
-    goodwill: 'msg-goodwill', stilleReserves: 'msg-stilleReserves',
+    goodwill: 'msg-goodwill',
+    stilleReservesPand: 'msg-stilleReservesPand', stilleReservesOverig: 'msg-stilleReservesOverig',
+    jarenOverig: 'msg-jarenOverig',
     desinvestering: 'msg-desinvestering', oudedagsreserve: 'msg-oudedagsreserve',
     onroerendeZaak: 'msg-onroerendeZaak', leeftijd: 'msg-in-leeftijd',
     pensioenLeeftijd: 'msg-in-pensioenLeeftijd', reedsOpgebouwd: 'msg-reedsOpgebouwd',
@@ -3195,7 +3289,9 @@ const BVJN = (function () {
   function leesInbreng() {
     const g = function (id) { return el('in-' + id).value; };
     return {
-      goodwill: g('goodwill'), stilleReserves: g('stilleReserves'),
+      goodwill: g('goodwill'),
+      stilleReservesPand: g('stilleReservesPand'), stilleReservesOverig: g('stilleReservesOverig'),
+      jarenOverig: g('jarenOverig'),
       desinvestering: g('desinvestering'), oudedagsreserve: g('oudedagsreserve'),
       onroerendeZaak: g('onroerendeZaak'), obVrijstelling: obVrijstelling,
       leeftijd: g('leeftijd'), pensioenLeeftijd: g('pensioenLeeftijd'),
@@ -3240,7 +3336,8 @@ const BVJN = (function () {
       + cat.bedrag.toLocaleString('nl-NL') + ' (' + uitleg[cat.onderdeel] + '). De categorie volgt uit de wet en is geen keuze.';
     // Dezelfde grondslag als de berekening: art. 3.127 lid 5 laat bij staking toe uit te
     // gaan van het jaar zelf, dus de stakingswinst telt mee in de premiegrondslag.
-    const stakingswinst = i.goodwill + i.stilleReserves + i.desinvestering + i.oudedagsreserve;
+    const stakingswinst = i.goodwill + i.stilleReservesPand + i.stilleReservesOverig
+      + i.desinvestering + i.oudedagsreserve;
     const jr = BVJN.jaarruimte(i.winstJaar + stakingswinst, i.pensioenaangroei, i.leeftijd);
     el('hint-ruimte').textContent = 'Art. 3.127 lid 2: ten hoogste € '
       + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
@@ -3321,7 +3418,8 @@ const BVJN = (function () {
 
     vulTabel('in-tb-ruisend', [
       ['Goodwill', u.input.goodwill],
-      ['Stille reserves', u.input.stilleReserves],
+      ['Stille reserves in gebouwen', u.input.stilleReservesPand],
+      ['Stille reserves in overige bedrijfsmiddelen', u.input.stilleReservesOverig],
       ['Desinvesteringsbijtelling', u.input.desinvestering],
       ['Vrijval oudedagsreserve', u.input.oudedagsreserve],
       ['Stakingswinst', u.stakingswinst, undefined, 'tot'],
@@ -3447,6 +3545,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 08:47</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 10:57</div>
 </body>
 </html>
