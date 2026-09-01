@@ -191,3 +191,21 @@ Twee dingen om er altijd bij te zeggen:
    verzamelrepo — anders wordt het bij de eerstvolgende sync weggeschreven.
 
 En: geen klantnamen, secretwaarden of persoonsgegevens in het gesprek.
+
+---
+
+## Nog aan te vullen (stand 1 september 2026)
+
+Deze tekst is geschreven op basis van uitsluitend de verzamelrepo. Wat er nog in hoort,
+maar nog niet is gelezen:
+
+- De skills `fiscale-bron-verificatie`, `release-en-sync` en `onderhoud-en-jaarwerk`,
+  plus de `CLAUDE.md` van `AI_kopgroep`. Die staan niet op GitHub onder dit account en
+  moeten dus met de hand worden aangeleverd. Daarin zit de werkwijze: hoe een wijziging
+  van idee tot vrijgave loopt en hoe een fiscale waarde wordt geverifieerd.
+- De inhoud van de 17 toolrepo's zelf — hun use cases, testsets en jaarwaardenblokken.
+  Die zijn wel via GitHub bereikbaar; drie representatieve (BV-Ja_Nee, auto-fiscaal-2027,
+  WKR_agent) zijn genoeg voor een eerlijk beeld.
+- Vijf repo's onder `Sylvainbouwman` zijn niet zichtbaar via de GitHub-koppeling; de
+  18 repo's van de organisatie `bouwman-tools` zijn dat wel. Nagaan welke vijf dat zijn
+  en of daar iets relevants tussen zit.
