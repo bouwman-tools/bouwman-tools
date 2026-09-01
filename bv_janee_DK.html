@@ -209,8 +209,8 @@
   </div>
   <button type="button" class="dossier-knop" id="dossier-opslaan">Opslaan als bestand</button>
   <button type="button" class="dossier-knop stil" id="dossier-openen">Bestand openen</button>
-  <input type="file" id="dossier-bestand" accept="application/json,.json" hidden>
-  <span class="dossier-melding" id="dossier-melding">Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer. De tool bewaart zelf niets en verstuurt niets.</span>
+  <input type="file" id="dossier-bestand" accept="application/json,.json" aria-label="Dossierbestand kiezen" hidden>
+    <span class="dossier-melding" id="dossier-melding" role="status">Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer. De tool bewaart zelf niets en verstuurt niets.</span>
 </div>
 
 <div class="tabs" role="tablist" aria-label="Onderdelen">
@@ -253,7 +253,7 @@
         <div class="fld">
           <label for="investering">Investering in bedrijfsmiddelen dit jaar</label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="investering" value="0" step="1000" min="0" inputmode="numeric"></div>
-          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen (personenauto's, grond) tellen niet mee.</div>
+          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41 over het bedrag dat u hier invult. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto's en grond horen er niet in; die haalt u er zelf af.</div>
           <div class="fmsg" id="msg-investering"></div>
         </div>
         <div class="fld">
@@ -452,8 +452,8 @@
       </div>
     </div>
 
-    <div id="box-err" class="msgbox e" style="display:none"><div class="mt">De berekening is niet uitgevoerd — corrigeer de volgende invoer:</div><ul id="list-err"></ul></div>
-    <div id="box-warn" class="msgbox w" style="display:none"><div class="mt">Aandachtspunten bij deze berekening</div><ul id="list-warn"></ul></div>
+    <div id="box-err" class="msgbox e" role="alert" style="display:none"><div class="mt">De berekening is niet uitgevoerd — corrigeer de volgende invoer:</div><ul id="list-err"></ul></div>
+    <div id="box-warn" class="msgbox w" role="status" style="display:none"><div class="mt">Aandachtspunten bij deze berekening</div><ul id="list-warn"></ul></div>
     <div id="box-stale" class="stale"><span aria-hidden="true">↻</span><span>De invoer is gewijzigd. De uitkomst hieronder is niet meer actueel — bereken opnieuw.</span></div>
 
     <button class="btn-calc" style="margin-top:14px" onclick="bereken()">Berekening uitvoeren →</button>
@@ -517,14 +517,17 @@
           <div class="fld" style="margin-bottom:0">
             <label for="mjJaren">Aantal jaren</label>
             <input type="number" id="mjJaren" value="20" step="1" min="1" max="40" inputmode="numeric" onchange="bereken()">
+            <div class="fmsg" id="msg-mjJaren"></div>
           </div>
           <div class="fld" style="margin-bottom:0">
             <label for="mjGroei">Winstgroei per jaar (%)</label>
             <input type="number" id="mjGroei" value="0" step="0.5" min="-20" max="25" inputmode="decimal" onchange="bereken()">
+            <div class="fmsg" id="msg-mjGroei"></div>
           </div>
           <div class="fld" style="margin-bottom:0">
             <label for="mjRendement">Nettorendement op het voordeel (%)</label>
             <input type="number" id="mjRendement" value="0" step="0.5" min="-10" max="15" inputmode="decimal" onchange="bereken()">
+            <div class="fmsg" id="msg-mjRendement"></div>
           </div>
         </div>
         <div class="tblwrap"><table class="ctable">
@@ -739,8 +742,9 @@
       <div class="hint" id="hint-creditering"></div>
     </details>
 
-    <div id="in-box-err" class="msgbox e" style="display:none"><div class="mt">De berekening is niet uitgevoerd — corrigeer de volgende invoer:</div><ul id="in-list-err"></ul></div>
-    <div id="in-box-warn" class="msgbox w" style="display:none"><div class="mt">Aandachtspunten bij deze vergelijking</div><ul id="in-list-warn"></ul></div>
+    <div id="in-box-stale" class="stale"><span aria-hidden="true">↻</span><span>De invoer is gewijzigd. De uitkomst hieronder is niet meer actueel — bereken opnieuw.</span></div>
+    <div id="in-box-err" class="msgbox e" role="alert" style="display:none"><div class="mt">De berekening is niet uitgevoerd — corrigeer de volgende invoer:</div><ul id="in-list-err"></ul></div>
+    <div id="in-box-warn" class="msgbox w" role="status" style="display:none"><div class="mt">Aandachtspunten bij deze vergelijking</div><ul id="in-list-warn"></ul></div>
 
     <button class="btn-calc" style="margin-top:14px" onclick="berekenInbrengUI()">Inbreng vergelijken →</button>
 
@@ -1188,6 +1192,12 @@ const BVJN = (function () {
       pensioenLeeftijd: num(r.pensioenLeeftijd, 67),
       jaren: num(r.jaren, 15),
       disco: num(r.disco, 0),
+      // Het meerjarige beeld is een projectie op dezelfde invoer. De drie parameters horen
+      // daarom bij de invoer, zodat zij worden gevalideerd en de uitkomst als verouderd
+      // wordt gemarkeerd zodra zij wijzigen.
+      mjJaren: Math.min(40, Math.max(1, Math.round(num(r.mjJaren, 20)))),
+      mjGroei: num(r.mjGroei, 0),
+      mjRendement: num(r.mjRendement, 0),
       claimTarief: (r.claimTarief === 'top' || r.claimTarief === 'vast') ? r.claimTarief : 'marginaal',
       claimTariefVast: num(r.claimTariefVast, TARIEVEN.box2.laag * 100),
       wevab: num(r.wevab),
@@ -1508,7 +1518,9 @@ const BVJN = (function () {
       ['rowBox1', 'Resultaat uit overige werkzaamheden'], ['leeftijd', 'Leeftijd'],
       ['pensioenLeeftijd', 'Beoogde pensioenleeftijd'],
       ['claimTariefVast', 'Aangenomen toekomstig box-2-tarief'],
-      ['wevab', 'WEVAB landbouwgrond'], ['wevabStijging', 'Verwachte WEVAB-stijging per jaar']
+      ['wevab', 'WEVAB landbouwgrond'], ['wevabStijging', 'Verwachte WEVAB-stijging per jaar'],
+      ['mjJaren', 'Aantal jaren in het meerjarige beeld'],
+      ['mjGroei', 'Winstgroei per jaar'], ['mjRendement', 'Nettorendement op het voordeel']
     ];
     for (const [veld, label] of numeriek) {
       const v = r[veld];
@@ -1554,13 +1566,22 @@ const BVJN = (function () {
     if (i.pensioenLeeftijd < i.leeftijd) fout('pensioenLeeftijd', 'Beoogde pensioenleeftijd: die kan niet lager zijn dan de huidige leeftijd.');
     else if (i.pensioenLeeftijd > 100) fout('pensioenLeeftijd', 'Beoogde pensioenleeftijd: kies een leeftijd van maximaal 100 jaar.');
     if (i.claimTariefVast < 0 || i.claimTariefVast > 100) fout('claimTariefVast', 'Aangenomen toekomstig box-2-tarief: kies een percentage tussen 0% en 100%.');
+    if (num(r.mjJaren, 20) < 1 || num(r.mjJaren, 20) > 40) fout('mjJaren', 'Aantal jaren in het meerjarige beeld: kies een periode tussen 1 en 40 jaar.');
+    if (i.mjGroei < -20 || i.mjGroei > 25) fout('mjGroei', 'Winstgroei per jaar: kies een percentage tussen \u221220% en 25%.');
+    if (i.mjRendement < -10 || i.mjRendement > 15) fout('mjRendement', 'Nettorendement op het voordeel: kies een percentage tussen \u221210% en 15%.');
     if (i.wevabStijging < -25 || i.wevabStijging > 25) fout('wevabStijging', 'Verwachte WEVAB-stijging per jaar: kies een percentage tussen −25% en 25%.');
 
-    if (i.jaren < 0) fout('jaren', 'Jaren tot uitkering: een negatief aantal jaren is niet mogelijk.');
-    if (i.jaren > 60) fout('jaren', 'Jaren tot uitkering: kies een periode van maximaal 60 jaar.');
+    // Alleen valideren wat de gebruiker ook werkelijk gebruikt. Volgt de periode uit de
+    // leeftijden, dan staat het losse veld verborgen en zou een fout daarop de berekening
+    // blokkeren op iets dat niet op het scherm staat.
+    if (i.jarenBron === 'handmatig') {
+      if (i.jaren < 0) fout('jaren', 'Jaren tot uitkering: een negatief aantal jaren is niet mogelijk.');
+      if (i.jaren > 60) fout('jaren', 'Jaren tot uitkering: kies een periode van maximaal 60 jaar.');
+    }
     if (i.disco < -10 || i.disco > 25) fout('disco', 'Disconteringsvoet: kies een percentage tussen −10% en 25%.');
     else if (i.disco > 8) waarschuw('disco', 'Een disconteringsvoet boven 8% laat het uitstelvoordeel van de BV snel oplopen; onderbouw deze aanname.');
-    if (i.wgLastenPct > 30) fout('wgLastenPct', 'Premies werknemersverzekeringen: een percentage boven 30% is onrealistisch.');
+    // Idem: het premieveld staat alleen open als de DGA verzekerd is.
+    if (i.dgaVerzekerd && i.wgLastenPct > 30) fout('wgLastenPct', 'Premies werknemersverzekeringen: een percentage boven 30% is onrealistisch.');
 
     if (i.woz <= 0 && i.rente > 0) fout('rente', 'Hypotheekrente zonder WOZ-waarde: vul ook de WOZ-waarde in, anders kan het eigenwoningsaldo niet worden bepaald.');
     if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
@@ -1582,6 +1603,7 @@ const BVJN = (function () {
     const kiaGebruikt = kiaVanInvoer(i);
     if (kiaGebruikt > 0 && i.kiaScope !== 'beide') waarschuw('kia', 'De investeringsaftrek wordt maar in één scenario toegepast. Dat is alleen juist als de investering ook werkelijk alleen in dat scenario plaatsvindt.');
     if (kiaGebruikt > i.winst) waarschuw('kia', 'De investeringsaftrek is hoger dan de winst; controleer het bedrag.');
+    if (i.kiaBron === 'investering' && i.investering > 0 && i.kia > 0) waarschuw('kia', 'Er staat zowel een investeringsbedrag als een handmatige KIA. De tool rekent met het investeringsbedrag; het handmatige bedrag van \u20ac ' + Math.round(i.kia).toLocaleString('nl-NL') + ' wordt genegeerd. Maak een van beide velden leeg.');
     if (i.kiaBron === 'handmatig' && i.kia > 0) waarschuw('kia', 'De KIA is handmatig ingevuld en niet aan de tabel van art. 3.41 getoetst. Vul liever het investeringsbedrag in, dan berekent de tool de aftrek zelf.');
     if (i.kiaBron === 'investering' && i.investering > 0) {
       if (i.investering <= TARIEVEN.kia.drempel) waarschuw('investering', 'Bij een investering tot en met € ' + TARIEVEN.kia.drempel.toLocaleString('nl-NL') + ' bestaat geen recht op kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2).');
@@ -1599,6 +1621,7 @@ const BVJN = (function () {
     const ib = berekenIB(i);
     if (i.lijfrentePremie > 0 && ib.inkomenBox1 < 0) waarschuw('lijfrentePremie', 'De lijfrentepremie maakt het inkomen uit werk en woning negatief. Het deel dat het inkomen niet meer kan verlagen levert geen belastingbesparing op, terwijl de uitkering later wel volledig belast is. Controleer of de premie binnen de jaarruimte past.');
     if (ib.zaOnbenut > 0.5) waarschuw(null, 'De zelfstandigenaftrek kan door de lage winst niet volledig worden benut (€ ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL') + ' onbenut). Voortwenteling naar volgende jaren is niet gemodelleerd.');
+    if (bv.pgaOnbenut > 0.5) waarschuw('pga', 'In het BV-scenario kan \u20ac ' + Math.round(bv.pgaOnbenut).toLocaleString('nl-NL') + ' van de persoonsgebonden aftrek niet worden benut: box 1 en box 2 zijn beide tot nihil verminderd (art. 6.2 Wet IB 2001). Het onbenutte deel wordt naar volgende jaren voortgewenteld; dat is in dit jaarmodel niet verwerkt.');
     if (ib.kortingenOnbenut > 0.5 || bv.kortingenOnbenut > 0.5) waarschuw(null, 'De heffingskortingen kunnen niet volledig worden verrekend met de verschuldigde belasting; het niet-verrekende deel vervalt (art. 8.8 Wet IB 2001).');
     if (ib.inkomenBox1 < 0 || bv.inkomenBox1 < 0) waarschuw(null, 'Het box-1-inkomen is in ten minste één scenario negatief. Het model rekent dan met € 0; verliesverrekening is niet gemodelleerd.');
 
@@ -1871,6 +1894,8 @@ const BVJN = (function () {
       winstJaar: pos(r.winstJaar),                    // premiegrondslag art. 3.127 lid 3
       pensioenaangroei: pos(r.pensioenaangroei),      // vermindering art. 3.127 lid 4
       reserveringsruimte: pos(r.reserveringsruimte),  // beschikbaar, art. 3.127 lid 2
+      // Geen invoerveld in de UI: de tool benut de jaarruimte altijd. De schakelaar
+      // bestaat zodat een vergelijking of een test de post kan uitzetten.
       benutJaarruimte: r.benutJaarruimte !== false,
       tariefStaking: num(r.tariefStaking, TARIEVEN.box1.t3 * 100),
       tariefUitkering: num(r.tariefUitkering, 40),
@@ -2158,6 +2183,9 @@ const BVJN = (function () {
     }
     if (i.disco <= -100) fout('disco', 'Disconteringsvoet: bij -100% of lager is een contante waarde niet te bepalen.');
     else if (i.disco < -10 || i.disco > 25) fout('disco', 'Disconteringsvoet: kies een percentage tussen \u221210% en 25%.');
+    if (i.leeftijd < 16 || i.leeftijd > 100) fout('leeftijd', 'Leeftijd bij staken: vul een leeftijd tussen 16 en 100 jaar in.');
+    if (i.pensioenLeeftijd < i.leeftijd) fout('pensioenLeeftijd', 'Ingangsleeftijd lijfrente: die kan niet lager zijn dan de leeftijd bij staken. De periode tot de uitkering zou dan nul worden en de latente belasting helemaal niet worden gedisconteerd.');
+    else if (i.pensioenLeeftijd > 100) fout('pensioenLeeftijd', 'Ingangsleeftijd lijfrente: kies een leeftijd van maximaal 100 jaar.');
     if (i.jarenGoodwill < 1 || i.jarenGoodwill > 60) fout('jarenGoodwill', 'Afschrijvingstermijn goodwill: kies een periode tussen 1 en 60 jaar.');
     if (i.jarenPand < 0 || i.jarenPand > 60) fout('jarenPand', 'Jaren tot realisatie: kies een periode van maximaal 60 jaar.');
     if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
@@ -2350,7 +2378,10 @@ const BVJN = (function () {
       claimTarief: el('claimTarief').value,
       claimTariefVast: el('claimTariefVast').value,
       wevab: el('wevab').value,
-      wevabStijging: el('wevabStijging').value
+      wevabStijging: el('wevabStijging').value,
+      mjJaren: el('mjJaren').value,
+      mjGroei: el('mjGroei').value,
+      mjRendement: el('mjRendement').value
     };
   }
 
@@ -2365,6 +2396,7 @@ const BVJN = (function () {
     wkr: 'msg-wkr', loonsomOverig: 'msg-loonsomOverig', jaren: 'msg-jaren',
     leeftijd: 'msg-leeftijd', pensioenLeeftijd: 'msg-pensioenLeeftijd',
     claimTariefVast: 'msg-claimTariefVast', wevab: 'msg-wevab', wevabStijging: 'msg-wevabStijging',
+    mjJaren: 'msg-mjJaren', mjGroei: 'msg-mjGroei', mjRendement: 'msg-mjRendement',
     disco: 'msg-disco', wgLastenPct: 'msg-wglasten'
   };
   const VELD_INPUT = {
@@ -2375,8 +2407,23 @@ const BVJN = (function () {
     dividend: 'dividend', bvKosten: 'bvkosten', wkr: 'wkr',
     loonsomOverig: 'loonsomOverig', jaren: 'jaren', leeftijd: 'leeftijd',
     pensioenLeeftijd: 'pensioenLeeftijd', claimTariefVast: 'claimTariefVast',
-    wevab: 'wevab', wevabStijging: 'wevabStijging', disco: 'disco', wgLastenPct: 'wglasten'
+    wevab: 'wevab', wevabStijging: 'wevabStijging',
+    mjJaren: 'mjJaren', mjGroei: 'mjGroei', mjRendement: 'mjRendement',
+    disco: 'disco', wgLastenPct: 'wglasten'
   };
+
+  /**
+   * Klapt de uitklapbare sectie open waarin een veld staat. Een blokkerende fout op een
+   * veld dat achter een dichte sectie zit, is voor de gebruiker niet op te lossen.
+   */
+  function openSectieVan(node) {
+    if (!node) return;
+    let n = node.parentElement;
+    while (n) {
+      if (n.tagName === 'DETAILS') n.open = true;
+      n = n.parentElement;
+    }
+  }
 
   function wisVeldmeldingen() {
     Object.keys(VELD_MSG).forEach(function (k) {
@@ -2390,6 +2437,7 @@ const BVJN = (function () {
     Object.keys(v.veldFouten).forEach(function (k) {
       const m = el(VELD_MSG[k]); if (m) { m.textContent = v.veldFouten[k]; m.className = 'fmsg e'; }
       const inp = el(VELD_INPUT[k]); if (inp) inp.setAttribute('aria-invalid', 'true');
+      openSectieVan(inp);
     });
     Object.keys(v.veldWaarschuwingen).forEach(function (k) {
       if (v.veldFouten[k]) return;
@@ -2641,8 +2689,10 @@ const BVJN = (function () {
     vulTabel('tb-kosten', rijenKosten(s));
     vulTabel('tb-liq', rijenLiquiditeit(s));
     const mj = BVJN.meerjarig(raw, {
-      jaren: el('mjJaren').value, groei: el('mjGroei').value, rendement: el('mjRendement').value
+      jaren: s.input.mjJaren, groei: s.input.mjGroei, rendement: s.input.mjRendement
     });
+    // De rekenkern begrenst het aantal jaren; laat het veld niet iets anders tonen.
+    if (String(s.input.mjJaren) !== el('mjJaren').value) el('mjJaren').value = s.input.mjJaren;
     s.meerjarig = mj;
     const toon = mj.rijen.filter(function (r) {
       return r.jaar === 1 || r.jaar === mj.jaren || r.jaar % 5 === 0;
@@ -2950,6 +3000,16 @@ const BVJN = (function () {
       const uit = BVJN.leesDossier(lezer.result);
       if (!uit.ok) { dossierMelding(uit.fouten.join(' '), 'fout'); return; }
       zetDossier(uit.dossier);
+      // De meldingen van de vorige berekening horen bij invoer die er niet meer staat.
+      wisVeldmeldingen();
+      Object.keys(IN_VELD_MSG).forEach(function (k) {
+        const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = ''; m.className = 'fmsg'; }
+        const inp = el('in-' + k); if (inp) inp.removeAttribute('aria-invalid');
+      });
+      ['box-err', 'box-warn', 'in-box-err', 'in-box-warn'].forEach(function (id) {
+        const n = el(id); if (n) n.style.display = 'none';
+      });
+      el('box-stale').classList.remove('on');
       state = null;
       el('res').classList.remove('show');
       el('in-res').classList.remove('show');
@@ -2993,13 +3053,16 @@ const BVJN = (function () {
     const handmatigeKia = parseFloat(el('kia').value);
     const h = el('hint-kia');
     if (Number.isFinite(inv) && inv > 0) {
-      h.textContent = 'Bij deze investering bedraagt de KIA € '
+      h.textContent = 'Bij dit bedrag is de KIA € '
         + Math.round(BVJN.kiaBedrag(inv)).toLocaleString('nl-NL')
-        + ' (art. 3.41 lid 2). Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen tellen niet mee.';
+        + ' (art. 3.41 lid 2). De tool rekent over het volledige bedrag: bedrijfsmiddelen onder € 450 '
+        + 'en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond haalt u er zelf af.';
     } else if (Number.isFinite(handmatigeKia) && handmatigeKia > 0) {
       h.textContent = 'Er is geen investeringsbedrag ingevuld; de tool rekent met de handmatig ingevulde KIA en toetst die niet aan de tabel.';
     } else {
-      h.textContent = 'De KIA volgt uit de tabel van art. 3.41. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen (personenauto\'s, grond) tellen niet mee.';
+      h.textContent = 'De KIA volgt uit de tabel van art. 3.41 over het bedrag dat u hier invult. '
+        + 'Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond '
+        + 'horen er niet in; die haalt u er zelf af.';
     }
     const loonsom = (parseFloat(el('salaris').value) || 0) + (parseFloat(el('loonsomOverig').value) || 0);
     el('hint-vrijeruimte').textContent = 'Bij een fiscale loonsom van € '
@@ -3025,9 +3088,10 @@ const BVJN = (function () {
     markeerStale();
   }
 
-  function switchTab(id) {
-    const tabs = ['invoer', 'inbreng', 'nota'];
-    tabs.forEach(function (t) {
+  const TABBLADEN = ['invoer', 'inbreng', 'nota'];
+
+  function switchTab(id, focus) {
+    TABBLADEN.forEach(function (t) {
       const paneel = el('tab-' + t);
       const knop = el('tabbtn-' + t);
       if (!paneel || !knop) return;
@@ -3035,8 +3099,26 @@ const BVJN = (function () {
       paneel.style.display = actief ? '' : 'none';
       knop.classList.toggle('active', actief);
       knop.setAttribute('aria-selected', String(actief));
+      // Rovend tabindex: alleen het actieve tabblad zit in de tabvolgorde, de andere
+      // zijn met de pijltjestoetsen te bereiken. Dat is de gebruikelijke bediening van
+      // een tablist en scheelt drie tabaanslagen voor wie het toetsenbord gebruikt.
+      knop.setAttribute('tabindex', actief ? '0' : '-1');
     });
+    if (focus) { const k = el('tabbtn-' + id); if (k) k.focus(); }
     if (id === 'nota' && state) buildNota();
+  }
+
+  function tabToets(ev) {
+    const huidig = TABBLADEN.indexOf(ev.target.id.replace('tabbtn-', ''));
+    if (huidig < 0) return;
+    let doel = null;
+    if (ev.key === 'ArrowRight') doel = (huidig + 1) % TABBLADEN.length;
+    else if (ev.key === 'ArrowLeft') doel = (huidig - 1 + TABBLADEN.length) % TABBLADEN.length;
+    else if (ev.key === 'Home') doel = 0;
+    else if (ev.key === 'End') doel = TABBLADEN.length - 1;
+    if (doel === null) return;
+    ev.preventDefault();
+    switchTab(TABBLADEN[doel], true);
   }
 
   /* ---------------- inbreng: ruisend of geruisloos ---------------- */
@@ -3083,6 +3165,7 @@ const BVJN = (function () {
 
   function setObVrij(v) {
     obVrijstelling = v;
+    if (inbrengSleutel !== null) setTimeout(markeerInbrengStale, 0);
     el('ob-ja').setAttribute('aria-pressed', String(v));
     el('ob-nee').setAttribute('aria-pressed', String(!v));
     el('hint-ob').textContent = v
@@ -3092,6 +3175,7 @@ const BVJN = (function () {
   }
   function setAo(v) {
     arbeidsongeschikt = v;
+    if (inbrengSleutel !== null) setTimeout(markeerInbrengStale, 0);
     el('ao-ja').setAttribute('aria-pressed', String(v));
     el('ao-nee').setAttribute('aria-pressed', String(!v));
     ververseInbrengHints();
@@ -3107,11 +3191,17 @@ const BVJN = (function () {
     };
     el('hint-categorie').textContent = 'Art. 3.129 lid 2 onderdeel ' + cat.onderdeel + ': maximaal € '
       + cat.bedrag.toLocaleString('nl-NL') + ' (' + uitleg[cat.onderdeel] + '). De categorie volgt uit de wet en is geen keuze.';
-    const jr = BVJN.jaarruimte(i.winstJaar, i.pensioenaangroei, i.leeftijd);
+    // Dezelfde grondslag als de berekening: art. 3.127 lid 5 laat bij staking toe uit te
+    // gaan van het jaar zelf, dus de stakingswinst telt mee in de premiegrondslag.
+    const stakingswinst = i.goodwill + i.stilleReserves + i.desinvestering + i.oudedagsreserve;
+    const jr = BVJN.jaarruimte(i.winstJaar + stakingswinst, i.pensioenaangroei, i.leeftijd);
     el('hint-ruimte').textContent = 'Art. 3.127 lid 2: ten hoogste € '
       + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
       + ', en alleen voor zover de jaarruimte van de tien voorafgaande jaren niet is benut. '
-      + 'De jaarruimte over de ingevulde winst is € ' + Math.round(jr).toLocaleString('nl-NL') + '.';
+      + 'De jaarruimte bedraagt bij deze winst en stakingswinst samen € '
+      + Math.round(jr).toLocaleString('nl-NL')
+      + (jr === 0 && i.leeftijd >= T.aow.leeftijd + 5
+        ? ' (nihil: art. 3.127 lid 1 geldt alleen tot ' + (T.aow.leeftijd + 5) + ' jaar).' : '.');
     const afr = Math.min(i.aandelenkapitaal * 0.05, T.inbreng.crediteringMax);
     el('hint-creditering').textContent = 'Vierde standaardvoorwaarde bij art. 3.65: creditering van de op het '
       + 'overgangstijdstip materieel verschuldigde heffing, plus een afrondingscreditering van ten hoogste 5% van '
@@ -3126,6 +3216,8 @@ const BVJN = (function () {
     });
     Object.keys(v.veldFouten).forEach(function (k) {
       const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = v.veldFouten[k]; m.className = 'fmsg e'; }
+      const inp = el('in-' + k); if (inp) inp.setAttribute('aria-invalid', 'true');
+      openSectieVan(el('in-' + k));
     });
     Object.keys(v.veldWaarschuwingen).forEach(function (k) {
       if (v.veldFouten[k]) return;
@@ -3143,6 +3235,17 @@ const BVJN = (function () {
       v.waarschuwingen.forEach(function (t) { const li = document.createElement('li'); li.textContent = t; lw.appendChild(li); });
       bw.style.display = '';
     } else bw.style.display = 'none';
+  }
+
+  let inbrengSleutel = null;
+
+  function inbrengInvoerSleutel() { return JSON.stringify(leesInbreng()); }
+
+  function markeerInbrengStale() {
+    if (inbrengSleutel === null) return;
+    const gewijzigd = inbrengInvoerSleutel() !== inbrengSleutel;
+    el('in-box-stale').classList.toggle('on', gewijzigd);
+    el('in-res').classList.toggle('isStale', gewijzigd);
   }
 
   function berekenInbrengUI() {
@@ -3206,6 +3309,10 @@ const BVJN = (function () {
       ['Maximale creditering', u.crediteringMax, undefined, 'tot']
     ]);
 
+    inbrengSleutel = inbrengInvoerSleutel();
+    el('in-box-stale').classList.remove('on');
+    el('in-res').classList.remove('isStale');
+
     el('in-afbakening').textContent =
       'Deze vergelijking toetst niet of aan de voorwaarden van art. 3.65 is voldaan: een materiële onderneming, '
       + 'gelijke gerechtigdheid van de oprichters, een tijdig ingediend verzoek en aanvaarding van de '
@@ -3260,13 +3367,19 @@ const BVJN = (function () {
     });
     setObVrij(true);
     setAo(false);
+    TABBLADEN.forEach(function (t) {
+      const k = el('tabbtn-' + t);
+      if (k) k.addEventListener('keydown', tabToets);
+    });
+    switchTab('invoer');
     ververseJaren();
     ververseAfgeleid();
     IN_VELDEN.forEach(function (id) {
       const n = el(id);
       if (!n) return;
-      n.addEventListener('input', ververseInbrengHints);
-      n.addEventListener('change', ververseInbrengHints);
+      const bijIn = function () { ververseInbrengHints(); markeerInbrengStale(); };
+      n.addEventListener('input', bijIn);
+      n.addEventListener('change', bijIn);
     });
     VELDEN.forEach(function (id) {
       const n = el(id);
@@ -3287,6 +3400,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 03:47</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 04:14</div>
 </body>
 </html>
