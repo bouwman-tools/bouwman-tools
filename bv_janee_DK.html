@@ -1876,6 +1876,21 @@ const BVJN = (function () {
       beroepspensioen: num(r.beroepspensioen),
       lijfrentePremie: num(r.lijfrentePremie),
       pga: num(r.pga),
+      // Loon uit TEGENWOORDIGE arbeid dat de belastingplichtige naast zijn winst geniet.
+      // Alleen de tussenvorm op het firmatabblad gebruikt dit: daar betaalt de eigen BV een
+      // gebruikelijk loon naast het winstaandeel uit de firma. Het veld staat standaard op
+      // nul, zodat de gewone IB-berekening er niets van merkt.
+      //
+      // Het verschil met de twee bestaande velden zit in de doorwerking: loon uit
+      // tegenwoordige arbeid telt WEL in het arbeidsinkomen voor de arbeidskorting
+      // (art. 8.1 lid 1 onderdeel e) en in het bijdrage-inkomen Zvw (art. 43 lid 2
+      // onderdeel a Zvw), terwijl uitkeringBox1 (vroegere arbeid) alleen in het tweede
+      // meetelt.
+      loonTegenwoordig: num(r.loonTegenwoordig),
+      // Is de belastingplichtige verzekerd voor de werknemersverzekeringen, dan draagt de
+      // werkgever de werkgeversheffing over dat loon en blijft het buiten zijn eigen
+      // bijdrage-inkomen (art. 43 lid 2 onderdeel a jo. art. 42 Zvw).
+      loonZvwBijWerkgever: r.loonZvwBijWerkgever === true,
       uitkeringBox1: num(r.uitkeringBox1, num(r.overigBox1)),
       rowBox1: num(r.rowBox1),
       woz: num(r.woz),
@@ -1982,7 +1997,10 @@ const BVJN = (function () {
     const uitkeringBox1 = num(i.uitkeringBox1);
     const rowBox1 = num(i.rowBox1);
     const overigBox1 = uitkeringBox1 + rowBox1;
-    const inkomenBox1 = belastbareWinst + ew.saldo + overigBox1 - lijfrentePremie - pga;
+    // Loon uit tegenwoordige arbeid, alleen gevuld door de tussenvorm op het firmatabblad.
+    const loonTegenwoordig = pos(i.loonTegenwoordig);
+    const inkomenBox1 = belastbareWinst + ew.saldo + overigBox1 + loonTegenwoordig
+      - lijfrentePremie - pga;
     const box1Belastbaar = Math.max(0, inkomenBox1);
 
     const ibBruto = box1Belasting(box1Belastbaar);
@@ -2009,7 +2027,7 @@ const BVJN = (function () {
     // de ondernemersaftrek en de MKB-winstvrijstelling. De investeringsaftrek is wel al ten
     // laste van de winst gebracht (art. 3.40), net als de premie van art. 3.18. Overige
     // inkomsten box 1 tellen niet mee: alleen wat met tegenwoordige arbeid is genoten.
-    const arbeidsinkomen = Math.max(0, winstNaKia) + Math.max(0, rowBox1);
+    const arbeidsinkomen = Math.max(0, winstNaKia) + Math.max(0, rowBox1) + loonTegenwoordig;
     const ak = arbeidskorting(arbeidsinkomen);
     const kortingenRecht = ahk + ak;
     const kortingen = Math.min(kortingenRecht, heffingVoorKortingen);
@@ -2020,7 +2038,10 @@ const BVJN = (function () {
     // winst uit onderneming (onderdeel b, dus ná ondernemersaftrek en MKB-winstvrijstelling),
     // resultaat uit overige werkzaamheden (c) en periodieke uitkeringen (d). Het saldo
     // eigen woning, de lijfrentepremie en de persoonsgebonden aftrek staan er niet in.
-    const zvwGrondslag = Math.max(0, belastbareWinst + uitkeringBox1 + rowBox1);
+    // Loon uit tegenwoordige arbeid hoort in het bijdrage-inkomen (onderdeel a), tenzij de
+    // werkgever daarover de werkgeversheffing draagt: dan blijft het buiten de eigen bijdrage.
+    const zvwGrondslag = Math.max(0, belastbareWinst + uitkeringBox1 + rowBox1
+      + (i.loonZvwBijWerkgever ? 0 : loonTegenwoordig));
     const zvw = zvwOverGrondslag(zvwGrondslag, T.zvw.bijdrage);
 
     const belastingenPremies = heffingNaKortingen + zvw;
@@ -2030,7 +2051,7 @@ const BVJN = (function () {
     // bedrag verlaat de vrije bestedingsruimte maar vormt vermogen. Zij worden hier van het
     // netto privé afgehaald en bij de vermogensvorming weer opgeteld.
     const oudedagsinleg = beroepspensioen + lijfrentePremie;
-    const nettoPrive = i.winst + overigBox1 - totaleLasten - oudedagsinleg - pga;
+    const nettoPrive = i.winst + overigBox1 + loonTegenwoordig - totaleLasten - oudedagsinleg - pga;
 
     // Latente IB-claim over de opgebouwde oudedagsvoorziening: bij uitkering is het
     // volledige bedrag belast in box 1 (art. 3.100 en verder). Het tarief bij uitkering is
@@ -3171,11 +3192,15 @@ const BVJN = (function () {
     // De tegenprestatie. Wat niet in schulden of creditering zit, is kapitaal: het meerdere
     // boven de nominale waarde is agio.
     const schulden = b.schuldenLang + b.schuldenKort;
-    const eigenVermogen = balanstotaal - schulden - b.crediteringRuisend;
+    const eigenVermogen = balanstotaal - schulden - b.crediteringRuisend - b.bedongenLijfrente;
     const agio = eigenVermogen - b.nominaalKapitaal;
     const passiva = [
       { post: 'Langlopende schulden', bedrag: b.schuldenLang },
       { post: 'Kortlopende schulden', bedrag: b.schuldenKort },
+      // Een bij de BV bedongen lijfrente is een verplichting van de BV en hoort op de
+      // balans, ook bij een ruisende inbreng. Stond zij er niet, dan werd zij door het agio
+      // opgeslokt en leek het eigen vermogen te hoog.
+      { post: 'Lijfrenteverplichting aan de inbrenger', bedrag: b.bedongenLijfrente },
       { post: 'Rekening-courant inbrenger (creditering)', bedrag: b.crediteringRuisend },
       { post: 'Gestort aandelenkapitaal', bedrag: b.nominaalKapitaal },
       { post: 'Agio', bedrag: agio }
@@ -3266,8 +3291,17 @@ const BVJN = (function () {
     const activaTotaal = activaFiscaal.reduce(function (t, a) { return t + a.bedrag; }, 0);
 
     // De creditering is begrensd door de vierde standaardvoorwaarde.
-    const cred = crediteringsruimte(i.latenteIbCreditering, b.nominaalKapitaal);
-    const creditering = Math.min(b.crediteringRuisend > 0 ? b.crediteringRuisend : cred.max, cred.max);
+    // De vierde standaardvoorwaarde spreekt van "het op zijn aandelen gestorte bedrag". Dat
+    // is nominaal plus agio en niet alleen de nominale waarde: agio is evenzeer storting.
+    // Het gestorte bedrag volgt uit het ingebrachte vermogen, dus uit het fiscale
+    // ondernemingsvermogen minus wat als schuld of lijfrente wordt vormgegeven.
+    const gestortGeruisloos = Math.max(0, b.ondernemingsvermogen - b.bedongenLijfrente
+      - b.egalisatiereserve - b.herinvesteringsreserve);
+    const cred = crediteringsruimte(i.latenteIbCreditering, gestortGeruisloos);
+    // Een creditering van nul is een keuze en geen ontbrekende invoer: dan blijft er niets
+    // schuldig. Eerder werd nul gelezen als "vul het maximum in", wat de verkrijgingsprijs
+    // met de volle ruimte verlaagde zonder dat iemand daarom had gevraagd.
+    const creditering = Math.min(b.crediteringRuisend, cred.max);
 
     const passivaFiscaal = [
       { post: 'Langlopende schulden', bedrag: b.schuldenLang },
@@ -3303,7 +3337,12 @@ const BVJN = (function () {
     // nergens uit volgt.
     const cwReeksPost = function (bedragTotaal, n) {
       const m = Math.max(0, Math.round(n));
-      if (m === 0) return bedragTotaal;
+      // Dezelfde conventie als cwReeks in berekenInbreng: zonder termijn is er geen reeks en
+      // dus geen contante waarde van een reeks. De validatie weigert die invoer inmiddels
+      // zodra er meerwaarde in overige bedrijfsmiddelen zit, dus dit is een vangnet en geen
+      // rekenregel. Eerder gaf deze functie het volle bedrag terug en dat verschilde 100%
+      // van wat de routevergelijking op hetzelfde tabblad liet zien.
+      if (m === 0) return 0;
       const perJaar = bedragTotaal / m;
       if (disco <= -1 || disco === 0) return bedragTotaal;
       return perJaar * (1 - Math.pow(1 + disco, -m)) / disco;
@@ -3410,6 +3449,24 @@ const BVJN = (function () {
 
     if (b.claimPct < 0 || b.claimPct > 100) {
       fout('claimPct', 'Claimpercentage: kies een percentage tussen 0% en 100%.');
+    }
+
+    // Het agio is de sluitpost van de balans. Wordt het negatief, dan is er meer nominaal
+    // kapitaal geplaatst dan het ingebrachte vermogen waard is, en dat kan niet: op de
+    // aandelen moet worden gestort wat erop staat (art. 2:191 lid 1 BW). De balans sloot
+    // rekenkundig nog wel, want de sluitpost neemt elke waarde aan; alleen daarom viel het
+    // niet op.
+    const activaRuisend = i.goodwill + b.bwPand + i.stilleReservesPand
+      + b.bwMva + i.stilleReservesOverig + b.bwVoorraad + b.bwVorderingen + b.bwLiquide;
+    const evRuisend = activaRuisend - b.schuldenLang - b.schuldenKort
+      - b.crediteringRuisend - b.bedongenLijfrente;
+    if (b.nominaalKapitaal > evRuisend + 0.5) {
+      fout('nominaalKapitaal', 'Het nominale aandelenkapitaal van € '
+        + Math.round(b.nominaalKapitaal).toLocaleString('nl-NL') + ' is hoger dan het eigen vermogen na '
+        + 'de inbreng van € ' + Math.round(evRuisend).toLocaleString('nl-NL')
+        + '. Het agio zou dan negatief worden, en dat kan niet: op de aandelen moet worden gestort wat '
+        + 'erop staat (art. 2:191 lid 1 BW). Verlaag het nominale kapitaal; sinds de Flex-BV kent '
+        + 'art. 2:178 BW geen minimum, dus € 1 mag.');
     }
 
     // Een positieve terugkeerreserve is niet uitgezocht. Art. 3.65 lid 1 sluit art. 3.54a
@@ -4155,110 +4212,137 @@ const BVJN = (function () {
     const kiaOndernemer = kiaOnd.kia;
     const kiaBV = kiaBv.kia;
 
-    /* ---------- de ondernemer: box 1 ---------- */
-    const winstNaKia = vd.winstOndernemer - kiaOndernemer;
-    // Art. 3.6 lid 1: ten minste 1225 uren en het grootste deel van de totale arbeidstijd.
+    /* ---------- het urencriterium ---------- */
+    // Art. 3.6 lid 1: ten minste 1225 uren EN het grootste deel van de totale arbeidstijd.
+    // Een gelijke verdeling is niet genoeg. Dit criterium komt uit de urenvelden van dit
+    // tabblad en niet uit de ja/nee-schakelaar van het eerste tabblad, want bij een
+    // samenwerkingsverband is juist de verhouding tussen de uren de vraag.
     const urencriterium = i.urenFirma >= 1225 && i.urenFirma > i.urenOverig;
-    const zaRecht = urencriterium ? T.onderneming.zelfstandigenAftrek : 0;
-    const startersAftrek = (urencriterium && b.starter) ? T.onderneming.startersAftrek : 0;
-    // Art. 3.76 lid 5: de zelfstandigenaftrek bedraagt niet meer dan de winst, behalve voor
-    // het deel dat de startersaftrek is.
-    const zaBasis = Math.min(zaRecht, Math.max(0, winstNaKia));
-    const za = zaBasis + startersAftrek;
-    const zaOnbenut = zaRecht - zaBasis;
-    const ondernemersaftrek = za;
-    const mkbGrondslag = winstNaKia - ondernemersaftrek;
-    const mkb = mkbGrondslag * T.onderneming.mkbVrijstelling;
-    const belastbareWinst = mkbGrondslag - mkb;
 
-    const ew = eigenwoningSaldo(b.woz, b.rente);
-    const loon = i.gebruikelijkLoon;
-    const inkomenBox1 = belastbareWinst + loon + b.uitkeringBox1 + b.rowBox1
-      - b.lijfrentePremie + ew.saldo;
-    const box1Belastbaar = Math.max(0, inkomenBox1 - b.pga);
-    const ibBruto = box1Belasting(box1Belastbaar);
-    const aftrekposten = ondernemersaftrek + (mkbGrondslag > 0 ? Math.max(0, mkb) : 0)
-      + ew.kosten + b.pga;
-    const ta = tariefsaanpassing(inkomenBox1, aftrekposten);
+    /* ---------- de ondernemer: de volledige box 1-keten ---------- */
+    // Hergebruik van berekenIB in plaats van een eigen keten. Dat is niet alleen korter maar
+    // ook de enige manier om te garanderen dat de tussenvorm dezelfde posten meeneemt als de
+    // twee bestaande scenario's: de premie beroepspensioen, de lijfrentepremie, de
+    // persoonsgebonden aftrek op het INKOMEN, de eigen woning, de tariefsaanpassing, de
+    // uitkering en het resultaat uit overige werkzaamheden, en de oudedagsinleg als
+    // vermogensvorming in plaats van als last.
+    //
+    // Wat er per scenario verschilt gaat als invoer mee: het winstaandeel in plaats van de
+    // hele winst, de investeringsaftrek uit de samentelregeling, het urencriterium uit de
+    // urenvelden, en het gebruikelijk loon uit de BV als loon uit tegenwoordige arbeid.
+    const ondInvoer = Object.assign({}, b, {
+      winst: vd.winstOndernemer,
+      // De aftrek is al bepaald met art. 3.41 lid 3; geef haar als bedrag mee zodat
+      // berekenIB de tabel niet nog eens over een investeringsbedrag toepast.
+      investering: 0,
+      kia: kiaOndernemer,
+      kiaScope: 'beide',
+      urencriterium: urencriterium,
+      loonTegenwoordig: i.gebruikelijkLoon,
+      // Is de DGA verzekerd, dan draagt de BV de werkgeversheffing over dat loon en blijft
+      // het buiten zijn eigen bijdrage-inkomen.
+      loonZvwBijWerkgever: b.dgaVerzekerd,
+      // De extra kosten van de BV horen bij de BV-kant en niet bij zijn winstaandeel.
+      bvKosten: 0
+    });
+    const ond = berekenIB(ondInvoer);
 
     /* ---------- de BV ---------- */
     // Het gebruikelijk loon en de werkgeverslasten komen ten laste van het winstaandeel van
     // de BV. Er is geen verrekening met de arbeidsbeloning uit de firma: dat zijn twee
     // verschillende titels.
-    const wgZvw = b.dgaVerzekerd ? 0 : 0;
+    const loon = i.gebruikelijkLoon;
+    // Art. 17 lid 1 Wfsv topt het premieloon per werkgever af op het maximumpremieloon; dat
+    // is hetzelfde maximum als voor de Zvw. Dezelfde aftopping als in berekenBV.
     const werkgeversheffingZvw = b.dgaVerzekerd
       ? zvwOverGrondslag(loon, T.zvw.werkgeversheffing) : 0;
-    const premiesWnv = b.dgaVerzekerd ? loon * (b.wgLastenPct / 100) : 0;
+    const premiesWnv = b.dgaVerzekerd
+      ? zvwOverGrondslag(loon, Math.max(0, b.wgLastenPct) / 100) : 0;
     const werkgeverslasten = werkgeversheffingZvw + premiesWnv;
-    const vpbGrondslag = vd.winstBVvoorLoon - loon - werkgeverslasten - b.bvKosten;
+    // De investeringsaftrek van de BV verlaagt haar winst (art. 3.40 via art. 8 lid 1
+    // Wet Vpb 1969), net als in berekenBV.
+    const vpbGrondslag = vd.winstBVvoorLoon - kiaBV - loon - werkgeverslasten - b.bvKosten;
     const vpb = vpbBelasting(Math.max(0, vpbGrondslag));
     const winstNaVpb = vpbGrondslag - vpb;
     const dividend = Math.min(i.dividendFirmaBV, Math.max(0, winstNaVpb));
     const ingehoudenWinst = winstNaVpb - dividend;
     const box2 = box2Belasting(dividend);
 
-    /* ---------- Zvw ---------- */
-    // Is de DGA niet verzekerd voor de werknemersverzekeringen, dan is er een
-    // inkomensafhankelijke bijdrage over het gezamenlijke bijdrage-inkomen met EEN maximum.
-    // Twee afzonderlijk afgetopte bedragen optellen zou het maximum verdubbelen.
-    const zvwGrondslag = b.dgaVerzekerd
-      ? Math.max(0, belastbareWinst)
-      : Math.max(0, belastbareWinst) + loon;
-    const zvw = zvwOverGrondslag(zvwGrondslag, T.zvw.bijdrage);
-
-    /* ---------- heffingskortingen ---------- */
-    const verzamelinkomen = inkomenBox1 + dividend;
+    /* ---------- de twee kanten samen ---------- */
+    // Het dividend en de box 2-heffing daarover komen bij de uitkomst van de box 1-keten.
+    // De heffingskortingen zijn al op de box 1-heffing toegepast; box 2 komt daarna, net als
+    // in berekenBV waar de kortingen over de som van box 1 en box 2 lopen. Om dezelfde
+    // volgorde te houden wordt de korting hier opnieuw bepaald over het totaal.
+    const verzamelinkomen = ond.inkomenBox1 + dividend;
     const ahk = algemeneHeffingskorting(verzamelinkomen);
-    // Het arbeidsinkomen: de winst na investeringsaftrek plus het loon plus het resultaat uit
-    // overige werkzaamheden. De ondernemersaftrek en de MKB-vrijstelling verlagen het niet.
-    const arbeidsinkomen = Math.max(0, vd.winstOndernemer - kiaOndernemer) + loon
-      + Math.max(0, b.rowBox1);
-    const ak = arbeidskorting(arbeidsinkomen);
-    const heffingVoorKortingen = ibBruto + ta + box2;
+    const ak = arbeidskorting(ond.arbeidsinkomen);
+    const heffingVoorKortingen = ond.ibBruto + ond.ta + box2;
     const kortingenRecht = ahk + ak;
     const kortingen = Math.min(kortingenRecht, heffingVoorKortingen);
     const heffingNaKortingen = heffingVoorKortingen - kortingen;
 
-    const belastingenPremies = heffingNaKortingen + vpb + zvw + werkgeverslasten;
+    const belastingenPremies = heffingNaKortingen + vpb + ond.zvw + werkgeverslasten;
     const overigeKosten = b.bvKosten;
     const totaleLasten = belastingenPremies + overigeKosten;
-    const nettoPrive = vd.winstOndernemer - kiaOndernemer - heffingNaKortingen - zvw
-      - b.lijfrentePremie + dividend;
+    // Dezelfde opbouw als berekenIB: het winstaandeel plus het loon plus de overige
+    // box 1-inkomsten plus het dividend, minus de heffing en minus wat als
+    // oudedagsvoorziening wordt ingelegd. Die inleg is een besteding en geen last: zij komt
+    // bij het economische perspectief weer terug.
+    const oudedagsinleg = ond.beroepspensioen + ond.lijfrentePremie;
+    const nettoPrive = vd.winstOndernemer + loon + ond.overigBox1 + dividend
+      - heffingNaKortingen - ond.zvw - oudedagsinleg - ond.pga;
 
     /* ---------- de latente claim over wat in de BV blijft ---------- */
+    // Zelfde aanname en zelfde keuzevariant als berekenBV: marginaal boven het dividend van
+    // dit jaar, het toptarief, of een eigen vast percentage. Alleen de schijven volgen uit
+    // art. 2.12 Wet IB 2001.
     const jaren = jarenTotHeffing(b);
+    const claimGrondslag = Math.max(0, ingehoudenWinst);
+    const claimNominaal = b.claimTarief === 'top'
+      ? claimGrondslag * T.box2.hoog
+      : (b.claimTarief === 'vast'
+        ? claimGrondslag * (pos(b.claimTariefVast) / 100)
+        : box2Belasting(dividend + claimGrondslag) - box2);
     const disco = b.disco / 100;
-    const claimNominaal = Math.max(0, ingehoudenWinst) * T.box2.laag;
     const f = Math.pow(1 + disco, Math.max(0, jaren));
     const claimContant = Number.isFinite(f) && f > 0 ? claimNominaal / f : claimNominaal;
 
     return {
       input: i, bepaalbaar: true, blokkade: null,
       verdeling: vd,
+      // De volledige uitkomst van de box 1-keten, zodat de opbouw in de UI elke post kan
+      // tonen zonder haar opnieuw te berekenen.
+      ondernemer: ond,
       kiaOndernemer: kiaOndernemer, kiaBV: kiaBV,
       kiaSamentellingOndernemer: kiaOnd, kiaSamentellingBV: kiaBv,
       urencriterium: urencriterium,
-      zaRecht: zaRecht, zaBasis: zaBasis, startersAftrek: startersAftrek, za: za,
-      zaOnbenut: zaOnbenut, ondernemersaftrek: ondernemersaftrek,
-      winstNaKia: winstNaKia, mkbGrondslag: mkbGrondslag, mkb: mkb,
-      belastbareWinst: belastbareWinst,
-      ew: ew, inkomenBox1: inkomenBox1, box1Belastbaar: box1Belastbaar,
-      ibBruto: ibBruto, ta: ta, aftrekposten: aftrekposten,
+      zaRecht: ond.zaRecht, zaBasis: ond.zaBasis, startersAftrek: ond.startersAftrek,
+      za: ond.za, zaOnbenut: ond.zaOnbenut, ondernemersaftrek: ond.ondernemersaftrek,
+      winstNaKia: ond.winstNaKia, mkbGrondslag: ond.mkbGrondslag, mkb: ond.mkb,
+      belastbareWinst: ond.belastbareWinst,
+      ew: ond.ew, inkomenBox1: ond.inkomenBox1, box1Belastbaar: ond.box1Belastbaar,
+      ibBruto: ond.ibBruto, ta: ond.ta, aftrekposten: ond.aftrekposten,
+      beroepspensioen: ond.beroepspensioen, lijfrentePremie: ond.lijfrentePremie,
+      pga: ond.pga, overigBox1: ond.overigBox1, oudedagsinleg: oudedagsinleg,
       loon: loon, werkgeversheffingZvw: werkgeversheffingZvw, premiesWnv: premiesWnv,
       werkgeverslasten: werkgeverslasten,
       vpbGrondslag: vpbGrondslag, vpb: vpb, winstNaVpb: winstNaVpb,
       dividend: dividend, ingehoudenWinst: ingehoudenWinst, box2: box2,
-      zvwGrondslag: zvwGrondslag, zvw: zvw,
-      verzamelinkomen: verzamelinkomen, ahk: ahk, arbeidsinkomen: arbeidsinkomen, ak: ak,
+      zvwGrondslag: ond.zvwGrondslag, zvw: ond.zvw,
+      verzamelinkomen: verzamelinkomen, ahk: ahk, arbeidsinkomen: ond.arbeidsinkomen, ak: ak,
       kortingenRecht: kortingenRecht, kortingen: kortingen,
       kortingenOnbenut: kortingenRecht - kortingen,
       heffingVoorKortingen: heffingVoorKortingen, heffingNaKortingen: heffingNaKortingen,
       belastingenPremies: belastingenPremies, overigeKosten: overigeKosten,
       totaleLasten: totaleLasten, nettoPrive: nettoPrive,
       jaren: jaren, claimNominaal: claimNominaal, claimContant: claimContant,
+      oudedagClaimNominaal: ond.oudedagClaimNominaal,
+      oudedagClaimContant: ond.oudedagClaimContant,
       // Dezelfde grootheid als in berekenIB en berekenBV: een vermogenspositie waarbij
-      // hoger beter is, niet een lastenpositie.
-      economisch: nettoPrive + ingehoudenWinst - claimContant
+      // hoger beter is, niet een lastenpositie. De oudedagsinleg vormt vermogen en komt
+      // daarom terug; de latente claims gaan eraf.
+      economisch: nettoPrive + oudedagsinleg + ingehoudenWinst - claimContant
+        - ond.oudedagClaimContant
     };
   }
 
@@ -4579,6 +4663,18 @@ const BVJN = (function () {
     if (i.jarenGoodwill < 1 || i.jarenGoodwill > 60) fout('jarenGoodwill', 'Afschrijvingstermijn goodwill: kies een periode tussen 1 en 60 jaar.');
     if (i.jarenPand < 0 || i.jarenPand > 60) fout('jarenPand', 'Jaren tot realisatie van de pandmeerwaarde: kies een periode van maximaal 60 jaar.');
     if (i.jarenOverig < 0 || i.jarenOverig > 60) fout('jarenOverig', 'Afschrijvingstermijn overige bedrijfsmiddelen: kies een periode van maximaal 60 jaar.');
+    // Een termijn van nul jaar betekent dat er niet wordt afgeschreven, en dan realiseert
+    // het bedrijfsmiddel zijn meerwaarde bij verkoop en niet via de afschrijving. Zo'n post
+    // hoort dus in de pandpost. Zonder deze controle verdween de meerwaarde uit beide
+    // realisatiekanalen terwijl de aanmerkelijkbelangclaim wel bleef rekenen alsof de
+    // vennootschapsbelasting was geheven.
+    else if (i.jarenOverig === 0 && i.stilleReservesOverig > 0) {
+      fout('jarenOverig', 'Bij een afschrijvingstermijn van nul jaar wordt er niet afgeschreven, en dan '
+        + 'realiseert het bedrijfsmiddel zijn meerwaarde bij verkoop in plaats van via de afschrijving. '
+        + 'Zet die meerwaarde dan bij de stille reserves in gebouwen, want daar rekent de tool met een '
+        + 'claim bij realisatie. Art. 3.30 lid 2 Wet IB 2001 staat op andere bedrijfsmiddelen ten hoogste '
+        + '20% per jaar toe, dus een termijn van ten minste vijf jaar.');
+    }
     if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
     const stilleReserves = i.stilleReservesPand + i.stilleReservesOverig;
     if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve <= 0) {
@@ -5975,12 +6071,18 @@ const BVJN = (function () {
     /* ---------- de opbouw ---------- */
     const r = [['Winstaandeel ondernemer', vd.winstOndernemer]];
     if (f.kiaOndernemer > 0) r.push(['Investeringsaftrek (art. 3.41 lid 3)', -f.kiaOndernemer]);
+    if (f.beroepspensioen > 0) r.push(['Premie beroepspensioenregeling (art. 3.18)', -f.beroepspensioen]);
     if (f.za > 0) r.push(['Zelfstandigenaftrek' + (f.startersAftrek > 0 ? ' inclusief startersaftrek' : ''), -f.za]);
     else r.push(['Zelfstandigenaftrek (urencriterium niet gehaald)', 0]);
     r.push(['MKB-winstvrijstelling', -f.mkb]);
     r.push(['Belastbare winst', f.belastbareWinst, undefined, 'sub']);
     if (f.loon > 0) r.push(['Gebruikelijk loon uit de BV', f.loon]);
+    // De overige box 1-posten van het eerste tabblad horen erbij, anders telt de opbouw niet
+    // op naar het subtotaal en lijkt er een bedrag te ontbreken.
+    if (f.overigBox1 !== 0) r.push(['Uitkering en resultaat uit overige werkzaamheden', f.overigBox1]);
     if (f.ew.saldo !== 0) r.push(['Saldo eigen woning', f.ew.saldo]);
+    if (f.lijfrentePremie > 0) r.push(['Lijfrentepremie (afdeling 3.7)', -f.lijfrentePremie]);
+    if (f.pga > 0) r.push(['Persoonsgebonden aftrek', -f.pga]);
     r.push(['Inkomen box 1', f.inkomenBox1, undefined, 'sub']);
     r.push(['Inkomstenbelasting en premies', -f.ibBruto]);
     if (f.ta > 0) r.push(['Tariefsaanpassing', -f.ta]);
@@ -6413,8 +6515,9 @@ const BVJN = (function () {
 
     vulTabel('in-tb-geruisloos', [
       ['Vrijval oudedagsreserve: die valt ook hier vrij (art. 10a.29 lid 6)', u.geruisloosFor.last],
-      ['Gemiste afschrijving op de goodwill: ' + fmt(u.afschrijvingPerJaar) + ' per jaar, ' + u.input.jarenGoodwill + ' jaar', u.gemisteAfschrijving],
-      ['Contante waarde VPB-claim over de stille reserves (' + u.input.jarenPand + ' jaar)', u.vpbClaimReserves],
+      ['Gemiste afschrijving op de goodwill: ' + fmt(u.afschrijvingPerJaar) + ' per jaar, ' + u.input.jarenGoodwill + ' jaar', u.gemisteAfschrijvingGoodwill],
+      ['Gemiste afschrijving op de overige bedrijfsmiddelen: ' + fmt(u.afschrijvingOverigPerJaar) + ' per jaar, ' + u.input.jarenOverig + ' jaar', u.gemisteAfschrijvingOverig],
+      ['Contante waarde VPB-claim over de meerwaarde in gebouwen (' + u.input.jarenPand + ' jaar)', u.vpbClaimReserves],
       ['Reserves na vennootschapsbelasting', u.naVpb, undefined, 'sub'],
       ['Contante waarde box 2-claim daarover (' + u.input.jarenAb + ' jaar, ' + pct(u.input.box2Tarief / 100, 1) + ')', u.abClaim],
       ['Overdrachtsbelasting', u.ob],
@@ -6547,6 +6650,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:43</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 14:13</div>
 </body>
 </html>
