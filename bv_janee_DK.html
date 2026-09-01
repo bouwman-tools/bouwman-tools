@@ -2331,7 +2331,9 @@ const BVJN = (function () {
      ========================================================================== */
 
   const DOSSIER_TOOL = 'bv-janee';
-  const DOSSIER_FORMAATVERSIE = 1;
+  // Versie 2 voegt de blokken balans, firma en fusie toe. Een dossier van versie 1 blijft
+  // leesbaar: die blokken komen dan leeg terug en de tool toont er niets voor.
+  const DOSSIER_FORMAATVERSIE = 2;
   const DOSSIER_MAX_TEKST = 40;
   const DOSSIER_MAX_KENMERK = 80;
 
@@ -2370,6 +2372,32 @@ const BVJN = (function () {
     goodwillSpoor: ['kasstroom', 'balanspost']
   };
 
+  const DOSSIER_FIRMA = ['pctBV', 'arbeidsbeloning', 'gebruikelijkLoon', 'renteOndernemer',
+    'renteBV', 'dividend', 'urenFirma', 'urenOverig', 'investeringSwv', 'investeringBuitenven',
+    'goodwill', 'stilleReserves', 'overgedragenBelang', 'ozWaarde', 'maandenTerug',
+    'reedsOpgebouwd'];
+  const DOSSIER_FIRMA_SCHAKELAAR = ['verbondenPersoon', 'aangaan', 'voorbehoud', 'oz',
+    'driejaarVennoot', 'driejaarVoortzetting', 'bvBestond'];
+  const DOSSIER_FIRMA_KEUZE = { rechtsvorm: ['vof', 'cvBeherend', 'cvCommanditair'] };
+
+  // De vier inbrengers van de fusiemodule worden platgeslagen naar velden met een index,
+  // zodat het dossier een vlakke structuur houdt en een ontbrekende rij niets breekt.
+  const DOSSIER_FUSIE = ['aantal', 'claimPct', 'nominaalPerAandeel', 'totaalNominaal',
+    'bestaandVermogen', 'maandenVoorovereenkomst', 'maandenOprichting',
+    'maandenEersteBoekjaar', 'ozWaarde']
+    .concat([0, 1, 2, 3].reduce(function (lijst, n) {
+      return lijst.concat(['naam' + n, 'w' + n, 'b' + n, 'r' + n, 'belang' + n]);
+    }, []));
+  const DOSSIER_FUSIE_SCHAKELAAR = ['a-verliezen', 'a-renten', 'a-innoOvernemer',
+    'a-innoOverdrager', 'a-voorheffingen', 'a-voorkoming', 'a-objectvrijstelling',
+    'a-winstbepaling', 'oz', 'vervreemding3jr', 'nietInbrenger'];
+  const DOSSIER_FUSIE_KEUZE = {
+    aardVermogen: ['materieel', 'deelnemingen', 'deelnemingenPand'],
+    overnemer: ['nieuw', 'bestaand'],
+    gestortBegrip: ['nominaalPlusAgio', 'nominaal'],
+    winstrecht: ['waarde', 'nominaal']
+  };
+
   function dossierTekst(waarde, maximum) {
     if (waarde === undefined || waarde === null) return '';
     if (typeof waarde === 'object') return '';
@@ -2398,7 +2426,9 @@ const BVJN = (function () {
       naam: dossierTekst(s.naam, DOSSIER_MAX_KENMERK),
       hoofd: dossierBlok(s.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
       inbreng: dossierBlok(s.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, DOSSIER_INBRENG_KEUZE),
-      balans: dossierBlok(s.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE)
+      balans: dossierBlok(s.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE),
+      firma: dossierBlok(s.firma, DOSSIER_FIRMA, DOSSIER_FIRMA_SCHAKELAAR, DOSSIER_FIRMA_KEUZE),
+      fusie: dossierBlok(s.fusie, DOSSIER_FUSIE, DOSSIER_FUSIE_SCHAKELAAR, DOSSIER_FUSIE_KEUZE)
     }, null, 2);
   }
 
@@ -2441,7 +2471,9 @@ const BVJN = (function () {
         hoofd: dossierBlok(rauw.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
         inbreng: metOudeStilleReserves(rauw.inbreng,
           dossierBlok(rauw.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, DOSSIER_INBRENG_KEUZE)),
-        balans: dossierBlok(rauw.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE)
+        balans: dossierBlok(rauw.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE),
+        firma: dossierBlok(rauw.firma, DOSSIER_FIRMA, DOSSIER_FIRMA_SCHAKELAAR, DOSSIER_FIRMA_KEUZE),
+        fusie: dossierBlok(rauw.fusie, DOSSIER_FUSIE, DOSSIER_FUSIE_SCHAKELAAR, DOSSIER_FUSIE_KEUZE)
       }
     };
   }
@@ -4638,6 +4670,19 @@ const BVJN = (function () {
     kiaBedrag, kiaVanInvoer, jarenTotHeffing,
     stakingslijfrenteMax, jaarruimte, loonOfDividend, meerjarig,
     maakDossierTekst, leesDossier, dossierBestandsnaam,
+    // De veldnamenlijsten van het dossier, zodat de UI-laag ze niet hoeft te dupliceren:
+    // een tweede lijst die uit de eerste loopt is precies hoe een veld stil verdwijnt.
+    DOSSIER: {
+      hoofd: DOSSIER_HOOFD, hoofdSchakelaar: DOSSIER_HOOFD_SCHAKELAAR,
+      hoofdKeuze: DOSSIER_HOOFD_KEUZE,
+      inbreng: DOSSIER_INBRENG, inbrengSchakelaar: DOSSIER_INBRENG_SCHAKELAAR,
+      inbrengKeuze: DOSSIER_INBRENG_KEUZE,
+      balans: DOSSIER_BALANS, balansKeuze: DOSSIER_BALANS_KEUZE,
+      firma: DOSSIER_FIRMA, firmaSchakelaar: DOSSIER_FIRMA_SCHAKELAAR,
+      firmaKeuze: DOSSIER_FIRMA_KEUZE,
+      fusie: DOSSIER_FUSIE, fusieSchakelaar: DOSSIER_FUSIE_SCHAKELAAR,
+      fusieKeuze: DOSSIER_FUSIE_KEUZE
+    },
     normaliseerInbreng, berekenInbreng, valideerInbreng,
     crediteringsruimte, afschrijvingGebouw, bijbetalingsgrensOvb, verkrijgingsprijsAb,
     normaliseerBalans, openingsbalansRuisend, openingsbalansGeruisloos, valideerBalans,
@@ -5297,7 +5342,24 @@ const BVJN = (function () {
     inbreng.obVrijstelling = obVrijstelling;
     inbreng.arbeidsongeschikt = arbeidsongeschikt;
 
-    return { kenmerk: lees('kenmerk'), naam: lees('naam'), hoofd: hoofd, inbreng: inbreng };
+    const D = BVJN.DOSSIER;
+    // Per blok: de gewone velden, de schakelaars en de keuzevelden, met het prefix van de
+    // invoervelden ervoor.
+    const blokUit = function (prefix, velden, schakelaars, keuzes) {
+      const uit = {};
+      velden.forEach(function (n) { uit[n] = lees(prefix + n); });
+      (schakelaars || []).forEach(function (n) {
+        const k = el(prefix + n); uit[n] = k ? k.checked === true : false;
+      });
+      Object.keys(keuzes || {}).forEach(function (n) { uit[n] = lees(prefix + n); });
+      return uit;
+    };
+    const balans = blokUit('bal-', D.balans, [], D.balansKeuze);
+    const firma = blokUit('fir-', D.firma, D.firmaSchakelaar, D.firmaKeuze);
+    const fusie = blokUit('fus-', D.fusie, D.fusieSchakelaar, D.fusieKeuze);
+
+    return { kenmerk: lees('kenmerk'), naam: lees('naam'), hoofd: hoofd, inbreng: inbreng,
+      balans: balans, firma: firma, fusie: fusie };
   }
 
   function zetDossier(d) {
@@ -5312,6 +5374,30 @@ const BVJN = (function () {
       if (n === 'obVrijstelling' || n === 'arbeidsongeschikt') return;
       zet('in-' + n, d.inbreng[n]);
     });
+    // De drie blokken van formaatversie 2. Een dossier van versie 1 heeft ze niet; dan komt
+    // er een leeg blok terug en blijven de velden op hun standaardwaarde staan.
+    if (d.balans) {
+      Object.keys(d.balans).forEach(function (n) { zet('bal-' + n, d.balans[n]); });
+    }
+    if (d.firma) {
+      Object.keys(d.firma).forEach(function (n) {
+        if (BVJN.DOSSIER.firmaSchakelaar.indexOf(n) >= 0) {
+          const k = el('fir-' + n); if (k) k.checked = d.firma[n] === true;
+        } else {
+          zet('fir-' + n, d.firma[n]);
+        }
+      });
+    }
+    if (d.fusie) {
+      Object.keys(d.fusie).forEach(function (n) {
+        if (BVJN.DOSSIER.fusieSchakelaar.indexOf(n) >= 0) {
+          const k = el('fus-' + n); if (k) k.checked = d.fusie[n] === true;
+        } else {
+          zet('fus-' + n, d.fusie[n]);
+        }
+      });
+    }
+
     setUren(d.hoofd.urencriterium);
     setStarter(d.hoofd.starter);
     setWnv(d.hoofd.dgaVerzekerd);
@@ -5320,6 +5406,8 @@ const BVJN = (function () {
     ververseJaren();
     ververseAfgeleid();
     ververseInbrengHints();
+    // Het aantal inbrengers bepaalt welke rijen zichtbaar zijn; dat moet mee met het dossier.
+    if (d.fusie && d.fusie.aantal) fusieRijen();
   }
 
   function dossierMelding(tekst, soort) {
@@ -5357,9 +5445,14 @@ const BVJN = (function () {
         const m = el(IN_VELD_MSG[k]); if (m) { m.textContent = ''; m.className = 'fmsg'; }
         const inp = el('in-' + k); if (inp) inp.removeAttribute('aria-invalid');
       });
-      ['box-err', 'box-warn', 'in-box-err', 'in-box-warn'].forEach(function (id) {
+      ['box-err', 'box-warn', 'in-box-err', 'in-box-warn', 'fir-box-err', 'fir-box-warn',
+        'fus-box-err', 'fus-box-warn', 'fir-blokkade'].forEach(function (id) {
         const n = el(id); if (n) n.style.display = 'none';
       });
+      ['fir-res', 'fus-res'].forEach(function (id) {
+        const n = el(id); if (n) n.classList.remove('show');
+      });
+      wisBalansMeldingen();
       el('box-stale').classList.remove('on');
       state = null;
       el('res').classList.remove('show');
@@ -6260,6 +6353,10 @@ const BVJN = (function () {
   window.berekenInbrengUI = berekenInbrengUI;
   window.berekenFusieUI = berekenFusieUI;
   window.berekenFirmaUI = berekenFirmaUI;
+  // Voor de browsercontrole van de dossierronde: het opslaan en inlezen is anders alleen
+  // via de knoppen te bereiken, en die openen een bestandsdialoog.
+  window.dossierStand = dossierStand;
+  window.zetDossier = zetDossier;
   window.fusieRijen = fusieRijen;
   window.switchTab = switchTab;
   window.printNota = printNota;
@@ -6318,6 +6415,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:34</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:39</div>
 </body>
 </html>
