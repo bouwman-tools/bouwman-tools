@@ -7,75 +7,75 @@ Bijgewerkt: 2026-08-31
 
 ## Accountancy & Jaarrekening
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. |
-| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. |
-| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Administratie & Archief
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Arbeidsrecht & Compliance
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. |
-| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Auto & Mobiliteit
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 |
-| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | **tbd** | belastingplan | **nooit** |
+| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## BTW & Omzetbelasting
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## BV & DGA
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 |
-| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. |
-| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 |
-| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 |
-| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. |
-| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | n.v.t. |
-| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
+| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | **tbd** | belastingplan | **nooit** |
+| 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
+| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
 
 ## Belastingdienst
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. |
-| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Kantoor
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Loonheffing & WKR
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 |
-| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | **tbd** | belastingplan | **nooit** |
+| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Overig
 
-| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |
-|---|---|---|---|---|---|
-| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. |
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Vervallen
 

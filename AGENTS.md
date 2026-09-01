@@ -34,8 +34,10 @@ stil te mergen.
 ## tools.json is de enige bron van de toolportefeuille
 
 `tools.json` legt per tool vast: naam, bestand of URL, categorie, status, bronrepo,
-het Cloudflare Access-app-id en welke jaarafhankelijke waarden erin zitten. Voeg je een
-tool toe of haal je er een weg, dan begin je daar.
+het Cloudflare Access-app-id, welke jaarafhankelijke waarden erin zitten en wie de
+inhoudelijk verantwoordelijke is. Voeg je een tool toe of haal je er een weg, dan begin
+je daar. `tools.schema.json` beschrijft de toegestane velden; `check_tools.py`
+valideert daartegen zodra `jsonschema` beschikbaar is.
 
 - `portal.html`, `beheer.html`, `access-beheer-worker.js` (APP_IDS) en `TOOLS.md` moeten
   daarmee overeenkomen. Houd nergens een tweede lijst bij.
@@ -79,6 +81,25 @@ elke push en maandelijks op schema. Een tool met jaarwaarden zonder controledatu
 geeft een waarschuwing: leg de datum vast zodra de waarden in de bronrepo zijn
 geverifieerd. Het vangnet in de tools zelf blijft leidend: een onbekend boekjaar
 geeft een melding en rekent nooit stil door op oude waarden.
+
+## Eigenaarschap en vrijgave
+
+Elke tool heeft één inhoudelijk verantwoordelijke, de eigenaar: die beoordeelt of de
+tool vakinhoudelijk klopt en accordeert wijzigingen. Bouw en onderhoud blijven bij
+Sylvain. In `tools.json` staat per tool `eigenaar`, `beoordelingsritme`
+(`belastingplan`, `jaarlijks` of `geen`) en `laatst_beoordeeld`.
+
+- Bij elke publicatie die het gedrag raakt, krijgt de eigenaar een **vrijgavenotitie**:
+  wat is gewijzigd, welke fiscale waarden dat raakt met vindplaats, de uitslag van de
+  testset en wat hij concreet moet beoordelen. De notitie staat in de **bronrepo** als
+  `vrijgave-<repo-naam>-<JJJJ-MM-DD>.md` en gaat per mail naar de eigenaar. De opzet
+  staat in de skill `release-en-sync`, sectie 6.
+- `laatst_beoordeeld` werk je pas bij als de eigenaar echt heeft gereageerd. Versturen
+  is geen accorderen.
+- Ontbrekend eigenaarschap en een verlopen accordering **blokkeren niet**: de tool
+  blijft live en `check_tools.py` meldt de achterstand. Afgesproken 01-09-2026; de
+  eigenaren zelf waren op dat moment nog niet toegewezen, vandaar `tbd`.
+- De periodieke controlerondes staan in de skill `onderhoud-en-jaarwerk`.
 
 ## Sync-mechanisme
 

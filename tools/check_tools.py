@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Controleert of portal.html, beheer.html en access-beheer-worker.js overeenkomen
 met tools.json, de enige bron van waarheid voor de toolportefeuille, en bewaakt de
-actualiteit van de jaargebonden waarden per tool.
+actualiteit van de jaargebonden waarden en de inhoudelijke beoordeling per tool.
 
 Faalt met exitcode 1 zodra er drift is of jaarwaarden meer dan een jaar niet zijn
-gecontroleerd. Draait lokaal en in CI (bij elke push en maandelijks op schema).
+gecontroleerd. Een ontbrekende eigenaar of achterstallige beoordeling blokkeert
+bewust niet: die worden gemeld, de tool blijft live. Draait lokaal en in CI
+(bij elke push en maandelijks op schema).
 
     python tools/check_tools.py
 """
@@ -64,6 +66,62 @@ def jaarwaarden_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
     return "ok", str(datum)
 
 
+def beoordeling_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
+    """Beoordeelt of de inhoudelijke accordering door de eigenaar nog staat.
+
+    De eigenaar accordeert dat de tool vakinhoudelijk juist is. Het ritme staat per
+    tool in tools.json: 'belastingplan' volgt dezelfde cyclus als de jaarwaarden,
+    'jaarlijks' is een gewone jaartermijn en 'geen' vraagt alleen om beoordeling
+    bij een wijziging.
+
+    Retourneert (soort, tekst) met soort:
+      'nvt'          — ritme 'geen';
+      'ok'           — geaccordeerd binnen het ritme;
+      'onbeoordeeld' — nog nooit geaccordeerd;
+      'verlopen'     — accordering valt buiten het ritme;
+      'ongeldig'     — onbruikbare datum of onbekend ritme (fout).
+    """
+    ritme = tool.get("beoordelingsritme", "jaarlijks")
+    if ritme not in ("belastingplan", "jaarlijks", "geen"):
+        return "ongeldig", f"onbekend beoordelingsritme {ritme!r}"
+    if ritme == "geen":
+        return "nvt", "n.v.t."
+    ruw = tool.get("laatst_beoordeeld")
+    if not ruw:
+        return "onbeoordeeld", "nog niet inhoudelijk geaccordeerd"
+    try:
+        datum = datetime.date.fromisoformat(str(ruw))
+    except ValueError:
+        return "ongeldig", f"onbruikbare datum {ruw!r} (verwacht JJJJ-MM-DD)"
+    if ritme == "belastingplan":
+        # Zelfde ijkpunt als de jaarwaarden: geaccordeerd op of na 1 september van
+        # het voorgaande jaar telt voor het lopende jaar.
+        actueel = datum >= datetime.date(vandaag.year - 1, 9, 1)
+    else:
+        actueel = datum >= vandaag - datetime.timedelta(days=365)
+    if not actueel:
+        return "verlopen", f"laatst geaccordeerd {datum}, buiten het ritme {ritme}"
+    return "ok", str(datum)
+
+
+def valideer_schema(bron: dict) -> list[str]:
+    """Valideert tools.json tegen tools.schema.json als jsonschema beschikbaar is."""
+    pad = os.path.join(WORTEL, "tools.schema.json")
+    if not os.path.exists(pad):
+        return [f"tools.json verwijst naar {os.path.basename(pad)}, dat niet bestaat."]
+    try:
+        import jsonschema
+    except ImportError:
+        return []
+    with open(pad, encoding="utf-8") as fh:
+        schema = json.load(fh)
+    validator = jsonschema.Draft7Validator(schema)
+    return [
+        "tools.json: " + "/".join(str(p) for p in f.absolute_path) + f": {f.message}"
+        for f in sorted(validator.iter_errors(bron), key=lambda f: list(f.absolute_path))
+    ]
+
+
 def main() -> int:
     with open(os.path.join(WORTEL, "tools.json"), encoding="utf-8") as fh:
         bron = json.load(fh)
@@ -89,7 +147,12 @@ def main() -> int:
     fouten: list[str] = []
     waarschuwingen: list[str] = []
     jaarwaarden_meldingen: list[str] = []
+    eigenaar_meldingen: list[str] = []
+    onbeoordeeld: list[str] = []
+    beoordeling_meldingen: list[str] = []
     vandaag = datetime.date.today()
+
+    fouten += valideer_schema(bron)
 
     ids = [t["id"] for t in tools]
     if len(ids) != len(set(ids)):
@@ -136,7 +199,23 @@ def main() -> int:
         elif soort in ("verouderd", "ontbreekt"):
             jaarwaarden_meldingen.append(f"{naam}: {tekst}.")
 
-    # 5. Verwijzingen die nergens meer op slaan
+        # 5. Eigenaarschap en inhoudelijke beoordeling.
+        # Bewust niet blokkerend: een tool zonder eigenaar of met een verlopen
+        # accordering blijft live, de achterstand wordt zichtbaar gemeld.
+        eigenaar = (tool.get("eigenaar") or "").strip()
+        if not eigenaar or eigenaar.lower() == "tbd":
+            eigenaar_meldingen.append(naam)
+        soort, tekst = beoordeling_status(tool, vandaag)
+        if soort == "ongeldig":
+            fouten.append(f"{naam}: beoordeling: {tekst}.")
+        elif soort == "onbeoordeeld":
+            onbeoordeeld.append(naam)
+        elif soort == "verlopen":
+            beoordeling_meldingen.append(
+                f"{naam} ({eigenaar or 'geen eigenaar'}): {tekst}."
+            )
+
+    # 6. Verwijzingen die nergens meer op slaan
     bekend = {sleutel(t) for t in tools}
     for ref in sorted(portal_refs - bekend):
         fouten.append(f"portal.html verwijst naar {ref}, dat niet in tools.json staat.")
@@ -148,7 +227,7 @@ def main() -> int:
             + (" (staat wel onder 'vervallen')." if ref in vervallen else ".")
         )
 
-    # 6. Gepubliceerd maar nergens vastgelegd
+    # 7. Gepubliceerd maar nergens vastgelegd
     gepubliceerd = html_in_repo - INFRA
     for ref in sorted(gepubliceerd - bekend):
         fouten.append(
@@ -175,6 +254,26 @@ def main() -> int:
             # zichtbaar is zonder de log te openen.
             if os.environ.get("GITHUB_ACTIONS"):
                 print(f"::warning::Jaarwaarden: {m}")
+        print()
+
+    if eigenaar_meldingen:
+        print(f"GEEN EIGENAAR VASTGELEGD ({len(eigenaar_meldingen)}):")
+        print("  " + ", ".join(sorted(eigenaar_meldingen)))
+        print("  Leg 'eigenaar' vast in tools.json; zonder eigenaar komt de "
+              "vrijgavenotitie nergens terecht.")
+        print()
+
+    if onbeoordeeld:
+        print(f"NOG NOOIT INHOUDELIJK GEACCORDEERD ({len(onbeoordeeld)}):")
+        print("  " + ", ".join(sorted(onbeoordeeld)))
+        print()
+
+    if beoordeling_meldingen:
+        print(f"ACCORDERING VERLOPEN ({len(beoordeling_meldingen)}):")
+        for m in sorted(beoordeling_meldingen):
+            print(f"  - {m}")
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::warning::Beoordeling: {m}")
         print()
 
     if fouten:
@@ -210,7 +309,13 @@ def schrijf_tools_md() -> None:
         per_categorie.setdefault(tool["categorie"], []).append(tool)
 
     for categorie in sorted(per_categorie):
-        regels += [f"## {categorie}", "", "| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd |", "|---|---|---|---|---|---|"]
+        regels += [
+            f"## {categorie}",
+            "",
+            "| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd "
+            "| Eigenaar | Ritme | Geaccordeerd |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
         for tool in sorted(per_categorie[categorie], key=lambda t: t["naam"]):
             doel = tool.get("url") or ("/" + tool["bestand"])
             schild = "ja" if tool.get("access_app_id") else ("n.v.t." if tool.get("extern") else "**nee**")
@@ -222,7 +327,16 @@ def schrijf_tools_md() -> None:
                 jw = "n.v.t."
             else:
                 jw = tool.get("jaarwaarden_gecontroleerd") or "**ontbreekt**"
-            regels.append(f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} | {jw} |")
+            eigenaar = tool.get("eigenaar") or ""
+            eigenaar = "**tbd**" if eigenaar.lower() in ("", "tbd") else eigenaar
+            ritme = tool.get("beoordelingsritme", "jaarlijks")
+            akkoord = tool.get("laatst_beoordeeld") or (
+                "n.v.t." if ritme == "geen" else "**nooit**"
+            )
+            regels.append(
+                f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} "
+                f"| {jw} | {eigenaar} | {ritme} | {akkoord} |"
+            )
         regels.append("")
 
     onbeschermd = [t for t in bron["tools"] if not t.get("access_app_id") and not t.get("extern")]

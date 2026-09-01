@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bouwman.tools/tools.schema.json",
+  "title": "Toolportefeuille bouwman.tools",
+  "description": "Enige bron van waarheid voor de toolportefeuille. portal.html, beheer.html, access-beheer-worker.js en TOOLS.md horen hieruit te lezen of hieruit te worden gegenereerd.",
+  "type": "object",
+  "required": ["bijgewerkt", "tools"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "toelichting": { "type": "string" },
+    "bijgewerkt": { "$ref": "#/definitions/datum" },
+    "statussen": { "type": "object" },
+    "afscherming": { "type": "object" },
+    "eigenaarschap": { "type": "object" },
+    "tools": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/tool" }
+    },
+    "vervallen": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bestand", "reden"],
+        "properties": {
+          "bestand": { "type": "string" },
+          "reden": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "datum": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "JJJJ-MM-DD"
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "id", "naam", "categorie", "status", "repo",
+        "in_portal", "in_beheer",
+        "eigenaar", "beoordelingsritme", "laatst_beoordeeld",
+        "jaarwaarden", "jaarwaarden_gecontroleerd"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "naam": { "type": "string" },
+        "bestand": {
+          "type": "string",
+          "pattern": "[.]html$",
+          "description": "Bestandsnaam in deze repo. Verplicht tenzij extern true is."
+        },
+        "url": {
+          "type": "string",
+          "description": "Externe locatie; alleen bij extern true."
+        },
+        "extern": {
+          "type": "boolean",
+          "description": "Draait buiten deze repo, bijvoorbeeld op Streamlit of een eigen subdomein."
+        },
+        "categorie": { "type": "string" },
+        "status": { "enum": ["live", "beta", "verborgen", "concept"] },
+        "status_reden": { "type": "string" },
+        "repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "description": "Bronrepository als organisatie/repo."
+        },
+        "uc": { "type": "string" },
+        "access_app_id": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f-]{36}$",
+          "description": "Cloudflare Access-app. Zonder id is het bestand voor iedereen met de URL bereikbaar."
+        },
+        "in_portal": { "type": "boolean" },
+        "in_beheer": { "type": "boolean" },
+        "eigenaar": {
+          "type": "string",
+          "description": "Inhoudelijk verantwoordelijke die wijzigingen beoordeelt en accordeert. 'tbd' zolang dat niet is afgesproken."
+        },
+        "eigenaar_contact": {
+          "type": "string",
+          "description": "Optioneel: waar de vrijgavenotitie naartoe gaat."
+        },
+        "beoordelingsritme": { "enum": ["belastingplan", "jaarlijks", "geen"] },
+        "laatst_beoordeeld": {
+          "oneOf": [{ "$ref": "#/definitions/datum" }, { "type": "null" }],
+          "description": "Datum waarop de eigenaar de tool inhoudelijk heeft geaccordeerd."
+        },
+        "jaarwaarden": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Namen van de jaargebonden constanten of blokken in de bronrepo. Leeg als de tool er geen heeft."
+        },
+        "jaarwaarden_gecontroleerd": {
+          "oneOf": [{ "$ref": "#/definitions/datum" }, { "type": "null" }],
+          "description": "Datum waarop de jaargebonden waarden tegen de bron zijn geverifieerd."
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "extern": { "const": true } }, "required": ["extern"] },
+          "then": { "required": ["url"] },
+          "else": { "required": ["bestand"] }
+        },
+        {
+          "if": {
+            "properties": { "jaarwaarden": { "minItems": 1 } },
+            "required": ["jaarwaarden"]
+          },
+          "then": {
+            "properties": { "beoordelingsritme": { "const": "belastingplan" } }
+          }
+        }
+      ]
+    }
+  }
+}
