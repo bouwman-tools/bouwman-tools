@@ -24,7 +24,6 @@ Bijgewerkt: 2026-08-31
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
-| 🟡 beta | WWFT Check | `https://wwft-check.streamlit.app/` | Sylvainbouwman/wwft-check | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Auto & Mobiliteit
 
@@ -81,6 +80,7 @@ Bijgewerkt: 2026-08-31
 
 | Bestand | Reden |
 |---|---|
+| `https://wwft-check.streamlit.app/` | Op 01-09-2026 uit de portefeuille gehaald. De tool draait nu in de kantooromgeving; de Streamlit-app is verwijderd en de bronrepo Sylvainbouwman/wwft-check is gearchiveerd. Er was geen Access-app (externe link). |
 | `betalingskenmerk.html` | Repository hernoemd naar belastingtooljoindk; het bestand bestaat niet meer. De Access-app d0924bf1-e6c1-4098-8573-ac651b860b51 kan worden opgeruimd. |
 | `join-wkr-agent-intern.html` | Op 18-08-2026 vervangen door join-wkr-agent.html. Access-app 85322344-25d4-41cd-9b08-9c79da74bb28 kan worden opgeruimd. |
 | `join-wkr-agent-extern.html` | Op 18-08-2026 vervangen door join-wkr-agent.html. Access-app b98bbe15-1440-4ca4-8af1-cc12517e098f kan worden opgeruimd. |
