@@ -57,6 +57,8 @@
   .tog button[aria-pressed="true"] { background: var(--dk-antr); color: #fff; border-color: var(--dk-antr); }
   .tog button:focus-visible { outline: 2px solid var(--dk-green); outline-offset: 1px; z-index: 1; }
 
+  .chk { display: block; margin: 5px 0; font-size: 12px; line-height: 1.45; cursor: pointer; }
+  .chk input { margin-right: 7px; vertical-align: -1px; }
   .btn-calc { width: 100%; margin-top: 6px; padding: 11px; background: var(--dk-green); color: #fff; border: none; border-radius: 2px; font-size: 13px; font-family: inherit; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
   .btn-calc:hover { background: var(--dk-green-h); }
   .btn-calc:focus-visible { outline: 3px solid var(--dk-antr); outline-offset: 2px; }
@@ -216,6 +218,7 @@
 <div class="tabs" role="tablist" aria-label="Onderdelen">
   <button class="tab active" id="tabbtn-invoer" role="tab" aria-selected="true" aria-controls="tab-invoer" onclick="switchTab('invoer')">Invoer &amp; berekening</button>
   <button class="tab" id="tabbtn-inbreng" role="tab" aria-selected="false" aria-controls="tab-inbreng" onclick="switchTab('inbreng')">Inbreng in de BV</button>
+  <button class="tab" id="tabbtn-fusie" role="tab" aria-selected="false" aria-controls="tab-fusie" onclick="switchTab('fusie')">Fusie art. 14</button>
   <button class="tab" id="tabbtn-nota" role="tab" aria-selected="false" aria-controls="tab-nota" onclick="switchTab('nota')">Adviesnota</button>
 </div>
 
@@ -949,6 +952,274 @@
     </div>
   </div>
 
+  <div id="tab-fusie" role="tabpanel" aria-labelledby="tabbtn-fusie" style="display:none">
+    <div class="card">
+      <div class="slabel">Bedrijfsfusie art. 14 Wet Vpb 1969</div>
+      <div class="hint">Twee of meer holdings brengen elk hun onderneming in een gezamenlijke werkmaatschappij in en krijgen daarvoor aandelen. Dit blad rekent de zakelijke ruilverhouding uit en zet daarnaast wat er beoogd wordt, zodat een vermogensverschuiving zichtbaar wordt. Dit tabblad is pas zinvol als de uitkomst op het eerste tabblad "BV" is en er meer dan een inbrenger is.</div>
+
+      <div class="grid2" style="margin-top:12px">
+        <div class="fld">
+          <label for="fus-aardVermogen">Aard van het overgedragen vermogen</label>
+          <select id="fus-aardVermogen" onchange="berekenFusieUI()">
+            <option value="materieel" selected>een onderneming in materi&#235;le zin</option>
+            <option value="deelnemingen">alleen deelnemingen</option>
+            <option value="deelnemingenPand">deelnemingen plus bedrijfspand(en)</option>
+          </select>
+          <div class="fmsg" id="msg-fus-aardVermogen"></div>
+        </div>
+        <div class="fld">
+          <label for="fus-aantal">Aantal inbrengers</label>
+          <select id="fus-aantal" onchange="fusieRijen()">
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px" id="fus-blok">
+      <div class="slabel">De inbrengers</div>
+        <div class="fusrij" id="fus-rij0">
+          <div class="slabel" style="margin-top:10px">Inbrenger 1</div>
+          <div class="grid2" style="margin-top:6px">
+            <div class="fld">
+              <label for="fus-naam0">Naam</label>
+              <input type="text" id="fus-naam0" value="Holding A" maxlength="40">
+            </div>
+            <div class="fld">
+              <label for="fus-belang0">Beoogd belang (%)</label>
+              <input type="number" id="fus-belang0" value="50" step="0.1" min="0" max="100" inputmode="decimal">
+            </div>
+            <div class="fld">
+              <label for="fus-w0">Waarde in het economische verkeer van de onderneming</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-w0" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-b0">Fiscale boekwaarde van het overgedragen vermogen</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-b0" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-r0">Daarin begrepen reserves art. 3.53 en 3.54</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-r0" value="0" step="5000" min="0" inputmode="numeric"></div>
+            </div>
+          </div>
+          <div class="fmsg" id="msg-fus-inbrenger0"></div>
+        </div>
+        <div class="fusrij" id="fus-rij1">
+          <div class="slabel" style="margin-top:10px">Inbrenger 2</div>
+          <div class="grid2" style="margin-top:6px">
+            <div class="fld">
+              <label for="fus-naam1">Naam</label>
+              <input type="text" id="fus-naam1" value="Holding B" maxlength="40">
+            </div>
+            <div class="fld">
+              <label for="fus-belang1">Beoogd belang (%)</label>
+              <input type="number" id="fus-belang1" value="50" step="0.1" min="0" max="100" inputmode="decimal">
+            </div>
+            <div class="fld">
+              <label for="fus-w1">Waarde in het economische verkeer van de onderneming</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-w1" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-b1">Fiscale boekwaarde van het overgedragen vermogen</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-b1" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-r1">Daarin begrepen reserves art. 3.53 en 3.54</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-r1" value="0" step="5000" min="0" inputmode="numeric"></div>
+            </div>
+          </div>
+          <div class="fmsg" id="msg-fus-inbrenger1"></div>
+        </div>
+        <div class="fusrij" id="fus-rij2" style="display:none">
+          <div class="slabel" style="margin-top:10px">Inbrenger 3</div>
+          <div class="grid2" style="margin-top:6px">
+            <div class="fld">
+              <label for="fus-naam2">Naam</label>
+              <input type="text" id="fus-naam2" value="Holding C" maxlength="40">
+            </div>
+            <div class="fld">
+              <label for="fus-belang2">Beoogd belang (%)</label>
+              <input type="number" id="fus-belang2" value="0" step="0.1" min="0" max="100" inputmode="decimal">
+            </div>
+            <div class="fld">
+              <label for="fus-w2">Waarde in het economische verkeer van de onderneming</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-w2" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-b2">Fiscale boekwaarde van het overgedragen vermogen</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-b2" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-r2">Daarin begrepen reserves art. 3.53 en 3.54</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-r2" value="0" step="5000" min="0" inputmode="numeric"></div>
+            </div>
+          </div>
+          <div class="fmsg" id="msg-fus-inbrenger2"></div>
+        </div>
+        <div class="fusrij" id="fus-rij3" style="display:none">
+          <div class="slabel" style="margin-top:10px">Inbrenger 4</div>
+          <div class="grid2" style="margin-top:6px">
+            <div class="fld">
+              <label for="fus-naam3">Naam</label>
+              <input type="text" id="fus-naam3" value="Holding D" maxlength="40">
+            </div>
+            <div class="fld">
+              <label for="fus-belang3">Beoogd belang (%)</label>
+              <input type="number" id="fus-belang3" value="0" step="0.1" min="0" max="100" inputmode="decimal">
+            </div>
+            <div class="fld">
+              <label for="fus-w3">Waarde in het economische verkeer van de onderneming</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-w3" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-b3">Fiscale boekwaarde van het overgedragen vermogen</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-b3" value="" step="10000" inputmode="numeric" placeholder="verplicht"></div>
+            </div>
+            <div class="fld">
+              <label for="fus-r3">Daarin begrepen reserves art. 3.53 en 3.54</label>
+              <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-r3" value="0" step="5000" min="0" inputmode="numeric"></div>
+            </div>
+          </div>
+          <div class="fmsg" id="msg-fus-inbrenger3"></div>
+        </div>
+      <div class="fmsg" id="msg-fus-belang"></div>
+
+      <div class="slabel" style="margin-top:14px">De correctie voor de latente claim</div>
+      <div class="grid2" style="margin-top:6px">
+        <div class="fld">
+          <label for="fus-claimPct">Percentage latente VPB-claim over stille reserves en goodwill (%) <span class="tipw"><span class="tip" title="Par. 3.3.1 van het Bedrijfsfusiebesluit 2025 eist deze correctie maar noemt geen percentage en geen contantmakingsmethode. De tool vult daarom niets in: zonder een keuze wordt er niet gerekend. Drie verdedigbare keuzes: het nominale VPB-tarief, een contant gemaakt percentage dat het uitstel verdisconteert, of nul met de motivering dat de correctie beide inbrengers even zwaar treft.">?</span></span></label>
+          <input type="number" id="fus-claimPct" value="" step="0.1" min="0" max="100" inputmode="decimal" placeholder="verplichte keuze">
+          <div class="fmsg" id="msg-fus-claimPct"></div>
+        </div>
+        <div class="fld">
+          <label for="fus-winstrecht">Statutaire koppeling van de winstgerechtigdheid</label>
+          <select id="fus-winstrecht">
+            <option value="waarde" selected>aan de totale waarde van de aandelen</option>
+            <option value="nominaal">aan het nominaal gestorte kapitaal</option>
+          </select>
+          <div class="fmsg" id="msg-fus-winstrecht"></div>
+        </div>
+      </div>
+
+      <div class="slabel" style="margin-top:14px">Uitgifte en overnemer</div>
+      <div class="grid2" style="margin-top:6px">
+        <div class="fld">
+          <label for="fus-totaalNominaal">Totaal uit te geven nominaal kapitaal</label>
+          <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-totaalNominaal" value="1000" step="100" min="0" inputmode="numeric"></div>
+        </div>
+        <div class="fld">
+          <label for="fus-nominaalPerAandeel">Nominale waarde per aandeel</label>
+          <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-nominaalPerAandeel" value="0.01" step="0.01" min="0.01" inputmode="decimal"></div>
+          <div class="fmsg" id="msg-fus-nominaalPerAandeel"></div>
+        </div>
+        <div class="fld">
+          <label for="fus-overnemer">Werkmaatschappij</label>
+          <select id="fus-overnemer">
+            <option value="nieuw" selected>nieuw opgericht</option>
+            <option value="bestaand">bestaande vennootschap</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="fus-bestaandVermogen">Waarde bestaand vermogen van de overnemer</label>
+          <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-bestaandVermogen" value="0" step="10000" min="0" inputmode="numeric"></div>
+        </div>
+        <div class="fld">
+          <label for="fus-gestortBegrip">"Hetgeen op de aandelen is gestort" betekent</label>
+          <select id="fus-gestortBegrip">
+            <option value="nominaalPlusAgio" selected>nominaal plus agio</option>
+            <option value="nominaal">alleen nominaal</option>
+          </select>
+          <div class="hint">Het besluit definieert de term niet. Nominaal plus agio is tekstueel het meest verdedigbaar, alleen nominaal is voorzichtiger.</div>
+        </div>
+      </div>
+
+      <details class="card" style="margin-top:14px">
+        <summary class="slabel" style="cursor:pointer">Aanspraken uit de vereisten b en c van art. 14 lid 1</summary>
+        <div class="hint" style="margin-top:8px">E&#233;n aangevinkt vakje betekent: de faciliteit werkt niet van rechtswege, maar mogelijk wel na een gezamenlijk verzoek op grond van lid 2, v&#243;&#243;r de overdracht, bij de inspecteur van de overdrager.</div>
+        <div style="margin-top:8px">
+          <label class="chk"><input type="checkbox" id="fus-a-verliezen"> Te verrekenen verliezen (art. 20)</label>
+          <label class="chk"><input type="checkbox" id="fus-a-renten"> Voortgewenteld saldo aan renten (art. 15b)</label>
+          <label class="chk"><input type="checkbox" id="fus-a-innoOvernemer"> Innovatiebox bij de overnemer</label>
+          <label class="chk"><input type="checkbox" id="fus-a-innoOverdrager"> Innovatiebox bij de overdrager</label>
+          <label class="chk"><input type="checkbox" id="fus-a-voorheffingen"> Voorheffingen (art. 25a lid 4)</label>
+          <label class="chk"><input type="checkbox" id="fus-a-voorkoming"> Voorkoming van dubbele belasting</label>
+          <label class="chk"><input type="checkbox" id="fus-a-objectvrijstelling"> Objectvrijstelling, deelnemingsverrekening of verrekening buitenlandse ondernemingswinsten</label>
+          <label class="chk"><input type="checkbox" id="fus-a-winstbepaling"> Niet dezelfde bepalingen voor de winstbepaling</label>
+        </div>
+      </details>
+
+      <details class="card" style="margin-top:14px">
+        <summary class="slabel" style="cursor:pointer">Termijnen, ontgaanstoets en onroerende zaken</summary>
+        <div class="grid2" style="margin-top:10px">
+          <div class="fld">
+            <label for="fus-maandenVoorovereenkomst">Voorovereenkomst: maanden v&#243;&#243;r het overgangstijdstip</label>
+            <input type="number" id="fus-maandenVoorovereenkomst" value="0" step="1" min="0" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-fus-maandenVoorovereenkomst"></div>
+          </div>
+          <div class="fld">
+            <label for="fus-maandenOprichting">Oprichting en overdracht: maanden n&#225; het overgangstijdstip</label>
+            <input type="number" id="fus-maandenOprichting" value="0" step="1" min="0" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-fus-maandenOprichting"></div>
+          </div>
+          <div class="fld">
+            <label for="fus-maandenEersteBoekjaar">Lengte van het eerste boekjaar (maanden)</label>
+            <input type="number" id="fus-maandenEersteBoekjaar" value="12" step="1" min="1" max="60" inputmode="numeric">
+            <div class="fmsg" id="msg-fus-maandenEersteBoekjaar"></div>
+          </div>
+          <div class="fld">
+            <label for="fus-ozWaarde">Waarde onroerende zaken in de inbreng</label>
+            <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fus-ozWaarde" value="0" step="10000" min="0" inputmode="numeric"></div>
+            <div class="fmsg" id="msg-fus-oz"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label class="chk"><input type="checkbox" id="fus-oz"> Er zitten onroerende zaken in het overgedragen vermogen</label>
+          <label class="chk"><input type="checkbox" id="fus-vervreemding3jr"> Voornemen tot vervreemding van aandelen binnen drie jaar</label>
+          <label class="chk"><input type="checkbox" id="fus-nietInbrenger"> Iemand die niets inbrengt houdt al aandelen in de overnemer</label>
+        </div>
+        <div class="fmsg" id="msg-fus-vervreemding3jr"></div>
+        <div class="fmsg" id="msg-fus-nietInbrengerAandeelhouder"></div>
+      </details>
+
+      <div style="margin-top:14px"><button class="btn-calc" onclick="berekenFusieUI()">Ruilverhouding berekenen →</button></div>
+    </div>
+
+    <div id="fus-box-err" class="msgbox e" role="alert" style="display:none"><div class="mt">De berekening is niet uitgevoerd &#8212; corrigeer de volgende invoer:</div><ul id="fus-list-err"></ul></div>
+    <div id="fus-box-warn" class="msgbox w" role="status" style="display:none"><div class="mt">Aandachtspunten bij deze fusie</div><ul id="fus-list-warn"></ul></div>
+
+    <div id="fus-res" class="res" style="margin-top:16px" aria-live="polite">
+      <div class="card">
+        <div class="slabel">Zakelijke ruilverhouding</div>
+        <div class="hint" id="fus-toel"></div>
+        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Waarde</th><th scope="col">Boekwaarde</th><th scope="col">Gecorrigeerd</th><th scope="col">Zakelijk %</th><th scope="col">Beoogd %</th></tr></thead><tbody id="fus-tb-ruil"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Uitgifte per inbrenger</div>
+        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Aandelen</th><th scope="col">Nominaal</th><th scope="col">Agio</th><th scope="col">Afrondingscreditering, max</th></tr></thead><tbody id="fus-tb-uitgifte"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Opgeofferd bedrag en deelneming</div>
+        <div class="hint">Art. 14 lid 3: de fiscale boekwaarde van het overgedragen vermogen verminderd met de daarin begrepen reserves van art. 3.53 en 3.54 Wet IB 2001. Dat geldt alleen als de verkregen aandelen een deelneming vormen (art. 13 lid 2 onderdeel a: ten minste 5%).</div>
+        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Boekwaarde</th><th scope="col">Reserves</th><th scope="col">Opgeofferd</th><th scope="col">Belang nominaal</th></tr></thead><tbody id="fus-tb-opgeofferd"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Vermogensverschuiving en risico</div>
+        <div class="hint" id="fus-risico-toel"></div>
+        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Verschil in procentpunten</th><th scope="col">Verschil in euro</th><th scope="col">Risicobedrag</th></tr></thead><tbody id="fus-tb-risico"></tbody></table></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="slabel">Route: van rechtswege of op verzoek</div>
+        <div class="hint" id="fus-route"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-nota" role="tabpanel" aria-labelledby="tabbtn-nota" style="display:none">
     <div style="height:16px"></div>
     <div id="nota-leeg" class="nocalc">
@@ -1364,6 +1635,15 @@ const BVJN = (function () {
 
   /* ---------------------- invoer normaliseren ---------------------- */
   /** Aanwezig betekent: expliciet meegegeven en leesbaar als getal. */
+  /**
+   * Een getal met een vast aantal decimalen in Nederlandse notatie. toFixed levert altijd
+   * een decimale punt; de meldingen van de tool zijn Nederlandse tekst.
+   */
+  function dec(n, aantal) {
+    if (!Number.isFinite(n)) return '—';
+    return n.toFixed(aantal === undefined ? 1 : aantal).replace('.', ',');
+  }
+
   function gegeven(v) {
     if (v === undefined || v === null || v === '') return false;
     return Number.isFinite(typeof v === 'number' ? v : parseFloat(v));
@@ -3012,6 +3292,452 @@ const BVJN = (function () {
     return { ok: true, leeg: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
   }
 
+
+  /* =========================================================
+     Bedrijfsfusie, art. 14 Wet Vpb 1969
+     ========================================================= */
+
+  const FUSIE_MAX_INBRENGERS = 4;
+
+  /**
+   * Normaliseert de invoer van de fusiemodule.
+   *
+   * De poortvraag staat vooraan: art. 14 lid 1 vereist de overdracht van "een onderneming
+   * of een zelfstandig onderdeel van een onderneming". Par. 3.1 van het Bedrijfsfusiebesluit
+   * 2025 leest dat als een onderneming in materiele zin; de inbreng van enkel deelnemingen
+   * kwalificeert niet, en deelnemingen plus bedrijfspanden over het algemeen ook niet.
+   */
+  function normaliseerFusie(raw) {
+    const r = raw || {};
+    const aantal = Math.min(FUSIE_MAX_INBRENGERS, Math.max(2, Math.round(num(r.aantalInbrengers, 2))));
+    const rijen = Array.isArray(r.inbrengers) ? r.inbrengers : [];
+    const inbrengers = [];
+    for (let n = 0; n < aantal; n++) {
+      const x = rijen[n] || {};
+      inbrengers.push({
+        naam: typeof x.naam === 'string' && x.naam.trim() ? x.naam.trim() : 'Inbrenger ' + (n + 1),
+        w: num(x.w, 0),                               // waarde in het economische verkeer
+        wGegeven: gegeven(x.w),
+        b: num(x.b, 0),                               // fiscale boekwaarde
+        bGegeven: gegeven(x.b),
+        r: pos(x.r),                                  // reserves art. 3.53 en 3.54
+        beoogdBelang: num(x.beoogdBelang, 100 / aantal)
+      });
+    }
+    return {
+      aardVermogen: (r.aardVermogen === 'deelnemingen' || r.aardVermogen === 'deelnemingenPand')
+        ? r.aardVermogen : 'materieel',
+      aantalInbrengers: aantal,
+      inbrengers: inbrengers,
+      // Par. 3.3.1 eist de correctie met de latente VPB-claim maar noemt geen percentage en
+      // geen contantmakingsmethode. Een standaardwaarde zou een stilzwijgende aanname in de
+      // tool zetten, dus dit veld heeft er geen.
+      claimPct: num(r.claimPct, 0),
+      claimPctGegeven: gegeven(r.claimPct),
+      nominaalPerAandeel: Math.max(0.01, num(r.nominaalPerAandeel, 0.01)),
+      totaalNominaal: pos(num(r.totaalNominaal, 1000)),
+      overnemerNieuw: r.overnemerNieuw !== false,
+      waardeBestaandVermogen: pos(r.waardeBestaandVermogen),
+      gestortBegrip: r.gestortBegrip === 'nominaal' ? 'nominaal' : 'nominaalPlusAgio',
+      // De vereisten b en c van art. 14 lid 1: een van deze acht doet de faciliteit van
+      // rechtswege vervallen en dwingt tot een verzoek op grond van lid 2.
+      aanspraken: {
+        verliezen: r.aanspraken ? r.aanspraken.verliezen === true : false,
+        renten: r.aanspraken ? r.aanspraken.renten === true : false,
+        innovatieboxOvernemer: r.aanspraken ? r.aanspraken.innovatieboxOvernemer === true : false,
+        innovatieboxOverdrager: r.aanspraken ? r.aanspraken.innovatieboxOverdrager === true : false,
+        voorheffingen: r.aanspraken ? r.aanspraken.voorheffingen === true : false,
+        voorkoming: r.aanspraken ? r.aanspraken.voorkoming === true : false,
+        objectvrijstelling: r.aanspraken ? r.aanspraken.objectvrijstelling === true : false,
+        andereWinstbepaling: r.aanspraken ? r.aanspraken.andereWinstbepaling === true : false
+      },
+      winstrechtKoppeling: r.winstrechtKoppeling === 'nominaal' ? 'nominaal' : 'waarde',
+      maandenVoorovereenkomst: num(r.maandenVoorovereenkomst, 0),
+      maandenOprichting: num(r.maandenOprichting, 0),
+      maandenEersteBoekjaar: num(r.maandenEersteBoekjaar, 12),
+      vervreemdingBinnenDrieJaar: r.vervreemdingBinnenDrieJaar === true,
+      nietInbrengerAandeelhouder: r.nietInbrengerAandeelhouder === true,
+      onroerendeZaken: r.onroerendeZaken === true,
+      waardeOnroerendeZaken: pos(r.waardeOnroerendeZaken)
+    };
+  }
+
+  /**
+   * Gecorrigeerde inbrengwaarde van een onderneming.
+   *
+   * Bedrijfsfusiebesluit 2025, par. 3.3.1: de waarde van de uit te reiken aandelen moet
+   * corresponderen met de waarde in het economische verkeer van de ingebrachte onderneming,
+   * gecorrigeerd met de latente vennootschapsbelastingclaim over de daarin aanwezige stille
+   * reserves en goodwill. Het besluit noemt geen percentage en geen contantmakingsmethode:
+   * p is dus invoer en heeft geen standaardwaarde.
+   */
+  function gecorrigeerdeInbrengwaarde(w, b, p) {
+    return num(w, 0) - pos(p) * Math.max(0, num(w, 0) - num(b, 0));
+  }
+
+  /**
+   * De zakelijke ruilverhouding. Elke inbrenger krijgt aandelen naar verhouding van zijn
+   * gecorrigeerde inbrengwaarde. Is de overnemer een bestaande vennootschap, dan telt haar
+   * eigen vermogen als een extra aanspraak mee.
+   */
+  function ruilverhouding(inbrengers, p, waardeBestaand) {
+    const T = inbrengers.map(function (x) { return gecorrigeerdeInbrengwaarde(x.w, x.b, p); });
+    const bestaand = pos(waardeBestaand);
+    const somT = T.reduce(function (a, b) { return a + b; }, 0) + bestaand;
+    return {
+      T: T,
+      somT: somT,
+      bestaand: bestaand,
+      r: T.map(function (t) { return somT > 0 ? t / somT * 100 : 0; })
+    };
+  }
+
+  /**
+   * Uitgifte per inbrenger.
+   *
+   * Par. 3.2, 3.3 en 3.3.2 van het Bedrijfsfusiebesluit 2025: de verdeling tussen nominaal
+   * kapitaal en agio is fiscaal vrij en uitgifte a pari is niet vereist, maar het agio moet
+   * toerekenbaar zijn aan de aandelen van de inbrenger die het heeft opgebracht. Agio dat
+   * zich over alle aandelen uitspreidt is geen adequate tegenprestatie.
+   *
+   * Het afrondingsverschil ontstaat doordat het aantal aandelen een geheel getal is. Los dat
+   * op met een kleinere nominale waarde per aandeel en niet met een grotere creditering.
+   */
+  function aandelenUitgifte(waardeAandeel, totaalNominaal, somT, nominaalPerAandeel) {
+    const deel = somT > 0 ? waardeAandeel / somT : 0;
+    const nominaalWens = pos(totaalNominaal) * deel;
+    const perAandeel = Math.max(0.01, num(nominaalPerAandeel, 0.01));
+    const aantal = Math.round(nominaalWens / perAandeel);
+    const nominaal = aantal * perAandeel;
+    return {
+      aantal: aantal,
+      nominaal: nominaal,
+      agio: Math.max(0, waardeAandeel - nominaal),
+      afrondingsverschil: nominaal - nominaalWens
+    };
+  }
+
+  /**
+   * Afrondingscreditering bij een bedrijfsfusie.
+   *
+   * Bedrijfsfusiebesluit 2025, par. 3.5: een goedkeuring op grond van art. 63 AWR, ten
+   * hoogste 1% van hetgeen op de uitgereikte aandelen is gestort EN ten hoogste EUR 4.500.
+   *
+   * Art. 14 lid 1 Wet Vpb 1969 kent GEEN wettelijke bijbetalingsmarge: de wet eist dat de
+   * overdrager uitsluitend aandelen verkrijgt. De 10% van de aandelenfusie (art. 3.55 lid 4
+   * onderdeel a, over de nominale waarde) en die van de overdrachtsbelasting (art. 5 lid 2
+   * Uitvoeringsbesluit BRV, over het gestorte) horen bij andere regelingen en mogen hier
+   * niet naartoe worden overgezet.
+   */
+  function afrondingscrediteringFusie(gestort) {
+    return Math.min(pos(gestort) * TARIEVEN.fusie.crediteringPct, TARIEVEN.fusie.crediteringMax);
+  }
+
+  /**
+   * Opgeofferd bedrag van de verkregen aandelen.
+   *
+   * Art. 14 lid 3 Wet Vpb 1969: de fiscale boekwaarde van het overgedragen vermogen,
+   * verminderd met de daarin begrepen reserves als bedoeld in de artikelen 3.53 en 3.54
+   * Wet IB 2001. Dit geldt alleen als de winst op de voet van lid 1 of lid 2 buiten
+   * aanmerking blijft en de verkregen aandelen een deelneming vormen: art. 13 lid 2
+   * onderdeel a vraagt een belang van ten minste 5%.
+   */
+  function opgeofferdBedrag(b, r) {
+    return num(b, 0) - pos(r);
+  }
+
+  /** De bedrijfsfusie doorrekenen. */
+  function berekenFusie(raw) {
+    const i = normaliseerFusie(raw);
+    const T = TARIEVEN;
+
+    // De poort: zonder een onderneming in materiele zin is er geen bedrijfsfusie en is het
+    // rekenblad zinloos.
+    if (i.aardVermogen !== 'materieel') {
+      return {
+        input: i,
+        poort: { ok: false, reden: i.aardVermogen === 'deelnemingen'
+          ? 'De inbreng van enkel deelnemingen is geen overdracht van een onderneming in materiele zin (par. 3.1 Bedrijfsfusiebesluit 2025). Art. 14 is dan niet van toepassing.'
+          : 'Deelnemingen samen met bedrijfspanden vormen over het algemeen geen onderneming in materiele zin (par. 3.1 Bedrijfsfusiebesluit 2025). Art. 14 is dan niet van toepassing.' },
+        rekenbaar: false
+      };
+    }
+
+    // Zonder een gekozen claimpercentage rekent de tool niet. Par. 3.3.1 eist de correctie
+    // maar noemt geen percentage; een standaardwaarde zou een aanname verstoppen.
+    if (!i.claimPctGegeven) {
+      return {
+        input: i,
+        poort: { ok: true, reden: '' },
+        rekenbaar: false,
+        redenNietRekenbaar: 'Kies eerst een percentage voor de latente vennootschapsbelastingclaim '
+          + 'over de stille reserves en de goodwill (par. 3.3.1). Het besluit eist die correctie maar '
+          + 'noemt geen percentage en geen contantmakingsmethode, dus de tool vult niets in.'
+      };
+    }
+
+    const p = i.claimPct / 100;
+    const rv = ruilverhouding(i.inbrengers, p, i.overnemerNieuw ? 0 : i.waardeBestaandVermogen);
+
+    const uitgifte = [], opgeofferd = [], deelneming = [], verschuiving = [], risico = [], creditering = [];
+    let afrondingsverschilTotaal = 0;
+    for (let n = 0; n < i.inbrengers.length; n++) {
+      const x = i.inbrengers[n];
+      const u = aandelenUitgifte(rv.T[n], i.totaalNominaal, rv.somT, i.nominaalPerAandeel);
+      uitgifte.push(u);
+      afrondingsverschilTotaal += Math.abs(u.afrondingsverschil);
+
+      const gestort = i.gestortBegrip === 'nominaal' ? u.nominaal : u.nominaal + u.agio;
+      creditering.push({ gestort: gestort, max: afrondingscrediteringFusie(gestort) });
+
+      const ob = opgeofferdBedrag(x.b, x.r);
+      opgeofferd.push({ bedrag: ob, boekwaarde: x.b, reserves: x.r });
+
+      // Art. 13 lid 2 onderdeel a: ten minste 5% van het nominaal gestorte kapitaal.
+      const pctNominaal = i.totaalNominaal > 0 ? u.nominaal / i.totaalNominaal : 0;
+      deelneming.push({ pct: pctNominaal * 100, kwalificeert: pctNominaal >= T.fusie.deelnemingMin });
+
+      // De vermogensverschuiving: het verschil tussen wat de inbrenger beoogt en wat zakelijk
+      // bij hem hoort.
+      const zakelijk = rv.r[n];
+      const verschilPct = x.beoogdBelang - zakelijk;
+      verschuiving.push({
+        beoogdBelang: x.beoogdBelang,
+        zakelijkBelang: zakelijk,
+        verschilPct: verschilPct,
+        verschilEuro: verschilPct / 100 * rv.somT
+      });
+
+      // Bij een tegenprestatie die niet correspondeert met de waarde van de inbreng vervalt
+      // de faciliteit geheel; er volgt geen correctie naar rato (HR 28-10-2011,
+      // ECLI:NL:HR:2011:BQ9061, r.o. 3.5). Het risico is dus de VOLLEDIGE overdrachtswinst.
+      risico.push({ overdrachtswinst: Math.max(0, x.w - x.b) });
+    }
+
+    // Vereisten b en c van art. 14 lid 1. Een aangevinkte aanspraak betekent: niet van
+    // rechtswege, wel mogelijk via een gezamenlijk verzoek op grond van lid 2.
+    const aanspraakLijst = Object.keys(i.aanspraken).filter(function (k) { return i.aanspraken[k]; });
+    const lidTweeNodig = aanspraakLijst.length > 0 || !i.overnemerNieuw;
+
+    const termijnen = {
+      voorovereenkomstOk: i.maandenVoorovereenkomst <= T.fusie.maandenVoorovereenkomst,
+      voorovereenkomstTekort: Math.max(0, i.maandenVoorovereenkomst - T.fusie.maandenVoorovereenkomst),
+      oprichtingOk: i.maandenOprichting <= T.fusie.maandenOprichting,
+      oprichtingTekort: Math.max(0, i.maandenOprichting - T.fusie.maandenOprichting),
+      eersteBoekjaarOk: i.maandenEersteBoekjaar <= T.fusie.maandenEersteBoekjaar,
+      eersteBoekjaarTekort: Math.max(0, i.maandenEersteBoekjaar - T.fusie.maandenEersteBoekjaar)
+    };
+
+    return {
+      input: i,
+      poort: { ok: true, reden: '' },
+      rekenbaar: true,
+      ruilverhouding: rv,
+      uitgifte: uitgifte,
+      creditering: creditering,
+      opgeofferd: opgeofferd,
+      deelneming: deelneming,
+      verschuiving: verschuiving,
+      risico: risico,
+      afrondingsverschilTotaal: afrondingsverschilTotaal,
+      aanspraken: aanspraakLijst,
+      litOnly: { lidEenVanRechtswege: !lidTweeNodig, lidTweeNodig: lidTweeNodig },
+      termijnen: termijnen,
+      // Signalering, geen berekening: welke vrijstelling voor de overdrachtsbelasting hier
+      // geldt is niet geverifieerd.
+      ovbRisico: i.onroerendeZaken
+        ? i.waardeOnroerendeZaken * T.inbreng.obTariefNietWoning : 0
+    };
+  }
+
+  /** Invoercontrole voor de fusiemodule. */
+  function valideerFusie(raw) {
+    const i = normaliseerFusie(raw);
+    const fouten = [], waarschuwingen = [], veldFouten = {}, veldWaarschuwingen = {};
+    const fout = function (veld, tekst) { fouten.push(tekst); if (veld) veldFouten[veld] = tekst; };
+    const waarschuw = function (veld, tekst) {
+      waarschuwingen.push(tekst); if (veld) veldWaarschuwingen[veld] = tekst;
+    };
+
+    if (i.aardVermogen !== 'materieel') {
+      fout('aardVermogen', 'Art. 14 Wet Vpb 1969 vereist de overdracht van een onderneming of een '
+        + 'zelfstandig onderdeel daarvan, en par. 3.1 van het Bedrijfsfusiebesluit 2025 leest dat als een '
+        + 'onderneming in materiele zin. De inbreng van enkel deelnemingen kwalificeert niet, en '
+        + 'deelnemingen samen met bedrijfspanden over het algemeen ook niet. Dit rekenblad is dan zinloos.');
+      return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+    }
+
+    // Een niet-inbrenger die al aandelen houdt is een vooroverlegsituatie.
+    if (i.nietInbrengerAandeelhouder) {
+      fout('nietInbrengerAandeelhouder', 'Houdt iemand die niets inbrengt al aandelen in de overnemer, dan '
+        + 'verschuift er bij de uitgifte waarde naar die aandeelhouder en is de tegenprestatie voor de '
+        + 'inbrengers niet meer zuiver te bepalen. De tool rekent dit geval niet: leg het voor aan de '
+        + 'inspecteur.');
+    }
+
+    if (!i.claimPctGegeven) {
+      fout('claimPct', 'Kies eerst een percentage voor de latente vennootschapsbelastingclaim over de '
+        + 'stille reserves en de goodwill. Par. 3.3.1 van het Bedrijfsfusiebesluit 2025 eist die correctie '
+        + 'maar noemt geen percentage en geen contantmakingsmethode, dus de tool vult niets in. Drie '
+        + 'verdedigbare keuzes: het nominale VPB-tarief, een contant gemaakt percentage dat het uitstel '
+        + 'verdisconteert, of nul met de motivering dat de correctie beide inbrengers even zwaar treft.');
+    } else if (i.claimPct < 0 || i.claimPct > 100) {
+      fout('claimPct', 'Claimpercentage: kies een percentage tussen 0% en 100%.');
+    }
+
+    let somBelang = 0;
+    for (let n = 0; n < i.inbrengers.length; n++) {
+      const x = i.inbrengers[n];
+      const veld = 'inbrenger' + n;
+      if (!x.wGegeven) fout(veld, x.naam + ': vul de waarde in het economische verkeer van de ingebrachte onderneming in.');
+      if (!x.bGegeven) fout(veld, x.naam + ': vul de fiscale boekwaarde van het overgedragen vermogen in.');
+      if (x.wGegeven && x.bGegeven && x.b > x.w) {
+        fout(veld, x.naam + ': de fiscale boekwaarde is hoger dan de waarde in het economische verkeer. '
+          + 'Er is dan geen stille reserve maar een stil verlies; dat geval is niet uitgezocht.');
+      }
+      if (x.r > x.b) fout(veld, x.naam + ': de reserves van art. 3.53 en 3.54 zijn hoger dan de boekwaarde.');
+      somBelang += x.beoogdBelang;
+    }
+    if (Math.abs(somBelang - 100) > 0.05) {
+      fout('belang', 'De beoogde belangen tellen op tot ' + dec(somBelang) + '% en niet tot 100%.');
+    }
+
+    // Optie nul voor het claimpercentage is alleen verdedigbaar als de verhouding stille
+    // reserves tot waarde bij de inbrengers vergelijkbaar is.
+    if (i.claimPctGegeven && i.claimPct === 0 && i.inbrengers.every(function (x) { return x.w > 0; })) {
+      const quoten = i.inbrengers.map(function (x) { return (x.w - x.b) / x.w; });
+      const spreiding = Math.max.apply(null, quoten) - Math.min.apply(null, quoten);
+      if (spreiding > 0.10) {
+        fout('claimPct', 'Een claimpercentage van nul is alleen verdedigbaar als de verhouding tussen stille '
+          + 'reserves en waarde bij de inbrengers vergelijkbaar is, want dan treft de correctie hen even '
+          + 'zwaar. Hier loopt die verhouding ' + Math.round(spreiding * 100) + ' procentpunt uiteen. Kies '
+          + 'een percentage of leg de motivering vast.');
+      }
+    }
+
+    if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+
+    const u = berekenFusie(raw);
+
+    /* ---------- de vermogensverschuiving ---------- */
+    for (let n = 0; n < u.verschuiving.length; n++) {
+      const v = u.verschuiving[n];
+      if (Math.abs(v.verschilPct) > 0.05) {
+        waarschuw('inbrenger' + n, i.inbrengers[n].naam + ': het beoogde belang van '
+          + dec(v.beoogdBelang) + '% wijkt ' + dec(Math.abs(v.verschilPct)) + ' procentpunt af van de '
+          + 'zakelijke ruilverhouding van ' + dec(v.zakelijkBelang) + '%, ofwel \u20ac '
+          + Math.round(Math.abs(v.verschilEuro)).toLocaleString('nl-NL') + '. Bij een tegenprestatie die '
+          + 'niet correspondeert met de waarde van de inbreng vervalt de faciliteit GEHEEL; er volgt geen '
+          + 'correctie naar rato (HR 28-10-2011, ECLI:NL:HR:2011:BQ9061, r.o. 3.5, en par. 3.3 van het '
+          + 'besluit). De pro-rata benadering is in die zaak door A-G Wattel bepleit (onderdeel 7.11 tot '
+          + '7.13) en door de Hoge Raad niet gevolgd. Het risico is de volledige overdrachtswinst van '
+          + '\u20ac ' + Math.round(u.risico[n].overdrachtswinst).toLocaleString('nl-NL')
+          + '; een verzoek op grond van lid 2 biedt hiervoor geen uitweg. Wet, besluit en arrest geven geen '
+          + 'tolerantie op de waarde van de tegenprestatie, dus de tool bouwt er geen marge in.');
+      }
+    }
+    waarschuw(null, 'De eis van een adequate tegenprestatie staat niet in de wettekst: zij wordt gelezen uit '
+      + 'de woorden "tegen uitreiking van aandelen" in art. 14 lid 1 en is uitgewerkt in par. 3.3 van het '
+      + 'Bedrijfsfusiebesluit 2025.');
+
+    /* ---------- agio en winstrecht ---------- */
+    waarschuw(null, 'Agio dat zich over alle aandelen uitspreidt, ook over die van de andere aandeelhouder, '
+      + 'levert geen adequate tegenprestatie op (par. 3.3.2). De uitgifte van een aandeel met agio kan juist '
+      + 'wel volstaan. Los een afrondingsverschil dus op met een kleinere nominale waarde per aandeel en '
+      + 'niet met een grotere creditering.');
+    if (i.winstrechtKoppeling === 'nominaal') {
+      waarschuw('winstrecht', 'Winstgerechtigdheid die uitsluitend aan het nominaal gestorte '
+        + 'aandelenkapitaal is gekoppeld levert geen adequate tegenprestatie op, "tenzij dit bezien vanuit '
+        + 'de overdrager op zakelijke grondslag berust" (par. 3.3.4). Het besluit geeft geen maatstaf voor '
+        + 'die zakelijkheid; dat is te bespreken met de inspecteur.');
+    }
+    if (u.afrondingsverschilTotaal > 0.005) {
+      waarschuw('nominaalPerAandeel', 'Door de afronding op hele aandelen verschuift er \u20ac '
+        + dec(u.afrondingsverschilTotaal, 2) + ' nominaal tussen de inbrengers. Verklein de nominale '
+        + 'waarde per aandeel om dat weg te nemen.');
+    }
+
+    /* ---------- deelneming en opgeofferd bedrag ---------- */
+    for (let n = 0; n < u.deelneming.length; n++) {
+      if (!u.deelneming[n].kwalificeert) {
+        waarschuw('inbrenger' + n, i.inbrengers[n].naam + ' krijgt '
+          + dec(u.deelneming[n].pct) + '% van het nominaal gestorte kapitaal. Art. 14 lid 3 en de '
+          + 'deelnemingsvrijstelling vragen een belang van ten minste 5% (art. 13 lid 2 onderdeel a '
+          + 'Wet Vpb 1969); het opgeofferde bedrag wordt dan niet op de voet van lid 3 bepaald.');
+      }
+    }
+
+    /* ---------- lid 1 of lid 2 ---------- */
+    if (u.litOnly.lidTweeNodig) {
+      waarschuw(null, 'De faciliteit werkt hier niet van rechtswege. Een gezamenlijk verzoek op grond van '
+        + 'art. 14 lid 2 Wet Vpb 1969 is nodig, voor de overdracht, bij de inspecteur belast met de '
+        + 'aanslagregeling van de overdrager.'
+        + (u.aanspraken.length ? ' Aanleiding: ' + u.aanspraken.length + ' van de acht aanspraken uit de '
+          + 'vereisten b en c van lid 1 is aangevinkt.' : '')
+        + (!i.overnemerNieuw ? ' Ook een bestaande overnemer maakt een verzoek aangewezen.' : ''));
+    }
+    if (i.inbrengers.length >= 2) {
+      waarschuw(null, 'Elke inbrengende vennootschap is een eigen belastingplichtige met een eigen '
+        + 'overdrachtswinst en een eigen toets. Dat er dan twee of meer verzoeken nodig zijn volgt niet '
+        + 'uitdrukkelijk uit de wet; stem de verzoekprocedure af met de betrokken inspecteur of inspecteurs.');
+    }
+
+    /* ---------- termijnen ---------- */
+    if (!u.termijnen.voorovereenkomstOk) {
+      waarschuw('maandenVoorovereenkomst', 'De voorovereenkomst ligt ' + u.termijnen.voorovereenkomstTekort
+        + ' maand(en) te ver voor het overgangstijdstip: par. 4.1 van het besluit staat ten hoogste '
+        + TARIEVEN.fusie.maandenVoorovereenkomst + ' maanden toe. Het besluit houdt hier strikt de hand aan '
+        + 'en noemt, anders dan bij art. 3.65, geen bedragsgrens voor het incidentele fiscale voordeel.');
+    }
+    if (!u.termijnen.oprichtingOk) {
+      waarschuw('maandenOprichting', 'De oprichting en de overdracht liggen ' + u.termijnen.oprichtingTekort
+        + ' maand(en) buiten de termijn van ' + TARIEVEN.fusie.maandenOprichting + ' maanden (par. 4.1).');
+    }
+    if (!u.termijnen.eersteBoekjaarOk) {
+      waarschuw('maandenEersteBoekjaar', 'Het eerste boekjaar duurt ' + u.termijnen.eersteBoekjaarTekort
+        + ' maand(en) langer dan de ' + TARIEVEN.fusie.maandenEersteBoekjaar + ' maanden van par. 4.1.');
+    }
+
+    /* ---------- ontgaanstoets ---------- */
+    if (i.vervreemdingBinnenDrieJaar) {
+      waarschuw('vervreemding3jr', 'Tweede weerlegbaar vermoeden van de ontgaanstoets: vervreemding van '
+        + 'aandelen in de overdrager of de overnemer binnen ' + TARIEVEN.fusie.jarenOntgaansvermoeden
+        + ' jaar na de overdracht, geheel of ten dele en direct of indirect, aan een niet-verbonden lichaam '
+        + '(art. 14 lid 4 Wet Vpb 1969; verbondenheid in de zin van art. 10a lid 4). Een beschikking op het '
+        + 'verzoek van lid 2 geeft geen zekerheid over lid 4: dat vraagt een afzonderlijk verzoek op grond '
+        + 'van lid 8, en voor een concrete voorgenomen vervreemding lid 9.');
+    }
+
+    /* ---------- creditering ---------- */
+    waarschuw(null, 'De afrondingscreditering van 1% met een maximum van \u20ac '
+      + TARIEVEN.fusie.crediteringMax.toLocaleString('nl-NL') + ' is een besluitgebonden waarde '
+      + '(par. 3.5, goedkeuring op grond van art. 63 AWR) en geen wet. Bij art. 14 bestaat geen wettelijke '
+      + 'bijbetalingsmarge en al helemaal geen 10%: die 10% hoort bij de aandelenfusie (art. 3.55 lid 4 '
+      + 'onderdeel a, over de nominale waarde) en bij de overdrachtsbelasting (art. 5 lid 2 '
+      + 'Uitvoeringsbesluit BRV, over het gestorte). Binnen de grens is de creditering meegefacilieerd, '
+      + 'terwijl bij een aandelenfusie de bijbetaling altijd belast is. De 5% met maximum \u20ac 30.000 uit '
+      + 'de vierde standaardvoorwaarde hoort bij art. 3.65 en werkt niet door naar art. 14.');
+
+    /* ---------- overdrachtsbelasting ---------- */
+    if (i.onroerendeZaken) {
+      waarschuw('oz', 'Er zitten onroerende zaken in de inbreng. Laat de overdrachtsbelasting apart '
+        + 'beoordelen: de vrijstelling van art. 15 lid 1 onderdeel e WBR is hier niet de juiste en de '
+        + 'fusievrijstellingen zijn voor dit geval niet geverifieerd. Risico bij het ontbreken van een '
+        + 'vrijstelling: 10,4% van \u20ac ' + Math.round(i.waardeOnroerendeZaken).toLocaleString('nl-NL')
+        + ' is \u20ac ' + Math.round(u.ovbRisico).toLocaleString('nl-NL') + ' (art. 14 lid 1 WBR). De tool '
+        + 'zet hier geen vrijstelling en geen nul.');
+    }
+
+    /* ---------- samenloop met art. 3.65 ---------- */
+    waarschuw(null, 'Komt deze fusie na een geruisloze omzetting op de voet van art. 3.65, dan moet de '
+      + 'art. 14-stap plaatsvinden tegen uitreiking van GEWONE aandelen (onderdeel 4.2.2 letter b van het '
+      + 'Besluit standaardvoorwaarden). Loopt de kapitaalverhouding uit de winstverhouding, dan mogen alleen '
+      + 'de verschilaandelen cumulatief preferent zijn of letteraandelen met agio, met een zakelijk en '
+      + 'daadwerkelijk uitgekeerd dividend en een winstgerechtigdheid gelijk aan de winstverhouding.');
+
+    return { ok: true, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
+  }
+
   /** Invoercontrole voor de inbrengmodule. */
   function valideerInbreng(raw) {
     const fouten = [];
@@ -3195,6 +3921,8 @@ const BVJN = (function () {
     normaliseerInbreng, berekenInbreng, valideerInbreng,
     crediteringsruimte, afschrijvingGebouw, bijbetalingsgrensOvb, verkrijgingsprijsAb,
     normaliseerBalans, openingsbalansRuisend, openingsbalansGeruisloos, valideerBalans,
+    normaliseerFusie, gecorrigeerdeInbrengwaarde, ruilverhouding, aandelenUitgifte,
+    afrondingscrediteringFusie, opgeofferdBedrag, berekenFusie, valideerFusie,
     normaliseer, berekenIB, berekenBV, valideer, vergelijk, gevoeligheid, breakEven,
     metGecapteDividend
   };
@@ -4001,7 +4729,7 @@ const BVJN = (function () {
     markeerStale();
   }
 
-  const TABBLADEN = ['invoer', 'inbreng', 'nota'];
+  const TABBLADEN = ['invoer', 'inbreng', 'fusie', 'nota'];
 
   function switchTab(id, focus) {
     TABBLADEN.forEach(function (t) {
@@ -4164,6 +4892,179 @@ const BVJN = (function () {
     const gewijzigd = inbrengInvoerSleutel() !== inbrengSleutel;
     el('in-box-stale').classList.toggle('on', gewijzigd);
     el('in-res').classList.toggle('isStale', gewijzigd);
+  }
+
+  /* ---------------- fusietabblad ---------------- */
+
+  const FUS_VELD_MSG = {
+    aardVermogen: 'msg-fus-aardVermogen', claimPct: 'msg-fus-claimPct',
+    belang: 'msg-fus-belang', winstrecht: 'msg-fus-winstrecht',
+    nominaalPerAandeel: 'msg-fus-nominaalPerAandeel',
+    maandenVoorovereenkomst: 'msg-fus-maandenVoorovereenkomst',
+    maandenOprichting: 'msg-fus-maandenOprichting',
+    maandenEersteBoekjaar: 'msg-fus-maandenEersteBoekjaar',
+    vervreemding3jr: 'msg-fus-vervreemding3jr',
+    nietInbrengerAandeelhouder: 'msg-fus-nietInbrengerAandeelhouder',
+    oz: 'msg-fus-oz',
+    inbrenger0: 'msg-fus-inbrenger0', inbrenger1: 'msg-fus-inbrenger1',
+    inbrenger2: 'msg-fus-inbrenger2', inbrenger3: 'msg-fus-inbrenger3'
+  };
+
+  /** Toont of verbergt de invoerrijen naar het gekozen aantal inbrengers. */
+  function fusieRijen() {
+    const aantal = parseInt(el('fus-aantal').value, 10) || 2;
+    for (let n = 0; n < 4; n++) {
+      const rij = el('fus-rij' + n);
+      if (rij) rij.style.display = n < aantal ? '' : 'none';
+    }
+    // De beoogde belangen worden gelijk verdeeld zodra het aantal wijzigt; de gebruiker kan
+    // ze daarna zelf aanpassen. Anders telt de som niet meer op tot honderd.
+    const deel = (100 / aantal);
+    for (let n = 0; n < 4; n++) {
+      const v = el('fus-belang' + n);
+      if (v) v.value = n < aantal ? (Math.round(deel * 10) / 10) : 0;
+    }
+    berekenFusieUI();
+  }
+
+  function leesFusie() {
+    const aantal = parseInt(el('fus-aantal').value, 10) || 2;
+    const inbrengers = [];
+    for (let n = 0; n < aantal; n++) {
+      const w = el('fus-w' + n).value, b = el('fus-b' + n).value;
+      inbrengers.push({
+        naam: el('fus-naam' + n).value,
+        w: w === '' ? undefined : w,
+        b: b === '' ? undefined : b,
+        r: el('fus-r' + n).value,
+        beoogdBelang: el('fus-belang' + n).value
+      });
+    }
+    const cp = el('fus-claimPct').value;
+    return {
+      aardVermogen: el('fus-aardVermogen').value,
+      aantalInbrengers: aantal,
+      inbrengers: inbrengers,
+      claimPct: cp === '' ? undefined : cp,
+      nominaalPerAandeel: el('fus-nominaalPerAandeel').value,
+      totaalNominaal: el('fus-totaalNominaal').value,
+      overnemerNieuw: el('fus-overnemer').value === 'nieuw',
+      waardeBestaandVermogen: el('fus-bestaandVermogen').value,
+      gestortBegrip: el('fus-gestortBegrip').value,
+      winstrechtKoppeling: el('fus-winstrecht').value,
+      aanspraken: {
+        verliezen: el('fus-a-verliezen').checked,
+        renten: el('fus-a-renten').checked,
+        innovatieboxOvernemer: el('fus-a-innoOvernemer').checked,
+        innovatieboxOverdrager: el('fus-a-innoOverdrager').checked,
+        voorheffingen: el('fus-a-voorheffingen').checked,
+        voorkoming: el('fus-a-voorkoming').checked,
+        objectvrijstelling: el('fus-a-objectvrijstelling').checked,
+        andereWinstbepaling: el('fus-a-winstbepaling').checked
+      },
+      maandenVoorovereenkomst: el('fus-maandenVoorovereenkomst').value,
+      maandenOprichting: el('fus-maandenOprichting').value,
+      maandenEersteBoekjaar: el('fus-maandenEersteBoekjaar').value,
+      vervreemdingBinnenDrieJaar: el('fus-vervreemding3jr').checked,
+      nietInbrengerAandeelhouder: el('fus-nietInbrenger').checked,
+      onroerendeZaken: el('fus-oz').checked,
+      waardeOnroerendeZaken: el('fus-ozWaarde').value
+    };
+  }
+
+  function toonFusieMeldingen(v) {
+    Object.keys(FUS_VELD_MSG).forEach(function (k) {
+      const m = el(FUS_VELD_MSG[k]);
+      if (m) { m.textContent = ''; m.className = 'fmsg'; }
+    });
+    const bErr = el('fus-box-err'), bWarn = el('fus-box-warn');
+    const lErr = el('fus-list-err'), lWarn = el('fus-list-warn');
+    lErr.innerHTML = ''; lWarn.innerHTML = '';
+    v.fouten.forEach(function (f) {
+      const li = document.createElement('li'); li.textContent = f; lErr.appendChild(li);
+    });
+    v.waarschuwingen.forEach(function (w) {
+      const li = document.createElement('li'); li.textContent = w; lWarn.appendChild(li);
+    });
+    bErr.style.display = v.fouten.length ? '' : 'none';
+    bWarn.style.display = v.waarschuwingen.length ? '' : 'none';
+    Object.keys(v.veldFouten).forEach(function (k) {
+      const m = el(FUS_VELD_MSG[k]);
+      if (m) { m.textContent = v.veldFouten[k]; m.className = 'fmsg e'; }
+    });
+    Object.keys(v.veldWaarschuwingen).forEach(function (k) {
+      const m = el(FUS_VELD_MSG[k]);
+      if (m && !m.textContent) { m.textContent = v.veldWaarschuwingen[k]; m.className = 'fmsg w'; }
+    });
+  }
+
+  function berekenFusieUI() {
+    const raw = leesFusie();
+    const v = BVJN.valideerFusie(raw);
+    toonFusieMeldingen(v);
+
+    // De poortvraag verbergt het hele rekenblok: bij enkel deelnemingen is er geen
+    // bedrijfsfusie en heeft rekenen geen zin.
+    const materieel = raw.aardVermogen === 'materieel';
+    el('fus-blok').style.display = materieel ? '' : 'none';
+
+    if (!v.ok) {
+      el('fus-res').classList.remove('show');
+      return;
+    }
+    const u = BVJN.berekenFusie(raw);
+    if (!u.rekenbaar) {
+      el('fus-res').classList.remove('show');
+      return;
+    }
+    el('fus-res').classList.add('show');
+
+    const namen = u.input.inbrengers.map(function (x) { return x.naam; });
+
+    el('fus-toel').textContent = 'Par. 3.3.1 van het Bedrijfsfusiebesluit 2025: de waarde van de uit te '
+      + 'reiken aandelen moet corresponderen met de waarde in het economische verkeer van de ingebrachte '
+      + 'onderneming, gecorrigeerd met de latente vennootschapsbelastingclaim over de daarin aanwezige '
+      + 'stille reserves en goodwill. Hier is die correctie ' + pct(u.input.claimPct / 100, 2) + '.'
+      + (u.ruilverhouding.bestaand > 0
+        ? ' Het bestaande vermogen van de overnemer van ' + fmt(u.ruilverhouding.bestaand)
+          + ' telt als eigen aanspraak mee.' : '');
+
+    vulTabel('fus-tb-ruil', u.input.inbrengers.map(function (x, n) {
+      return [x.naam, x.w, x.b, u.ruilverhouding.T[n],
+        pct(u.ruilverhouding.r[n] / 100, 2), pct(x.beoogdBelang / 100, 2)];
+    }).concat([['Samen', '', '', u.ruilverhouding.somT, pct(1, 2), '', 'tot']]));
+
+    vulTabel('fus-tb-uitgifte', u.uitgifte.map(function (x, n) {
+      return [namen[n], x.aantal.toLocaleString('nl-NL'),
+        '€ ' + x.nominaal.toFixed(2).replace('.', ','), x.agio, u.creditering[n].max];
+    }));
+
+    vulTabel('fus-tb-opgeofferd', u.opgeofferd.map(function (x, n) {
+      return [namen[n], x.boekwaarde, x.reserves, x.bedrag,
+        pct(u.deelneming[n].pct / 100, 2) + (u.deelneming[n].kwalificeert ? '' : ' (onder 5%)')];
+    }));
+
+    el('fus-risico-toel').textContent = 'Bij een tegenprestatie die niet correspondeert met de waarde van '
+      + 'de inbreng vervalt de faciliteit geheel; er volgt geen correctie naar rato (HR 28-10-2011, '
+      + 'ECLI:NL:HR:2011:BQ9061, r.o. 3.5). Het risicobedrag is daarom de volledige overdrachtswinst en '
+      + 'niet een deel daarvan. Wet, besluit en arrest geven geen tolerantie, dus de tool bouwt er geen '
+      + 'marge in.';
+    vulTabel('fus-tb-risico', u.verschuiving.map(function (x, n) {
+      return [namen[n], (x.verschilPct < 0 ? '−' : '')
+        + Math.abs(x.verschilPct).toFixed(2).replace('.', ',') + ' pp',
+        x.verschilEuro, u.risico[n].overdrachtswinst];
+    }));
+
+    el('fus-route').textContent = u.litOnly.lidEenVanRechtswege
+      ? 'Geen van de aanspraken uit de vereisten b en c is aangevinkt en de overnemer is nieuw opgericht, '
+        + 'dus de faciliteit werkt van rechtswege op grond van art. 14 lid 1 Wet Vpb 1969. Een verzoek is '
+        + 'dan niet nodig, maar de ontgaanstoets van lid 4 blijft gelden en daarvoor geeft lid 1 geen '
+        + 'zekerheid: dat vraagt een afzonderlijk verzoek op grond van lid 8.'
+      : 'De faciliteit werkt hier niet van rechtswege. Een gezamenlijk verzoek op grond van art. 14 lid 2 '
+        + 'is nodig, v\u00f3\u00f3r de overdracht, bij de inspecteur belast met de aanslagregeling van de '
+        + 'overdrager.'
+        + (u.aanspraken.length ? ' Aangevinkt: ' + u.aanspraken.length + ' van de acht aanspraken.' : '')
+        + (!u.input.overnemerNieuw ? ' De overnemer is een bestaande vennootschap.' : '');
   }
 
   /* ---------------- openingsbalansen ---------------- */
@@ -4452,6 +5353,8 @@ const BVJN = (function () {
   window.setObVrij = setObVrij;
   window.setAo = setAo;
   window.berekenInbrengUI = berekenInbrengUI;
+  window.berekenFusieUI = berekenFusieUI;
+  window.fusieRijen = fusieRijen;
   window.switchTab = switchTab;
   window.printNota = printNota;
 
@@ -4469,6 +5372,7 @@ const BVJN = (function () {
     });
     setObVrij(true);
     setAo(false);
+    fusieRijen();
     TABBLADEN.forEach(function (t) {
       const k = el('tabbtn-' + t);
       if (k) k.addEventListener('keydown', tabToets);
@@ -4508,6 +5412,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:11</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:22</div>
 </body>
 </html>
