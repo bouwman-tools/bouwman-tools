@@ -97,14 +97,21 @@ die via de Anthropic API werken; daar hoort de regel bij dat er geen klantdata i
 
 ## Hoe er gewerkt wordt
 
-Sylvain werkt in **VS Code**. Er is geen buildstap en geen framework: elke tool is één
-zelfstandig HTML-bestand met de CSS en JavaScript erin, dat direct in de browser opent.
-Geen `npm`, geen bundler, geen dependencies om te installeren. Wijzigingen gaan met git
-naar de eigen toolrepo; de sync-workflow doet de rest.
+De repo's staan als lokale kloon op de laptop van Sylvain; daar wordt met **Claude Code**
+in VS Code aan gewerkt. Claude Code heeft dus toegang tot de bestanden en kan zelf
+wijzigen, committen en pushen — een gewoon chatgesprek kan dat niet en levert alleen
+tekst die met de hand overgenomen wordt.
 
-Voor een gesprek betekent dat: geef codevoorstellen als een compleet, op zichzelf staand
-blok dat in dat ene bestand geplakt kan worden — geen imports, geen buildinstructies, en
-geen oplossing die een pakket of een server nodig heeft.
+Er is geen buildstap en geen framework: elke tool is één zelfstandig HTML-bestand met de
+CSS en JavaScript erin, dat direct in de browser opent. Geen `npm`, geen bundler, geen
+dependencies om te installeren. Codevoorstellen horen dus een compleet, op zichzelf
+staand blok te zijn dat in dat ene bestand geplakt kan worden — geen imports, geen
+buildinstructies, en geen oplossing die een pakket of een server nodig heeft.
+
+Werk in een lokale kloon altijd bijgewerkt: begin met `git status` en `git pull --ff-only`.
+De remote beweegt door de sync-workflows van de toolrepo's en door andere sessies zonder
+dat een lokale kloon dat vanzelf ziet, en `--ff-only` maakt een scheefgelopen kopie
+zichtbaar in plaats van stil te mergen.
 
 ## Toegang en beveiliging
 
