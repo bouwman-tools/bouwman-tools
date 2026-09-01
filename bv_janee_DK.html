@@ -1559,7 +1559,6 @@ const BVJN = (function () {
     if (i.jaren < 0) fout('jaren', 'Jaren tot uitkering: een negatief aantal jaren is niet mogelijk.');
     if (i.jaren > 60) fout('jaren', 'Jaren tot uitkering: kies een periode van maximaal 60 jaar.');
     if (i.disco < -10 || i.disco > 25) fout('disco', 'Disconteringsvoet: kies een percentage tussen −10% en 25%.');
-    else if (i.disco < 0) waarschuw('disco', 'Een negatieve disconteringsvoet betekent dat de toekomstige box-2-claim zwaarder weegt dan nominaal: bij ' + i.disco + '% over ' + bv.jaren + ' jaar wordt de claim ' + (1 / Math.pow(1 + i.disco / 100, bv.jaren)).toFixed(1) + ' keer het nominale bedrag. Dat is een sterke aanname; onderbouw haar of zet de voet op 0%.');
     else if (i.disco > 8) waarschuw('disco', 'Een disconteringsvoet boven 8% laat het uitstelvoordeel van de BV snel oplopen; onderbouw deze aanname.');
     if (i.wgLastenPct > 30) fout('wgLastenPct', 'Premies werknemersverzekeringen: een percentage boven 30% is onrealistisch.');
 
@@ -1574,6 +1573,7 @@ const BVJN = (function () {
     else if (i.salaris < TARIEVEN.dga.gebruikelijkLoonNorm) waarschuw('salaris', 'Het DGA-salaris ligt onder de wettelijke ondergrens van € ' + TARIEVEN.dga.gebruikelijkLoonNorm.toLocaleString('nl-NL') + '. Een lager gebruikelijk loon is alleen verdedigbaar als aannemelijk is dat het loon uit de dienstbetrekking lager behoort te zijn; onderbouw dit in het dossier.');
 
     const bv = berekenBV(i);
+    if (i.disco < 0 && i.disco > -100) waarschuw('disco', 'Een negatieve disconteringsvoet betekent dat de toekomstige box-2-claim zwaarder weegt dan nominaal: bij ' + i.disco + '% over ' + bv.jaren + ' jaar wordt de claim ' + (1 / Math.pow(1 + i.disco / 100, bv.jaren)).toFixed(1) + ' keer het nominale bedrag. Dat is een sterke aanname; onderbouw haar of zet de voet op 0%.');
     if (bv.vpbGrondslag < 0) waarschuw(null, 'Het DGA-salaris en de kosten samen zijn hoger dan de winst: de VPB-grondslag is negatief (' + Math.round(bv.vpbGrondslag).toLocaleString('nl-NL') + '). Het model rekent met € 0 VPB; verliesverrekening over de jaren is niet gemodelleerd.');
     if (i.dividend > 0 && i.dividend > bv.winstNaVpb + 0.5) waarschuw('dividend', 'Het dividend is hoger dan de winst na VPB van dit jaar (€ ' + Math.round(Math.max(0, bv.winstNaVpb)).toLocaleString('nl-NL') + '). Het model gaat er dan van uit dat het meerdere uit bestaande reserves komt; de latente box-2-claim neemt daardoor af.');
     if (bv.wkrOverschrijding > 0) waarschuw('wkr', 'De aangewezen WKR-vergoeding overschrijdt de vrije ruimte van € ' + Math.round(bv.vrijeRuimte).toLocaleString('nl-NL') + '. Over de overschrijding is 80% eindheffing berekend (€ ' + Math.round(bv.wkrEindheffing).toLocaleString('nl-NL') + ').');
@@ -1593,11 +1593,11 @@ const BVJN = (function () {
     else if (i.starter) waarschuw(null, 'De startersaftrek is toegepast. Voorwaarde is dat de ondernemer in een of meer van de vijf voorafgaande jaren geen ondernemer was en de zelfstandigenaftrek in die periode hoogstens tweemaal is toegepast (art. 3.76 lid 3). De tool controleert dat niet.');
 
     if (i.beroepspensioen > 0) waarschuw('beroepspensioen', 'De premie is als last van de onderneming respectievelijk van de BV verwerkt. Dat is alleen juist bij een verplichte beroepspensioenregeling (art. 3.18 Wet IB 2001). Een vrijwillige oudedagsvoorziening hoort in het veld lijfrentepremie.');
-    if (i.lijfrentePremie > 0 && ib.inkomenBox1 < 0) waarschuw('lijfrentePremie', 'De lijfrentepremie maakt het inkomen uit werk en woning negatief. Het deel dat het inkomen niet meer kan verlagen levert geen belastingbesparing op, terwijl de uitkering later wel volledig belast is. Controleer of de premie binnen de jaarruimte past.');
     if (i.lijfrentePremie > 0) waarschuw('lijfrentePremie', 'De lijfrentepremie is als aftrekpost op het inkomen verwerkt (afdeling 3.7 Wet IB 2001). De tool toetst niet of het bedrag binnen de jaarruimte en reserveringsruimte van art. 3.127 blijft.');
     if (i.wevab > 0) waarschuw(null, 'Voor de landbouwgrond is een aanmerkelijkbelangclaim over de verwachte WEVAB-stijging in de BV meegenomen. De omvang van die stijging en het moment van realisatie zijn aannames; alleen het box-2-tarief volgt uit de wet.');
 
     const ib = berekenIB(i);
+    if (i.lijfrentePremie > 0 && ib.inkomenBox1 < 0) waarschuw('lijfrentePremie', 'De lijfrentepremie maakt het inkomen uit werk en woning negatief. Het deel dat het inkomen niet meer kan verlagen levert geen belastingbesparing op, terwijl de uitkering later wel volledig belast is. Controleer of de premie binnen de jaarruimte past.');
     if (ib.zaOnbenut > 0.5) waarschuw(null, 'De zelfstandigenaftrek kan door de lage winst niet volledig worden benut (€ ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL') + ' onbenut). Voortwenteling naar volgende jaren is niet gemodelleerd.');
     if (ib.kortingenOnbenut > 0.5 || bv.kortingenOnbenut > 0.5) waarschuw(null, 'De heffingskortingen kunnen niet volledig worden verrekend met de verschuldigde belasting; het niet-verrekende deel vervalt (art. 8.8 Wet IB 2001).');
     if (ib.inkomenBox1 < 0 || bv.inkomenBox1 < 0) waarschuw(null, 'Het box-1-inkomen is in ten minste één scenario negatief. Het model rekent dan met € 0; verliesverrekening is niet gemodelleerd.');
@@ -3287,6 +3287,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 03:39</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 03:47</div>
 </body>
 </html>
