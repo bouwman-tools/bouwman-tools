@@ -162,6 +162,14 @@
     .nota-hdr { border-bottom: 2px solid #78BE20 !important; }
     .nota-footer { border-top: 1px solid #E0E0DC !important; }
     .nota-section { break-inside: avoid; }
+    /* Bij print bestaat er geen horizontaal schuiven: overflow-x kapt de inhoud af in
+       plaats van haar te laten scrollen. De brede tabellen van de tussenvorm (vier
+       kolommen) en de bedrijfsfusie (vijf) moeten dus binnen de bladspiegel passen. */
+    .tblwrap { overflow: visible !important; }
+    .nota .ctable { width: 100% !important; table-layout: fixed !important; }
+    .nota .ctable td, .nota .ctable th { word-break: break-word !important; hyphens: auto; }
+    #nota-fusie, #nota-fusie ~ * { font-size: 10px !important; }
+    #nota-sec-fusie .ctable { font-size: 10px !important; }
     .ctable thead tr { background: #2D2D2D !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .ctable th { color: rgba(255,255,255,0.85) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .nota-con { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -257,7 +265,7 @@
         <div class="fld">
           <label for="investering">Investering in bedrijfsmiddelen dit jaar</label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="investering" value="0" step="1000" min="0" inputmode="numeric"></div>
-          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41 lid 2 over het bedrag dat u hier invult, per onderneming. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto's en grond horen er niet in; die haalt u er zelf af. Energie- en milieu-investeringen tellen hier wél in mee.</div>
+          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41 lid 2 over het bedrag dat u hier invult. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto's en grond horen er niet in; die haalt u er zelf af. Energie- en milieu-investeringen tellen hier wél in mee.</div>
           <div class="fmsg" id="msg-investering"></div>
         </div>
         <div class="fld">
@@ -1440,6 +1448,33 @@
           </div>
         </div>
 
+        <div class="nota-section" id="nota-sec-balans" style="display:none">
+          <div class="nota-stitle">Openingsbalans van de BV</div>
+          <div class="nota-fine" id="nota-balans-toel"></div>
+          <div class="tblwrap"><table class="ctable" style="margin-top:8px;font-size:11px">
+            <thead><tr><th scope="col">Post</th><th scope="col">Na ruisende inbreng</th><th scope="col">Na geruisloze inbreng</th></tr></thead>
+            <tbody id="nota-balans"></tbody>
+          </table></div>
+        </div>
+
+        <div class="nota-section" id="nota-sec-firma" style="display:none">
+          <div class="nota-stitle">Tussenvorm: firma met de eigen BV</div>
+          <div class="nota-fine" id="nota-firma-toel"></div>
+          <div class="tblwrap"><table class="ctable" style="margin-top:8px;font-size:11px">
+            <thead><tr><th scope="col">Post</th><th scope="col">IB-onderneming</th><th scope="col">Firma met de BV</th><th scope="col">BV met DGA</th></tr></thead>
+            <tbody id="nota-firma"></tbody>
+          </table></div>
+        </div>
+
+        <div class="nota-section" id="nota-sec-fusie" style="display:none">
+          <div class="nota-stitle">Bedrijfsfusie art. 14 Wet Vpb 1969</div>
+          <div class="nota-fine" id="nota-fusie-toel"></div>
+          <div class="tblwrap"><table class="ctable" style="margin-top:8px;font-size:11px">
+            <thead><tr><th scope="col">Inbrenger</th><th scope="col">Gecorrigeerde waarde</th><th scope="col">Zakelijk belang</th><th scope="col">Beoogd belang</th><th scope="col">Risicobedrag</th></tr></thead>
+            <tbody id="nota-fusie"></tbody>
+          </table></div>
+        </div>
+
         <div class="nota-section">
           <div class="nota-stitle">Aannames en beperkingen</div>
           <div class="nota-fine" id="nota-aannames"></div>
@@ -2294,7 +2329,7 @@ const BVJN = (function () {
     if (i.investering > 0) {
       if (i.investering <= TARIEVEN.kia.drempel) waarschuw('investering', 'Bij een investering tot en met € ' + TARIEVEN.kia.drempel.toLocaleString('nl-NL') + ' bestaat geen recht op kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2).');
       else if (i.investering > TARIEVEN.kia.grens4) waarschuw('investering', 'Boven € ' + TARIEVEN.kia.grens4.toLocaleString('nl-NL') + ' is de kleinschaligheidsinvesteringsaftrek nihil (art. 3.41 lid 2).');
-      waarschuw(null, 'De KIA is berekend over het volledige investeringsbedrag. Bedrijfsmiddelen van minder dan € 450 (art. 3.45 lid 2 onderdeel b) en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond (art. 3.45 lid 1) tellen niet mee; corrigeer het bedrag zo nodig zelf. De tabel van art. 3.41 lid 2 werkt per onderneming en komt niet boven € ' + TARIEVEN.kia.vast.toLocaleString('nl-NL') + ' uit.');
+      waarschuw(null, 'De KIA is berekend over het volledige investeringsbedrag. Bedrijfsmiddelen van minder dan € 450 (art. 3.45 lid 2 onderdeel b) en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond (art. 3.45 lid 1) tellen niet mee; corrigeer het bedrag zo nodig zelf. De tabel van art. 3.41 lid 2 komt niet boven € ' + TARIEVEN.kia.vast.toLocaleString('nl-NL') + ' uit. Drijft u de onderneming in een samenwerkingsverband, dan telt art. 3.41 lid 3 de investeringen van alle deelnemers samen, ook die van een vennootschapsbelastingplichtige deelnemer, en krijgt u naar rato een deel van die ene tabeluitkomst; het tabblad Firma met de BV rekent dat uit.');
     }
 
     if (i.starter && !i.urencriterium) waarschuw(null, 'De startersaftrek is een verhoging van de zelfstandigenaftrek (art. 3.76 lid 3) en veronderstelt dus het urencriterium. Zonder urencriterium is geen startersaftrek toegepast.');
@@ -5308,6 +5343,8 @@ const BVJN = (function () {
       + 'de extra kosten van de BV (' + fmt(i.bvKosten) + ' per jaar) zijn hierin niet als belasting begrepen. '
       + 'Dit is een indicatief fiscaal rekenmodel en geen volledig omzettingsadvies; de rechtsvormkeuze vraagt daarnaast een afweging van niet-fiscale factoren.';
 
+    vulNotaUitbreidingen();
+
     const a = el('nota-aannames');
     a.innerHTML = '';
     const ul = document.createElement('ul');
@@ -5318,6 +5355,101 @@ const BVJN = (function () {
     p.style.marginTop = '6px';
     p.textContent = NIET_MEEGENOMEN;
     a.appendChild(p);
+  }
+
+  /**
+   * De drie onderdelen die na de hoofdvergelijking zijn bijgekomen. Elke sectie blijft
+   * verborgen zolang er niets voor is ingevuld: een adviesnota met drie lege tabellen is
+   * slechter dan een nota zonder.
+   */
+  function vulNotaUitbreidingen() {
+    /* ---------- openingsbalansen ---------- */
+    const rawBal = leesBalans();
+    const rawInb = leesInbreng();
+    const vBal = BVJN.valideerBalans(rawBal, rawInb);
+    if (vBal.ok) {
+      const r = BVJN.openingsbalansRuisend(rawBal, rawInb);
+      const g = BVJN.openingsbalansGeruisloos(rawBal, rawInb);
+      el('nota-sec-balans').style.display = '';
+      el('nota-balans-toel').textContent = 'Onderdeel 15.1 van het Besluit standaardvoorwaarden '
+        + '(Stcrt. 2025, 37092) vraagt bij het verzoek van art. 3.65 lid 3 onderdeel e de fiscale '
+        + 'openingsbalans van de op te richten vennootschap. Op geen van beide balansen staat een '
+        + 'voorziening voor vennootschapsbelasting: die belasting komt niet in aftrek (art. 10 lid 1 '
+        + 'onderdeel e Wet Vpb 1969). De overgenomen claim bij de geruisloze route is daarom apart '
+        + 'vermeld, en die waardering is een adviesopstelling en geen jaarrekening.';
+      const lat = g.economisch.latentie;
+      // Bij de geruisloze route schrijft de BV af over de oude boekwaarden, dus niet over de
+      // meerwaarde en niet over de goodwill. Het verschil met de ruisende route is precies het
+      // afschrijvingsnadeel dat in de routevergelijking staat.
+      const afR = r.afschrijvingEersteJaar;
+      const afRuisend = afR.goodwill + afR.overig + afR.pand;
+      const afGeruisloos = (r.input.bwMva > 0 && r.inbreng.jarenOverig > 0
+        ? r.input.bwMva / r.inbreng.jarenOverig : 0)
+        + BVJN.afschrijvingGebouw(r.input.bwPand, r.input.bwPand, r.input.wozPand, r.inbreng.jarenPand);
+      vulTabel('nota-balans', [
+        ['Balanstotaal', r.balanstotaal, g.fiscaal.balanstotaal],
+        ['Waarvan goodwill geactiveerd', r.inbreng.goodwill, 0],
+        ['Gestort aandelenkapitaal', r.input.nominaalKapitaal, r.input.nominaalKapitaal],
+        ['Agio', r.agio, g.fiscaal.agio],
+        ['Creditering', r.input.crediteringRuisend, g.crediteringRuimte.gebruikt],
+        ['Overgenomen belastingclaim (' + pct(lat.pct / 100, 2) + ')', 0,
+          lat.contantGebruikt ? lat.contant : lat.nominaal],
+        ['Verkrijgingsprijs aanmerkelijk belang', r.verkrijgingsprijs, g.verkrijgingsprijs, 'tot'],
+        ['Afschrijving eerste jaar', afRuisend, afGeruisloos],
+        ['Waarvan gemist bij de geruisloze route', 0, afRuisend - afGeruisloos, 'sec']
+      ]);
+    } else {
+      el('nota-sec-balans').style.display = 'none';
+    }
+
+    /* ---------- firma met de eigen BV ---------- */
+    const rawFir = leesFirma();
+    const vFir = BVJN.valideerFirma(rawFir);
+    if (vFir.ok && vFir.bepaalbaar) {
+      const d = BVJN.vergelijkDrie(rawFir);
+      const f = d.firma;
+      el('nota-sec-firma').style.display = '';
+      el('nota-firma-toel').textContent = 'De ondernemer is vennoot naast zijn eigen BV: hij houdt zijn '
+        + 'ondernemersaftrek en de MKB-winstvrijstelling over zijn winstaandeel, terwijl het aandeel van '
+        + 'de BV onder de vennootschapsbelasting valt. De winstverdeling is een afspraak en geen '
+        + 'rekenuitkomst: art. 3.8 Wet IB 2001 eist dat zij zakelijk is, maar er bestaat geen '
+        + 'gepubliceerd normenkader voor een verdeling tussen een ondernemer en zijn eigen BV. Dat is het '
+        + 'grootste correctierisico van deze structuur. Let op: art. 3.65 kan deze vorm niet tot stand '
+        + 'brengen (HR 10-04-2020, ECLI:NL:HR:2020:645).';
+      vulTabel('nota-firma', [
+        ['Arbeidsbeloning ondernemer', '', fmt(f.verdeling.arbeidsbeloning), ''],
+        ['Winstaandeel ondernemer', '', fmt(f.verdeling.winstOndernemer), ''],
+        ['Winstaandeel BV', '', fmt(f.verdeling.winstBVvoorLoon), ''],
+        ['Belastingen en premies', d.ib.belastingenPremies, f.belastingenPremies, d.bv.belastingenPremies],
+        ['Totale lasten', d.ib.totaleLasten, f.totaleLasten, d.bv.totaleLasten, 'tot'],
+        ['Netto priv\u00e9', d.ib.nettoPrive, f.nettoPrive, d.bv.nettoPrive],
+        ['Economisch, na de contante claim', d.ib.economisch, f.economisch, d.bv.economisch, 'sec']
+      ]);
+    } else {
+      el('nota-sec-firma').style.display = 'none';
+    }
+
+    /* ---------- bedrijfsfusie ---------- */
+    const rawFus = leesFusie();
+    const vFus = BVJN.valideerFusie(rawFus);
+    const uFus = vFus.ok ? BVJN.berekenFusie(rawFus) : null;
+    if (uFus && uFus.rekenbaar) {
+      el('nota-sec-fusie').style.display = '';
+      el('nota-fusie-toel').textContent = 'Par. 3.3.1 van het Bedrijfsfusiebesluit 2025: de waarde van de '
+        + 'uit te reiken aandelen moet corresponderen met de waarde in het economische verkeer van de '
+        + 'ingebrachte onderneming, gecorrigeerd met de latente vennootschapsbelastingclaim over de stille '
+        + 'reserves en de goodwill. Hier is die correctie ' + pct(uFus.input.claimPct / 100, 2) + '; het '
+        + 'besluit noemt zelf geen percentage. Wijkt het beoogde belang af van de zakelijke '
+        + 'ruilverhouding, dan vervalt de faciliteit GEHEEL en volgt er geen correctie naar rato '
+        + '(HR 28-10-2011, ECLI:NL:HR:2011:BQ9061, r.o. 3.5). Het risicobedrag is daarom de volledige '
+        + 'overdrachtswinst.';
+      vulTabel('nota-fusie', uFus.input.inbrengers.map(function (x, n) {
+        return [x.naam, uFus.ruilverhouding.T[n], pct(uFus.ruilverhouding.r[n] / 100, 2),
+          pct(x.beoogdBelang / 100, 2), uFus.risico[n].overdrachtswinst];
+      }).concat([['Samen', uFus.ruilverhouding.somT, pct(1, 2), '', '', 'tot']]));
+    } else {
+      el('nota-sec-fusie').style.display = 'none';
+    }
   }
 
   /* ---------------- dossier: opslaan en openen ---------------- */
@@ -5510,7 +5642,7 @@ const BVJN = (function () {
         + 'alleen met de overige investeringsaftrek hieronder.';
     } else {
       h.textContent = 'De KIA volgt uit de tabel van art. 3.41 lid 2 over het bedrag dat u hier '
-        + 'invult, per onderneming. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen '
+        + 'invult. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen '
         + 'zoals personenauto\'s en grond horen er niet in; die haalt u er zelf af. Energie- en '
         + 'milieu-investeringen tellen hier wél in mee.';
     }
@@ -6415,6 +6547,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:39</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 11:43</div>
 </body>
 </html>
