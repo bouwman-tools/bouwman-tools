@@ -1147,7 +1147,7 @@
         </div>
         <div class="fld">
           <label for="fus-aantal">Aantal inbrengers</label>
-          <select id="fus-aantal" onchange="fusieRijen()">
+          <select id="fus-aantal" onchange="fusieRijen(true)">
             <option value="2" selected>2</option>
             <option value="3">3</option>
             <option value="4">4</option>
@@ -2527,9 +2527,17 @@ const BVJN = (function () {
         hoofd: dossierBlok(rauw.hoofd, DOSSIER_HOOFD, DOSSIER_HOOFD_SCHAKELAAR, DOSSIER_HOOFD_KEUZE),
         inbreng: metOudeStilleReserves(rauw.inbreng,
           dossierBlok(rauw.inbreng, DOSSIER_INBRENG, DOSSIER_INBRENG_SCHAKELAAR, DOSSIER_INBRENG_KEUZE)),
-        balans: dossierBlok(rauw.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE),
-        firma: dossierBlok(rauw.firma, DOSSIER_FIRMA, DOSSIER_FIRMA_SCHAKELAAR, DOSSIER_FIRMA_KEUZE),
-        fusie: dossierBlok(rauw.fusie, DOSSIER_FUSIE, DOSSIER_FUSIE_SCHAKELAAR, DOSSIER_FUSIE_KEUZE)
+        // De drie blokken van formaatversie 2. Een dossier dat ze niet heeft, krijgt hier
+        // undefined in plaats van een blok vol lege waarden: anders zou het openen van een
+        // oud dossier de invoervelden van de nieuwe tabbladen leegmaken en de standaard
+        // aangevinkte schakelaars uitzetten. Ongemoeid laten is dan het juiste gedrag.
+        balans: rauw.balans ? dossierBlok(rauw.balans, DOSSIER_BALANS, [], DOSSIER_BALANS_KEUZE) : undefined,
+        firma: rauw.firma
+          ? dossierBlok(rauw.firma, DOSSIER_FIRMA, DOSSIER_FIRMA_SCHAKELAAR, DOSSIER_FIRMA_KEUZE)
+          : undefined,
+        fusie: rauw.fusie
+          ? dossierBlok(rauw.fusie, DOSSIER_FUSIE, DOSSIER_FUSIE_SCHAKELAAR, DOSSIER_FUSIE_KEUZE)
+          : undefined
       }
     };
   }
@@ -3055,15 +3063,22 @@ const BVJN = (function () {
     const buitenBeschouwing = metArt365 ? 0 : Math.min(c, pos(creditVoorIbPvv));
     const getoetst = Math.max(0, c - buitenBeschouwing);
     const lijfrente = pos(lijfrenteVoorziening);
-    const grens = lijfrente > 0
-      ? lijfrente
-      : pos(gestort) * TARIEVEN.inbreng.obBijbetalingPct;
+    const tienprocent = pos(gestort) * TARIEVEN.inbreng.obBijbetalingPct;
+    // Onderdeel 3.7 van het Besluit Ondernemingsfaciliteiten is een GOEDKEURING op grond van
+    // art. 63 AWR, dus een verruiming van de wettelijke grens van art. 5 lid 2
+    // Uitvoeringsbesluit BRV. Een goedkeuring kan de positie van de belastingplichtige nooit
+    // verslechteren: hij kan zich er eenvoudig niet op beroepen. Daarom is de grens het
+    // hoogste van de twee en niet de lijfrentewaarde in plaats van het tienprocentmaximum.
+    // Eerder verlaagde een bedongen lijfrente van EUR 1.000 de grens van 50.000 naar 1.000.
+    const grens = Math.max(tienprocent, lijfrente);
     return {
       grens: grens,
       getoetst: getoetst,
       buitenBeschouwing: buitenBeschouwing,
       overschrijding: Math.max(0, getoetst - grens),
-      grondslagVanDeGrens: lijfrente > 0 ? 'lijfrente' : 'tienprocent'
+      tienprocent: tienprocent,
+      lijfrente: lijfrente,
+      grondslagVanDeGrens: lijfrente > tienprocent ? 'lijfrente' : 'tienprocent'
     };
   }
 
@@ -3879,6 +3894,17 @@ const BVJN = (function () {
       fout('claimPct', 'Claimpercentage: kies een percentage tussen 0% en 100%.');
     }
 
+    // Bij een bestaande overnemer die eigen vermogen meebrengt, houden de inbrengers samen
+    // minder dan het geheel: dat vermogen is een eigen aanspraak van de zittende
+    // aandeelhouder. De ruilverhouding rekent daar al mee, dus de somtoets op de beoogde
+    // belangen moet over hetzelfde deel lopen. Anders is er geen invoer waarmee een
+    // volstrekt zakelijke fusie schoon uitkomt: elke verdeling levert dan een gemelde
+    // vermogensverschuiving op die er niet is.
+    const rvVoorToets = ruilverhouding(i.inbrengers, i.claimPctGegeven ? i.claimPct / 100 : 0,
+      i.overnemerNieuw ? 0 : i.waardeBestaandVermogen);
+    const somDoel = rvVoorToets.somT > 0
+      ? (rvVoorToets.somT - rvVoorToets.bestaand) / rvVoorToets.somT * 100 : 100;
+
     let somBelang = 0;
     for (let n = 0; n < i.inbrengers.length; n++) {
       const x = i.inbrengers[n];
@@ -3892,8 +3918,17 @@ const BVJN = (function () {
       if (x.r > x.b) fout(veld, x.naam + ': de reserves van art. 3.53 en 3.54 zijn hoger dan de boekwaarde.');
       somBelang += x.beoogdBelang;
     }
-    if (Math.abs(somBelang - 100) > 0.05) {
-      fout('belang', 'De beoogde belangen tellen op tot ' + dec(somBelang) + '% en niet tot 100%.');
+    // De tolerantie is een tiende procentpunt, zodat de gelijke verdeling die de tool zelf
+    // bij drie inbrengers invult (33,3 driemaal is 99,9) niet op haar eigen standaardwaarde
+    // struikelt.
+    if (Math.abs(somBelang - somDoel) > 0.15) {
+      fout('belang', 'De beoogde belangen tellen op tot ' + dec(somBelang) + '% en niet tot '
+        + dec(somDoel) + '%.'
+        + (rvVoorToets.bestaand > 0
+          ? ' De overnemer brengt zelf \u20ac ' + Math.round(rvVoorToets.bestaand).toLocaleString('nl-NL')
+            + ' aan vermogen mee; dat is een eigen aanspraak van de zittende aandeelhouder, dus de '
+            + 'inbrengers houden samen ' + dec(somDoel) + '% en niet het geheel.'
+          : ''));
     }
 
     // Optie nul voor het claimpercentage is alleen verdedigbaar als de verhouding stille
@@ -4489,7 +4524,14 @@ const BVJN = (function () {
         fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
     }
 
-    if (i.pctBV < 0 || i.pctBV > 100) fout('pctBV', 'Het winstaandeel van de BV moet tussen 0% en 100% liggen.');
+    // normaliseerFirma klemt het percentage al tussen nul en honderd, dus een controle op de
+    // genormaliseerde waarde kon nooit afgaan. Toets daarom de RUWE invoer: anders wordt 150%
+    // stil 100% en weet de gebruiker niet dat er iets anders is gerekend dan hij intypte.
+    const ruwPct = raw && raw.pctBV !== undefined && raw.pctBV !== '' ? Number(raw.pctBV) : 50;
+    if (Number.isFinite(ruwPct) && (ruwPct < 0 || ruwPct > 100)) {
+      fout('pctBV', 'Het winstaandeel van de BV moet tussen 0% en 100% liggen; ingevuld is '
+        + dec(ruwPct) + '%.');
+    }
     if (!i.arbeidsbeloningGegeven) {
       fout('arbeidsbeloning', 'Vul de arbeidsbeloning van de ondernemer in. Dat is de eerste stap van de '
         + 'winstverdeling en het scherpste punt van de zakelijkheidstoets: laat u het leeg, dan loopt de '
@@ -5539,10 +5581,17 @@ const BVJN = (function () {
         + 'ruilverhouding, dan vervalt de faciliteit GEHEEL en volgt er geen correctie naar rato '
         + '(HR 28-10-2011, ECLI:NL:HR:2011:BQ9061, r.o. 3.5). Het risicobedrag is daarom de volledige '
         + 'overdrachtswinst.';
+      // Het risicobedrag hoort er alleen te staan als het beoogde belang werkelijk afwijkt
+      // van de zakelijke ruilverhouding. Bij een zuivere verhouding is er geen risico, en
+      // een bedrag in die kolom leest dan als een dreiging die er niet is.
       vulTabel('nota-fusie', uFus.input.inbrengers.map(function (x, n) {
+        const wijktAf = Math.abs(uFus.verschuiving[n].verschilPct) > 0.05;
         return [x.naam, uFus.ruilverhouding.T[n], pct(uFus.ruilverhouding.r[n] / 100, 2),
-          pct(x.beoogdBelang / 100, 2), uFus.risico[n].overdrachtswinst];
-      }).concat([['Samen', uFus.ruilverhouding.somT, pct(1, 2), '', '', 'tot']]));
+          pct(x.beoogdBelang / 100, 2),
+          wijktAf ? uFus.risico[n].overdrachtswinst : 'geen verschuiving'];
+      }).concat([['Samen', uFus.ruilverhouding.somT,
+        pct((uFus.ruilverhouding.somT - uFus.ruilverhouding.bestaand)
+          / Math.max(1, uFus.ruilverhouding.somT), 2), '', '', 'tot']]));
     } else {
       el('nota-sec-fusie').style.display = 'none';
     }
@@ -5635,7 +5684,8 @@ const BVJN = (function () {
     ververseAfgeleid();
     ververseInbrengHints();
     // Het aantal inbrengers bepaalt welke rijen zichtbaar zijn; dat moet mee met het dossier.
-    if (d.fusie && d.fusie.aantal) fusieRijen();
+    // De belangen NIET opnieuw verdelen: die staan in het dossier en zijn net gezet.
+    if (d.fusie && d.fusie.aantal) fusieRijen(false);
   }
 
   function dossierMelding(tekst, soort) {
@@ -6142,19 +6192,25 @@ const BVJN = (function () {
     inbrenger2: 'msg-fus-inbrenger2', inbrenger3: 'msg-fus-inbrenger3'
   };
 
-  /** Toont of verbergt de invoerrijen naar het gekozen aantal inbrengers. */
-  function fusieRijen() {
+  /**
+   * Toont of verbergt de invoerrijen naar het gekozen aantal inbrengers.
+   *
+   * verdeelOpnieuw bepaalt of de beoogde belangen gelijk worden verdeeld. Dat hoort te
+   * gebeuren wanneer de gebruiker het aantal wijzigt, maar niet wanneer een dossier wordt
+   * geopend: dan zou de opgeslagen verdeling stil worden overschreven door 33,3 driemaal.
+   */
+  function fusieRijen(verdeelOpnieuw) {
     const aantal = parseInt(el('fus-aantal').value, 10) || 2;
     for (let n = 0; n < 4; n++) {
       const rij = el('fus-rij' + n);
       if (rij) rij.style.display = n < aantal ? '' : 'none';
     }
-    // De beoogde belangen worden gelijk verdeeld zodra het aantal wijzigt; de gebruiker kan
-    // ze daarna zelf aanpassen. Anders telt de som niet meer op tot honderd.
-    const deel = (100 / aantal);
-    for (let n = 0; n < 4; n++) {
-      const v = el('fus-belang' + n);
-      if (v) v.value = n < aantal ? (Math.round(deel * 10) / 10) : 0;
+    if (verdeelOpnieuw !== false) {
+      const deel = (100 / aantal);
+      for (let n = 0; n < 4; n++) {
+        const v = el('fus-belang' + n);
+        if (v) v.value = n < aantal ? (Math.round(deel * 10) / 10) : 0;
+      }
     }
     berekenFusieUI();
   }
@@ -6394,6 +6450,11 @@ const BVJN = (function () {
       uitR.style.display = 'none';
       uitG.style.display = 'none';
       el('bal-kaart').open = true;
+      // De hint mag niet blijven staan dat de balans sluit terwijl de foutmelding het
+      // tegendeel zegt.
+      el('hint-bal-sluit').textContent = 'De balans is niet opgesteld: corrigeer eerst de '
+        + 'gemelde invoer. Activa minus schulden moet gelijk zijn aan het fiscale '
+        + 'ondernemingsvermogen; de tool boekt geen sluitpost bij.';
       return;
     }
 
@@ -6462,7 +6523,7 @@ const BVJN = (function () {
       .concat([['Verkrijgingsprijs', g.verkrijgingsprijs, undefined, 'tot']]));
 
     el('hint-bal-sluit').textContent = 'De balans sluit: activa minus schulden is gelijk aan het fiscale '
-      + 'ondernemingsvermogen van ' + fmt(raw.ondernemingsvermogen) + '.';
+      + 'ondernemingsvermogen van ' + fmt(BVJN.normaliseerBalans(raw).ondernemingsvermogen) + '.';
     return v;
   }
 
@@ -6650,6 +6711,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 14:13</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 14:54</div>
 </body>
 </html>
