@@ -253,12 +253,13 @@
         <div class="fld">
           <label for="investering">Investering in bedrijfsmiddelen dit jaar</label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="investering" value="0" step="1000" min="0" inputmode="numeric"></div>
-          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41 over het bedrag dat u hier invult. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto's en grond horen er niet in; die haalt u er zelf af.</div>
+          <div class="hint" id="hint-kia">De KIA volgt uit de tabel van art. 3.41 lid 2 over het bedrag dat u hier invult, per onderneming. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto's en grond horen er niet in; die haalt u er zelf af. Energie- en milieu-investeringen tellen hier wél in mee.</div>
           <div class="fmsg" id="msg-investering"></div>
         </div>
         <div class="fld">
-          <label for="kia">Of: KIA zelf invullen <span class="tipw"><span class="tip" title="Laat dit veld op € 0 staan als u het investeringsbedrag gebruikt. Vult u hier een bedrag in en laat u de investering op nul, dan rekent de tool met uw bedrag zonder het aan de tabel te toetsen.">?</span></span></label>
+          <label for="kia">Overige investeringsaftrek (EIA of MIA) <span class="tipw"><span class="tip" title="Art. 3.40 kent drie vormen naast elkaar. De energie-investeringsaftrek (art. 3.42, 40%) en de milieu-investeringsaftrek (art. 3.42a, 45%, 36% of 27%) volgen uit een verklaring van de minister en niet uit een bedrag, dus die vult u hier zelf in. Zij komen bovenop de KIA. Hier hoort ook de KIA van een tweede onderneming, want de tabel van art. 3.41 werkt per onderneming.">?</span></span></label>
           <div class="eur"><span class="pre" aria-hidden="true">€</span><input type="number" id="kia" value="0" step="500" min="0" inputmode="numeric"></div>
+          <div class="hint" id="hint-overigeaftrek">Komt bovenop de KIA. EIA en MIA sluiten elkaar per investering uit (art. 3.42a lid 6), maar staan los van de KIA.</div>
           <div class="fmsg" id="msg-kia"></div>
         </div>
         <div class="fld">
@@ -1153,11 +1154,6 @@ const BVJN = (function () {
 
   function normaliseer(raw) {
     const r = raw || {};
-    // De KIA volgt standaard uit het investeringsbedrag. Wordt alleen een KIA-bedrag
-    // meegegeven, dan wordt dat gebruikt; die keuze is expliciet zichtbaar in kiaBron.
-    const kiaBron = (r.kiaBron === 'handmatig' || r.kiaBron === 'investering')
-      ? r.kiaBron
-      : (gegeven(r.investering) ? 'investering' : (gegeven(r.kia) ? 'handmatig' : 'investering'));
     // De periode tot de box-2-heffing volgt standaard uit de leeftijden. Wordt alleen een
     // aantal jaren meegegeven, dan telt dat.
     const jarenBron = (r.jarenBron === 'handmatig' || r.jarenBron === 'leeftijd')
@@ -1165,13 +1161,14 @@ const BVJN = (function () {
       : ((gegeven(r.leeftijd) || gegeven(r.pensioenLeeftijd)) ? 'leeftijd'
         : (gegeven(r.jaren) ? 'handmatig' : 'leeftijd'));
     return {
-      kiaBron: kiaBron,
       jarenBron: jarenBron,
       naam: typeof r.naam === 'string' ? r.naam : '',
       winst: num(r.winst),
       urencriterium: r.urencriterium !== false,
       starter: r.starter === true,
       investering: num(r.investering),
+      // Overige investeringsaftrek: EIA, MIA, of de KIA van een tweede onderneming.
+      // Het veld heette eerder kia; oude dossiers blijven daardoor leesbaar.
       kia: num(r.kia),
       kiaScope: r.kiaScope === 'ib' || r.kiaScope === 'bv' ? r.kiaScope : 'beide',
       beroepspensioen: num(r.beroepspensioen),
@@ -1205,9 +1202,22 @@ const BVJN = (function () {
     };
   }
 
-  /** De KIA volgt uit het investeringsbedrag, tenzij de gebruiker haar zelf invult. */
+  /**
+   * De totale investeringsaftrek. Art. 3.40 Wet IB 2001 kent drie vormen naast elkaar:
+   * de kleinschaligheidsinvesteringsaftrek, de energie-investeringsaftrek (art. 3.42) en
+   * de milieu-investeringsaftrek (art. 3.42a). Zij sluiten elkaar niet uit; alleen EIA en
+   * MIA sluiten elkaar uit per investering (art. 3.42a lid 6).
+   *
+   * De KIA volgt uit het investeringsbedrag via de tabel van art. 3.41 lid 2. De EIA en de
+   * MIA volgen niet uit een bedrag maar uit een verklaring van de minister, dus die vult
+   * de gebruiker zelf in. Beide worden opgeteld.
+   *
+   * Let op de wisselwerking: energie- en milieu-investeringen tellen wél mee in het
+   * investeringsbedrag van art. 3.41 lid 2. Een grote EIA- of MIA-investering duwt dat
+   * totaal boven € 398.236 en laat de KIA daarmee op nihil uitkomen.
+   */
   function kiaVanInvoer(i) {
-    return i.kiaBron === 'handmatig' ? pos(i.kia) : kiaBedrag(i.investering);
+    return kiaBedrag(i.investering) + pos(i.kia);
   }
 
   /**
@@ -1226,7 +1236,12 @@ const BVJN = (function () {
   function berekenIB(inp) {
     const i = normaliseer(inp);
     const T = TARIEVEN;
-    const kia = (i.kiaScope === 'bv') ? 0 : kiaVanInvoer(i);
+    // De scope bepaalt of de aftrek in dit scenario thuishoort. De twee componenten
+    // worden apart teruggegeven, zodat de opbouw ze kan tonen zonder zelf te rekenen.
+    const kiaToe = i.kiaScope !== 'bv';
+    const kiaKlein = kiaToe ? kiaBedrag(i.investering) : 0;
+    const kiaOverig = kiaToe ? pos(i.kia) : 0;
+    const kia = kiaKlein + kiaOverig;
 
     // Premie voor een verplichte beroepspensioenregeling komt ten laste van de winst
     // (art. 3.18 Wet IB 2001) en verlaagt dus ook de grondslag van de
@@ -1326,7 +1341,8 @@ const BVJN = (function () {
       ? oudedagClaimNominaal / factor : oudedagClaimNominaal;
 
     return {
-      kia, beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1, oudedagsinleg,
+      kia, kiaKlein, kiaOverig,
+      beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1, oudedagsinleg,
       winstNaKia, starter, zaBasis, startersAftrek, zaRecht, za, zaOnbenut,
       ondernemersaftrek, mkbGrondslag, mkb, belastbareWinst,
       ew, inkomenBox1, box1Belastbaar, ibBruto, aftrekposten, ta, heffingVoorKortingen,
@@ -1342,7 +1358,10 @@ const BVJN = (function () {
   function berekenBV(inp) {
     const i = normaliseer(inp);
     const T = TARIEVEN;
-    const kia = (i.kiaScope === 'ib') ? 0 : kiaVanInvoer(i);
+    const kiaToe = i.kiaScope !== 'ib';
+    const kiaKlein = kiaToe ? kiaBedrag(i.investering) : 0;
+    const kiaOverig = kiaToe ? pos(i.kia) : 0;
+    const kia = kiaKlein + kiaOverig;
     const salaris = pos(i.salaris);
     // De premie voor een verplichte beroepspensioenregeling van de DGA wordt door de BV
     // gedragen en is voor haar een aftrekbare last; bij de DGA is de aanspraak niet belast
@@ -1475,7 +1494,8 @@ const BVJN = (function () {
     const wevabClaimContant = contant(wevabClaimNominaal);
 
     return {
-      kia, salaris, beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1,
+      kia, kiaKlein, kiaOverig,
+      salaris, beroepspensioen, lijfrentePremie, pga, uitkeringBox1, rowBox1, overigBox1,
       arbeidsinkomen, oudedagsinleg,
       werkgeversheffingZvw, premiesWnv, werkgeverslasten,
       fiscaleLoonsom, vrijeRuimte, wkrAangewezen, wkrBenut, wkrOverschrijding, wkrEindheffing,
@@ -1603,12 +1623,11 @@ const BVJN = (function () {
     const kiaGebruikt = kiaVanInvoer(i);
     if (kiaGebruikt > 0 && i.kiaScope !== 'beide') waarschuw('kia', 'De investeringsaftrek wordt maar in één scenario toegepast. Dat is alleen juist als de investering ook werkelijk alleen in dat scenario plaatsvindt.');
     if (kiaGebruikt > i.winst) waarschuw('kia', 'De investeringsaftrek is hoger dan de winst; controleer het bedrag.');
-    if (i.kiaBron === 'investering' && i.investering > 0 && i.kia > 0) waarschuw('kia', 'Er staat zowel een investeringsbedrag als een handmatige KIA. De tool rekent met het investeringsbedrag; het handmatige bedrag van \u20ac ' + Math.round(i.kia).toLocaleString('nl-NL') + ' wordt genegeerd. Maak een van beide velden leeg.');
-    if (i.kiaBron === 'handmatig' && i.kia > 0) waarschuw('kia', 'De KIA is handmatig ingevuld en niet aan de tabel van art. 3.41 getoetst. Vul liever het investeringsbedrag in, dan berekent de tool de aftrek zelf.');
-    if (i.kiaBron === 'investering' && i.investering > 0) {
+    if (i.kia > 0) waarschuw('kia', 'De overige investeringsaftrek is niet aan een tabel te toetsen: de energie- en milieu-investeringsaftrek volgen uit een verklaring van de minister (art. 3.42 en 3.42a). Voorwaarden die de tool niet controleert: ten minste € 2.500 per bedrijfsmiddel, een tijdige melding, en dat energie- en milieu-investeringsaftrek elkaar per investering uitsluiten (art. 3.42a lid 6).');
+    if (i.investering > 0) {
       if (i.investering <= TARIEVEN.kia.drempel) waarschuw('investering', 'Bij een investering tot en met € ' + TARIEVEN.kia.drempel.toLocaleString('nl-NL') + ' bestaat geen recht op kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2).');
       else if (i.investering > TARIEVEN.kia.grens4) waarschuw('investering', 'Boven € ' + TARIEVEN.kia.grens4.toLocaleString('nl-NL') + ' is de kleinschaligheidsinvesteringsaftrek nihil (art. 3.41 lid 2).');
-      waarschuw(null, 'De KIA is berekend over het volledige investeringsbedrag. Bedrijfsmiddelen van minder dan € 450 (art. 3.45 lid 2 onderdeel b) en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond (art. 3.45 lid 1) tellen niet mee; corrigeer het bedrag zo nodig zelf.');
+      waarschuw(null, 'De KIA is berekend over het volledige investeringsbedrag. Bedrijfsmiddelen van minder dan € 450 (art. 3.45 lid 2 onderdeel b) en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond (art. 3.45 lid 1) tellen niet mee; corrigeer het bedrag zo nodig zelf. De tabel van art. 3.41 lid 2 werkt per onderneming en komt niet boven € ' + TARIEVEN.kia.vast.toLocaleString('nl-NL') + ' uit.');
     }
 
     if (i.starter && !i.urencriterium) waarschuw(null, 'De startersaftrek is een verhoging van de zelfstandigenaftrek (art. 3.76 lid 3) en veronderstelt dus het urencriterium. Zonder urencriterium is geen startersaftrek toegepast.');
@@ -1659,6 +1678,9 @@ const BVJN = (function () {
     jarenBron: ['leeftijd', 'handmatig'],
     claimTarief: ['marginaal', 'top', 'vast']
   };
+  // kiaBron bestond in eerdere versies en is vervallen: de twee investeringsvelden tellen
+  // nu op in plaats van elkaar uit te sluiten. Een oud dossier verliest dat veld stilletjes,
+  // wat geen gevolg heeft voor de uitkomst.
   const DOSSIER_HOOFD_SCHAKELAAR = ['urencriterium', 'starter', 'dgaVerzekerd'];
 
   const DOSSIER_INBRENG = ['goodwill', 'stilleReserves', 'desinvestering',
@@ -2352,9 +2374,6 @@ const BVJN = (function () {
       starter: starter,
       investering: el('investering').value,
       kia: el('kia').value,
-      // De KIA volgt uit de investering, tenzij die nul is en er wel een KIA is ingevuld.
-      kiaBron: (parseFloat(el('investering').value) > 0 || !(parseFloat(el('kia').value) > 0))
-        ? 'investering' : 'handmatig',
       kiaScope: el('kiaScope').value,
       woz: el('woz').value,
       rente: el('rente').value,
@@ -2548,10 +2567,25 @@ const BVJN = (function () {
     return r;
   }
 
+  /**
+   * De opbouw van de investeringsaftrek in één scenario. De twee vormen staan apart,
+   * met een tussentotaal zodra ze beide meedoen. Bij een investeringsbedrag zonder
+   * recht op KIA (onder de drempel of boven de bovengrens van art. 3.41 lid 2) wordt de
+   * regel met nul getoond, zodat zichtbaar is dat de tabel is toegepast.
+   */
+  function rijenInvesteringsaftrek(d, i) {
+    if (d.kia === 0 && !(i.investering > 0)) return [];
+    const r = [];
+    if (i.investering > 0) r.push(['Kleinschaligheidsinvesteringsaftrek (investering ' + fmt(i.investering) + ')', -d.kiaKlein]);
+    if (i.kia > 0) r.push(['Overige investeringsaftrek (EIA of MIA)', -d.kiaOverig]);
+    if (r.length === 2) r.push(['Totale investeringsaftrek', -d.kia, undefined, 'sub']);
+    return r;
+  }
+
   function rijenDetailIB(s) {
     const d = s.ib, i = s.input;
     const r = [['Winst uit onderneming', i.winst]];
-    if (d.kia > 0 || i.investering > 0) r.push(['Kleinschaligheidsinvesteringsaftrek' + (i.kiaBron === 'investering' ? ' (investering ' + fmt(i.investering) + ')' : ' (handmatig ingevuld)'), -d.kia]);
+    r.push.apply(r, rijenInvesteringsaftrek(d, i));
     if (d.beroepspensioen > 0) r.push(['Premie beroepspensioenregeling (art. 3.18)', -d.beroepspensioen]);
     // De aftrek kan door de winstbegrenzing van art. 3.76 lid 5 lager uitvallen dan het
     // recht. De basis wordt dan eerst gevuld, het startersdeel als laatste.
@@ -2600,7 +2634,7 @@ const BVJN = (function () {
       if (d.wkrOverschrijding > 0) r.push(['Eindheffing WKR 80% over ' + fmt(d.wkrOverschrijding), -d.wkrEindheffing]);
     }
     r.push(['Extra kosten BV', -d.overigeKosten]);
-    if (d.kia > 0) r.push(['Kleinschaligheidsinvesteringsaftrek', -d.kia]);
+    r.push.apply(r, rijenInvesteringsaftrek(d, i));
     r.push(['VPB-grondslag', d.vpbGrondslag, undefined, 'tot']);
     r.push(['Vennootschapsbelasting', d.vpb]);
     r.push(['Winst na VPB', d.winstNaVpb, undefined, 'tot']);
@@ -2833,10 +2867,11 @@ const BVJN = (function () {
         + ' niet gerealiseerd, art. 3.76 lid 5)' : ''));
     notaItem(u, 'Startersaftrek', ib.startersAftrek > 0
       ? fmt(ib.za - Math.min(ib.za, ib.zaBasis)) : 'niet van toepassing');
-    notaItem(u, 'Investeringsbedrag', i.kiaBron === 'investering'
-      ? fmt(i.investering) : 'niet ingevuld, de KIA is handmatig opgegeven');
-    notaItem(u, 'Investeringsaftrek (KIA)', fmt(Math.max(ib.kia, bv.kia))
-      + (i.kiaBron === 'investering' ? ' volgens de tabel van art. 3.41 lid 2' : ' handmatig ingevuld')
+    notaItem(u, 'Investeringsbedrag', i.investering > 0 ? fmt(i.investering) : 'geen');
+    notaItem(u, 'Kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2)',
+      i.investering > 0 ? fmt(BVJN.kiaBedrag(i.investering)) : 'geen');
+    notaItem(u, 'Overige investeringsaftrek (EIA of MIA)', i.kia > 0 ? fmt(i.kia) : 'geen');
+    notaItem(u, 'Totale investeringsaftrek', fmt(Math.max(ib.kia, bv.kia))
       + ', toegepast in ' + (i.kiaScope === 'beide' ? 'beide situaties' : (i.kiaScope === 'ib' ? 'alleen de IB-onderneming' : 'alleen de BV')));
     notaItem(u, 'MKB-winstvrijstelling', fmt(ib.mkb) + ' (' + pct(T.onderneming.mkbVrijstelling, 1) + ' over ' + fmt(ib.mkbGrondslag) + ')');
     notaItem(u, 'WOZ-waarde eigen woning', i.woz > 0 ? fmt(i.woz) : 'geen eigen woning');
@@ -3053,17 +3088,29 @@ const BVJN = (function () {
     const handmatigeKia = parseFloat(el('kia').value);
     const h = el('hint-kia');
     if (Number.isFinite(inv) && inv > 0) {
-      h.textContent = 'Bij dit bedrag is de KIA € '
-        + Math.round(BVJN.kiaBedrag(inv)).toLocaleString('nl-NL')
-        + ' (art. 3.41 lid 2). De tool rekent over het volledige bedrag: bedrijfsmiddelen onder € 450 '
+      const kia = BVJN.kiaBedrag(inv);
+      h.textContent = 'Bij dit bedrag is de KIA € ' + Math.round(kia).toLocaleString('nl-NL')
+        + ' (art. 3.41 lid 2)'
+        + (kia === 0 && inv > T.kia.grens4
+          ? ', want boven € ' + T.kia.grens4.toLocaleString('nl-NL') + ' is de aftrek nihil. '
+          : '. ')
+        + 'De tool rekent over het volledige bedrag: bedrijfsmiddelen onder € 450 '
         + 'en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond haalt u er zelf af.';
     } else if (Number.isFinite(handmatigeKia) && handmatigeKia > 0) {
-      h.textContent = 'Er is geen investeringsbedrag ingevuld; de tool rekent met de handmatig ingevulde KIA en toetst die niet aan de tabel.';
+      h.textContent = 'Er is geen investeringsbedrag ingevuld, dus de KIA is nihil. De tool rekent '
+        + 'alleen met de overige investeringsaftrek hieronder.';
     } else {
-      h.textContent = 'De KIA volgt uit de tabel van art. 3.41 over het bedrag dat u hier invult. '
-        + 'Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen zoals personenauto\'s en grond '
-        + 'horen er niet in; die haalt u er zelf af.';
+      h.textContent = 'De KIA volgt uit de tabel van art. 3.41 lid 2 over het bedrag dat u hier '
+        + 'invult, per onderneming. Bedrijfsmiddelen onder € 450 en uitgesloten bedrijfsmiddelen '
+        + 'zoals personenauto\'s en grond horen er niet in; die haalt u er zelf af. Energie- en '
+        + 'milieu-investeringen tellen hier wél in mee.';
     }
+    el('hint-overigeaftrek').textContent = (Number.isFinite(handmatigeKia) && handmatigeKia > 0)
+      ? 'Dit bedrag komt bovenop de KIA. Totale investeringsaftrek: € '
+        + Math.round(BVJN.kiaBedrag(Number.isFinite(inv) ? inv : 0) + handmatigeKia)
+          .toLocaleString('nl-NL') + '.'
+      : 'Komt bovenop de KIA. EIA en MIA sluiten elkaar per investering uit '
+        + '(art. 3.42a lid 6), maar staan los van de KIA.';
     const loonsom = (parseFloat(el('salaris').value) || 0) + (parseFloat(el('loonsomOverig').value) || 0);
     el('hint-vrijeruimte').textContent = 'Bij een fiscale loonsom van € '
       + Math.round(loonsom).toLocaleString('nl-NL') + ' is de vrije ruimte € '
@@ -3400,6 +3447,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 04:14</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 1 sep 2026, 08:47</div>
 </body>
 </html>
