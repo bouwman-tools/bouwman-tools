@@ -114,9 +114,20 @@ Vastgesteld op 28-08-2026. Er draaien drie workers op het account: `access-behee
 `wkr-agent` en `kennisgroepen-agent`. Geen daarvan heeft een deploy-configuratie in deze
 repository; ze zijn los geupload.
 
-- `access-beheer-worker.js` hier is een **kopie**. De gedeployde versie was op 28-08-2026
-  byte-identiek aan deze kopie, maar dat is niet geborgd: een wijziging hier gaat pas live
-  als je de worker apart deployt.
+- `access-beheer-worker.js` hier is een **kopie**, en die kopie loopt in de praktijk voor
+  op wat er draait. Op 02-09-2026 bleek de gedeployde versie `xaf_export.html` te missen:
+  die was op 29-08-2026 wel in de kopie gezet maar nooit gedeployd, en dat viel niemand op
+  omdat `check_tools.py` de repository controleert en niet het account. Rechten toekennen
+  aan een tool die live niet in `APP_IDS` staat, doet niets.
+- Controleer de werkelijke toestand daarom aan de bron: lees `APP_IDS` uit de draaiende
+  worker en leg die naast deze kopie. Een wijziging hier gaat pas live als je de worker
+  apart deployt.
+- Deployen kan zonder bindings te verliezen via het content-endpoint van de Workers-API
+  (`PUT /accounts/<acc>/workers/scripts/access-beheer/content`, multipart met
+  `main_module`). Dat vervangt alleen de code; de KV-binding `PERMISSIONS` en de secrets
+  `ADMIN_TOKEN` en `CF_API_TOKEN` blijven staan. Zo is het op 02-09-2026 gedaan
+  (versie 5da12ce2). Terugrollen doe je door de vorige versie opnieuw te deployen;
+  daarvóór draaide 101987dc van 29-08-2026.
 - **Let op de valstrik:** `wrangler.toml` in deze repo beschrijft een worker `kvk-proxy`
   met `main = kvk-worker.js`. Die worker bestaat niet op het account. `wrangler deploy`
   vanuit deze map maakt dus een nieuwe, ongebruikte worker aan en werkt `access-beheer`
