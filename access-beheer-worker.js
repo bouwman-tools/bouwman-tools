@@ -20,6 +20,7 @@ const APP_IDS = {
   'dividend-uitkeringstoets.html':       '248f5a7a-2020-4ecc-8ee5-72a27d187dcd',
   'join-wkr-agent.html':                 '001e74ec-11a4-46ff-80d3-0fe63fe16540',
   'btw-teruggaaf-eu.html':               '7ad10838-83b8-4a33-b835-c44a7e220ca7',
+  'bua.html':                            '98ea57d3-283f-49bf-86ce-44b91d3e0157',
   'bewaarplicht.html':                   'bcfa2467-4927-4a2f-8b4d-52742455ac3f',
   'kvk-zoeker.html':                     'ecff168d-1414-4714-9081-1e41a1bee156',
   'join-prijsafspraken.html':            '58eeec00-dc06-4b2f-ae46-08855ad22a8f',
