@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-08-31
+Bijgewerkt: 2026-09-02
 
 ## Accountancy & Jaarrekening
 
@@ -11,7 +11,7 @@ Bijgewerkt: 2026-08-31
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
-| 🟢 live | XAF Raw Export | `https://xaf.bouwman.tools/` | Sylvainbouwman/xaf-export-tool | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
 ## Administratie & Archief
 
