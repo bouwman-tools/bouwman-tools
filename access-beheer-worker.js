@@ -19,6 +19,7 @@ const APP_IDS = {
   'gebruikelijk-loon.html':              '05eb7bb9-f91e-4dbf-b579-b177d5fe4b1a',
   'dividend-uitkeringstoets.html':       '248f5a7a-2020-4ecc-8ee5-72a27d187dcd',
   'join-wkr-agent.html':                 '001e74ec-11a4-46ff-80d3-0fe63fe16540',
+  'werkkostenregeling.html':             '4870a8b9-9dca-4801-9b28-f2137a328c22',
   'btw-teruggaaf-eu.html':               '7ad10838-83b8-4a33-b835-c44a7e220ca7',
   'bua.html':                            '98ea57d3-283f-49bf-86ce-44b91d3e0157',
   'bewaarplicht.html':                   'bcfa2467-4927-4a2f-8b4d-52742455ac3f',

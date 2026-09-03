@@ -70,20 +70,13 @@ Bijgewerkt: 2026-09-03
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
-| 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | **nee** | 2026-09-02 | **tbd** | belastingplan | **nooit** |
+| 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 
 ## Overig
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- Werkkostenregeling (`werkkostenregeling.html`)
 
 ## Vervallen
 
