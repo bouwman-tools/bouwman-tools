@@ -1,0 +1,1880 @@
+<title>Berekeningen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --pap: #ffffff; --grond: #f4f5f7; --ink: #16181d; --zacht: #5c626e;
+    --lijn: #d9dce2; --accent: #1a4f8a; --accent-zacht: #e8f0f9;
+    --waarschuwing: #8a4a00; --waarschuwing-zacht: #fdf3e6;
+    --fout: #a11b1b; --fout-zacht: #fbeaea; --goed: #1d6b3f;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --pap: #1c1f26; --grond: #14161b; --ink: #e8eaee; --zacht: #a0a7b4;
+      --lijn: #333844; --accent: #7fb3f0; --accent-zacht: #1e2b3d;
+      --waarschuwing: #e0a860; --waarschuwing-zacht: #2e2415;
+      --fout: #f08a8a; --fout-zacht: #331a1a; --goed: #6fce9a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--grond); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background: var(--pap); border-bottom: 1px solid var(--lijn);
+    padding: 14px 20px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 620; letter-spacing: -0.01em; }
+  header .versie { font: 12px var(--mono); color: var(--zacht); }
+  .schil { display: flex; gap: 0; min-height: calc(100vh - 53px); align-items: stretch; }
+  nav { width: 250px; flex: none; background: var(--pap);
+    border-right: 1px solid var(--lijn); padding: 14px 0; overflow-y: auto; }
+  nav .groep { font: 600 11px/1 system-ui; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--zacht); padding: 14px 20px 6px; }
+  nav button { display: block; width: 100%; text-align: left; border: 0;
+    background: none; color: var(--ink); padding: 7px 20px; font: inherit;
+    font-size: 14px; cursor: pointer; border-left: 3px solid transparent; }
+  nav button:hover { background: var(--grond); }
+  nav button[aria-current="true"] { background: var(--accent-zacht);
+    border-left-color: var(--accent); color: var(--accent); font-weight: 560; }
+  main { flex: 1; padding: 24px 28px 60px; max-width: 900px; min-width: 0; }
+  h2 { font-size: 20px; margin: 0 0 4px; font-weight: 620; letter-spacing: -0.01em; }
+  .grondslag { color: var(--zacht); font-size: 13px; margin: 0 0 20px; }
+  fieldset { border: 1px solid var(--lijn); border-radius: 8px; background: var(--pap);
+    padding: 16px 18px; margin: 0 0 18px; }
+  legend { font-weight: 600; font-size: 13px; padding: 0 6px; }
+  .veld { display: grid; grid-template-columns: 1fr 190px; gap: 10px;
+    align-items: center; padding: 5px 0; }
+  .veld > label { font-size: 14px; }
+  .veld .hint { display: block; color: var(--zacht); font-size: 12px; }
+  .veld input, .veld select { width: 100%; padding: 6px 9px; font: inherit;
+    font-size: 14px; border: 1px solid var(--lijn); border-radius: 5px;
+    background: var(--grond); color: var(--ink); }
+  .veld input[type=number] { text-align: right; font-family: var(--mono); }
+  .veld input:focus, .veld select:focus { outline: 2px solid var(--accent);
+    outline-offset: -1px; border-color: var(--accent); }
+  .veld.vinkje { grid-template-columns: 24px 1fr; }
+  .veld.vinkje input { width: auto; }
+  table.uit { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.uit td { padding: 6px 0; border-bottom: 1px solid var(--lijn); }
+  table.uit td.w { text-align: right; font-family: var(--mono);
+    white-space: nowrap; padding-left: 12px; }
+  table.uit tr:last-child td { border-bottom: 0; }
+  table.uit tr.hoofd td { font-weight: 660; font-size: 15px; }
+  table.uit tr.hoofd td.w { color: var(--accent); }
+  .melding { border-radius: 6px; padding: 9px 12px; margin: 4px 0 0;
+    font-size: 13px; border-left: 3px solid; }
+  .melding.let { background: var(--waarschuwing-zacht);
+    border-color: var(--waarschuwing); color: var(--waarschuwing); }
+  .melding.fout { background: var(--fout-zacht); border-color: var(--fout); color: var(--fout); }
+  .melding.info { background: var(--accent-zacht); border-color: var(--accent); color: var(--accent); }
+  .schema-wrap { overflow-x: auto; margin-top: 6px; border: 1px solid var(--lijn);
+    border-radius: 8px; background: var(--pap); }
+  table.schema { border-collapse: collapse; font: 12px var(--mono); width: 100%; }
+  table.schema th, table.schema td { padding: 4px 10px; text-align: right;
+    border-bottom: 1px solid var(--lijn); white-space: nowrap; }
+  table.schema th { background: var(--grond); font: 600 11px system-ui;
+    position: sticky; top: 0; text-align: right; }
+  table.schema td:first-child, table.schema th:first-child { text-align: left; }
+  .reeks-wrap { max-height: 320px; overflow-y: auto; border: 1px solid var(--lijn);
+    border-radius: 8px; background: var(--pap); }
+  table.reeks { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.reeks th, table.reeks td { padding: 3px 8px; border-bottom: 1px solid var(--lijn); }
+  table.reeks th { background: var(--grond); font: 600 11px system-ui;
+    position: sticky; top: 0; z-index: 1; }
+  table.reeks input { width: 100%; padding: 3px 6px; font: 12px var(--mono);
+    text-align: right; border: 1px solid transparent; border-radius: 4px;
+    background: transparent; color: var(--ink); }
+  table.reeks input:focus { border-color: var(--accent); background: var(--grond); outline: none; }
+  table.reeks td:first-child { color: var(--zacht); font: 12px var(--mono); width: 74px; }
+  .knoppen { display: flex; gap: 8px; margin: 10px 0 0; flex-wrap: wrap; }
+  button.actie { font: inherit; font-size: 13px; padding: 6px 12px;
+    border: 1px solid var(--lijn); border-radius: 6px; background: var(--pap);
+    color: var(--ink); cursor: pointer; }
+  button.actie:hover { border-color: var(--accent); color: var(--accent); }
+  .bron { font-size: 12px; color: var(--zacht); margin-top: 14px; line-height: 1.5; }
+  .bron code { font-family: var(--mono); font-size: 11px; }
+  [hidden] { display: none !important; }
+</style>
+
+<header>
+  <h1>Berekeningen</h1>
+  <span class="versie" id="versie"></span>
+</header>
+
+<div class="schil">
+  <nav id="nav" aria-label="Onderwerpen"></nav>
+  <main id="main"></main>
+</div>
+
+<script>
+// FISCALE KERN — BEGIN
+// Pure rekenfuncties en constanten. Geen document, window, fetch of DOM.
+// Vindplaatsen staan bij de waarde zelf; het overzicht staat in BRONNEN.md.
+
+/* ============================================================
+   Financiële basisfuncties, gelijk aan de spreadsheetfuncties
+   PMT, PV, FV en IRR, zodat uitkomsten met een werkboek
+   vergelijkbaar blijven.
+   ============================================================ */
+
+// Betaling per termijn. type 0 = achteraf, 1 = vooraf.
+function pmt(rente, aantalTermijnen, huidigeWaarde, eindwaarde = 0, type = 0) {
+  if (aantalTermijnen === 0) return NaN;
+  if (rente === 0) return -(huidigeWaarde + eindwaarde) / aantalTermijnen;
+  const g = Math.pow(1 + rente, aantalTermijnen);
+  return -(huidigeWaarde * g + eindwaarde) * rente /
+         ((1 + rente * type) * (g - 1));
+}
+
+// Huidige waarde van een reeks gelijke betalingen.
+function pvExcel(rente, aantalTermijnen, betaling, eindwaarde = 0, type = 0) {
+  if (rente === 0) return -(eindwaarde + betaling * aantalTermijnen);
+  const g = Math.pow(1 + rente, aantalTermijnen);
+  return -(eindwaarde + betaling * (1 + rente * type) * ((g - 1) / rente)) / g;
+}
+
+// Eindwaarde van een reeks gelijke betalingen.
+function fvExcel(rente, aantalTermijnen, betaling, huidigeWaarde = 0, type = 0) {
+  if (rente === 0) return -(huidigeWaarde + betaling * aantalTermijnen);
+  const g = Math.pow(1 + rente, aantalTermijnen);
+  return -(huidigeWaarde * g + betaling * (1 + rente * type) * ((g - 1) / rente));
+}
+
+// Netto contante waarde van een kasstroom waarvan het eerste bedrag op t = 0 valt.
+// Bedragen van nul worden overgeslagen. Bij een sterk negatieve rentevoet loopt
+// de noemer onder tot nul, en nul gedeeld door nul zou de hele som op NaN
+// zetten. Dat maakte de tekenvergelijking in de interne rentevoet stil onwaar.
+function npvBij(rente, kasstroom) {
+  let som = 0;
+  for (let i = 0; i < kasstroom.length; i++) {
+    const bedrag = kasstroom[i];
+    if (!bedrag) continue;
+    som += bedrag / Math.pow(1 + rente, i);
+  }
+  return som;
+}
+
+// Interne rentevoet. Eerst een interval zoeken waarin de contante waarde van
+// teken wisselt, dan insluiten. Insluiten in plaats van Newton, omdat dat ook
+// bij vlakke kasstromen convergeert en niet van een goede beginschatting
+// afhangt. De ondergrens blijft weg bij min honderd procent: daar loopt de
+// noemer onder en heeft de uitkomst geen bruikbaar teken meer.
+function irr(kasstroom, schatting = 0.1) {
+  const positief = kasstroom.some(b => b > 0);
+  const negatief = kasstroom.some(b => b < 0);
+  if (!positief || !negatief) return null;
+
+  let onder = null, fOnder = null;
+  for (const kandidaat of [-0.9, -0.99, -0.5, -0.2, -0.05]) {
+    const f = npvBij(kandidaat, kasstroom);
+    if (f === 0) return kandidaat;
+    if (isFinite(f)) { onder = kandidaat; fOnder = f; break; }
+  }
+  if (onder === null) return null;
+
+  let boven = Math.max(1, schatting * 10 + 1);
+  let fBoven = npvBij(boven, kasstroom);
+  let stappen = 0;
+  while (isFinite(fBoven) && fOnder * fBoven > 0 && stappen < 100) {
+    boven *= 2;
+    fBoven = npvBij(boven, kasstroom);
+    stappen++;
+  }
+  if (!isFinite(fBoven) || fOnder * fBoven > 0) return null;
+
+  for (let i = 0; i < 200; i++) {
+    const midden = (onder + boven) / 2;
+    const fMidden = npvBij(midden, kasstroom);
+    if (fMidden === 0) return midden;
+    if (fOnder * fMidden < 0) boven = midden;
+    else { onder = midden; fOnder = fMidden; }
+  }
+  return (onder + boven) / 2;
+}
+
+/* ============================================================
+   Annuïteiten
+   ============================================================ */
+
+// Een jaarrente naar een maandrente. Samengesteld is rekenkundig zuiver;
+// enkelvoudig (jaarrente gedeeld door twaalf) is in leningvoorwaarden gebruikelijk.
+// Beide worden aangeboden omdat het verschil in de uitkomst zichtbaar is.
+function maandrente(jaarrente, methode) {
+  if (methode === 'enkelvoudig') return jaarrente / 12;
+  return Math.pow(1 + jaarrente, 1 / 12) - 1;
+}
+
+function annuiteit({ hoofdsom, rentePerJaar, aantalTermijnen,
+                     termijn = 'jaar', moment = 'achteraf',
+                     maandrenteMethode = 'samengesteld' }) {
+  if (!(aantalTermijnen > 0)) {
+    return { fout: 'Het aantal termijnen moet groter dan nul zijn.' };
+  }
+  const rente = termijn === 'maand'
+    ? maandrente(rentePerJaar, maandrenteMethode)
+    : rentePerJaar;
+  const type = moment === 'vooraf' ? 1 : 0;
+  const bedrag = -pmt(rente, aantalTermijnen, hoofdsom, 0, type);
+  const totaal = bedrag * aantalTermijnen;
+  return {
+    rentePerTermijn: rente,
+    annuiteit: bedrag,
+    totaalBetalingen: totaal,
+    totaalRente: totaal - hoofdsom
+  };
+}
+
+// Aflossingsschema per termijn. De aflossing wordt begrensd op de restschuld,
+// zodat de laatste termijn niet door nul heen schiet.
+function aflossingsschema({ hoofdsom, rentePerTermijn, annuiteitBedrag, aantalTermijnen }) {
+  const rijen = [];
+  let schuld = hoofdsom;
+  for (let n = 1; n <= aantalTermijnen; n++) {
+    const rente = rentePerTermijn * schuld;
+    const aflossing = Math.min(schuld, annuiteitBedrag - rente);
+    const na = Math.max(0, schuld - aflossing);
+    rijen.push({ termijn: n, beginschuld: schuld, rente, aflossing, eindschuld: na });
+    schuld = na;
+  }
+  return rijen;
+}
+
+// Renteaangroei tot de balansdatum, voor de jaarrekening. De eerste periode
+// loopt van de ingangsdatum tot 1 januari daarna en wordt naar dagen herrekend.
+function renteTotBalansdatum({ hoofdsom, rentePerJaar, ingangsdatum }) {
+  const d = new Date(ingangsdatum);
+  if (isNaN(d)) return { fout: 'Ongeldige datum.' };
+  const balansdatum = new Date(Date.UTC(d.getUTCFullYear() + 1, 0, 1));
+  const dagen = Math.round((balansdatum - d) / 86400000);
+  const rente = hoofdsom * rentePerJaar * dagen / 365;
+  return {
+    balansdatum: balansdatum.toISOString().slice(0, 10),
+    dagenTotBalansdatum: dagen,
+    renteTotBalansdatum: rente,
+    boekwaardeOpBalansdatum: hoofdsom + rente
+  };
+}
+
+/* ============================================================
+   Contante en toekomstige waarde
+   ============================================================ */
+
+// Periode in jaren. Maanden delen door twaalf, dagen door 360.
+// Dat is de gemengde conventie van het bronmodel; zij is bewust overgenomen
+// zodat uitkomsten vergelijkbaar blijven. Bij dagen levert dit een
+// dertig-dagenmaand op, wat licht afwijkt van een kalendermaand.
+function periodeInJaren({ jaren = 0, maanden = 0, dagen = 0 }) {
+  return jaren + maanden / 12 + dagen / 360;
+}
+
+function contanteWaardeEenBedrag({ toekomstigeWaarde, rentePerJaar, jaren = 0, maanden = 0, dagen = 0 }) {
+  const periode = periodeInJaren({ jaren, maanden, dagen });
+  return {
+    periode,
+    huidigeWaarde: toekomstigeWaarde / Math.pow(1 + rentePerJaar, periode)
+  };
+}
+
+function toekomstigeWaardeEenBedrag({ huidigeWaarde, rentePerJaar, jaren = 0, maanden = 0, dagen = 0 }) {
+  const periode = periodeInJaren({ jaren, maanden, dagen });
+  return {
+    periode,
+    eindwaarde: huidigeWaarde * Math.pow(1 + rentePerJaar, periode)
+  };
+}
+
+function contanteWaardeVasteReeks({ uitkeringPerJaar, rentePerJaar, jaren = 0, maanden = 0, dagen = 0 }) {
+  const periode = periodeInJaren({ jaren, maanden, dagen });
+  return {
+    periode,
+    huidigeWaarde: -pvExcel(rentePerJaar, periode, uitkeringPerJaar)
+  };
+}
+
+// Variabele reeks: per maand een eigen bedrag, het eerste bedrag op t = 0.
+function contanteWaardeVariabeleReeks({ rentePerJaar, bedragenPerMaand }) {
+  const rm = maandrente(rentePerJaar, 'samengesteld');
+  const rijen = [];
+  let somToekomstig = 0, somContant = 0;
+  for (let i = 0; i < bedragenPerMaand.length; i++) {
+    const bedrag = bedragenPerMaand[i] || 0;
+    const contant = bedrag / Math.pow(1 + rm, i);
+    somToekomstig += bedrag;
+    somContant += contant;
+    rijen.push({ maand: i, bedrag, contanteWaarde: contant });
+  }
+  return { rentePerMaand: rm, somToekomstig, contanteWaarde: somContant, rijen };
+}
+
+/* ============================================================
+   Periodieke inleg
+   ============================================================ */
+
+function periodiekeInlegVast({ jaarinleg, aantalJaren, rendementPerJaar }) {
+  return {
+    eindwaarde: -fvExcel(rendementPerJaar, aantalJaren, jaarinleg)
+  };
+}
+
+// Variabele inleg per maand, met onttrekkingen. Het rendement wordt over de
+// stand aan het begin van de maand berekend; de storting van die maand rendeert
+// dus nog niet mee. Dat is de systematiek van het bronmodel.
+function periodiekeInlegVariabel({ startjaar, rendementPerJaar, maanden }) {
+  const rm = maandrente(rendementPerJaar, 'samengesteld');
+  const rijen = [];
+  let stand = 0;
+  for (let i = 0; i < maanden.length; i++) {
+    const storting = maanden[i]?.storting || 0;
+    const onttrekking = maanden[i]?.onttrekking || 0;
+    const rendement = i === 0 ? 0 : stand * rm;
+    stand = stand + rendement + storting - onttrekking;
+    rijen.push({
+      maandnummer: i + 1,
+      jaar: startjaar + Math.floor(i / 12),
+      maandInJaar: (i % 12) + 1,
+      storting, onttrekking, rendement, stand
+    });
+  }
+  return { rendementPerMaand: rm, eindwaarde: stand, rijen };
+}
+
+/* ============================================================
+   Interne rentevoet over een maandreeks
+   ============================================================ */
+
+function irrMaandreeks({ rijen }) {
+  const kasstroom = rijen.map(r => (r?.ontvangst || 0) - (r?.betaling || 0));
+  const totaalInleg = rijen.reduce((s, r) => s + (r?.betaling || 0), 0);
+  const totaalOntvangst = rijen.reduce((s, r) => s + (r?.ontvangst || 0), 0);
+  const perMaand = irr(kasstroom, 0.01);
+  return {
+    totaalInleg,
+    totaalOntvangsten: totaalOntvangst,
+    surplus: totaalOntvangst - totaalInleg,
+    irrPerMaand: perMaand,
+    irrPerJaar: perMaand === null ? null : Math.pow(1 + perMaand, 12) - 1
+  };
+}
+
+/* ============================================================
+   Optiewaardering volgens Black-Scholes-Merton
+   Uitoefening alleen aan het einde van de looptijd; het
+   dividendrendement wordt continu betaalbaar verondersteld.
+   ============================================================ */
+
+// Verdelingsfunctie van de standaardnormale verdeling volgens het algoritme van
+// Hart, in de vorm die West beschrijft. Nauwkeurig tot op de dubbele precisie
+// van een getal, zodat een optiewaarde tot op de cent vergelijkbaar blijft met
+// een werkboek. Een eenvoudiger reeksbenadering haalt maar zeven cijfers.
+function normaleVerdeling(x) {
+  const z = Math.abs(x);
+  if (z > 37) return x > 0 ? 1 : 0;
+  const e = Math.exp(-z * z / 2);
+  let kans;
+  if (z < 7.07106781186547) {
+    let teller = 3.52624965998911e-02 * z + 0.700383064443688;
+    teller = teller * z + 6.37396220353165;
+    teller = teller * z + 33.912866078383;
+    teller = teller * z + 112.079291497871;
+    teller = teller * z + 221.213596169931;
+    teller = teller * z + 220.206867912376;
+    let noemer = 8.83883476483184e-02 * z + 1.75566716318264;
+    noemer = noemer * z + 16.064177579207;
+    noemer = noemer * z + 86.7807322029461;
+    noemer = noemer * z + 296.564248779674;
+    noemer = noemer * z + 637.333633378831;
+    noemer = noemer * z + 793.826512519948;
+    noemer = noemer * z + 440.413735824752;
+    kans = e * teller / noemer;
+  } else {
+    let b = z + 0.65;
+    b = z + 4 / b;
+    b = z + 3 / b;
+    b = z + 2 / b;
+    b = z + 1 / b;
+    kans = e / (b * 2.506628274631);
+  }
+  return x > 0 ? 1 - kans : kans;
+}
+
+function blackScholes({ aandeelkoers, uitoefenprijs, looptijdJaren,
+                        risicovrijeRente, dividendrendement, volatiliteit,
+                        soort = 'call' }) {
+  const S = aandeelkoers, K = uitoefenprijs, T = looptijdJaren;
+  const r = risicovrijeRente, q = dividendrendement, s = volatiliteit;
+  if (!(S > 0) || !(K > 0) || !(T > 0) || !(s > 0)) {
+    return { fout: 'Koers, uitoefenprijs, looptijd en volatiliteit moeten groter dan nul zijn.' };
+  }
+  const wortelT = s * Math.sqrt(T);
+  const d1 = (Math.log(S / K) + (r - q + s * s / 2) * T) / wortelT;
+  const d2 = d1 - wortelT;
+  const waarde = soort === 'put'
+    ? K * Math.exp(-r * T) * normaleVerdeling(-d2) - S * Math.exp(-q * T) * normaleVerdeling(-d1)
+    : S * Math.exp(-q * T) * normaleVerdeling(d1) - K * Math.exp(-r * T) * normaleVerdeling(d2);
+  return { d1, d2, waarde };
+}
+
+/* ============================================================
+   Waardering genotsrechten box 3
+   Art. 5.22 Wet IB 2001, art. 18 en 19 Uitv.besl. IB 2001
+   ============================================================ */
+
+// Art. 18 lid 2 Uitv.besl. IB 2001: het jaarlijkse voordeel uit de
+// gerechtigdheid wordt gesteld op 4% van de waarde van het onderworpen goed.
+const GENOTSRECHT_FORFAIT = 0.04;
+
+// Art. 19 lid 1 Uitv.besl. IB 2001. Factor voor een levenslange, ingegane
+// periodieke uitkering afhankelijk van het leven van één mannelijke persoon.
+// Ondergrens per klasse; de eerste regel geldt voor iedereen jonger dan 20.
+// Gecontroleerd 2026-09-02 in de versie geldend per 2026-01-01.
+const ART19_LID1_FACTOREN = [
+  { vanaf: 0,  factor: 22 }, { vanaf: 20, factor: 22 }, { vanaf: 25, factor: 21 },
+  { vanaf: 30, factor: 20 }, { vanaf: 35, factor: 19 }, { vanaf: 40, factor: 18 },
+  { vanaf: 45, factor: 16 }, { vanaf: 50, factor: 15 }, { vanaf: 55, factor: 13 },
+  { vanaf: 60, factor: 11 }, { vanaf: 65, factor: 9 },  { vanaf: 70, factor: 8 },
+  { vanaf: 75, factor: 6 },  { vanaf: 80, factor: 4 },  { vanaf: 85, factor: 3 },
+  { vanaf: 90, factor: 2 },  { vanaf: 95, factor: 1 }
+];
+
+// Art. 19 lid 2 Uitv.besl. IB 2001. Leeftijdsklassen van de tabel, als ondergrens.
+const ART19_LID2_KLASSEN = [0, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+// Art. 19 lid 2 Uitv.besl. IB 2001. Factoren per vijftal jaren (rij) en per
+// leeftijdsklasse (kolom). De laatste rij geldt voor alle volgende jaren.
+// Niet in de tabel opgenomen combinaties dragen niets bij en staan hier op nul.
+const ART19_LID2_FACTOREN = [
+  [0.91,0.91,0.91,0.91,0.90,0.90,0.90,0.89,0.88,0.87,0.84,0.80,0.74,0.65,0.54,0.40,0.27,0.18],
+  [0.74,0.74,0.74,0.74,0.74,0.73,0.72,0.70,0.67,0.62,0.54,0.45,0.33,0.20,0.08,0.02,0,   0   ],
+  [0.61,0.61,0.61,0.60,0.59,0.58,0.56,0.53,0.48,0.40,0.30,0.20,0.10,0.03,0,   0,   0,   0   ],
+  [0.50,0.50,0.49,0.49,0.48,0.46,0.43,0.38,0.31,0.22,0.14,0.06,0.02,0,   0,   0,   0,   0   ],
+  [0.41,0.40,0.40,0.39,0.37,0.35,0.30,0.24,0.17,0.10,0.04,0.01,0,   0,   0,   0,   0,   0   ],
+  [0.33,0.33,0.32,0.30,0.28,0.25,0.20,0.14,0.08,0.03,0.01,0,   0,   0,   0,   0,   0,   0   ],
+  [0.27,0.26,0.25,0.23,0.20,0.16,0.11,0.06,0.02,0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.21,0.20,0.19,0.16,0.13,0.09,0.05,0.02,0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.17,0.15,0.13,0.11,0.07,0.04,0.01,0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.13,0.11,0.09,0.06,0.03,0.01,0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.09,0.07,0.05,0.03,0.01,0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.06,0.04,0.02,0.01,0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ],
+  [0.03,0.02,0.01,0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0   ]
+];
+
+// Art. 19 lid 6 Uitv.besl. IB 2001. Factoren per vijftal jaren voor een
+// uitkering voor bepaalde tijd die niet van het leven afhankelijk is.
+// De laatste waarde geldt voor alle volgende jaren.
+const ART19_LID6_FACTOREN = [0.91,0.75,0.61,0.50,0.41,0.34,0.28,0.23,0.19,0.16,0.13,0.11,0.09];
+
+// Art. 19 lid 5 Uitv.besl. IB 2001: onbepaalde tijd, niet van het leven
+// afhankelijk. Tevens het maximum van lid 6.
+const ART19_VIERENTWINTIGVOUD = 24;
+
+function art19Lid1Factor(leeftijd) {
+  let factor = ART19_LID1_FACTOREN[0].factor;
+  for (const regel of ART19_LID1_FACTOREN) {
+    if (leeftijd >= regel.vanaf) factor = regel.factor;
+  }
+  return factor;
+}
+
+function art19Lid2KlasseIndex(leeftijd) {
+  let index = 0;
+  for (let i = 0; i < ART19_LID2_KLASSEN.length; i++) {
+    if (leeftijd >= ART19_LID2_KLASSEN[i]) index = i;
+  }
+  return index;
+}
+
+// Art. 19 lid 7 en lid 8. De toetsleeftijd waarmee in de tabellen wordt gerekend.
+// Lid 8 levert zelf al een mannelijke persoon op en spreekt van "de jongste",
+// onderscheidenlijk "de oudste", van de vorenbedoelde personen, zonder
+// onderscheid naar geslacht. De vijfjaarscorrectie van lid 7 wordt daarbij
+// daarom niet toegepast. Zie open punt 1 in BRONNEN.md: de tool rekent ook de
+// andere lezing uit, zodat het verschil zichtbaar is.
+function art19Toetsleeftijd({ personen, vervaltBij = 'enigLeven' }) {
+  if (!Array.isArray(personen) || personen.length === 0) {
+    return { fout: 'Geef ten minste één persoon op.' };
+  }
+  const leeftijden = personen.map(p => p.leeftijd);
+  if (leeftijden.some(l => !isFinite(l) || l < 0)) {
+    return { fout: 'Elke leeftijd moet een getal van nul of hoger zijn.' };
+  }
+
+  if (vervaltBij === 'enigLeven') {
+    if (personen.length !== 1) {
+      return { fout: 'Bij één leven hoort precies één persoon.' };
+    }
+    const p = personen[0];
+    if (p.geslacht === 'vrouw') {
+      return {
+        toetsleeftijd: p.leeftijd - 5,
+        grondslag: 'Art. 19 lid 7 Uitv.besl. IB 2001',
+        toelichting: 'Vrouw, gelijkgesteld met een man die vijf jaar jonger is.'
+      };
+    }
+    return {
+      toetsleeftijd: p.leeftijd,
+      grondslag: 'Art. 19 lid 1 Uitv.besl. IB 2001',
+      toelichting: 'Man, leeftijd rechtstreeks in de tabel.'
+    };
+  }
+
+  if (vervaltBij === 'langstlevende') {
+    const jongste = Math.min(...leeftijden);
+    const jongsteNaLid7 = Math.min(...personen.map(
+      p => p.geslacht === 'vrouw' ? p.leeftijd - 5 : p.leeftijd));
+    return {
+      toetsleeftijd: jongste - 10,
+      grondslag: 'Art. 19 lid 8 onderdeel a Uitv.besl. IB 2001',
+      toelichting: 'Langstlevende: een man die tien jaar jonger is dan de jongste.',
+      toetsleeftijdAndereLezing: jongsteNaLid7 - 10
+    };
+  }
+
+  if (vervaltBij === 'eerststervende') {
+    const oudste = Math.max(...leeftijden);
+    const oudsteNaLid7 = Math.max(...personen.map(
+      p => p.geslacht === 'vrouw' ? p.leeftijd - 5 : p.leeftijd));
+    return {
+      toetsleeftijd: oudste + 5,
+      grondslag: 'Art. 19 lid 8 onderdeel b Uitv.besl. IB 2001',
+      toelichting: 'Eerststervende: een man die vijf jaar ouder is dan de oudste.',
+      toetsleeftijdAndereLezing: oudsteNaLid7 + 5
+    };
+  }
+
+  return { fout: 'Onbekende keuze voor het vervallen van het recht.' };
+}
+
+// Art. 19 lid 2. Sommeer per vijftal jaren: het aantal jaren in dat vijftal
+// waarvoor een jaarbedrag geldt, maal het jaarbedrag, maal de tabelfactor.
+// Wachtjaren dragen niets bij maar vullen wel de vijftallen, zoals lid 3 en 4
+// voorschrijven door het jaarbedrag voor die jaren op nihil te stellen.
+function art19Blokken({ jaarbedrag, klasseIndex, totaalJaren, wachtjaren = 0, maximaalAantalBlokken = Infinity, factorenPerBlok = null }) {
+  let waarde = 0;
+  const blokken = [];
+  for (let blok = 0; blok * 5 < totaalJaren && blok < maximaalAantalBlokken; blok++) {
+    const start = blok * 5;
+    const eindeBlok = Math.min(start + 5, totaalJaren);
+    const jarenMetBedrag = Math.max(0, eindeBlok - Math.max(start, wachtjaren));
+    const factor = factorenPerBlok
+      ? factorenPerBlok[Math.min(blok, factorenPerBlok.length - 1)]
+      : ART19_LID2_FACTOREN[Math.min(blok, ART19_LID2_FACTOREN.length - 1)][klasseIndex];
+    const deel = jaarbedrag * jarenMetBedrag * factor;
+    waarde += deel;
+    blokken.push({ blok: blok + 1, jarenMetBedrag, factor, deelwaarde: deel });
+  }
+  return { waarde, blokken };
+}
+
+// Waardering van een periodieke uitkering volgens art. 19, per soort.
+//   levenslangIngegaan          lid 1
+//   tijdelijkIngegaan           lid 2, met maximum de levenslange waarde
+//   levenslangNietIngegaan      lid 3, twaalf vijftallen, maximum de ingegane waarde
+//   tijdelijkNietIngegaan       lid 4, maximum de ingegane waarde
+//   onbepaaldGeenLeven          lid 5, vierentwintigvoud
+//   bepaaldGeenLeven            lid 6, maximum vierentwintigvoud
+function art19Waarde({ jaarbedrag, soort, toetsleeftijd = null,
+                       looptijdJaren = 0, wachtjaren = 0 }) {
+  if (!isFinite(jaarbedrag)) return { fout: 'Geef een jaarlijks bedrag op.' };
+
+  if (soort === 'onbepaaldGeenLeven') {
+    return {
+      waarde: jaarbedrag * ART19_VIERENTWINTIGVOUD,
+      factor: ART19_VIERENTWINTIGVOUD,
+      grondslag: 'Art. 19 lid 5 Uitv.besl. IB 2001'
+    };
+  }
+
+  if (soort === 'bepaaldGeenLeven') {
+    if (!(looptijdJaren > 0)) return { fout: 'Geef een looptijd in jaren op.' };
+    const uit = art19Blokken({
+      jaarbedrag, klasseIndex: 0, totaalJaren: looptijdJaren,
+      factorenPerBlok: ART19_LID6_FACTOREN
+    });
+    const maximum = jaarbedrag * ART19_VIERENTWINTIGVOUD;
+    return {
+      waarde: Math.min(uit.waarde, maximum),
+      waardeVoorMaximum: uit.waarde,
+      maximum,
+      maximumBereikt: uit.waarde > maximum,
+      blokken: uit.blokken,
+      grondslag: 'Art. 19 lid 6 Uitv.besl. IB 2001'
+    };
+  }
+
+  if (toetsleeftijd === null || !isFinite(toetsleeftijd)) {
+    return { fout: 'Voor een van het leven afhankelijke uitkering is een toetsleeftijd nodig.' };
+  }
+  const klasseIndex = art19Lid2KlasseIndex(toetsleeftijd);
+  const factorLevenslang = art19Lid1Factor(toetsleeftijd);
+  const waardeLevenslang = jaarbedrag * factorLevenslang;
+
+  if (soort === 'levenslangIngegaan') {
+    return {
+      waarde: waardeLevenslang, factor: factorLevenslang,
+      grondslag: 'Art. 19 lid 1 Uitv.besl. IB 2001'
+    };
+  }
+
+  if (soort === 'tijdelijkIngegaan') {
+    if (!(looptijdJaren > 0)) return { fout: 'Geef een looptijd in jaren op.' };
+    const uit = art19Blokken({ jaarbedrag, klasseIndex, totaalJaren: looptijdJaren });
+    return {
+      waarde: Math.min(uit.waarde, waardeLevenslang),
+      waardeVoorMaximum: uit.waarde,
+      maximum: waardeLevenslang,
+      maximumBereikt: uit.waarde > waardeLevenslang,
+      blokken: uit.blokken,
+      grondslag: 'Art. 19 lid 2 Uitv.besl. IB 2001'
+    };
+  }
+
+  if (soort === 'levenslangNietIngegaan') {
+    if (!(wachtjaren >= 0)) return { fout: 'Geef het aantal wachtjaren op.' };
+    const uit = art19Blokken({
+      jaarbedrag, klasseIndex, totaalJaren: 60,
+      wachtjaren, maximaalAantalBlokken: 12
+    });
+    return {
+      waarde: Math.min(uit.waarde, waardeLevenslang),
+      waardeVoorMaximum: uit.waarde,
+      maximum: waardeLevenslang,
+      maximumBereikt: uit.waarde > waardeLevenslang,
+      blokken: uit.blokken,
+      grondslag: 'Art. 19 lid 3 Uitv.besl. IB 2001'
+    };
+  }
+
+  if (soort === 'tijdelijkNietIngegaan') {
+    if (!(looptijdJaren > 0)) return { fout: 'Geef een looptijd in jaren op.' };
+    if (!(wachtjaren >= 0)) return { fout: 'Geef het aantal wachtjaren op.' };
+    const uit = art19Blokken({
+      jaarbedrag, klasseIndex,
+      totaalJaren: wachtjaren + looptijdJaren, wachtjaren
+    });
+    // Maximum: de waarde als de uitkering al zou zijn ingegaan, dus lid 2
+    // over dezelfde looptijd zonder wachtjaren.
+    const ingegaan = art19Blokken({ jaarbedrag, klasseIndex, totaalJaren: looptijdJaren });
+    const maximum = Math.min(ingegaan.waarde, waardeLevenslang);
+    return {
+      waarde: Math.min(uit.waarde, maximum),
+      waardeVoorMaximum: uit.waarde,
+      maximum,
+      maximumBereikt: uit.waarde > maximum,
+      blokken: uit.blokken,
+      grondslag: 'Art. 19 lid 4 Uitv.besl. IB 2001'
+    };
+  }
+
+  return { fout: 'Onbekende soort periodieke uitkering.' };
+}
+
+// Waardering van een genotsrecht op een vermogensbestanddeel.
+// Art. 18 Uitv.besl. IB 2001 voor het jaarlijkse voordeel en de kapitalisatie,
+// art. 5.22 lid 2 Wet IB 2001 voor de waarde van de bezitting zelf.
+function genotsrechtBox3({ waardeVolEigendom, personen, vervaltBij = 'enigLeven',
+                           soort = 'levenslangIngegaan', looptijdJaren = 0,
+                           wachtjaren = 0 }) {
+  if (!(waardeVolEigendom >= 0)) {
+    return { fout: 'Geef de waarde in vol eigendom op.' };
+  }
+  const jaarbedrag = GENOTSRECHT_FORFAIT * waardeVolEigendom;
+
+  let toetsleeftijd = null, leeftijdUit = null;
+  const vanLevenAfhankelijk = soort !== 'onbepaaldGeenLeven' && soort !== 'bepaaldGeenLeven';
+  if (vanLevenAfhankelijk) {
+    leeftijdUit = art19Toetsleeftijd({ personen, vervaltBij });
+    if (leeftijdUit.fout) return { fout: leeftijdUit.fout };
+    toetsleeftijd = leeftijdUit.toetsleeftijd;
+  }
+
+  const uit = art19Waarde({ jaarbedrag, soort, toetsleeftijd, looptijdJaren, wachtjaren });
+  if (uit.fout) return { fout: uit.fout };
+
+  // Art. 5.22 lid 2 Wet IB 2001: de bezitting waarop het recht is gevestigd
+  // wordt gewaardeerd op het verschil met de onbezwaarde waarde.
+  const genotsrecht = Math.min(uit.waarde, waardeVolEigendom);
+  const meldingen = [];
+  if (uit.waarde > waardeVolEigendom) {
+    meldingen.push({
+      soort: 'let',
+      tekst: 'De forfaitair berekende waarde van het genotsrecht is hoger dan de waarde ' +
+             'in vol eigendom. De waarde is begrensd op de volle waarde, waardoor het ' +
+             'bloot eigendom op nihil uitkomt. Beoordeel of de forfaitaire regeling hier past.'
+    });
+  }
+  if (uit.maximumBereikt) {
+    meldingen.push({
+      soort: 'info',
+      tekst: 'Het wettelijke maximum van ' + uit.grondslag + ' is toegepast.'
+    });
+  }
+  if (leeftijdUit && leeftijdUit.toetsleeftijdAndereLezing !== undefined &&
+      leeftijdUit.toetsleeftijdAndereLezing !== leeftijdUit.toetsleeftijd) {
+    const andere = art19Waarde({
+      jaarbedrag, soort, toetsleeftijd: leeftijdUit.toetsleeftijdAndereLezing,
+      looptijdJaren, wachtjaren
+    });
+    if (!andere.fout) {
+      // Het bedrag gaat als getal mee; de opmaak hoort bij de weergave.
+      meldingen.push({
+        soort: 'let',
+        tekst: 'Bij twee of meer levens is niet uit de tekst vast te stellen of de ' +
+               'vijfjaarscorrectie voor een vrouw van art. 19 lid 7 doorwerkt bij het ' +
+               'bepalen van de jongste, onderscheidenlijk de oudste. Met die andere ' +
+               'lezing is de toetsleeftijd ' + leeftijdUit.toetsleeftijdAndereLezing +
+               ' en de waarde van het genotsrecht ',
+        bedrag: Math.min(andere.waarde, waardeVolEigendom),
+        staart: '. Zie open punt 1 in BRONNEN.md.'
+      });
+    }
+  }
+
+  return {
+    jaarlijksVoordeel: jaarbedrag,
+    toetsleeftijd,
+    leeftijdsgrondslag: leeftijdUit ? leeftijdUit.grondslag : null,
+    leeftijdstoelichting: leeftijdUit ? leeftijdUit.toelichting : null,
+    factor: uit.factor,
+    grondslag: uit.grondslag,
+    waardeGenotsrecht: genotsrecht,
+    waardeBlootEigendom: waardeVolEigendom - genotsrecht,
+    waardeVolEigendom,
+    blokken: uit.blokken,
+    meldingen
+  };
+}
+
+// Leeftijd op de peildatum. Alleen een geboortejaar levert een benadering:
+// dan wordt aangenomen dat de verjaardag na 1 januari valt. Dat is de
+// werkwijze van het bronmodel en kan er één jaar naast zitten.
+function leeftijdOpPeildatum({ geboortedatum = null, geboortejaar = null, peiljaar }) {
+  if (geboortedatum) {
+    const g = new Date(geboortedatum);
+    if (isNaN(g)) return { fout: 'Ongeldige geboortedatum.' };
+    const peildatum = new Date(Date.UTC(peiljaar, 0, 1));
+    let leeftijd = peildatum.getUTCFullYear() - g.getUTCFullYear();
+    const naVerjaardag = (peildatum.getUTCMonth() > g.getUTCMonth()) ||
+      (peildatum.getUTCMonth() === g.getUTCMonth() && peildatum.getUTCDate() >= g.getUTCDate());
+    if (!naVerjaardag) leeftijd -= 1;
+    return { leeftijd, benaderd: false };
+  }
+  if (geboortejaar !== null && isFinite(geboortejaar)) {
+    return { leeftijd: peiljaar - geboortejaar - 1, benaderd: true };
+  }
+  return { fout: 'Geef een geboortedatum of een geboortejaar op.' };
+}
+
+/* ============================================================
+   Leegwaarderatio box 3
+   Art. 5.20 Wet IB 2001, art. 17a en 17b Uitv.besl. IB 2001
+   ============================================================ */
+
+// Art. 17a lid 2 Uitv.besl. IB 2001. Bandbreedte van de jaarlijkse huur of
+// pacht als percentage van de WOZ-waarde, met de bijbehorende leegwaarderatio.
+// "totEnMet" is de bovengrens die nog tot de band hoort.
+// Ongewijzigd van 2023 tot en met 2026; gecontroleerd 2026-09-02 in de versies
+// geldend per 2023-01-01 en per 2026-01-01.
+const LEEGWAARDERATIO_TABEL_VANAF_2023 = [
+  { totEnMet: 0.01, ratio: 0.73 },
+  { totEnMet: 0.02, ratio: 0.79 },
+  { totEnMet: 0.03, ratio: 0.84 },
+  { totEnMet: 0.04, ratio: 0.90 },
+  { totEnMet: 0.05, ratio: 0.95 },
+  { totEnMet: Infinity, ratio: 1.00 }
+];
+
+const LEEGWAARDERATIO_PER_JAAR = {
+  2023: LEEGWAARDERATIO_TABEL_VANAF_2023,
+  2024: LEEGWAARDERATIO_TABEL_VANAF_2023,
+  2025: LEEGWAARDERATIO_TABEL_VANAF_2023,
+  2026: LEEGWAARDERATIO_TABEL_VANAF_2023
+};
+
+// Art. 17a lid 4 Uitv.besl. IB 2001: verlaging van de WOZ-waarde voor een
+// woning die deel is van een gebouwd eigendom en niet afzonderlijk
+// vervreemdbaar is. Ongewijzigd van 2023 tot en met 2026.
+const ART17A_LID4_VERLAGING = 20000;
+
+// Art. 17b Uitv.besl. IB 2001: kapitalisatiefactor van de erfpachtcanon.
+const ART17B_FACTOR_STANDAARD = 17;
+const ART17B_FACTOR_ONZELFSTANDIG = 20;
+
+// Art. 17a lid 6 Uitv.besl. IB 2001: drempel voor het tegenbewijs.
+const ART17A_LID6_DREMPEL = 1.10;
+
+function leegwaarderatioUitTabel(jaar, huurquote) {
+  const tabel = LEEGWAARDERATIO_PER_JAAR[jaar];
+  if (!tabel) return null;
+  // De bandgrenzen zijn "meer dan" en "niet meer dan". Een kleine tolerantie
+  // voorkomt dat een quote van precies 1% door afrondingsruis in de volgende
+  // band valt.
+  const tolerantie = 1e-12;
+  for (const band of tabel) {
+    if (huurquote <= band.totEnMet + tolerantie) return band.ratio;
+  }
+  return tabel[tabel.length - 1].ratio;
+}
+
+function leegwaarderatioBox3({
+  jaar, wozWaarde, huurPerJaar = null, huurPerMaand = null,
+  erfpachtcanonPerJaar = 0, onzelfstandigDeel = false,
+  gedeeltelijkVerhuurd = false, wozWaardeVerhuurdDeel = null,
+  verhuurdeOppervlakte = null, totaleOppervlakte = null,
+  huurbeschermingVanToepassing = true,
+  huurovereenkomstBepaaldeTijd = false, gelieerdNietZakelijk = false,
+  wevInVerhuurdeStaat = null
+}) {
+  if (!LEEGWAARDERATIO_PER_JAAR[jaar]) {
+    return {
+      fout: 'Voor ' + jaar + ' is geen geverifieerde leegwaarderatiotabel opgenomen. ' +
+            'Beschikbaar: ' + Object.keys(LEEGWAARDERATIO_PER_JAAR).join(', ') + '.'
+    };
+  }
+  if (!(wozWaarde > 0)) return { fout: 'Geef een WOZ-waarde groter dan nul op.' };
+
+  const meldingen = [];
+
+  // Art. 17a lid 3: de jaarlijkse huur is twaalf maal de maandhuur aan het
+  // begin van het kalenderjaar.
+  let jaarhuur = huurPerJaar;
+  if (jaarhuur === null || jaarhuur === undefined) {
+    if (huurPerMaand === null || huurPerMaand === undefined) {
+      return { fout: 'Geef de huur per jaar of per maand op.' };
+    }
+    jaarhuur = huurPerMaand * 12;
+  }
+
+  // Art. 17a lid 4: verlaging met een vast bedrag bij een onzelfstandig deel.
+  const verlaging = onzelfstandigDeel ? ART17A_LID4_VERLAGING : 0;
+
+  // Art. 5.20 lid 4 Wet IB 2001 met art. 17b: het waardegegeven wordt eerst
+  // verminderd met de gekapitaliseerde erfpachtcanon, en dat verminderde
+  // gegeven geldt ook voor de leegwaarderatio en voor de huurquote.
+  const erfpachtfactor = onzelfstandigDeel
+    ? ART17B_FACTOR_ONZELFSTANDIG : ART17B_FACTOR_STANDAARD;
+  const erfpachtwaarde = erfpachtfactor * (erfpachtcanonPerJaar || 0);
+  const waardegegeven = wozWaarde - verlaging - erfpachtwaarde;
+
+  if (waardegegeven <= 0) {
+    return {
+      fout: 'Na de verlaging en de gekapitaliseerde erfpachtcanon resteert geen ' +
+            'positief waardegegeven. Controleer de invoer.',
+      waardegegeven, erfpachtwaarde, verlaging
+    };
+  }
+
+  // Art. 5.20 lid 3 en lid 5 Wet IB 2001: de gevallen waarin de
+  // leegwaarderatio niet wordt toegepast.
+  let ratioToegepast = true, reden = null;
+  if (!(jaarhuur > 0)) {
+    ratioToegepast = false;
+    reden = 'Er is geen huur of pacht. De leegwaarderatio geldt alleen voor een ' +
+            'verhuurde of verpachte woning (art. 5.20 lid 3 Wet IB 2001). ' +
+            'De waarde blijft het WOZ-waardegegeven.';
+  } else if (!huurbeschermingVanToepassing) {
+    ratioToegepast = false;
+    reden = 'Op de verhuur is afdeling 5 van titel 4 van Boek 7 BW niet van ' +
+            'toepassing, en er is geen pacht voor ten minste twaalf jaren. ' +
+            'De leegwaarderatio geldt dan niet (art. 5.20 lid 3 Wet IB 2001).';
+  } else if (huurovereenkomstBepaaldeTijd) {
+    ratioToegepast = false;
+    reden = 'De huurovereenkomst is voor bepaalde tijd aangegaan (art. 7:271 BW). ' +
+            'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel a Wet IB 2001).';
+  } else if (gelieerdNietZakelijk) {
+    ratioToegepast = false;
+    reden = 'De huurprijs is tussen gelieerde partijen niet zakelijk. ' +
+            'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel b Wet IB 2001).';
+  }
+
+  const huurquote = jaarhuur / waardegegeven;
+  const ratio = ratioToegepast ? leegwaarderatioUitTabel(jaar, huurquote) : 1;
+  if (!ratioToegepast) meldingen.push({ soort: 'let', tekst: reden });
+
+  // Art. 17a lid 5: bij gedeeltelijke verhuur geldt de ratio alleen voor het
+  // verhuurde deel. Is de WOZ-waarde van dat deel niet vastgesteld, dan wordt
+  // zij naar verhuurde vierkante meters bepaald.
+  let waardeVerhuurdDeel = waardegegeven, deelBepaling = null;
+  if (gedeeltelijkVerhuurd) {
+    if (wozWaardeVerhuurdDeel !== null && wozWaardeVerhuurdDeel !== undefined && wozWaardeVerhuurdDeel > 0) {
+      waardeVerhuurdDeel = wozWaardeVerhuurdDeel;
+      deelBepaling = 'Vastgestelde WOZ-waarde van het verhuurde deel.';
+    } else if (verhuurdeOppervlakte > 0 && totaleOppervlakte > 0) {
+      waardeVerhuurdDeel = waardegegeven * verhuurdeOppervlakte / totaleOppervlakte;
+      deelBepaling = 'Naar rato van ' + verhuurdeOppervlakte + ' van ' +
+                     totaleOppervlakte + ' vierkante meter (art. 17a lid 5).';
+    } else {
+      return {
+        fout: 'Bij gedeeltelijke verhuur is de WOZ-waarde van het verhuurde deel ' +
+              'nodig, of de verhuurde en de totale oppervlakte.'
+      };
+    }
+    if (waardeVerhuurdDeel > waardegegeven) {
+      return { fout: 'Het verhuurde deel kan niet meer waard zijn dan het geheel.' };
+    }
+  }
+
+  const waardeOnverhuurdDeel = waardegegeven - waardeVerhuurdDeel;
+  let waarde = waardeVerhuurdDeel * ratio + waardeOnverhuurdDeel;
+
+  // Art. 17a lid 6: tegenbewijs. Is de uitkomst ten minste tien procent hoger
+  // dan de waarde in het economische verkeer in verhuurde staat, dan geldt die
+  // waarde in het economische verkeer.
+  let tegenbewijsToegepast = false;
+  if (wevInVerhuurdeStaat !== null && wevInVerhuurdeStaat !== undefined && wevInVerhuurdeStaat > 0) {
+    if (waarde >= ART17A_LID6_DREMPEL * wevInVerhuurdeStaat) {
+      waarde = wevInVerhuurdeStaat;
+      tegenbewijsToegepast = true;
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De forfaitaire uitkomst is ten minste tien procent hoger dan de waarde ' +
+               'in het economische verkeer in verhuurde staat. Op grond van art. 17a ' +
+               'lid 6 Uitv.besl. IB 2001 geldt die laatste waarde.'
+      });
+    } else {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De forfaitaire uitkomst blijft onder de drempel van tien procent boven ' +
+               'de waarde in het economische verkeer. Het tegenbewijs van art. 17a lid 6 ' +
+               'helpt hier niet.'
+      });
+    }
+  }
+
+  return {
+    verlaging, erfpachtfactor, erfpachtwaarde, waardegegeven,
+    jaarhuur, huurquote, leegwaarderatio: ratio, ratioToegepast,
+    waardeVerhuurdDeel, waardeOnverhuurdDeel, deelBepaling,
+    tegenbewijsToegepast, waarde, meldingen
+  };
+}
+
+/* ============================================================
+   Boeterente
+   De contante waarde van het verschil tussen de contractrente en de
+   marktrente over de resterende rentevastperiode.
+   ============================================================ */
+
+const BOETERENTE_MAXIMUM_MAANDEN = 360;
+
+function boeterente({
+  soortLening = 'annuiteit', contractrentePerJaar, marktrentePerJaar,
+  resterendeMaandenLooptijd, maandenTotRenteherziening,
+  hoofdsom, aflossingenTotVorigJaar = 0, boetevrijDeelVanHoofdsom = 0,
+  disconteringsrentePerJaar = null
+}) {
+  if (!(hoofdsom > 0)) return { fout: 'Geef een hoofdsom groter dan nul op.' };
+  if (!(maandenTotRenteherziening >= 1)) {
+    return { fout: 'Het aantal maanden tot de renteherziening moet ten minste één zijn.' };
+  }
+  if (soortLening === 'annuiteit' && !(resterendeMaandenLooptijd >= 1)) {
+    return { fout: 'Voor een annuïteit is de resterende looptijd in maanden nodig.' };
+  }
+  if (soortLening === 'annuiteit' && maandenTotRenteherziening > resterendeMaandenLooptijd) {
+    return {
+      fout: 'De periode tot de renteherziening kan niet langer zijn dan de resterende ' +
+            'looptijd van de lening.'
+    };
+  }
+
+  // De rente per maand wordt enkelvoudig bepaald, dus de jaarrente gedeeld
+  // door twaalf. Dat is de conventie van het bronmodel en sluit aan bij de
+  // wijze waarop hypotheekrente in de voorwaarden wordt uitgedrukt.
+  const contractPerMaand = contractrentePerJaar / 12;
+  const marktPerMaand = marktrentePerJaar / 12;
+  const disconto = disconteringsrentePerJaar === null
+    ? marktrentePerJaar : disconteringsrentePerJaar;
+  const discontoPerMaand = disconto / 12;
+
+  const schuldVoorBoetevrij = hoofdsom - aflossingenTotVorigJaar;
+  const boetevrijeAflossing = hoofdsom * boetevrijDeelVanHoofdsom;
+  const schuldNaBoetevrij = schuldVoorBoetevrij - boetevrijeAflossing;
+
+  if (schuldNaBoetevrij <= 0) {
+    return {
+      fout: 'Na de boetevrije aflossing resteert geen schuld. Er is dan geen boeterente.',
+      schuldVoorBoetevrij, boetevrijeAflossing, schuldNaBoetevrij
+    };
+  }
+
+  const maandbetaling = soortLening === 'annuiteit'
+    ? pmt(contractPerMaand, resterendeMaandenLooptijd, -schuldNaBoetevrij)
+    : schuldNaBoetevrij * contractPerMaand;
+
+  const rijen = [];
+  let schuld = schuldNaBoetevrij, vorigeRente = 0, totaal = 0;
+
+  for (let m = 1; m <= BOETERENTE_MAXIMUM_MAANDEN; m++) {
+    if (m > 1) {
+      schuld = maandenTotRenteherziening >= m
+        ? schuld + vorigeRente - maandbetaling : 0;
+    }
+    const renteContract = contractPerMaand * schuld;
+    const renteMarkt = marktPerMaand * schuld;
+    const verschil = renteContract - renteMarkt;
+    const contant = verschil / Math.pow(1 + discontoPerMaand, m);
+    totaal += contant;
+    if (m <= maandenTotRenteherziening) {
+      rijen.push({ maand: m, schuld, renteContract, renteMarkt, verschil, contant });
+    }
+    vorigeRente = renteContract;
+    if (schuld === 0 && m > maandenTotRenteherziening) break;
+  }
+
+  return {
+    contractrentePerMaand: contractPerMaand,
+    marktrentePerMaand: marktPerMaand,
+    disconteringsrentePerJaar: disconto,
+    schuldVoorBoetevrij, boetevrijeAflossing, schuldNaBoetevrij,
+    maandbetaling, theoretischeBoeterente: totaal, rijen
+  };
+}
+
+/* ============================================================
+   Overdrachtsbelasting, doorverkoopregeling
+   Art. 9, 13 en 14 Wet op belastingen van rechtsverkeer
+   ============================================================ */
+
+// Art. 13 lid 1 Wet BRV: de doorverkoopregeling geldt bij een verkrijging
+// binnen zes maanden na een vorige verkrijging door een ander.
+const OVB_TERMIJN_MAANDEN = 6;
+
+// Art. 14 Wet BRV. Gecontroleerd 2026-09-02 in de versies geldend per
+// 2025-01-01 en per 2026-01-01. Het tarief van 8% voor een woning die niet als
+// hoofdverblijf gaat dienen, bestaat pas vanaf 2026; in 2025 viel die
+// verkrijging onder het algemene tarief.
+const OVB_TARIEVEN_PER_JAAR = {
+  2025: [
+    { sleutel: 'algemeen', tarief: 0.104, omschrijving: 'Algemeen tarief', grondslag: 'Art. 14 lid 1 Wet BRV' },
+    { sleutel: 'hoofdverblijf', tarief: 0.02, omschrijving: 'Woning als hoofdverblijf, natuurlijk persoon met verklaring', grondslag: 'Art. 14 lid 2 Wet BRV (2025)' }
+  ],
+  2026: [
+    { sleutel: 'algemeen', tarief: 0.104, omschrijving: 'Algemeen tarief', grondslag: 'Art. 14 lid 1 Wet BRV' },
+    { sleutel: 'woning', tarief: 0.08, omschrijving: 'Woning, niet als hoofdverblijf', grondslag: 'Art. 14 lid 2 Wet BRV' },
+    { sleutel: 'hoofdverblijf', tarief: 0.02, omschrijving: 'Woning als hoofdverblijf, natuurlijk persoon met verklaring', grondslag: 'Art. 14 lid 3 Wet BRV' }
+  ]
+};
+
+function ovbTarieven(jaar) {
+  return OVB_TARIEVEN_PER_JAAR[jaar] || null;
+}
+
+// De wettelijk verschuldigde belasting bij doorverkoop binnen zes maanden.
+// Lid 1 vermindert de grondslag; lid 4 vermindert in plaats daarvan het
+// belastingbedrag wanneer bij de vorige verkrijging een verlaagd tarief gold,
+// met als ondergrens de uitkomst van lid 1 en niet lager dan nihil.
+function ovbDoorverkoopWettelijk({
+  waardeVerkrijging2, tarief,
+  grondslagVerkrijging1 = 0, belastingVerkrijging1 = 0,
+  verlaagdTariefBijVerkrijging1 = false
+}) {
+  if (!(waardeVerkrijging2 >= 0)) return { fout: 'Geef de waarde van de tweede verkrijging op.' };
+  if (!(tarief >= 0)) return { fout: 'Geef een tarief op.' };
+
+  const grondslagNaLid1 = Math.max(0, waardeVerkrijging2 - grondslagVerkrijging1);
+  const belastingLid1 = tarief * grondslagNaLid1;
+
+  if (!verlaagdTariefBijVerkrijging1) {
+    return {
+      route: 'Art. 13 lid 1 Wet BRV',
+      grondslag: grondslagNaLid1,
+      belasting: belastingLid1,
+      belastingZonderVermindering: tarief * waardeVerkrijging2,
+      vermindering: tarief * waardeVerkrijging2 - belastingLid1
+    };
+  }
+
+  const belastingLid4Ruw = tarief * waardeVerkrijging2 - belastingVerkrijging1;
+  const belastingLid4 = Math.max(0, Math.max(belastingLid1, belastingLid4Ruw));
+  return {
+    route: 'Art. 13 lid 4 Wet BRV',
+    grondslag: waardeVerkrijging2,
+    belasting: belastingLid4,
+    belastingLid1,
+    belastingLid4Ruw,
+    belastingZonderVermindering: tarief * waardeVerkrijging2,
+    vermindering: tarief * waardeVerkrijging2 - belastingLid4,
+    ondergrensToegepast: belastingLid1 > belastingLid4Ruw
+  };
+}
+
+// Netto-opbrengst van de verkoper bij een verkrijging vrij op naam.
+// De aftrek van de notariskosten voordat de overdrachtsbelasting ten laste van
+// de verkoper wordt bepaald, is overgenomen uit het bronmodel. Voor die aftrek
+// is in art. 9 en art. 13 Wet BRV geen basis teruggevonden; zie open punt 2 in
+// BRONNEN.md. De uitkomst is een commerciële verdeling, geen heffingsgrondslag.
+function ovbNettoOpbrengstVerkoper({
+  grondslagVerkrijging1, koopsomVerkrijging2, notariskostenVerkrijging2 = 0, tarief
+}) {
+  const restgrondslag = koopsomVerkrijging2 - grondslagVerkrijging1;
+  const naNotariskosten = restgrondslag - notariskostenVerkrijging2;
+  // Brutering: bij een prijs vrij op naam zit de belasting in de prijs.
+  const ovbTenLasteVanVerkoper = Math.trunc(naNotariskosten * tarief / (1 + tarief));
+  return {
+    restgrondslag, naNotariskosten, ovbTenLasteVanVerkoper,
+    nettoOpbrengstVerkoper: koopsomVerkrijging2 - notariskostenVerkrijging2 - ovbTenLasteVanVerkoper,
+    waarschuwing: 'De aftrek van de notariskosten volgt het bronmodel. Een wettelijke ' +
+                  'basis daarvoor is niet teruggevonden in art. 9 of art. 13 Wet BRV.'
+  };
+}
+
+// Beding dat de koper het voordeel van de doorverkoopregeling aan de verkoper
+// vergoedt. Die vergoeding is zelf tegenprestatie en wordt dus ook belast,
+// vandaar de brutering met een gedeelde noemer.
+function ovbVoordeelBeding({ grondslagVerkrijging1, koopsomVerkrijging2, tarief }) {
+  const brutoVoordeel = tarief * grondslagVerkrijging1;
+  const nettoGemaakt = brutoVoordeel / (1 + tarief);
+  const grondslagKoper = koopsomVerkrijging2 + nettoGemaakt;
+  // Afronding op hele euro's naar beneden, overgenomen uit het bronmodel.
+  // Een wettelijke afrondingsregel is niet teruggevonden; zie open punt 3.
+  const grondslagAfgerond = Math.trunc(grondslagKoper);
+  const ovbAanBelastingdienst = tarief * (grondslagAfgerond - grondslagVerkrijging1);
+  const maximaal = tarief * koopsomVerkrijging2;
+  return {
+    brutoVoordeel, nettoGemaakt, grondslagKoper, grondslagAfgerond,
+    ovbAanBelastingdienst, teVergoedenAanVerkoper: nettoGemaakt,
+    maximaalTeBetalen: maximaal,
+    afrondingsvoordeel: maximaal - ovbAanBelastingdienst - nettoGemaakt
+  };
+}
+
+// FISCALE KERN — EINDE
+
+/* ============================================================
+   Weergave. Roept de kern aan en raakt geen rekenlogica.
+   ============================================================ */
+
+const VERSIE = '2026-09-02';
+document.getElementById('versie').textContent = 'versie ' + VERSIE;
+
+const euro = n => (n === null || n === undefined || !isFinite(n))
+  ? '—'
+  : n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR',
+      minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const getal = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
+  ? '—' : n.toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
+const procent = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
+  ? '—' : (n * 100).toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d }) + '%';
+
+/* Elk onderwerp: velden, rekenfunctie en opmaak van de uitkomst. */
+const ONDERWERPEN = [
+{
+  id: 'annuiteit-jaar-vooraf', groep: 'Annuïteiten', naam: 'Annuïteit jaar vooraf',
+  titel: 'Annuïteit op basis van de huidige waarde, jaartermijnen vooraf',
+  grondslag: 'Termijnen aan het begin van elk jaar.',
+  velden: [
+    { k: 'hoofdsom', l: 'Hoofdsom', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente per jaar', t: 'procent', v: 10 },
+    { k: 'aantalTermijnen', l: 'Aantal jaartermijnen', t: 'geheel', v: 30 }
+  ],
+  reken: i => annuiteit({ ...i, termijn: 'jaar', moment: 'vooraf' }),
+  uit: r => [
+    ['Annuïteit per jaar, rente en aflossing', euro(r.annuiteit), true],
+    ['Totaal betalingen', euro(r.totaalBetalingen)],
+    ['Totaal rente', euro(r.totaalRente)]
+  ]
+},
+{
+  id: 'annuiteit-jaar-achteraf', groep: 'Annuïteiten', naam: 'Annuïteit jaar achteraf',
+  titel: 'Annuïteit op basis van de huidige waarde, jaartermijnen achteraf',
+  grondslag: 'Termijnen aan het eind van elk jaar, met aflossingsschema en de ' +
+             'renteaangroei tot de eerstvolgende balansdatum.',
+  velden: [
+    { k: 'hoofdsom', l: 'Hoofdsom', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente per jaar', t: 'procent', v: 10 },
+    { k: 'aantalTermijnen', l: 'Aantal jaartermijnen', t: 'geheel', v: 30 },
+    { k: 'ingangsdatum', l: 'Ingangsdatum', h: 'Voor de renteaangroei tot 1 januari daarna', t: 'datum', v: '2026-01-01' }
+  ],
+  reken: i => {
+    const a = annuiteit({ hoofdsom: i.hoofdsom, rentePerJaar: i.rentePerJaar,
+      aantalTermijnen: i.aantalTermijnen, termijn: 'jaar', moment: 'achteraf' });
+    if (a.fout) return a;
+    const b = renteTotBalansdatum({ hoofdsom: i.hoofdsom,
+      rentePerJaar: i.rentePerJaar, ingangsdatum: i.ingangsdatum });
+    const schema = aflossingsschema({ hoofdsom: i.hoofdsom,
+      rentePerTermijn: i.rentePerJaar, annuiteitBedrag: a.annuiteit,
+      aantalTermijnen: i.aantalTermijnen });
+    return { ...a, ...b, schema };
+  },
+  uit: r => [
+    ['Annuïteit per jaar, rente en aflossing', euro(r.annuiteit), true],
+    ['Totaal betalingen', euro(r.totaalBetalingen)],
+    ['Totaal rente', euro(r.totaalRente)],
+    ['Balansdatum', r.balansdatum || '—'],
+    ['Dagen tot de balansdatum', r.dagenTotBalansdatum ?? '—'],
+    ['Rente tot de balansdatum', euro(r.renteTotBalansdatum)],
+    ['Boekwaarde op de balansdatum', euro(r.boekwaardeOpBalansdatum)]
+  ],
+  schema: r => r.schema && {
+    koppen: ['Termijn', 'Beginschuld', 'Rente', 'Aflossing', 'Eindschuld'],
+    rijen: r.schema.map(x => [x.termijn, euro(x.beginschuld), euro(x.rente),
+      euro(x.aflossing), euro(x.eindschuld)])
+  }
+},
+{
+  id: 'annuiteit-maand-vooraf', groep: 'Annuïteiten', naam: 'Annuïteit maand vooraf',
+  titel: 'Annuïteit op basis van de huidige waarde, maandtermijnen vooraf',
+  grondslag: 'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend, ' +
+             'omdat leningvoorwaarden beide gebruiken.',
+  velden: [
+    { k: 'hoofdsom', l: 'Hoofdsom', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente per jaar', t: 'procent', v: 10 },
+    { k: 'aantalTermijnen', l: 'Aantal maandtermijnen', t: 'geheel', v: 12 }
+  ],
+  reken: i => {
+    const s = annuiteit({ ...i, termijn: 'maand', moment: 'vooraf', maandrenteMethode: 'samengesteld' });
+    const e = annuiteit({ ...i, termijn: 'maand', moment: 'vooraf', maandrenteMethode: 'enkelvoudig' });
+    return { s, e };
+  },
+  uit: r => [
+    ['Rente per maand, samengesteld', procent(r.s.rentePerTermijn, 4)],
+    ['Annuïteit per maand, samengesteld', euro(r.s.annuiteit), true],
+    ['Totaal betalingen, samengesteld', euro(r.s.totaalBetalingen)],
+    ['Totaal rente, samengesteld', euro(r.s.totaalRente)],
+    ['Rente per maand, enkelvoudig', procent(r.e.rentePerTermijn, 4)],
+    ['Annuïteit per maand, enkelvoudig', euro(r.e.annuiteit), true],
+    ['Totaal betalingen, enkelvoudig', euro(r.e.totaalBetalingen)],
+    ['Totaal rente, enkelvoudig', euro(r.e.totaalRente)]
+  ]
+},
+{
+  id: 'annuiteit-maand-achteraf', groep: 'Annuïteiten', naam: 'Annuïteit maand achteraf',
+  titel: 'Annuïteit op basis van de huidige waarde, maandtermijnen achteraf',
+  grondslag: 'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend.',
+  velden: [
+    { k: 'hoofdsom', l: 'Hoofdsom', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente per jaar', t: 'procent', v: 10 },
+    { k: 'aantalTermijnen', l: 'Aantal maandtermijnen', t: 'geheel', v: 360 }
+  ],
+  reken: i => {
+    const s = annuiteit({ ...i, termijn: 'maand', moment: 'achteraf', maandrenteMethode: 'samengesteld' });
+    const e = annuiteit({ ...i, termijn: 'maand', moment: 'achteraf', maandrenteMethode: 'enkelvoudig' });
+    if (s.fout) return s;
+    return { s, e, schema: aflossingsschema({ hoofdsom: i.hoofdsom,
+      rentePerTermijn: s.rentePerTermijn, annuiteitBedrag: s.annuiteit,
+      aantalTermijnen: i.aantalTermijnen }) };
+  },
+  uit: r => [
+    ['Rente per maand, samengesteld', procent(r.s.rentePerTermijn, 4)],
+    ['Annuïteit per maand, samengesteld', euro(r.s.annuiteit), true],
+    ['Totaal betalingen, samengesteld', euro(r.s.totaalBetalingen)],
+    ['Totaal rente, samengesteld', euro(r.s.totaalRente)],
+    ['Rente per maand, enkelvoudig', procent(r.e.rentePerTermijn, 4)],
+    ['Annuïteit per maand, enkelvoudig', euro(r.e.annuiteit), true],
+    ['Totaal betalingen, enkelvoudig', euro(r.e.totaalBetalingen)],
+    ['Totaal rente, enkelvoudig', euro(r.e.totaalRente)]
+  ],
+  schema: r => r.schema && {
+    koppen: ['Maand', 'Beginschuld', 'Rente', 'Aflossing', 'Eindschuld'],
+    rijen: r.schema.map(x => [x.termijn, euro(x.beginschuld), euro(x.rente),
+      euro(x.aflossing), euro(x.eindschuld)])
+  }
+},
+{
+  id: 'cw-een-bedrag', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde één bedrag',
+  titel: 'Contante waarde van één toekomstig bedrag',
+  grondslag: 'Maanden gaan door twaalf, dagen door driehonderdzestig.',
+  velden: [
+    { k: 'toekomstigeWaarde', l: 'Toekomstige waarde', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente of rendement per jaar', t: 'procent', v: 10 },
+    { k: 'jaren', l: 'Aantal volle jaren', t: 'geheel', v: 10 },
+    { k: 'maanden', l: 'Aantal volle maanden daarnaast', t: 'geheel', v: 0 },
+    { k: 'dagen', l: 'Aantal dagen daarnaast', t: 'geheel', v: 0 }
+  ],
+  reken: i => contanteWaardeEenBedrag(i),
+  uit: r => [['Totale periode in jaren', getal(r.periode, 4)],
+             ['Huidige waarde', euro(r.huidigeWaarde), true]]
+},
+{
+  id: 'tw-een-bedrag', groep: 'Contante en toekomstige waarde', naam: 'Toekomstige waarde één bedrag',
+  titel: 'Toekomstige waarde van één huidig bedrag',
+  grondslag: 'Maanden gaan door twaalf, dagen door driehonderdzestig.',
+  velden: [
+    { k: 'huidigeWaarde', l: 'Huidige waarde', t: 'euro', v: 100000 },
+    { k: 'rentePerJaar', l: 'Rente of rendement per jaar', t: 'procent', v: 10 },
+    { k: 'jaren', l: 'Aantal volle jaren', t: 'geheel', v: 10 },
+    { k: 'maanden', l: 'Aantal volle maanden daarnaast', t: 'geheel', v: 0 },
+    { k: 'dagen', l: 'Aantal dagen daarnaast', t: 'geheel', v: 0 }
+  ],
+  reken: i => toekomstigeWaardeEenBedrag(i),
+  uit: r => [['Totale periode in jaren', getal(r.periode, 4)],
+             ['Eindwaarde', euro(r.eindwaarde), true]]
+},
+{
+  id: 'cw-vaste-reeks', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde vaste reeks',
+  titel: 'Contante waarde van een vaste reeks uitkeringen',
+  grondslag: 'Gelijke jaarlijkse uitkeringen, achteraf.',
+  velden: [
+    { k: 'uitkeringPerJaar', l: 'Uitkering per jaar', t: 'euro', v: 10000 },
+    { k: 'rentePerJaar', l: 'Rente of rendement per jaar', t: 'procent', v: 10 },
+    { k: 'jaren', l: 'Aantal volle jaren', t: 'geheel', v: 10 },
+    { k: 'maanden', l: 'Aantal volle maanden daarnaast', t: 'geheel', v: 0 },
+    { k: 'dagen', l: 'Aantal dagen daarnaast', t: 'geheel', v: 0 }
+  ],
+  reken: i => contanteWaardeVasteReeks(i),
+  uit: r => [['Totale periode in jaren', getal(r.periode, 4)],
+             ['Huidige waarde', euro(r.huidigeWaarde), true]]
+},
+{
+  id: 'cw-variabele-reeks', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde variabele reeks',
+  titel: 'Contante waarde van meerdere toekomstige ontvangsten of uitgaven',
+  grondslag: 'Per maand een eigen bedrag. Het bedrag bij maand nul valt op vandaag.',
+  velden: [
+    { k: 'rentePerJaar', l: 'Rente of disconteringsvoet per jaar', t: 'procent', v: 10 }
+  ],
+  reeks: { k: 'bedragenPerMaand', l: 'Bedrag per maand', aantal: 121,
+           beginLabel: 0, kolommen: ['bedrag'] },
+  reken: i => contanteWaardeVariabeleReeks(i),
+  uit: r => [['Rente per maand, samengesteld', procent(r.rentePerMaand, 4)],
+             ['Som van de toekomstige bedragen', euro(r.somToekomstig)],
+             ['Contante waarde', euro(r.contanteWaarde), true]]
+},
+{
+  id: 'inleg-vast', groep: 'Periodieke inleg', naam: 'Periodieke inleg vast bedrag',
+  titel: 'Vermogensopbouw bij een vaste jaarlijkse inleg',
+  grondslag: 'Inleg aan het eind van elk jaar, rendement na kosten.',
+  velden: [
+    { k: 'jaarinleg', l: 'Inleg per jaar', t: 'euro', v: 5000 },
+    { k: 'aantalJaren', l: 'Aantal jaren inleg', t: 'geheel', v: 10 },
+    { k: 'rendementPerJaar', l: 'Rendement per jaar na kosten', t: 'procent', v: 1 }
+  ],
+  reken: i => periodiekeInlegVast(i),
+  uit: r => [['Waarde aan het einde van de periode', euro(r.eindwaarde), true]]
+},
+{
+  id: 'inleg-variabel', groep: 'Periodieke inleg', naam: 'Periodieke inleg variabel',
+  titel: 'Vermogensopbouw bij variabele inleg en onttrekkingen',
+  grondslag: 'Per maand een storting en een onttrekking. Het rendement loopt over de ' +
+             'stand aan het begin van de maand.',
+  velden: [
+    { k: 'startjaar', l: 'Start in jaar', t: 'geheel', v: 2027 },
+    { k: 'rendementPerJaar', l: 'Rendement per jaar na kosten', t: 'procent', v: 1 }
+  ],
+  reeks: { k: 'maanden', l: 'Storting en onttrekking per maand', aantal: 120,
+           beginLabel: 1, kolommen: ['storting', 'onttrekking'] },
+  reken: i => periodiekeInlegVariabel(i),
+  uit: r => [['Rendement per maand, samengesteld', procent(r.rendementPerMaand, 4)],
+             ['Eindwaarde', euro(r.eindwaarde), true]]
+},
+{
+  id: 'irr', groep: 'Rendement', naam: 'Interne rentevoet',
+  titel: 'Interne rentevoet over een maandreeks',
+  grondslag: 'De rentevoet waarbij de contante waarde van alle betalingen en ' +
+             'ontvangsten gelijk aan nul is. Het bedrag bij maand nul valt op vandaag.',
+  velden: [],
+  reeks: { k: 'rijen', l: 'Betaling en ontvangst per maand', aantal: 121,
+           beginLabel: 0, kolommen: ['betaling', 'ontvangst'] },
+  reken: i => irrMaandreeks(i),
+  uit: r => [
+    ['Totaal inleg', euro(r.totaalInleg)],
+    ['Totaal ontvangsten', euro(r.totaalOntvangsten)],
+    ['Surplus', euro(r.surplus)],
+    ['Interne rentevoet per maand', r.irrPerMaand === null ? '—' : procent(r.irrPerMaand, 4)],
+    ['Interne rentevoet per jaar', r.irrPerJaar === null ? '—' : procent(r.irrPerJaar, 2), true]
+  ],
+  meldingen: r => r.irrPerMaand === null ? [{ soort: 'let',
+    tekst: 'Zonder ten minste één betaling en één ontvangst is er geen interne rentevoet.' }] : []
+},
+{
+  id: 'black-scholes', groep: 'Rendement', naam: 'Opties Black-Scholes',
+  titel: 'Optiewaardering volgens Black-Scholes-Merton',
+  grondslag: 'Uitoefening alleen aan het einde van de looptijd. Het dividendrendement ' +
+             'wordt continu betaalbaar verondersteld.',
+  velden: [
+    { k: 'soort', l: 'Soort optie', t: 'keuze', v: 'call',
+      opties: [{ w: 'call', l: 'Call' }, { w: 'put', l: 'Put' }] },
+    { k: 'aandeelkoers', l: 'Actuele prijs aandeel', t: 'euro', v: 100 },
+    { k: 'uitoefenprijs', l: 'Uitoefenprijs optie', t: 'euro', v: 100 },
+    { k: 'looptijdJaren', l: 'Looptijd in jaren', t: 'getal', v: 4 },
+    { k: 'risicovrijeRente', l: 'Risicovrij rendement', t: 'procent', v: 3 },
+    { k: 'dividendrendement', l: 'Dividendrendement', t: 'procent', v: 2 },
+    { k: 'volatiliteit', l: 'Volatiliteit', h: 'Voor een gemiddeld mkb-bedrijf met een normaal dividendbeleid ligt 20% in de rede', t: 'procent', v: 20 }
+  ],
+  reken: i => blackScholes(i),
+  uit: r => [['d1', getal(r.d1, 6)], ['d2', getal(r.d2, 6)],
+             ['Waarde van de optie', euro(r.waarde), true]]
+},
+{
+  id: 'genotsrecht', groep: 'Waardering box 3', naam: 'Vruchtgebruik en genotsrechten',
+  titel: 'Waardering van een genotsrecht in box 3',
+  grondslag: 'Art. 5.22 Wet IB 2001 met art. 18 en 19 Uitv.besl. IB 2001. Het jaarlijkse ' +
+             'voordeel is vier procent van de waarde in vol eigendom; dat bedrag wordt ' +
+             'gekapitaliseerd met de wettelijke factor.',
+  velden: [
+    { k: 'waardeVolEigendom', l: 'Waarde van het vermogen in vol eigendom', t: 'euro', v: 500000 },
+    { k: 'soort', l: 'Soort recht', t: 'keuze', v: 'levenslangIngegaan', opties: [
+      { w: 'levenslangIngegaan', l: 'Levenslang, ingegaan (lid 1)' },
+      { w: 'tijdelijkIngegaan', l: 'Tijdelijk, ingegaan, van het leven afhankelijk (lid 2)' },
+      { w: 'levenslangNietIngegaan', l: 'Levenslang, nog niet ingegaan (lid 3)' },
+      { w: 'tijdelijkNietIngegaan', l: 'Tijdelijk, nog niet ingegaan (lid 4)' },
+      { w: 'onbepaaldGeenLeven', l: 'Onbepaalde tijd, niet van het leven afhankelijk (lid 5)' },
+      { w: 'bepaaldGeenLeven', l: 'Bepaalde tijd, niet van het leven afhankelijk (lid 6)' }
+    ] },
+    { k: 'vervaltBij', l: 'Het recht eindigt bij', t: 'keuze', v: 'enigLeven', opties: [
+      { w: 'enigLeven', l: 'Overlijden van één persoon' },
+      { w: 'langstlevende', l: 'Overlijden van de langstlevende (lid 8a)' },
+      { w: 'eerststervende', l: 'Overlijden van de eerststervende (lid 8b)' }
+    ] },
+    { k: 'peiljaar', l: 'Peiljaar, 1 januari', t: 'geheel', v: 2026 },
+    { k: 'geslacht1', l: 'Persoon 1: geslacht', t: 'keuze', v: 'man',
+      opties: [{ w: 'man', l: 'Man' }, { w: 'vrouw', l: 'Vrouw' }] },
+    { k: 'geboorte1', l: 'Persoon 1: geboortedatum', h: 'Laat de dag en maand weg om alleen met het jaar te rekenen', t: 'datum', v: '1953-06-15' },
+    { k: 'geboortejaar1', l: 'Persoon 1: alleen geboortejaar', h: 'Wordt gebruikt als de geboortedatum leeg is', t: 'geheel', v: null },
+    { k: 'geslacht2', l: 'Persoon 2: geslacht', t: 'keuze', v: 'vrouw',
+      opties: [{ w: 'man', l: 'Man' }, { w: 'vrouw', l: 'Vrouw' }] },
+    { k: 'geboorte2', l: 'Persoon 2: geboortedatum', h: 'Alleen bij twee of meer levens', t: 'datum', v: '' },
+    { k: 'geboortejaar2', l: 'Persoon 2: alleen geboortejaar', t: 'geheel', v: null },
+    { k: 'looptijdJaren', l: 'Looptijd in jaren', h: 'Bij een tijdelijk recht', t: 'geheel', v: 0 },
+    { k: 'wachtjaren', l: 'Aantal jaren nog niet ingegaan', h: 'Bij een nog niet ingegaan recht', t: 'geheel', v: 0 }
+  ],
+  reken: i => {
+    const meldingen = [];
+    const maakPersoon = (nr) => {
+      const datum = i['geboorte' + nr], jaar = i['geboortejaar' + nr];
+      if (!datum && (jaar === null || jaar === undefined || !isFinite(jaar))) return null;
+      const uit = leeftijdOpPeildatum({
+        geboortedatum: datum || null,
+        geboortejaar: datum ? null : jaar,
+        peiljaar: i.peiljaar
+      });
+      if (uit.fout) { meldingen.push({ soort: 'fout', tekst: 'Persoon ' + nr + ': ' + uit.fout }); return null; }
+      if (uit.benaderd) meldingen.push({ soort: 'let',
+        tekst: 'Voor persoon ' + nr + ' is alleen het geboortejaar bekend. De leeftijd op ' +
+               '1 januari is dan een benadering die er één jaar naast kan zitten. Op een ' +
+               'klassegrens van vijf jaren verandert dat de factor.' });
+      return { leeftijd: uit.leeftijd, geslacht: i['geslacht' + nr] };
+    };
+    const p1 = maakPersoon(1);
+    const p2 = maakPersoon(2);
+    const personen = i.vervaltBij === 'enigLeven'
+      ? (p1 ? [p1] : [])
+      : [p1, p2].filter(Boolean);
+    if (i.vervaltBij !== 'enigLeven' && personen.length < 2) {
+      return { fout: 'Bij twee of meer levens zijn de gegevens van twee personen nodig.' };
+    }
+    const r = genotsrechtBox3({
+      waardeVolEigendom: i.waardeVolEigendom, personen,
+      vervaltBij: i.vervaltBij, soort: i.soort,
+      looptijdJaren: i.looptijdJaren, wachtjaren: i.wachtjaren
+    });
+    if (r.fout) return r;
+    return { ...r, leeftijden: personen, extraMeldingen: meldingen };
+  },
+  uit: r => [
+    ['Jaarlijks voordeel, vier procent van de volle waarde', euro(r.jaarlijksVoordeel)],
+    ['Leeftijd persoon 1 op 1 januari', r.leeftijden[0] ? r.leeftijden[0].leeftijd : '—'],
+    ['Leeftijd persoon 2 op 1 januari', r.leeftijden[1] ? r.leeftijden[1].leeftijd : '—'],
+    ['Toetsleeftijd', r.toetsleeftijd === null ? '—' : r.toetsleeftijd],
+    ['Grondslag toetsleeftijd', r.leeftijdsgrondslag || '—'],
+    ['Factor', r.factor === undefined ? '—' : getal(r.factor, 2)],
+    ['Grondslag waardering', r.grondslag],
+    ['Waarde van het genotsrecht', euro(r.waardeGenotsrecht), true],
+    ['Waarde van het bloot eigendom', euro(r.waardeBlootEigendom), true],
+    ['Waarde in vol eigendom, ter controle', euro(r.waardeVolEigendom)]
+  ],
+  meldingen: r => [...(r.meldingen || []), ...(r.extraMeldingen || [])],
+  schema: r => r.blokken && r.blokken.length ? {
+    koppen: ['Vijftal', 'Jaren met bedrag', 'Factor', 'Deelwaarde'],
+    rijen: r.blokken.map(b => [b.blok, b.jarenMetBedrag, getal(b.factor, 2), euro(b.deelwaarde)])
+  } : null
+},
+{
+  id: 'leegwaarderatio', groep: 'Waardering box 3', naam: 'Leegwaarderatio',
+  titel: 'Waardering van een verhuurde woning in box 3',
+  grondslag: 'Art. 5.20 Wet IB 2001 met art. 17a en 17b Uitv.besl. IB 2001. De ' +
+             'gekapitaliseerde erfpachtcanon gaat eerst van het waardegegeven af; ' +
+             'daarna volgt de leegwaarderatio.',
+  velden: [
+    { k: 'jaar', l: 'Belastingjaar', t: 'keuze', v: 2026,
+      opties: [{ w: 2023, l: '2023' }, { w: 2024, l: '2024' }, { w: 2025, l: '2025' }, { w: 2026, l: '2026' }] },
+    { k: 'wozWaarde', l: 'WOZ-waarde', t: 'euro', v: 400000 },
+    { k: 'huurPerMaand', l: 'Huur of pacht per maand', h: 'Aan het begin van het kalenderjaar; wordt twaalf maal genomen', t: 'euro', v: 1000 },
+    { k: 'erfpachtcanonPerJaar', l: 'Erfpachtcanon per jaar', t: 'euro', v: 0 },
+    { k: 'onzelfstandigDeel', l: 'Woning is een niet afzonderlijk vervreemdbaar deel van een gebouwd eigendom', h: 'Verlaging van € 20.000 en erfpachtfactor twintig', t: 'vinkje', v: false },
+    { k: 'huurbeschermingVanToepassing', l: 'Huurbescherming van Boek 7 BW is van toepassing, of pacht voor ten minste twaalf jaren', t: 'vinkje', v: true },
+    { k: 'huurovereenkomstBepaaldeTijd', l: 'Huurovereenkomst voor bepaalde tijd', t: 'vinkje', v: false },
+    { k: 'gelieerdNietZakelijk', l: 'Gelieerde partijen met een niet-zakelijke prijs', t: 'vinkje', v: false },
+    { k: 'gedeeltelijkVerhuurd', l: 'Slechts een deel van de woning is verhuurd', t: 'vinkje', v: false },
+    { k: 'wozWaardeVerhuurdDeel', l: 'WOZ-waarde van het verhuurde deel', t: 'euro', v: null },
+    { k: 'verhuurdeOppervlakte', l: 'Verhuurde oppervlakte in vierkante meters', t: 'getal', v: null },
+    { k: 'totaleOppervlakte', l: 'Totale oppervlakte in vierkante meters', t: 'getal', v: null },
+    { k: 'wevInVerhuurdeStaat', l: 'Waarde in het economische verkeer in verhuurde staat', h: 'Voor het tegenbewijs van art. 17a lid 6; laat leeg als niet van toepassing', t: 'euro', v: null }
+  ],
+  reken: i => leegwaarderatioBox3(i),
+  uit: r => [
+    ['Verlaging voor een onzelfstandig deel', euro(r.verlaging)],
+    ['Kapitalisatiefactor erfpachtcanon', r.erfpachtfactor],
+    ['Gekapitaliseerde erfpachtcanon', euro(r.erfpachtwaarde)],
+    ['WOZ-waardegegeven na verlaging en erfpacht', euro(r.waardegegeven)],
+    ['Jaarlijkse huur of pacht', euro(r.jaarhuur)],
+    ['Huur als percentage van het waardegegeven', procent(r.huurquote, 3)],
+    ['Leegwaarderatio', r.ratioToegepast ? procent(r.leegwaarderatio, 0) : 'niet van toepassing'],
+    ['Waarde van het verhuurde deel', euro(r.waardeVerhuurdDeel)],
+    ['Waarde van het niet verhuurde deel', euro(r.waardeOnverhuurdDeel)],
+    ['Waarde voor box 3', euro(r.waarde), true]
+  ],
+  meldingen: r => r.meldingen || []
+},
+{
+  id: 'boeterente', groep: 'Hypotheek', naam: 'Boeterente',
+  titel: 'Theoretische boeterente bij vervroegd aflossen',
+  grondslag: 'De contante waarde van het verschil tussen de contractrente en de ' +
+             'marktrente over de resterende rentevastperiode. De marktrente hoort ' +
+             'bij de naastbijgelegen looptijd.',
+  velden: [
+    { k: 'soortLening', l: 'Soort lening', t: 'keuze', v: 'annuiteit',
+      opties: [{ w: 'annuiteit', l: 'Annuïteit' }, { w: 'aflossingsvrij', l: 'Aflossingsvrij' }] },
+    { k: 'contractrentePerJaar', l: 'Contractrente per jaar', t: 'procent', v: 4 },
+    { k: 'marktrentePerJaar', l: 'Marktrente bij de resterende looptijd', t: 'procent', v: 2.7 },
+    { k: 'resterendeMaandenLooptijd', l: 'Resterende looptijd in maanden', t: 'geheel', v: 12 },
+    { k: 'maandenTotRenteherziening', l: 'Maanden tot de renteherziening', t: 'geheel', v: 6 },
+    { k: 'hoofdsom', l: 'Hoofdsom', t: 'euro', v: 100000 },
+    { k: 'aflossingenTotVorigJaar', l: 'Aflossingen tot en met vorig jaar', t: 'euro', v: 15000 },
+    { k: 'boetevrijDeelVanHoofdsom', l: 'Boetevrije aflossing per jaar, deel van de hoofdsom', t: 'procent', v: 20 },
+    { k: 'disconteringsrentePerJaar', l: 'Rente voor de contantmaking', h: 'Laat leeg om de marktrente te gebruiken', t: 'procent', v: 2.7 }
+  ],
+  reken: i => boeterente(i),
+  uit: r => [
+    ['Contractrente per maand', procent(r.contractrentePerMaand, 4)],
+    ['Marktrente per maand', procent(r.marktrentePerMaand, 4)],
+    ['Huidige schuld voor de boetevrije aflossing', euro(r.schuldVoorBoetevrij)],
+    ['Boetevrije aflossing', euro(r.boetevrijeAflossing)],
+    ['Huidige schuld na de boetevrije aflossing', euro(r.schuldNaBoetevrij)],
+    ['Maandelijkse betaling na de boetevrije aflossing', euro(r.maandbetaling)],
+    ['Theoretische boeterente', euro(r.theoretischeBoeterente), true]
+  ],
+  schema: r => r.rijen && r.rijen.length ? {
+    koppen: ['Maand', 'Schuld', 'Rente contract', 'Rente markt', 'Verschil', 'Contant gemaakt'],
+    rijen: r.rijen.map(x => [x.maand, euro(x.schuld), euro(x.renteContract),
+      euro(x.renteMarkt), euro(x.verschil), euro(x.contant)])
+  } : null
+},
+{
+  id: 'ovb', groep: 'Overdrachtsbelasting', naam: 'Doorverkoopregeling',
+  titel: 'Doorverkoopregeling overdrachtsbelasting',
+  grondslag: 'Art. 13 Wet BRV. Bij een verkrijging binnen zes maanden na een vorige ' +
+             'verkrijging door een ander wordt de grondslag verminderd. Gold bij die ' +
+             'vorige verkrijging een verlaagd tarief, dan vermindert lid 4 in plaats ' +
+             'daarvan het belastingbedrag.',
+  velden: [
+    { k: 'jaar', l: 'Jaar van de verkrijging', t: 'keuze', v: 2026,
+      opties: [{ w: 2025, l: '2025' }, { w: 2026, l: '2026' }] },
+    { k: 'tariefSleutel', l: 'Tarief', t: 'keuze', v: 'woning', opties: [
+      { w: 'algemeen', l: 'Algemeen tarief' },
+      { w: 'woning', l: 'Woning, niet als hoofdverblijf' },
+      { w: 'hoofdverblijf', l: 'Woning als hoofdverblijf' },
+      { w: 'eigen', l: 'Zelf een tarief opgeven' }
+    ] },
+    { k: 'eigenTarief', l: 'Eigen tarief', h: 'Alleen als hierboven een eigen tarief is gekozen', t: 'procent', v: 8 },
+    { k: 'grondslagVerkrijging1', l: 'Grondslag van de eerste verkrijging', t: 'euro', v: 400000 },
+    { k: 'koopsomVerkrijging2', l: 'Koopsom van de tweede verkrijging, vrij op naam', t: 'euro', v: 450000 },
+    { k: 'notariskostenVerkrijging2', l: 'Notariskosten van de tweede verkrijging', t: 'euro', v: 2000 },
+    { k: 'verlaagdTariefBijVerkrijging1', l: 'Bij de eerste verkrijging gold een verlaagd tarief', h: 'Dan geldt de belastingvermindering van art. 13 lid 4', t: 'vinkje', v: false },
+    { k: 'belastingVerkrijging1', l: 'Bij de eerste verkrijging betaalde overdrachtsbelasting', h: 'Alleen bij een verlaagd tarief', t: 'euro', v: null }
+  ],
+  reken: i => {
+    const tarieven = ovbTarieven(i.jaar);
+    if (!tarieven) return { fout: 'Voor ' + i.jaar + ' zijn geen geverifieerde tarieven opgenomen.' };
+    let tarief, tariefBron;
+    if (i.tariefSleutel === 'eigen') {
+      tarief = i.eigenTarief; tariefBron = 'Zelf opgegeven tarief.';
+    } else {
+      const gevonden = tarieven.find(t => t.sleutel === i.tariefSleutel);
+      if (!gevonden) return { fout: 'Het tarief "' + i.tariefSleutel + '" bestaat niet in ' +
+        i.jaar + '. Beschikbaar: ' + tarieven.map(t => t.omschrijving).join('; ') + '.' };
+      tarief = gevonden.tarief;
+      tariefBron = gevonden.omschrijving + ' (' + gevonden.grondslag + ').';
+    }
+    const wettelijk = ovbDoorverkoopWettelijk({
+      waardeVerkrijging2: i.koopsomVerkrijging2, tarief,
+      grondslagVerkrijging1: i.grondslagVerkrijging1,
+      belastingVerkrijging1: i.belastingVerkrijging1 || 0,
+      verlaagdTariefBijVerkrijging1: i.verlaagdTariefBijVerkrijging1
+    });
+    if (wettelijk.fout) return wettelijk;
+    const verkoper = ovbNettoOpbrengstVerkoper({
+      grondslagVerkrijging1: i.grondslagVerkrijging1,
+      koopsomVerkrijging2: i.koopsomVerkrijging2,
+      notariskostenVerkrijging2: i.notariskostenVerkrijging2, tarief
+    });
+    const beding = ovbVoordeelBeding({
+      grondslagVerkrijging1: i.grondslagVerkrijging1,
+      koopsomVerkrijging2: i.koopsomVerkrijging2, tarief
+    });
+    return { tarief, tariefBron, wettelijk, verkoper, beding };
+  },
+  uit: r => [
+    ['Toegepast tarief', procent(r.tarief, 1)],
+    ['Grondslag voor het tarief', r.tariefBron],
+    ['Route', r.wettelijk.route],
+    ['Grondslag na de doorverkoopregeling', euro(r.wettelijk.grondslag)],
+    ['Verschuldigde overdrachtsbelasting', euro(r.wettelijk.belasting), true],
+    ['Belasting zonder de doorverkoopregeling', euro(r.wettelijk.belastingZonderVermindering)],
+    ['Voordeel van de doorverkoopregeling', euro(r.wettelijk.vermindering)],
+    ['Netto-opbrengst van de verkoper, vrij op naam', euro(r.verkoper.nettoOpbrengstVerkoper)],
+    ['Overdrachtsbelasting ten laste van de verkoper', euro(r.verkoper.ovbTenLasteVanVerkoper)],
+    ['Bij een beding: bruto af te staan voordeel', euro(r.beding.brutoVoordeel)],
+    ['Bij een beding: netto aan de verkoper te vergoeden', euro(r.beding.teVergoedenAanVerkoper)],
+    ['Bij een beding: grondslag van de koper na afronding', euro(r.beding.grondslagAfgerond)],
+    ['Bij een beding: aan de Belastingdienst verschuldigd', euro(r.beding.ovbAanBelastingdienst)],
+    ['Bij een beding: afrondingsvoordeel voor de koper', euro(r.beding.afrondingsvoordeel)]
+  ],
+  meldingen: r => {
+    const m = [{ soort: 'let', tekst: r.verkoper.waarschuwing }];
+    if (r.wettelijk.ondergrensToegepast) m.push({ soort: 'info',
+      tekst: 'De ondergrens van art. 13 lid 4, tweede volzin, is toegepast: de uitkomst ' +
+             'van lid 1 is gunstiger dan de belastingvermindering.' });
+    m.push({ soort: 'info', tekst: 'De doorverkoopregeling geldt alleen bij een verkrijging ' +
+      'binnen ' + OVB_TERMIJN_MAANDEN + ' maanden na de vorige verkrijging door een ander. ' +
+      'De tool toetst die termijn niet; beoordeel dat zelf.' });
+    return m;
+  }
+}
+];
+
+/* Invoerwaarden per onderwerp, met de standaardwaarden als begin.
+   De standaardwaarden staan in de eenheid waarin de gebruiker ze ziet, dus een
+   percentage als 10 en niet als 0,10. leesVeld zet ze om naar de eenheid
+   waarmee de kern rekent. */
+const invoer = {};
+const reeksen = {};
+for (const o of ONDERWERPEN) {
+  invoer[o.id] = {};
+  for (const v of o.velden) invoer[o.id][v.k] = leesVeld(v, v.v);
+  if (o.reeks) {
+    reeksen[o.id] = Array.from({ length: o.reeks.aantal }, () => {
+      if (o.reeks.kolommen.length === 1) return null;
+      const r = {}; for (const k of o.reeks.kolommen) r[k] = null; return r;
+    });
+  }
+}
+
+let huidig = ONDERWERPEN[0].id;
+
+function bouwNavigatie() {
+  const nav = document.getElementById('nav');
+  nav.textContent = '';
+  let vorigeGroep = null;
+  for (const o of ONDERWERPEN) {
+    if (o.groep !== vorigeGroep) {
+      const g = document.createElement('div');
+      g.className = 'groep'; g.textContent = o.groep;
+      nav.appendChild(g); vorigeGroep = o.groep;
+    }
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = o.naam;
+    b.setAttribute('aria-current', o.id === huidig ? 'true' : 'false');
+    b.addEventListener('click', () => { huidig = o.id; bouwNavigatie(); toon(); });
+    nav.appendChild(b);
+  }
+}
+
+function leesVeld(veld, ruw) {
+  if (veld.t === 'vinkje') return !!ruw;
+  if (veld.t === 'keuze') {
+    const eerste = veld.opties[0].w;
+    return typeof eerste === 'number' ? Number(ruw) : ruw;
+  }
+  if (veld.t === 'datum') return ruw || '';
+  if (ruw === '' || ruw === null || ruw === undefined) return null;
+  const n = Number(String(ruw).replace(',', '.'));
+  if (!isFinite(n)) return null;
+  return veld.t === 'procent' ? n / 100 : n;
+}
+
+function schrijfVeld(veld, waarde) {
+  if (veld.t === 'vinkje') return !!waarde;
+  if (veld.t === 'keuze' || veld.t === 'datum') return waarde ?? '';
+  if (waarde === null || waarde === undefined) return '';
+  return veld.t === 'procent' ? +(waarde * 100).toFixed(6) : waarde;
+}
+
+function toon() {
+  const o = ONDERWERPEN.find(x => x.id === huidig);
+  const main = document.getElementById('main');
+  main.textContent = '';
+
+  const h = document.createElement('h2'); h.textContent = o.titel; main.appendChild(h);
+  const g = document.createElement('p'); g.className = 'grondslag';
+  g.textContent = o.grondslag; main.appendChild(g);
+
+  /* Invoer */
+  if (o.velden.length) {
+    const fs = document.createElement('fieldset');
+    const lg = document.createElement('legend'); lg.textContent = 'Invoer'; fs.appendChild(lg);
+    for (const v of o.velden) {
+      const rij = document.createElement('div');
+      rij.className = 'veld' + (v.t === 'vinkje' ? ' vinkje' : '');
+      const lab = document.createElement('label');
+      lab.htmlFor = o.id + '-' + v.k;
+      lab.appendChild(document.createTextNode(v.l));
+      if (v.h) { const hint = document.createElement('span');
+        hint.className = 'hint'; hint.textContent = v.h; lab.appendChild(hint); }
+
+      let inv;
+      if (v.t === 'keuze') {
+        inv = document.createElement('select');
+        for (const opt of v.opties) {
+          const oe = document.createElement('option');
+          oe.value = opt.w; oe.textContent = opt.l; inv.appendChild(oe);
+        }
+      } else {
+        inv = document.createElement('input');
+        inv.type = v.t === 'vinkje' ? 'checkbox' : (v.t === 'datum' ? 'date' : 'number');
+        if (v.t === 'geheel') inv.step = '1';
+        else if (v.t === 'procent') inv.step = '0.01';
+        else if (v.t !== 'datum' && v.t !== 'vinkje') inv.step = 'any';
+      }
+      inv.id = o.id + '-' + v.k;
+      const waarde = schrijfVeld(v, invoer[o.id][v.k]);
+      if (v.t === 'vinkje') inv.checked = waarde; else inv.value = waarde;
+      inv.addEventListener('input', () => {
+        invoer[o.id][v.k] = leesVeld(v, v.t === 'vinkje' ? inv.checked : inv.value);
+        rekenEnToon(o);
+      });
+      inv.addEventListener('change', () => {
+        invoer[o.id][v.k] = leesVeld(v, v.t === 'vinkje' ? inv.checked : inv.value);
+        rekenEnToon(o);
+      });
+
+      if (v.t === 'vinkje') { rij.appendChild(inv); rij.appendChild(lab); }
+      else { rij.appendChild(lab); rij.appendChild(inv); }
+      fs.appendChild(rij);
+    }
+    main.appendChild(fs);
+  }
+
+  /* Reeksinvoer */
+  if (o.reeks) {
+    const fs = document.createElement('fieldset');
+    const lg = document.createElement('legend'); lg.textContent = o.reeks.l; fs.appendChild(lg);
+    const wrap = document.createElement('div'); wrap.className = 'reeks-wrap';
+    const tb = document.createElement('table'); tb.className = 'reeks';
+    const thead = document.createElement('thead'); const trh = document.createElement('tr');
+    const th0 = document.createElement('th'); th0.textContent = 'Maand'; trh.appendChild(th0);
+    for (const k of o.reeks.kolommen) {
+      const th = document.createElement('th');
+      th.textContent = k.charAt(0).toUpperCase() + k.slice(1); trh.appendChild(th);
+    }
+    thead.appendChild(trh); tb.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    for (let n = 0; n < o.reeks.aantal; n++) {
+      const tr = document.createElement('tr');
+      const td0 = document.createElement('td');
+      const label = o.reeks.beginLabel + n;
+      td0.textContent = label === 0 ? 'start' : label;
+      tr.appendChild(td0);
+      for (const k of o.reeks.kolommen) {
+        const td = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.type = 'number'; inp.step = 'any';
+        const cel = reeksen[o.id][n];
+        const huidigeWaarde = o.reeks.kolommen.length === 1 ? cel : (cel ? cel[k] : null);
+        inp.value = huidigeWaarde ?? '';
+        inp.addEventListener('input', () => {
+          const w = inp.value === '' ? null : Number(inp.value);
+          if (o.reeks.kolommen.length === 1) reeksen[o.id][n] = w;
+          else {
+            if (!reeksen[o.id][n]) reeksen[o.id][n] = {};
+            reeksen[o.id][n][k] = w;
+          }
+          rekenEnToon(o);
+        });
+        td.appendChild(inp); tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    tb.appendChild(tbody); wrap.appendChild(tb); fs.appendChild(wrap);
+
+    const kn = document.createElement('div'); kn.className = 'knoppen';
+    const leeg = document.createElement('button');
+    leeg.type = 'button'; leeg.className = 'actie'; leeg.textContent = 'Reeks leegmaken';
+    leeg.addEventListener('click', () => {
+      reeksen[o.id] = Array.from({ length: o.reeks.aantal }, () => {
+        if (o.reeks.kolommen.length === 1) return null;
+        const r = {}; for (const k of o.reeks.kolommen) r[k] = null; return r;
+      });
+      toon();
+    });
+    kn.appendChild(leeg); fs.appendChild(kn);
+    main.appendChild(fs);
+  }
+
+  const uitVak = document.createElement('div'); uitVak.id = 'uitvak';
+  main.appendChild(uitVak);
+  rekenEnToon(o);
+}
+
+function rekenEnToon(o) {
+  const vak = document.getElementById('uitvak');
+  if (!vak) return;
+  vak.textContent = '';
+
+  const i = { ...invoer[o.id] };
+  if (o.reeks) {
+    i[o.reeks.k] = o.reeks.kolommen.length === 1
+      ? reeksen[o.id].map(x => x || 0)
+      : reeksen[o.id].map(x => x || {});
+  }
+
+  let r;
+  try { r = o.reken(i); }
+  catch (e) { r = { fout: 'De berekening kon niet worden uitgevoerd: ' + e.message }; }
+
+  const fs = document.createElement('fieldset');
+  const lg = document.createElement('legend'); lg.textContent = 'Berekening'; fs.appendChild(lg);
+
+  if (r && r.fout) {
+    const m = document.createElement('p'); m.className = 'melding fout'; m.textContent = r.fout;
+    fs.appendChild(m); vak.appendChild(fs); return;
+  }
+
+  const tb = document.createElement('table'); tb.className = 'uit';
+  for (const regel of o.uit(r)) {
+    const tr = document.createElement('tr');
+    if (regel[2]) tr.className = 'hoofd';
+    const td1 = document.createElement('td'); td1.textContent = regel[0];
+    const td2 = document.createElement('td'); td2.className = 'w'; td2.textContent = regel[1];
+    tr.appendChild(td1); tr.appendChild(td2); tb.appendChild(tr);
+  }
+  fs.appendChild(tb);
+
+  const meldingen = o.meldingen ? o.meldingen(r) : (r.meldingen || []);
+  for (const m of meldingen) {
+    const p = document.createElement('p');
+    p.className = 'melding ' + (m.soort === 'fout' ? 'fout' : m.soort === 'info' ? 'info' : 'let');
+    p.textContent = m.tekst +
+      (m.bedrag === undefined ? '' : euro(m.bedrag)) +
+      (m.staart || '');
+    fs.appendChild(p);
+  }
+  vak.appendChild(fs);
+
+  const schema = o.schema ? o.schema(r) : null;
+  if (schema) {
+    const fs2 = document.createElement('fieldset');
+    const lg2 = document.createElement('legend'); lg2.textContent = 'Uitwerking'; fs2.appendChild(lg2);
+    const wrap = document.createElement('div'); wrap.className = 'schema-wrap';
+    const tb2 = document.createElement('table'); tb2.className = 'schema';
+    const thead = document.createElement('thead'); const trh = document.createElement('tr');
+    for (const k of schema.koppen) {
+      const th = document.createElement('th'); th.textContent = k; trh.appendChild(th);
+    }
+    thead.appendChild(trh); tb2.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    for (const rij of schema.rijen) {
+      const tr = document.createElement('tr');
+      for (const c of rij) { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); }
+      tbody.appendChild(tr);
+    }
+    tb2.appendChild(tbody); wrap.appendChild(tb2); fs2.appendChild(wrap);
+    fs2.style.padding = '16px 18px';
+    vak.appendChild(fs2);
+  }
+
+  const bron = document.createElement('p'); bron.className = 'bron';
+  bron.textContent = 'De vindplaats van elke jaargebonden waarde staat in BRONNEN.md ' +
+    'en in het commentaar bij de waarde in de rekenkern van dit bestand.';
+  vak.appendChild(bron);
+}
+
+bouwNavigatie();
+toon();
+</script>
