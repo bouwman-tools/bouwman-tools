@@ -150,6 +150,12 @@ repository; ze zijn los geupload.
   is die dag gedaan om `berekeningen.html` in `APP_IDS` live te krijgen; de KV-binding
   `PERMISSIONS` bleef bestaan. Draaiende versie daarna: 22899ac8, daarvóór 5da12ce2.
   Terugrollen kan met `npx wrangler rollback --name access-beheer`.
+- Op 04-09-2026 opnieuw zo gedeployd, om de vier Access-apps van dat moment in `APP_IDS`
+  live te krijgen: `transitievergoeding.html`, `dcf-rekentool.html`, `rc-rente.html` en
+  `dividend-scenarios.html`. De KV-binding `PERMISSIONS` bleef opnieuw bestaan. Draaiende
+  versie daarna: 5aa32000, daarvóór 22899ac8. Let op: `npx wrangler whoami` en `deploy`
+  doen er op deze machine ruim een minuut over en geven ondertussen geen uitvoer; dat is
+  geen vastloper.
 - **Deployen alleen is niet genoeg.** `syncCFAccess` loopt uitsluitend bij een opslag- of
   verwijderactie op een gebruiker, niet periodiek. Heb je rechten toegekend vóór de
   deploy, dan staat de Access-policy nog op de oude lijst: sla daarna in `beheer.html`
