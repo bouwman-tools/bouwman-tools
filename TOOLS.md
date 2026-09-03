@@ -58,19 +58,25 @@ Bijgewerkt: 2026-09-03
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
+| 🔵 concept | DCF-rekenmodel | nog niet gepubliceerd | bouwman-tools/dcf-rekenmodel | n.v.t. | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🔵 concept | Dividendscenario's | nog niet gepubliceerd | bouwman-tools/dividend-scenarios | n.v.t. | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | **tbd** | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+| 🔵 concept | Rente rekening-courant | nog niet gepubliceerd | bouwman-tools/rc-rente-rekenmodel | n.v.t. | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
 
 - **BV Ja/Nee**: Rekent door of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
+- **DCF-rekenmodel**: Waardering via de discounted-cashflowmethode; nabouw van het Excel-rekenmodel, met onderbouwing van de rendementseis
 - **Dividend & Uitkeringstoets**: Doorloopt de balanstoets en liquiditeitstoets (art. 2:216 BW) en genereert direct AVA-notulen en bestuursbesluit
+- **Dividendscenario's**: Dividendscenario's voor de dga: scenariovergelijking en spreiding over jaren
 - **Earningsstripping**: Rekent de renteaftrekbeperking van art. 15b Wet Vpb door: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
 - **Gebruikelijk loon**: Toetst het DGA-loon aan de wettelijke norm: vergelijkingsloon, hoogste werknemer en afroommethode
 - **Herstructurering**: Rekent herstructureringstrajecten stap voor stap door en adviseert met AI
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
+- **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding; nabouw van het Excel-rekenmodel
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
 
 ## Belastingdienst
