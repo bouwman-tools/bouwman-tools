@@ -27,6 +27,7 @@ const APP_IDS = {
   'join-prijsafspraken.html':            '58eeec00-dc06-4b2f-ae46-08855ad22a8f',
   'earningsstripping.html':              'a1b924eb-7479-4917-bdff-be5a0152713b',
   'xaf_export.html':                     '4c8d9861-2a87-4deb-8f9a-43727cede8f5',
+  'berekeningen.html':                   'c028c0a1-4ee7-457d-ac69-624194c6b3c4',
 };
 
 export default {
