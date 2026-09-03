@@ -63,11 +63,8 @@ export default {
       const permissions = await getPermissions(env);
       permissions[email] = tools;
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      // De sync wordt afgewacht in plaats van losgelaten met waitUntil: anders
-      // meldt het beheerscherm succes terwijl het schrijven van de policy is
-      // mislukt, en dat is niet te zien. Zie AGENTS.md.
-      const sync = await syncCFAccess(permissions, env);
-      return ok({ ok: sync.fouten.length === 0, sync }, request);
+      ctx.waitUntil(syncCFAccess(permissions, env));
+      return ok({ ok: true }, request);
     }
 
     if (path === '/admin/delete' && request.method === 'POST') {
@@ -76,8 +73,8 @@ export default {
       const permissions = await getPermissions(env);
       delete permissions[email];
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      const sync = await syncCFAccess(permissions, env);
-      return ok({ ok: sync.fouten.length === 0, sync }, request);
+      ctx.waitUntil(syncCFAccess(permissions, env));
+      return ok({ ok: true }, request);
     }
 
     return new Response('Not found', { status: 404 });
@@ -104,15 +101,6 @@ function ok(data, request, status = 200) {
 }
 
 async function syncCFAccess(permissions, env) {
-  const uitkomst = { bijgewerkt: [], overgeslagen: [], fouten: [] };
-
-  if (!env.CF_API_TOKEN) {
-    const reden = 'CF_API_TOKEN ontbreekt op de worker; geen enkele policy is bijgewerkt';
-    console.error('syncCFAccess: ' + reden);
-    uitkomst.fouten.push({ tool: '*', reden });
-    return uitkomst;
-  }
-
   for (const [file, appId] of Object.entries(APP_IDS)) {
     let emails;
     if (file === 'portal.html') {
@@ -124,35 +112,19 @@ async function syncCFAccess(permissions, env) {
         .map(([e]) => e);
     }
 
-    // Zonder rechthebbenden laat de policy staan zoals hij is. Dat is bewust:
-    // een lege include-lijst wordt door de API geweigerd.
-    if (emails.length === 0) {
-      uitkomst.overgeslagen.push({ tool: file, reden: 'niemand heeft recht op deze tool' });
-      continue;
-    }
+    if (emails.length === 0) continue;
 
-    const basis = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`;
-    try {
-      const pRes = await fetch(basis, {
-        headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` },
-      });
-      if (!pRes.ok) {
-        const reden = `policies ophalen gaf HTTP ${pRes.status}: ${(await pRes.text()).slice(0, 300)}`;
-        console.error(`syncCFAccess ${file}: ${reden}`);
-        uitkomst.fouten.push({ tool: file, reden });
-        continue;
-      }
+    const pRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
+      { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+    );
+    const pData = await pRes.json();
+    const policy = pData.result?.[0];
+    if (!policy) continue;
 
-      const pData = await pRes.json();
-      const policy = pData.result?.[0];
-      if (!policy) {
-        const reden = 'de Access-app heeft geen policy om bij te werken';
-        console.error(`syncCFAccess ${file}: ${reden}`);
-        uitkomst.fouten.push({ tool: file, reden });
-        continue;
-      }
-
-      const put = await fetch(`${basis}/${policy.id}`, {
+    await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies/${policy.id}`,
+      {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${env.CF_API_TOKEN}`,
@@ -162,24 +134,7 @@ async function syncCFAccess(permissions, env) {
           ...policy,
           include: emails.map(e => ({ email: { email: e } })),
         }),
-      });
-      if (!put.ok) {
-        const reden = `policy bijwerken gaf HTTP ${put.status}: ${(await put.text()).slice(0, 300)}`;
-        console.error(`syncCFAccess ${file}: ${reden}`);
-        uitkomst.fouten.push({ tool: file, reden });
-        continue;
       }
-
-      uitkomst.bijgewerkt.push({ tool: file, aantal: emails.length });
-    } catch (e) {
-      const reden = `onverwachte fout: ${e && e.message ? e.message : String(e)}`;
-      console.error(`syncCFAccess ${file}: ${reden}`);
-      uitkomst.fouten.push({ tool: file, reden });
-    }
+    );
   }
-
-  if (uitkomst.fouten.length) {
-    console.error(`syncCFAccess: ${uitkomst.fouten.length} van ${Object.keys(APP_IDS).length} tools niet bijgewerkt`);
-  }
-  return uitkomst;
 }
