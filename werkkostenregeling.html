@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Werkkostenregeling: vrije ruimte en eindheffing</title>
+<style>
+  :root {
+    --tekst: #1a1d21;
+    --zacht: #5a6472;
+    --lijn: #d7dce3;
+    --vlak: #f5f7fa;
+    --accent: #174a7a;
+    --goed: #1d6b3f;
+    --let-op: #8a4b00;
+    --fout: #a3231c;
+    --radius: 6px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 0 4rem;
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--tekst);
+    background: #fff;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.4rem 1.5rem;
+  }
+  header h1 { margin: 0; font-size: 1.35rem; font-weight: 600; }
+  header p { margin: .35rem 0 0; font-size: .9rem; opacity: .9; }
+  main { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin-top: 2rem; }
+  h2 {
+    font-size: 1.05rem;
+    margin: 0 0 .75rem;
+    padding-bottom: .35rem;
+    border-bottom: 2px solid var(--lijn);
+  }
+  h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
+  .invoerrij { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end; }
+  .veld { display: flex; flex-direction: column; gap: .3rem; }
+  .veld label { font-size: .85rem; color: var(--zacht); }
+  .veld input, .veld select {
+    font: inherit;
+    padding: .45rem .55rem;
+    border: 1px solid var(--lijn);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .veld input[type=number] { width: 11rem; text-align: right; }
+  .veld select { width: 8rem; }
+  .toelichting { font-size: .82rem; color: var(--zacht); margin: .4rem 0 0; }
+  table { width: 100%; border-collapse: collapse; }
+  .posten th, .posten td { padding: .3rem .5rem; text-align: left; vertical-align: top; }
+  .posten th { font-size: .8rem; color: var(--zacht); font-weight: 600; }
+  .posten tbody tr:nth-child(odd) { background: var(--vlak); }
+  .posten td.bedrag { width: 9.5rem; }
+  .posten input.bedrag {
+    font: inherit;
+    width: 100%;
+    text-align: right;
+    padding: .25rem .4rem;
+    border: 1px solid var(--lijn);
+    border-radius: var(--radius);
+  }
+  .posten td.grond { width: 15rem; font-size: .78rem; color: var(--zacht); }
+  .uitkomst { background: var(--vlak); border: 1px solid var(--lijn); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .uitkomst table td { padding: .3rem 0; }
+  .uitkomst table td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .uitkomst tr.hoofd td { font-weight: 600; border-top: 1px solid var(--lijn); padding-top: .5rem; }
+  .uitkomst tr.slot td { font-size: 1.1rem; font-weight: 700; border-top: 2px solid var(--accent); padding-top: .5rem; }
+  .melding { border-left: 4px solid var(--let-op); background: #fff8ef; padding: .6rem .85rem; margin: .75rem 0; font-size: .88rem; border-radius: 0 var(--radius) var(--radius) 0; }
+  .melding.fout { border-color: var(--fout); background: #fdf1f0; }
+  .melding.goed { border-color: var(--goed); background: #f1f8f3; }
+  details { border: 1px solid var(--lijn); border-radius: var(--radius); padding: .6rem .85rem; margin-bottom: .6rem; }
+  details summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+  details ul { margin: .6rem 0 .2rem; padding-left: 1.2rem; }
+  details li { margin-bottom: .35rem; }
+  .bron { font-size: .78rem; color: var(--zacht); }
+  footer { max-width: 1080px; margin: 2.5rem auto 0; padding: 1rem 1.5rem 0; border-top: 1px solid var(--lijn); font-size: .8rem; color: var(--zacht); }
+  @media print {
+    header { background: #fff; color: #000; border-bottom: 2px solid #000; }
+    details { break-inside: avoid; }
+    .posten tbody tr:nth-child(odd) { background: #fff; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Werkkostenregeling: vrije ruimte en eindheffing</h1>
+  <p>Berekent de vrije ruimte en de eindheffing van 80% per inhoudingsplichtige, voor de jaren 2024 tot en met 2026.</p>
+</header>
+<main>
+  <section>
+    <h2>1. Loonsom en jaar</h2>
+    <div class="invoerrij">
+      <div class="veld">
+        <label for="jaar">Kalenderjaar</label>
+        <select id="jaar">
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+        </select>
+      </div>
+      <div class="veld">
+        <label for="fiscaalLoon">Totaal fiscaal loon (kolom 14 loonstaat)</label>
+        <input type="number" id="fiscaalLoon" step="0.01" min="0" value="0">
+      </div>
+      <div class="veld">
+        <label for="loonVroeger">Waarvan loon uit vroegere dienstbetrekking</label>
+        <input type="number" id="loonVroeger" step="0.01" min="0" value="0">
+      </div>
+      <div class="veld">
+        <label for="gage">Waarvan gage artiest of beroepssporter</label>
+        <input type="number" id="gage" step="0.01" min="0" value="0">
+      </div>
+      <div class="veld">
+        <label for="aantalWerknemers">Aantal werknemers (optioneel)</label>
+        <input type="number" id="aantalWerknemers" step="1" min="0" value="0">
+      </div>
+    </div>
+    <p class="toelichting">
+      Het totale fiscale loon is het gezamenlijke bedrag van kolom 14 van de loonstaat over het hele jaar.
+      Heeft u meerdere subnummers onder hetzelfde loonheffingennummer, dan telt u die bij elkaar op.
+      Wordt u in de loop van het jaar werkgever, dan mag u het loon niet herrekenen naar een vol jaar.
+      <span class="bron">Handboek Loonheffingen 2026, paragraaf 10.1.4.</span>
+    </p>
+  </section>
+
+  <section>
+    <h2>2. Aangewezen eindheffingsbestanddelen</h2>
+    <p class="toelichting">
+      Alleen wat u aanwijst als eindheffingsloon en niet gericht vrijgesteld of op nihil gewaardeerd is,
+      gaat ten koste van de vrije ruimte. Vul hier per post het aangewezen bedrag in, inclusief btw en
+      na aftrek van een eventuele eigen bijdrage van de werknemer. Een negatief saldo per post is niet
+      toegestaan. <span class="bron">Art. 31 lid 1 onderdeel f en g Wet LB 1964; Handboek Loonheffingen 2026, paragraaf 10.1.3.</span>
+    </p>
+    <table class="posten">
+      <thead>
+        <tr><th>Post</th><th>Bedrag</th><th class="grond">Grondslag</th></tr>
+      </thead>
+      <tbody id="postenLijst"></tbody>
+      <tfoot>
+        <tr>
+          <th style="text-align:right; padding-top:.6rem">Totaal aangewezen</th>
+          <th style="text-align:right; padding-top:.6rem; font-variant-numeric:tabular-nums" id="totaalAangewezen">0,00</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. Uitkomst</h2>
+    <div id="meldingen"></div>
+    <div class="uitkomst">
+      <table>
+        <tbody id="uitkomstRegels"></tbody>
+      </table>
+    </div>
+    <div id="notities"></div>
+  </section>
+
+  <section>
+    <h2>4. Wat niet ten koste gaat van de vrije ruimte</h2>
+    <p class="toelichting">Naslag bij het invullen. Deze posten telt de tool niet mee.</p>
+    <div id="naslag"></div>
+  </section>
+
+  <section>
+    <h2>5. Wat deze tool niet doet</h2>
+    <div id="afbakening"></div>
+  </section>
+</main>
+<footer>
+  <p id="voetnoot"></p>
+</footer>
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+// Alle vindplaatsen zijn gecontroleerd op 2 september 2026.
+
+// Vrije ruimte en eindheffingstarief per kalenderjaar.
+// Bron: art. 31a lid 2 (tarief) en lid 3 (percentages en loongrens) Wet LB 1964,
+// per jaar gelezen in de op dat jaar geldende versie op wetten.overheid.nl (BWBR0002471).
+// Doelmatigheidsgrens: bedrag dat de Belastingdienst zonder nadere toets als gebruikelijk
+// aanmerkt bij de gebruikelijkheidseis van art. 31 lid 1 onderdeel f Wet LB 1964.
+const WKR_PER_JAAR = {
+  2024: {
+    lagePercentage: 0.0192,   // art. 31a lid 3 onderdeel a, versie 2024-01-01
+    hogePercentage: 0.0118,   // art. 31a lid 3 onderdeel b, versie 2024-01-01
+    loongrens: 400000,        // art. 31a lid 3, versie 2024-01-01
+    eindheffingstarief: 0.80, // art. 31a lid 2, versie 2024-01-01
+    doelmatigheidsgrens: 2400 // Handboek Loonheffingen 2024 (oktober 2024), par. 4.2
+  },
+  2025: {
+    lagePercentage: 0.02,     // art. 31a lid 3 onderdeel a, versie 2025-01-01
+    hogePercentage: 0.0118,   // art. 31a lid 3 onderdeel b, versie 2025-01-01
+    loongrens: 400000,        // art. 31a lid 3, versie 2025-01-01
+    eindheffingstarief: 0.80, // art. 31a lid 2, versie 2025-01-01
+    doelmatigheidsgrens: 2400 // Handboek Loonheffingen 2025 (oktober 2025), par. 4.2
+  },
+  2026: {
+    lagePercentage: 0.02,     // art. 31a lid 3 onderdeel a, versie 2026-02-21
+    hogePercentage: 0.0118,   // art. 31a lid 3 onderdeel b, versie 2026-02-21
+    loongrens: 400000,        // art. 31a lid 3, versie 2026-02-21
+    eindheffingstarief: 0.80, // art. 31a lid 2, versie 2026-02-21
+    doelmatigheidsgrens: 2400 // Handboek Loonheffingen 2026 (maart 2026), par. 4.2 en KG:204:2025:11
+  }
+};
+
+// Let op bij onderhoud: per 1 januari 2027 gaat het lage percentage naar 2,16%
+// (art. 31a lid 3 onderdeel a, toekomstige versie 2027-01-01 op wetten.overheid.nl).
+// Het jaar 2027 is bewust nog niet opgenomen: de tool mag geen jaar doorrekenen
+// waarvan de waarden niet volledig zijn gecontroleerd.
+
+// Normbedragen die de tool alleen toont, niet doorrekent. Ze helpen bij het bepalen
+// van het bovenmatige deel dat de gebruiker zelf als aangewezen bedrag invult.
+const NORMEN_PER_JAAR = {
+  2024: {
+    kilometervergoeding: 0.23,       // art. 31a lid 2 onderdeel a onder 3 en lid 6 Wet LB 1964, versie 2024-01-01
+    kilometerBron: 'wet',
+    thuiswerkvergoeding: 2.35,       // art. 31a lid 2 onderdeel k, versie 2024-01-01
+    verhuisforfait: 7750,            // art. 31a lid 2 onderdeel f, versie 2024-01-01
+    productenEigenBedrijfDeel: 0.20, // art. 31a lid 2 onderdeel i, versie 2024-01-01
+    productenEigenBedrijfMax: 500,   // art. 31a lid 2 onderdeel i, versie 2024-01-01
+    maaltijdWerkplek: 3.90,          // art. 3.8 onderdeel a Uitv.reg. LB 2011 (BWBR0028236), versie 2024-01-01
+    huisvestingPerDag: 6.70,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2024-01-01
+    fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2024-01-01
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2024, par. 4.12.1
+  },
+  2025: {
+    kilometervergoeding: 0.23,       // art. 31a lid 2 onderdeel a onder 3 en lid 6, versie 2025-01-01
+    kilometerBron: 'wet',
+    thuiswerkvergoeding: 2.40,       // art. 31a lid 2 onderdeel k, versie 2025-01-01
+    verhuisforfait: 7750,            // art. 31a lid 2 onderdeel f, versie 2025-01-01
+    productenEigenBedrijfDeel: 0.20, // art. 31a lid 2 onderdeel i, versie 2025-01-01
+    productenEigenBedrijfMax: 500,   // art. 31a lid 2 onderdeel i, versie 2025-01-01
+    maaltijdWerkplek: 3.95,          // art. 3.8 onderdeel a Uitv.reg. LB 2011, versie 2025-01-01
+    huisvestingPerDag: 6.80,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2025-01-01
+    fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2025-01-01
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2025, par. 4.12.1
+  },
+  2026: {
+    // De wet noemt in 2026 nog 0,23 per kilometer. Het beleidsbesluit hieronder keurt
+    // 0,25 goed met terugwerkende kracht tot en met 1 januari 2026, ook voor de
+    // salderingsbepalingen van art. 13a lid 4 onderdeel e en art. 31a lid 6 Wet LB 1964.
+    // Bron: besluit van de Staatssecretaris van Financien van 17 mei 2026,
+    // Stcrt. 2026, 18302, onderdeel 2.1 (Beleidsbesluit fiscale maatregelen naar
+    // aanleiding van de energieschok). Het besluit vervalt met ingang van 1 januari 2027.
+    kilometervergoeding: 0.25,
+    kilometerBron: 'besluit',
+    thuiswerkvergoeding: 2.45,       // art. 31a lid 2 onderdeel k Wet LB 1964, versie 2026-02-21
+    verhuisforfait: 7750,            // art. 31a lid 2 onderdeel f, versie 2026-02-21
+    productenEigenBedrijfDeel: 0.20, // art. 31a lid 2 onderdeel i, versie 2026-02-21
+    productenEigenBedrijfMax: 500,   // art. 31a lid 2 onderdeel i, versie 2026-02-21
+    maaltijdWerkplek: 4.05,          // art. 3.8 onderdeel a Uitv.reg. LB 2011, versie 2026-01-01
+    huisvestingPerDag: 7.00,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2026-01-01
+    fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2026-02-21
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2026, par. 4.12.1
+  }
+};
+
+// Aandeel loon uit vroegere dienstbetrekking waarboven dat loon buiten de grondslag blijft.
+// Bron: Handboek Loonheffingen 2026, par. 10.1.4 (beleid, geen wettekst).
+const DREMPEL_LOON_VROEGERE_DIENSTBETREKKING = 0.10;
+
+// Alle geldbedragen worden op centen afgerond. Zonder deze afronding leveren
+// percentages als 1,92% van 400.000 een binaire restfout op (7680.000000000001).
+function centen(bedrag) {
+  return Math.round((bedrag + Number.EPSILON) * 100) / 100;
+}
+
+function jaarwaarden(jaar) {
+  const waarden = WKR_PER_JAAR[jaar];
+  if (!waarden) {
+    throw new Error(
+      'Voor ' + jaar + ' zijn geen gecontroleerde waarden opgenomen. Beschikbaar: ' +
+      Object.keys(WKR_PER_JAAR).join(', ') + '.'
+    );
+  }
+  return waarden;
+}
+
+function normen(jaar) {
+  const waarden = NORMEN_PER_JAAR[jaar];
+  if (!waarden) {
+    throw new Error('Voor ' + jaar + ' zijn geen normbedragen opgenomen.');
+  }
+  return waarden;
+}
+
+function getal(waarde, naam) {
+  const n = typeof waarde === 'number' ? waarde : Number(waarde);
+  if (!Number.isFinite(n)) {
+    throw new Error(naam + ' is geen bedrag.');
+  }
+  if (n < 0) {
+    throw new Error(naam + ' mag niet negatief zijn.');
+  }
+  return n;
+}
+
+// Grondslag voor de vrije ruimte: het totale fiscale loon, verminderd met de gage van
+// artiesten en beroepssporters, en verminderd met loon uit vroegere dienstbetrekking
+// zodra dat meer is dan 10% van dat loon.
+// Bron: art. 31a lid 3 Wet LB 1964; Handboek Loonheffingen 2026, par. 10.1.4.
+function grondslagVrijeRuimte(invoer) {
+  const fiscaalLoon = getal(invoer.fiscaalLoonKolom14, 'Totaal fiscaal loon');
+  const gage = getal(invoer.gageArtiestenBeroepssporters || 0, 'Gage artiest of beroepssporter');
+  const loonVroeger = getal(invoer.loonVroegereDienstbetrekking || 0, 'Loon uit vroegere dienstbetrekking');
+
+  if (centen(gage + loonVroeger) > fiscaalLoon) {
+    throw new Error('Gage en loon uit vroegere dienstbetrekking zijn samen hoger dan het totale fiscale loon.');
+  }
+
+  const naGage = centen(fiscaalLoon - gage);
+  const aandeelVroeger = naGage > 0 ? loonVroeger / naGage : 0;
+  const vroegereUitgesloten = loonVroeger > 0 && aandeelVroeger > DREMPEL_LOON_VROEGERE_DIENSTBETREKKING;
+
+  return {
+    grondslag: vroegereUitgesloten ? centen(naGage - loonVroeger) : naGage,
+    aandeelVroeger: aandeelVroeger,
+    vroegereUitgesloten: vroegereUitgesloten,
+    gageAfgetrokken: gage > 0
+  };
+}
+
+// Tweeschijvenberekening van de vrije ruimte.
+// Bron: art. 31a lid 3 Wet LB 1964.
+function vrijeRuimte(invoer) {
+  const waarden = jaarwaarden(invoer.jaar);
+  const grondslag = getal(invoer.grondslag, 'Grondslag');
+
+  const schijf1Grondslag = Math.min(grondslag, waarden.loongrens);
+  const schijf2Grondslag = Math.max(0, centen(grondslag - waarden.loongrens));
+
+  const schijf1 = centen(schijf1Grondslag * waarden.lagePercentage);
+  const schijf2 = centen(schijf2Grondslag * waarden.hogePercentage);
+
+  return {
+    schijf1Grondslag: schijf1Grondslag,
+    schijf1: schijf1,
+    schijf2Grondslag: schijf2Grondslag,
+    schijf2: schijf2,
+    totaal: centen(schijf1 + schijf2),
+    lagePercentage: waarden.lagePercentage,
+    hogePercentage: waarden.hogePercentage,
+    loongrens: waarden.loongrens
+  };
+}
+
+// Signaal bij de gebruikelijkheidseis. Rekent niets aan de eindheffing, maar geeft aan
+// dat het gemiddelde aangewezen bedrag per werknemer boven het bedrag uitkomt dat de
+// Belastingdienst zonder nadere toets als gebruikelijk aanmerkt.
+// Bron: art. 31 lid 1 onderdeel f Wet LB 1964; Handboek Loonheffingen 2026, par. 4.2.
+function gebruikelijkheidssignaal(invoer) {
+  const waarden = jaarwaarden(invoer.jaar);
+  const aantal = getal(invoer.aantalWerknemers || 0, 'Aantal werknemers');
+  if (aantal <= 0) return null;
+
+  const gemiddelde = centen(getal(invoer.totaalAangewezen, 'Totaal aangewezen') / aantal);
+  return {
+    grens: waarden.doelmatigheidsgrens,
+    gemiddeldePerWerknemer: gemiddelde,
+    boven: gemiddelde > waarden.doelmatigheidsgrens
+  };
+}
+
+// Volledige berekening: grondslag, vrije ruimte, overschrijding en eindheffing.
+// Bron: art. 31a lid 2 en lid 3 Wet LB 1964; Handboek Loonheffingen 2026, par. 10.1.4 en 10.1.5.
+function berekenWkr(invoer) {
+  const waarden = jaarwaarden(invoer.jaar);
+  const bedragen = invoer.aangewezenBedragen || [];
+  if (!Array.isArray(bedragen)) {
+    throw new Error('Aangewezen bedragen moeten als lijst worden aangeleverd.');
+  }
+
+  let totaalAangewezen = 0;
+  bedragen.forEach(function (bedrag, i) {
+    totaalAangewezen += getal(bedrag || 0, 'Aangewezen bedrag ' + (i + 1));
+  });
+  totaalAangewezen = centen(totaalAangewezen);
+
+  const grond = grondslagVrijeRuimte(invoer);
+  const ruimte = vrijeRuimte({ jaar: invoer.jaar, grondslag: grond.grondslag });
+
+  const overschrijding = Math.max(0, centen(totaalAangewezen - ruimte.totaal));
+  const eindheffing = centen(overschrijding * waarden.eindheffingstarief);
+
+  return {
+    jaar: invoer.jaar,
+    grondslag: grond.grondslag,
+    vroegereUitgesloten: grond.vroegereUitgesloten,
+    aandeelVroeger: grond.aandeelVroeger,
+    gageAfgetrokken: grond.gageAfgetrokken,
+    ruimte: ruimte,
+    vrijeRuimte: ruimte.totaal,
+    totaalAangewezen: totaalAangewezen,
+    onbenutteRuimte: Math.max(0, centen(ruimte.totaal - totaalAangewezen)),
+    overschrijding: overschrijding,
+    eindheffingstarief: waarden.eindheffingstarief,
+    eindheffing: eindheffing,
+    benutting: ruimte.totaal > 0 ? totaalAangewezen / ruimte.totaal : null
+  };
+}
+// FISCALE KERN — EINDE
+
+// ---------------------------------------------------------------------------
+// Weergave. Vanaf hier geen rekenregels meer: alles komt uit de kern hierboven.
+// ---------------------------------------------------------------------------
+
+const euro = function (bedrag, decimalen) {
+  return new Intl.NumberFormat('nl-NL', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: decimalen === undefined ? 2 : decimalen,
+    maximumFractionDigits: decimalen === undefined ? 2 : decimalen
+  }).format(bedrag);
+};
+
+const procent = function (deel, decimalen) {
+  return new Intl.NumberFormat('nl-NL', {
+    style: 'percent',
+    minimumFractionDigits: decimalen === undefined ? 2 : decimalen,
+    maximumFractionDigits: decimalen === undefined ? 2 : decimalen
+  }).format(deel);
+};
+
+// Posten die u kunt aanwijzen als eindheffingsloon. De indeling volgt de wet:
+// eerst het bovenmatige deel van de gerichte vrijstellingen, daarna het loon
+// in natura en de vergoedingen waarvoor geen vrijstelling bestaat.
+const POSTEN = [
+  {
+    label: function (n) { return 'Bovenmatig deel reiskostenvergoeding eigen vervoer (boven ' + euro(n.kilometervergoeding) + ' per km)'; },
+    grond: 'Art. 31a lid 2 onderdeel a onder 3 en lid 6 Wet LB 1964'
+  },
+  {
+    label: function (n) { return 'Bovenmatig deel thuiswerkvergoeding (boven ' + euro(n.thuiswerkvergoeding) + ' per thuiswerkdag)'; },
+    grond: 'Art. 31a lid 2 onderdeel k Wet LB 1964'
+  },
+  {
+    label: function (n) { return 'Bovenmatig deel verhuiskostenvergoeding (boven overbrengen inboedel plus ' + euro(n.verhuisforfait, 0) + ')'; },
+    grond: 'Art. 31a lid 2 onderdeel f Wet LB 1964'
+  },
+  {
+    label: function (n) { return 'Bovenmatig deel producten uit eigen bedrijf (boven ' + procent(n.productenEigenBedrijfDeel, 0) + ' van de waarde of boven ' + euro(n.productenEigenBedrijfMax, 0) + ' per werknemer)'; },
+    grond: 'Art. 31a lid 2 onderdeel i Wet LB 1964'
+  },
+  {
+    label: function () { return 'Bovenmatig deel overige gerichte vrijstellingen (studie, congressen, verblijfskosten, OV en dergelijke)'; },
+    grond: 'Art. 31a lid 2 onderdelen b tot en met j Wet LB 1964'
+  },
+  {
+    label: function () { return 'Vaste kostenvergoeding zonder onderzoek naar de werkelijke kosten'; },
+    grond: 'Art. 31a lid 4 Wet LB 1964'
+  },
+  {
+    label: function () { return 'Extraterritoriale kosten: uitgaven levensonderhoud en privegesprekskosten'; },
+    grond: 'Art. 31a lid 2 onderdeel e onder 1 en 2 Wet LB 1964'
+  },
+  {
+    label: function () { return 'Gereedschappen, computers en communicatiemiddelen die niet noodzakelijk zijn voor de dienstbetrekking'; },
+    grond: 'Art. 31a lid 2 onderdeel g Wet LB 1964 (voorwaarden niet vervuld)'
+  },
+  {
+    label: function (n) { return 'Maaltijden op de werkplek en in de bedrijfskantine, ' + euro(n.maaltijdWerkplek) + ' per maaltijd minus eigen bijdrage'; },
+    grond: 'Art. 3.8 onderdeel a Uitvoeringsregeling LB 2011'
+  },
+  {
+    label: function (n) { return 'Huisvesting en inwoning op de werkplek, ' + euro(n.huisvestingPerDag) + ' per dag minus eigen bijdrage'; },
+    grond: 'Art. 3.8 onderdeel b Uitvoeringsregeling LB 2011'
+  },
+  {
+    label: function () { return 'Kinderopvang door de werkgever verzorgd, uurprijs Wet kinderopvang minus eigen bijdrage'; },
+    grond: 'Art. 3.8 onderdeel c Uitvoeringsregeling LB 2011'
+  },
+  {
+    label: function () { return 'Personeelsfeesten, personeelsreizen en maaltijden buiten de werkplek'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964 (geen vrijstelling of nihilwaardering)'
+  },
+  {
+    label: function (n) { return 'Kerstpakketten en andere geschenken die niet persoonlijk zijn of meer waard zijn dan ' + euro(n.attentieGeenLoon, 0); },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964; Handboek Loonheffingen, par. 4.12.1'
+  },
+  {
+    label: function (n) { return 'Privegebruik ter beschikking gestelde fiets, ' + procent(n.fietsDeel, 0) + ' van de waarde minus eigen bijdrage'; },
+    grond: 'Art. 13ter lid 1 en 2 Wet LB 1964'
+  },
+  {
+    label: function () { return 'Vergoeding of verstrekking van een fiets, elektrische fiets of scooter in eigendom'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964'
+  },
+  {
+    label: function () { return 'Contributies personeelsvereniging, vakbond, sportclub of serviceclub'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964'
+  },
+  {
+    label: function () { return 'Arbo-voorzieningen die niet verplicht zijn op grond van de Arbowet, en bedrijfsfitness buiten de werkplek'; },
+    grond: 'Art. 31a lid 2 onderdeel h Wet LB 1964 (buiten de aanwijzing van art. 3.7 en 3.7a Uitv.reg. LB 2011)'
+  },
+  {
+    label: function () { return 'Rentevoordeel personeelslening anders dan voor de eigen woning'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964; uitgesloten is alleen de eigenwoninglening'
+  },
+  {
+    label: function () { return 'Werkruimte bij de werknemer thuis, inclusief inrichting'; },
+    grond: 'Art. 31a lid 2 onderdeel d onder 1 Wet LB 1964 (uitgezonderd van de vrijstelling)'
+  },
+  {
+    label: function () { return 'Niet verhaalde verkeersboetes op naam van de werkgever'; },
+    grond: 'Art. 31 lid 5 onderdeel c Wet LB 1964 geldt niet voor kentekenboetes van de werkgever'
+  },
+  {
+    label: function () { return 'Parkeer-, veer- en tolgelden bij eigen vervoer'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964'
+  },
+  {
+    label: function () { return 'Persoonlijke verzorging en representatiekosten aan werknemers'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964'
+  },
+  {
+    label: function () { return 'Bonus, gratificatie of ongespecificeerde kostenvergoeding'; },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964; let op de gebruikelijkheidseis'
+  },
+  {
+    label: function () { return 'Verstrekkingen aan postactieve werknemers, en producten uit eigen bedrijf aan postactieven'; },
+    grond: 'Art. 31 lid 1 onderdeel g Wet LB 1964 (altijd eindheffingsloon)'
+  },
+  { label: function () { return 'Overige post, vrij in te vullen'; }, grond: '' },
+  { label: function () { return 'Overige post, vrij in te vullen'; }, grond: '' },
+  { label: function () { return 'Overige post, vrij in te vullen'; }, grond: '' }
+];
+
+const NASLAG = [
+  {
+    kop: 'Geen loon, dus buiten de werkkostenregeling',
+    bron: 'Handboek Loonheffingen 2026, par. 4.12; art. 10 Wet LB 1964',
+    items: [
+      function (n) { return 'Voordelen buiten de dienstbetrekking, waaronder een persoonlijke attentie van maximaal ' + euro(n.attentieGeenLoon, 0) + ' die geen geld of waardebon is (par. 4.12.1)'; },
+      function () { return 'Vergoeding van intermediaire kosten die de werknemer voor de werkgever voorschiet (par. 4.12.2)'; },
+      function () { return 'Eenmalige uitkering bij 25 of 40 dienstjaren, tot maximaal het loon over een maand (art. 11 lid 1 onderdeel o Wet LB 1964)'; },
+      function () { return 'Verstrekkingen voor zover de werknemer de factuurwaarde als eigen bijdrage betaalt (par. 4.12.4)'; },
+      function () { return 'Vergoeding van materiele of immateriele schade die rechtstreeks uit de aansprakelijkheid van de werkgever volgt (par. 4.12.1)'; }
+    ]
+  },
+  {
+    kop: 'Gericht vrijgesteld, mits binnen de norm en aangewezen',
+    bron: 'Art. 31a lid 2 Wet LB 1964',
+    items: [
+      function (n) { return 'Vervoer in het kader van de dienstbetrekking, inclusief woon-werkverkeer, tot ' + euro(n.kilometervergoeding) + ' per km, of tot de werkelijke kosten bij taxi, vliegtuig, schip en vervoer vanwege de werkgever (onderdeel a)'; },
+      function () { return 'Tijdelijk verblijf in het kader van de dienstbetrekking en maaltijden met een meer dan bijkomstig zakelijk karakter (onderdeel b)'; },
+      function () { return 'Onderhoud en verbetering van kennis en vaardigheden, inschrijving beroepsregister en outplacement (onderdeel c)'; },
+      function () { return 'Opleiding of studie met het oog op inkomen uit werk en woning, behalve werkruimte en bovenmatige binnenlandse reizen (onderdeel d)'; },
+      function () { return 'Extraterritoriale kosten, behalve levensonderhoud en privegesprekskosten (onderdeel e)'; },
+      function (n) { return 'Verhuizing in het kader van de dienstbetrekking: overbrengen van de inboedel plus ' + euro(n.verhuisforfait, 0) + ' (onderdeel f)'; },
+      function () { return 'Gereedschappen, computers en communicatiemiddelen die noodzakelijk zijn voor de dienstbetrekking, met teruggaafplicht en niet voor bestuurder of commissaris (onderdeel g)'; },
+      function () { return 'Bij ministeriele regeling aangewezen werkplekvoorzieningen (onderdeel h)'; },
+      function (n) { return 'Branche-eigen producten tot ' + procent(n.productenEigenBedrijfDeel, 0) + ' van de waarde en maximaal ' + euro(n.productenEigenBedrijfMax, 0) + ' per werknemer per jaar (onderdeel i)'; },
+      function () { return 'Verklaring omtrent het gedrag (onderdeel j)'; },
+      function (n) { return 'Thuiswerken tot ' + euro(n.thuiswerkvergoeding) + ' per thuiswerkdag (onderdeel k)'; }
+    ]
+  },
+  {
+    kop: 'Nihilwaardering voorzieningen op de werkplek',
+    bron: 'Art. 13 lid 3 Wet LB 1964 jo. art. 3.7 Uitvoeringsregeling LB 2011',
+    items: [
+      function () { return 'Voorzieningen waarvan het niet gebruikelijk is deze elders te gebruiken of verbruiken, zoals de vaste werkplek, kantoorbenodigdheden en de parkeerplaats op het bedrijfsterrein (lid 1 onderdeel a)'; },
+      function () { return 'Ter beschikking gestelde kleding die alleen op het werk gedragen kan worden, of een logo heeft van ten minste 70 cm2, of achterblijft op de werkplek (lid 1 onderdeel b)'; },
+      function () { return 'Consumpties op de werkplek die geen deel uitmaken van een maaltijd (lid 1 onderdeel c)'; },
+      function () { return 'Huisvesting en inwoning op de werkplek waaraan de werknemer zich redelijkerwijs niet kan onttrekken (lid 1 onderdeel d)'; },
+      function () { return 'Bij een personeelsfestiviteit met een gezamenlijk karakter gelden alle werkplekken binnen het concern als werkplek (lid 2)'; },
+      function () { return 'Rentevoordeel van een lening voor een fiets, elektrische fiets of elektrische scooter (art. 13 lid 4 Wet LB 1964)'; }
+    ]
+  },
+  {
+    kop: 'Uitgesloten van aanwijzing, dus altijd loon van de werknemer',
+    bron: 'Art. 31 lid 5 Wet LB 1964',
+    items: [
+      function () { return 'Auto die ook voor privedoeleinden ter beschikking is gesteld, behalve buitengewone beveiligingsmaatregelen (onderdeel a)'; },
+      function () { return 'Woning, behalve buitengewone beveiliging en huisvesting buiten de woonplaats voor de dienstbetrekking (onderdeel b)'; },
+      function () { return 'Geldboeten van de strafrechter, bestuurlijke boeten en tuchtrechtelijke boeten (onderdeel c), en bestuursrechtelijke dwangsommen (onderdeel j)'; },
+      function () { return 'Misdrijven waarvoor de werknemer onherroepelijk is veroordeeld of een strafbeschikking heeft gekregen (onderdelen d en e)'; },
+      function () { return 'Wapens en munitie zonder vergunning (onderdeel f), en dieren die na een maatregel wegens agressie niet gehouden mogen worden (onderdeel g)'; },
+      function () { return 'Rentevoordeel en kosten van een personeelslening voor de eigen woning waarvan de rente aftrekbaar is (onderdelen h en i)'; }
+    ]
+  }
+];
+
+const AFBAKENING = [
+  'De concernregeling zit er niet in. De tool rekent per inhoudingsplichtige. Werkt u met de concernregeling, dan berekent u de vrije ruimte over het totale fiscale loon van het hele concern en mag u de eerste schijf niet per onderdeel toepassen (art. 32 Wet LB 1964; Handboek Loonheffingen 2026, par. 10.2).',
+  'De tool toetst niet of een post terecht gericht vrijgesteld, op nihil gewaardeerd of aangewezen is. Dat blijft uw beoordeling; de naslag hierboven helpt daarbij.',
+  'De gebruikelijkheidseis wordt niet doorgerekend. De tool geeft alleen een signaal zodra het gemiddelde aangewezen bedrag per werknemer boven de doelmatigheidsgrens komt. De afwijking van 30% ten opzichte van vergelijkbare gevallen beoordeelt u zelf (art. 31 lid 1 onderdeel f Wet LB 1964; par. 4.2).',
+  'Negatief eindheffingsloon door terugbetaling van een eerder aangewezen vergoeding is niet ingebouwd. Dat verhoogt de vrije ruimte van het jaar van terugbetaling (Handboek Loonheffingen 2026, par. 4.6). Verwerk dat zelf in het bedrag van de betreffende post.',
+  'De tool doet geen aangifte en verdeelt de eindheffing niet over tijdvakken. U geeft de eindheffing aan en betaalt die uiterlijk met de aangifte over het tweede tijdvak van het volgende kalenderjaar; eindigt de inhoudingsplicht eerder, dan uiterlijk in het tijdvak waarin die eindigt (par. 10.1.6).',
+  'De jaren voor 2024 en na 2026 zijn niet opgenomen. Voor een jaar zonder gecontroleerde waarden geeft de tool geen uitkomst.',
+  'De tool bewaart niets en verstuurt niets. Alles blijft in uw browser.'
+];
+
+// ---------------------------------------------------------------------------
+
+const els = {
+  jaar: document.getElementById('jaar'),
+  fiscaalLoon: document.getElementById('fiscaalLoon'),
+  loonVroeger: document.getElementById('loonVroeger'),
+  gage: document.getElementById('gage'),
+  aantalWerknemers: document.getElementById('aantalWerknemers'),
+  postenLijst: document.getElementById('postenLijst'),
+  totaalAangewezen: document.getElementById('totaalAangewezen'),
+  uitkomstRegels: document.getElementById('uitkomstRegels'),
+  meldingen: document.getElementById('meldingen'),
+  notities: document.getElementById('notities'),
+  naslag: document.getElementById('naslag'),
+  afbakening: document.getElementById('afbakening'),
+  voetnoot: document.getElementById('voetnoot')
+};
+
+function huidigJaar() {
+  return Number(els.jaar.value);
+}
+
+function bouwPosten() {
+  const n = normen(huidigJaar());
+  const oudeWaarden = postBedragen();
+  els.postenLijst.innerHTML = '';
+  POSTEN.forEach(function (post, i) {
+    const tr = document.createElement('tr');
+
+    const tdLabel = document.createElement('td');
+    tdLabel.textContent = post.label(n);
+
+    const tdBedrag = document.createElement('td');
+    tdBedrag.className = 'bedrag';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.01';
+    input.min = '0';
+    input.className = 'bedrag';
+    input.dataset.post = String(i);
+    input.value = oudeWaarden[i] !== undefined ? oudeWaarden[i] : '';
+    input.addEventListener('input', bereken);
+    tdBedrag.appendChild(input);
+
+    const tdGrond = document.createElement('td');
+    tdGrond.className = 'grond';
+    tdGrond.textContent = post.grond;
+
+    tr.appendChild(tdLabel);
+    tr.appendChild(tdBedrag);
+    tr.appendChild(tdGrond);
+    els.postenLijst.appendChild(tr);
+  });
+}
+
+function postBedragen() {
+  const velden = els.postenLijst.querySelectorAll('input.bedrag');
+  const waarden = [];
+  velden.forEach(function (veld) {
+    waarden.push(veld.value);
+  });
+  return waarden;
+}
+
+function bouwNaslag() {
+  const n = normen(huidigJaar());
+  els.naslag.innerHTML = '';
+  NASLAG.forEach(function (groep) {
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = groep.kop;
+    const ul = document.createElement('ul');
+    groep.items.forEach(function (item) {
+      const li = document.createElement('li');
+      li.textContent = item(n);
+      ul.appendChild(li);
+    });
+    const bron = document.createElement('p');
+    bron.className = 'bron';
+    bron.textContent = groep.bron;
+    details.appendChild(summary);
+    details.appendChild(ul);
+    details.appendChild(bron);
+    els.naslag.appendChild(details);
+  });
+}
+
+function bouwAfbakening() {
+  const ul = document.createElement('ul');
+  AFBAKENING.forEach(function (regel) {
+    const li = document.createElement('li');
+    li.textContent = regel;
+    ul.appendChild(li);
+  });
+  els.afbakening.innerHTML = '';
+  els.afbakening.appendChild(ul);
+}
+
+function regel(label, bedrag, klasse) {
+  const tr = document.createElement('tr');
+  if (klasse) tr.className = klasse;
+  const tdLabel = document.createElement('td');
+  tdLabel.textContent = label;
+  const tdBedrag = document.createElement('td');
+  tdBedrag.textContent = bedrag;
+  tr.appendChild(tdLabel);
+  tr.appendChild(tdBedrag);
+  return tr;
+}
+
+function melding(tekst, soort) {
+  const div = document.createElement('div');
+  div.className = 'melding' + (soort ? ' ' + soort : '');
+  div.textContent = tekst;
+  els.meldingen.appendChild(div);
+}
+
+// Vaste toelichting die niet van de uitkomst afhangt, onder de uitkomsttabel.
+function notitie(tekst) {
+  const div = document.createElement('div');
+  div.className = 'melding';
+  div.textContent = tekst;
+  els.notities.appendChild(div);
+}
+
+function bereken() {
+  const jaar = huidigJaar();
+  els.meldingen.innerHTML = '';
+  els.notities.innerHTML = '';
+  els.uitkomstRegels.innerHTML = '';
+
+  let n;
+  try {
+    n = normen(jaar);
+  } catch (fout) {
+    els.totaalAangewezen.textContent = '-';
+    melding(fout.message, 'fout');
+    return;
+  }
+  vulNotities(jaar, n);
+
+  const bedragen = postBedragen().map(function (waarde) {
+    return waarde === '' ? 0 : Number(waarde);
+  });
+
+  let uitkomst;
+  try {
+    uitkomst = berekenWkr({
+      jaar: jaar,
+      fiscaalLoonKolom14: els.fiscaalLoon.value === '' ? 0 : Number(els.fiscaalLoon.value),
+      loonVroegereDienstbetrekking: els.loonVroeger.value === '' ? 0 : Number(els.loonVroeger.value),
+      gageArtiestenBeroepssporters: els.gage.value === '' ? 0 : Number(els.gage.value),
+      aangewezenBedragen: bedragen
+    });
+  } catch (fout) {
+    els.totaalAangewezen.textContent = '-';
+    melding(fout.message, 'fout');
+    return;
+  }
+
+  const r = uitkomst.ruimte;
+  els.totaalAangewezen.textContent = euro(uitkomst.totaalAangewezen);
+
+  els.uitkomstRegels.appendChild(regel('Grondslag vrije ruimte', euro(uitkomst.grondslag)));
+  els.uitkomstRegels.appendChild(regel(
+    'Eerste schijf: ' + procent(r.lagePercentage) + ' van ' + euro(r.schijf1Grondslag),
+    euro(r.schijf1)
+  ));
+  els.uitkomstRegels.appendChild(regel(
+    'Tweede schijf: ' + procent(r.hogePercentage) + ' van ' + euro(r.schijf2Grondslag),
+    euro(r.schijf2)
+  ));
+  els.uitkomstRegels.appendChild(regel('Vrije ruimte ' + jaar, euro(uitkomst.vrijeRuimte), 'hoofd'));
+  els.uitkomstRegels.appendChild(regel('Aangewezen eindheffingsbestanddelen', euro(uitkomst.totaalAangewezen)));
+  if (uitkomst.benutting !== null) {
+    els.uitkomstRegels.appendChild(regel('Benutting van de vrije ruimte', procent(uitkomst.benutting, 1)));
+  }
+
+  if (uitkomst.overschrijding > 0) {
+    els.uitkomstRegels.appendChild(regel('Overschrijding vrije ruimte', euro(uitkomst.overschrijding), 'hoofd'));
+    els.uitkomstRegels.appendChild(regel(
+      'Eindheffing ' + procent(uitkomst.eindheffingstarief, 0) + ' over de overschrijding',
+      euro(uitkomst.eindheffing),
+      'slot'
+    ));
+  } else {
+    els.uitkomstRegels.appendChild(regel('Onbenutte vrije ruimte', euro(uitkomst.onbenutteRuimte), 'hoofd'));
+    els.uitkomstRegels.appendChild(regel('Eindheffing werkkostenregeling', euro(0), 'slot'));
+  }
+
+
+  if (uitkomst.overschrijding > 0) {
+    melding(
+      'U komt boven de vrije ruimte uit. Geef de eindheffing aan en betaal die uiterlijk met de aangifte '
+      + 'loonheffingen over het tweede tijdvak van ' + (jaar + 1) + '. Handboek Loonheffingen, par. 10.1.6.'
+    );
+  } else if (uitkomst.vrijeRuimte > 0) {
+    melding(
+      'U blijft binnen de vrije ruimte, dus u hoeft geen eindheffing werkkostenregeling aan te geven of te betalen. '
+      + 'Handboek Loonheffingen, par. 10.1.5.',
+      'goed'
+    );
+  }
+
+  const signaal = gebruikelijkheidssignaal({
+    jaar: jaar,
+    totaalAangewezen: uitkomst.totaalAangewezen,
+    aantalWerknemers: els.aantalWerknemers.value === '' ? 0 : Number(els.aantalWerknemers.value)
+  });
+  if (signaal && signaal.boven) {
+    melding(
+      'Gemiddeld ' + euro(signaal.gemiddeldePerWerknemer) + ' aangewezen per werknemer. Boven '
+      + euro(signaal.grens, 0) + ' per werknemer per jaar toetst de Belastingdienst of de aanwijzing '
+      + 'gebruikelijk is. Beoordeel dat per post. Art. 31 lid 1 onderdeel f Wet LB 1964; par. 4.2.'
+    );
+  }
+
+  if (uitkomst.gageAfgetrokken) {
+    melding(
+      'De gage van artiesten en beroepssporters staat wel in kolom 14, maar telt niet mee voor de vrije ruimte. '
+      + 'Die is van de grondslag afgehaald. Handboek Loonheffingen, par. 10.1.4.'
+    );
+  }
+
+  if (uitkomst.vroegereUitgesloten) {
+    melding(
+      'Loon uit vroegere dienstbetrekking is ' + procent(uitkomst.aandeelVroeger, 1) + ' van het fiscale loon, '
+      + 'dus meer dan 10%. De vrije ruimte is daarom berekend over het loon uit tegenwoordige dienstbetrekking. '
+      + 'Handboek Loonheffingen, par. 10.1.4.'
+    );
+  }
+
+}
+
+function vulNotities(jaar, n) {
+  if (n.kilometerBron === 'besluit') {
+    notitie(
+      'De kilometergrens van ' + euro(n.kilometervergoeding) + ' in ' + jaar + ' volgt uit een goedkeuring '
+      + 'vooruitlopend op wetgeving, met terugwerkende kracht tot 1 januari ' + jaar + '. De wettekst noemt nog '
+      + euro(0.23) + '. Besluit van 17 mei 2026, Stcrt. 2026, 18302, onderdeel 2.1; het besluit vervalt per '
+      + '1 januari 2027.'
+    );
+  }
+
+  notitie(
+    'De concernregeling zit niet in deze tool. Past u die toe, dan berekent u de vrije ruimte over het totale '
+    + 'fiscale loon van het concern en mag u de eerste schijf niet per onderdeel toepassen. Art. 32 Wet LB 1964; '
+    + 'Handboek Loonheffingen, par. 10.2.'
+  );
+}
+
+function vulVoetnoot() {
+  const jaren = Object.keys(WKR_PER_JAAR).join(', ');
+  els.voetnoot.textContent =
+    'Rekent per inhoudingsplichtige voor de jaren ' + jaren + '. Waarden gecontroleerd op 2 september 2026 aan '
+    + 'Wet LB 1964 en de Uitvoeringsregeling LB 2011 op wetten.overheid.nl, aan het Handboek Loonheffingen van het '
+    + 'betreffende jaar en aan Stcrt. 2026, 18302. Controleer de waarden opnieuw bij een nieuw belastingjaar of een '
+    + 'nieuw beleidsbesluit.';
+}
+
+function herbouw() {
+  bouwPosten();
+  bouwNaslag();
+  bereken();
+}
+
+els.jaar.addEventListener('change', herbouw);
+[els.fiscaalLoon, els.loonVroeger, els.gage, els.aantalWerknemers].forEach(function (veld) {
+  veld.addEventListener('input', bereken);
+});
+
+bouwAfbakening();
+vulVoetnoot();
+herbouw();
+</script>
+</body>
+</html>
