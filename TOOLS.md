@@ -70,7 +70,7 @@ Bijgewerkt: 2026-09-03
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
-| ⚪ verborgen | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | **nee** | 2026-09-02 | **tbd** | belastingplan | **nooit** |
+| 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | **nee** | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 
 ## Overig
 
