@@ -294,27 +294,46 @@
     const btn = document.querySelector('.btn-save');
     btn.textContent = 'Opslaan…';
     btn.disabled = true;
-    await api('/admin/upsert', 'POST', { email, tools });
+    const res = await api('/admin/upsert', 'POST', { email, tools });
     btn.textContent = 'Opslaan';
     btn.disabled = false;
     resetForm();
     await loadUsers();
     document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
-    showToast(`${email} opgeslagen.`);
+    meldSync(`${email} opgeslagen`, res);
   }
 
   async function deleteUser(email) {
     if (!confirm(`${email} verwijderen?`)) return;
-    await api('/admin/delete', 'POST', { email });
-    showToast(`${email} verwijderd.`);
+    const res = await api('/admin/delete', 'POST', { email });
+    meldSync(`${email} verwijderd`, res);
     loadUsers();
   }
 
-  function showToast(msg) {
+  function showToast(msg, isFout = false) {
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
+    // Een fout blijft langer staan; die moet je kunnen lezen.
+    setTimeout(() => t.classList.remove('show'), isFout ? 12000 : 2500);
+  }
+
+  // De worker geeft terug of het bijwerken van de Access-policies is gelukt.
+  // Zonder deze melding lijkt opslaan altijd te slagen, ook als er in
+  // werkelijkheid geen enkele policy is geschreven. Dat is in augustus en
+  // september 2026 twee keer onopgemerkt gebeurd; zie AGENTS.md.
+  function meldSync(bericht, res) {
+    const fouten = res && res.sync && res.sync.fouten ? res.sync.fouten : [];
+    if (!res || res.ok !== true || fouten.length) {
+      const eerste = fouten[0];
+      const detail = eerste ? ` ${eerste.tool}: ${eerste.reden}` : '';
+      const meer = fouten.length > 1 ? ` (en ${fouten.length - 1} andere)` : '';
+      showToast(`${bericht}, maar de toegang is NIET bijgewerkt.${detail}${meer}`, true);
+      console.error('Bijwerken van de Access-policies mislukt:', res);
+      return;
+    }
+    const aantal = res.sync.bijgewerkt.length;
+    showToast(`${bericht}; toegang bijgewerkt voor ${aantal} tools.`);
   }
 
   // Init
