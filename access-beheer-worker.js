@@ -100,7 +100,16 @@ function ok(data, request, status = 200) {
   });
 }
 
+// Let op: deze functie wordt met ctx.waitUntil losgelaten, dus het opslaan in
+// beheer.html wacht er niet op en meldt altijd succes. De console.error-regels
+// hieronder zijn de enige manier om te zien of het bijwerken van de policies
+// werkelijk lukt. Meelezen kan met: npx wrangler tail --name access-beheer
 async function syncCFAccess(permissions, env) {
+  let gelukt = 0, overgeslagen = 0, mislukt = 0;
+  if (!env.CF_API_TOKEN) {
+    console.error('syncCFAccess: CF_API_TOKEN ontbreekt op de worker; elke aanroep zal falen');
+  }
+
   for (const [file, appId] of Object.entries(APP_IDS)) {
     let emails;
     if (file === 'portal.html') {
@@ -112,17 +121,25 @@ async function syncCFAccess(permissions, env) {
         .map(([e]) => e);
     }
 
-    if (emails.length === 0) continue;
+    if (emails.length === 0) { overgeslagen++; continue; }
 
     const pRes = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
       { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
     );
+    if (!pRes.ok) {
+      console.error(`syncCFAccess ${file}: policies ophalen gaf HTTP ${pRes.status}`);
+    }
     const pData = await pRes.json();
     const policy = pData.result?.[0];
-    if (!policy) continue;
+    if (!policy) {
+      mislukt++;
+      console.error(`syncCFAccess ${file}: geen policy gevonden om bij te werken; ` +
+        `antwoord: ${JSON.stringify(pData).slice(0, 300)}`);
+      continue;
+    }
 
-    await fetch(
+    const put = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies/${policy.id}`,
       {
         method: 'PUT',
@@ -136,5 +153,16 @@ async function syncCFAccess(permissions, env) {
         }),
       }
     );
+    if (!put.ok) {
+      mislukt++;
+      console.error(`syncCFAccess ${file}: policy bijwerken gaf HTTP ${put.status}: ` +
+        `${(await put.text()).slice(0, 300)}`);
+    } else {
+      gelukt++;
+      console.log(`syncCFAccess ${file}: policy bijgewerkt met ${emails.length} adres(sen)`);
+    }
   }
+
+  console.log(`syncCFAccess klaar: ${gelukt} bijgewerkt, ${overgeslagen} overgeslagen ` +
+    `(niemand heeft recht), ${mislukt} mislukt`);
 }
