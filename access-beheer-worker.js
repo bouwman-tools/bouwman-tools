@@ -35,6 +35,10 @@ const APP_IDS = {
   'earningsstripping.html':              'a1b924eb-7479-4917-bdff-be5a0152713b',
   'xaf_export.html':                     '4c8d9861-2a87-4deb-8f9a-43727cede8f5',
   'berekeningen.html':                   'c028c0a1-4ee7-457d-ac69-624194c6b3c4',
+  'transitievergoeding.html':            '8e9681f8-73dd-482e-a4f8-e7b20d29e4d1',
+  'dcf-rekentool.html':                  '0056eab8-2ed6-4fc0-a0d8-6f675b0aa310',
+  'rc-rente.html':                       'd8b2c28a-a1a3-46ec-94c0-55047e210f77',
+  'dividend-scenarios.html':             'e5d48bf8-16d3-408e-8de6-1eae46fdfd29',
 };
 
 export default {

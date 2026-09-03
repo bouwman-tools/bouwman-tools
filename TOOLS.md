@@ -30,7 +30,7 @@ Bijgewerkt: 2026-09-04
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | **nee** | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **DBA Risicoscan**: Beoordeelt de arbeidsrelatie indicatief aan de negen gezichtspunten uit het Deliveroo/Uber-arrest
 - **Transitievergoeding**: Berekent de transitievergoeding van art. 7:673 lid 2 BW voor een arbeidsovereenkomst die op of na 1 januari 2020 eindigt, met een afdrukbaar dossierstuk
@@ -120,13 +120,6 @@ Bijgewerkt: 2026-09-04
 
 - **Berekeningen**: Rekent zestien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente en doorverkoop overdrachtsbelasting
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- Transitievergoeding (`transitievergoeding.html`)
 
 ## Vervallen
 
