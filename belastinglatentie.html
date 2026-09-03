@@ -1,0 +1,664 @@
+<meta charset="utf-8">
+<title>Belastinglatentie berekenen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --inkt: #17212b;
+    --gedempt: #5a6b7b;
+    --lijn: #d4dce4;
+    --vlak: #f4f7fa;
+    --accent: #14507d;
+    --waarschuwing: #8a5300;
+    --waarschuwing-vlak: #fdf4e3;
+    --fout: #9b2226;
+    --fout-vlak: #fdeded;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--inkt);
+    background: #fff;
+  }
+  main { max-width: 54rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
+  h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
+  p.intro { color: var(--gedempt); margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem 1.2rem; margin: 0 0 1.25rem; }
+  legend { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
+  label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
+  .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: .5rem .6rem; font: inherit; font-size: .95rem;
+    border: 1px solid var(--lijn); border-radius: 4px; background: #fff; color: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .rij { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+  .veld { margin-bottom: .9rem; }
+  .keuze { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .7rem; }
+  .keuze input { margin-top: .3rem; flex: none; }
+  .keuze label { font-weight: 400; font-size: .9rem; margin: 0; }
+  .post { border: 1px solid var(--lijn); border-radius: 4px; padding: .8rem .9rem .1rem; margin-bottom: .8rem; background: var(--vlak); }
+  .post .kop { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .5rem; }
+  .post .kop span { font-weight: 600; font-size: .85rem; }
+  button {
+    font: inherit; font-weight: 600; padding: .6rem 1.4rem; border: 0; border-radius: 4px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #0f3d61; }
+  button.licht {
+    background: #fff; color: var(--accent); border: 1px solid var(--accent);
+    padding: .35rem .8rem; font-size: .85rem;
+  }
+  button.licht:hover { background: var(--vlak); }
+  #uitkomst { margin-top: 1.5rem; }
+  .bedrag { font-size: 2rem; font-weight: 700; letter-spacing: -.02em; }
+  .bedrag small { display: block; font-size: .82rem; font-weight: 400; color: var(--gedempt); letter-spacing: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .75rem 0; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--lijn); vertical-align: top; }
+  th { font-weight: 600; }
+  td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.som td { font-weight: 700; border-top: 2px solid var(--inkt); border-bottom: 0; }
+  .melding { padding: .7rem .9rem; border-radius: 4px; font-size: .88rem; margin: .6rem 0; }
+  .melding.fout { background: var(--fout-vlak); color: var(--fout); border-left: 3px solid var(--fout); }
+  .melding.let-op { background: var(--waarschuwing-vlak); color: var(--waarschuwing); border-left: 3px solid var(--waarschuwing); }
+  .melding.vlak { background: var(--vlak); border-left: 3px solid var(--lijn); }
+  .melding ul { margin: .35rem 0 0; padding-left: 1.1rem; }
+  details { margin-top: 2rem; border-top: 1px solid var(--lijn); padding-top: 1rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  details .inhoud { font-size: .9rem; }
+  details li { margin-bottom: .4rem; }
+  code { background: var(--vlak); padding: .1rem .3rem; border-radius: 3px; font-size: .85em; }
+  a { color: var(--accent); }
+  .afdrukknop { margin-top: 1.25rem; background: #fff; color: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
+  .afdrukknop:hover { background: var(--vlak); }
+  .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
+  .tariefhulp { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem; margin: 0 0 1.25rem; background: var(--vlak); }
+  .tariefhulp h3 { margin-top: 0; }
+  .tariefuitkomst { font-size: .9rem; margin: .6rem 0; }
+  .tariefuitkomst b { font-variant-numeric: tabular-nums; }
+
+  @media print {
+    body { padding: 0; font-size: 10.5pt; }
+    form, p.intro, .afdrukknop, .tariefhulp { display: none; }
+    main { max-width: none; }
+    #uitkomst { margin-top: 0; }
+    h1 { font-size: 1.35rem; }
+    h2, h3 { page-break-after: avoid; }
+    table, .melding { page-break-inside: avoid; }
+    .melding { border: 1px solid var(--lijn); }
+    .melding.let-op, .melding.fout { color: var(--inkt); }
+    details { margin-top: 1.5rem; page-break-inside: avoid; }
+    summary { list-style: none; }
+  }
+</style>
+
+<main>
+  <h1>Belastinglatentie berekenen</h1>
+  <p class="intro">
+    Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of een
+    doorschuiving: het gemis aan afschrijvingsbasis op afschrijfbare meerwaarden en de
+    uitgestelde heffing over niet-afschrijfbare meerwaarden. De afschrijvingsgrenzen en de
+    tarieven zijn herleid tot de wettekst; de vindplaatsen staan onder de uitkomst en in
+    <code>BRONNEN.md</code>. De disconteringsvoet en de wijze van contant maken volgen
+    geen wettelijke regel maar een waarderingsconventie; dat staat er met zoveel woorden bij.
+  </p>
+
+  <form id="formulier">
+    <fieldset>
+      <legend>Tarieven en disconteringsvoet</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="tarief-afschrijving">Belastingtarief afschrijving
+            <span class="hint">Het tarief waartegen de gemiste afschrijving in aftrek zou zijn gekomen.</span>
+          </label>
+          <input type="number" id="tarief-afschrijving" step="0.01" min="0" max="100" value="25.8"> %
+        </div>
+        <div class="veld">
+          <label for="tarief-uitgesteld">Belastingtarief uitgestelde heffing
+            <span class="hint">Het tarief in het jaar waarin de heffing naar verwachting plaatsvindt.</span>
+          </label>
+          <input type="number" id="tarief-uitgesteld" step="0.01" min="0" max="100" value="25.8"> %
+        </div>
+      </div>
+      <div class="veld">
+        <label for="disconteringsvoet">Disconteringsvoet</label>
+        <input type="number" id="disconteringsvoet" step="0.01" min="0" max="100" value="6"> %
+      </div>
+      <div class="keuze">
+        <input type="radio" name="grondslag" id="grondslag-netto" value="netto" checked>
+        <label for="grondslag-netto">
+          Ingevoerd als brutovoet; de tool maakt hem netto met het tarief voor afschrijving:
+          <code>netto = bruto &times; (1 &minus; tarief)</code>.
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="radio" name="grondslag" id="grondslag-direct" value="direct">
+        <label for="grondslag-direct">
+          Ingevoerd als nettovoet; de tool rekent er rechtstreeks mee.
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Afschrijfbare meerwaarden</legend>
+      <p class="hint" style="margin-top:0">
+        Per post het bedrag van de meerwaarde en de termijn waarin die zou zijn afgeschreven.
+        De soort bepaalt de wettelijke bovengrens aan de jaarlijkse afschrijving: goodwill ten
+        hoogste 10% per jaar en andere bedrijfsmiddelen ten hoogste 20% per jaar (art. 3.30
+        lid 2 Wet IB 2001).
+      </p>
+      <div id="posten"></div>
+      <button type="button" class="licht" id="post-toevoegen">Post toevoegen</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Niet-afschrijfbare meerwaarde</legend>
+      <p class="hint" style="margin-top:0">
+        Grond, vergunningen en gebouwen. Op een gebouw is afschrijving alleen mogelijk zolang
+        de boekwaarde boven de WOZ-waarde ligt (art. 3.30a Wet IB 2001), zodat een gebouw in
+        de praktijk hier hoort en niet bij de afschrijfbare meerwaarden.
+      </p>
+      <div class="rij">
+        <div class="veld">
+          <label for="niet-bedrag">Meerwaarde</label>
+          <input type="number" id="niet-bedrag" step="0.01" min="0" value="0">
+        </div>
+        <div class="veld">
+          <label for="niet-jaar">Heffing vindt plaats over
+            <span class="hint">Aantal jaren vanaf nu. Bij een IB-ondernemer bijvoorbeeld het vermoedelijke stakingsjaar.</span>
+          </label>
+          <input type="number" id="niet-jaar" step="1" min="0" value="30"> jaar
+        </div>
+      </div>
+    </fieldset>
+
+    <button type="submit">Berekenen</button>
+  </form>
+
+  <section class="tariefhulp">
+    <h3>Tariefhulp</h3>
+    <p class="hint" style="margin-top:0">
+      Vult een tarief in op basis van de wettekst. De hulp is bedoeld voor het gangbare geval;
+      hij vervangt geen beoordeling van de eigen situatie.
+    </p>
+    <div class="rij">
+      <div class="veld">
+        <label for="hulp-jaar">Jaar</label>
+        <input type="number" id="hulp-jaar" step="1" value="2026">
+      </div>
+      <div class="veld">
+        <label for="hulp-winst">Belastbaar bedrag vennootschapsbelasting</label>
+        <input type="number" id="hulp-winst" step="1000" min="0" value="200000">
+      </div>
+    </div>
+    <div id="hulp-uitkomst"></div>
+  </section>
+
+  <div id="uitkomst"></div>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+
+// Maximale jaarlijkse afschrijving als deel van de aanschaffings- of voortbrengingskosten.
+// Art. 3.30 lid 2 Wet inkomstenbelasting 2001 (BWBR0011353), geldend per 2026-01-01;
+// via de schakelbepaling van art. 8 lid 1 Wet Vpb 1969 ook in de vennootschapsbelasting.
+// Gecontroleerd 2026-09-04.
+// https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk3/Afdeling3.2/Paragraaf3.2.2/Artikel3.30
+const AFSCHRIJVING_MAXIMUM = {
+  goodwill: 0.10,
+  overig: 0.20,
+};
+
+const SOORT_OMSCHRIJVING = {
+  goodwill: 'goodwill',
+  overig: 'ander bedrijfsmiddel',
+};
+
+// Jaargebonden tarieven voor de tariefhulp. Een onbekend jaar levert geen uitkomst;
+// er wordt nooit stil teruggevallen op een ander jaar.
+const TARIEVEN_PER_JAAR = {
+  2026: {
+    // Art. 22 Wet op de vennootschapsbelasting 1969 (BWBR0002672), geldend per
+    // 2026-01-01. Gecontroleerd 2026-09-04.
+    // https://wetten.overheid.nl/BWBR0002672/2026-01-01/0/HoofdstukV/Artikel22
+    vpb: { grens: 200000, laag: 0.19, hoog: 0.258 },
+    // Art. 2.10 lid 1 en lid 2 en art. 3.79a Wet IB 2001, geldend per 2026-01-01.
+    // Het toptarief van 49,50% geldt boven de laatste schijfgrens; daar zijn geen
+    // premies volksverzekeringen meer verschuldigd, zodat het tabeltarief van
+    // art. 2.10 daar het volledige tarief is. De MKB-winstvrijstelling verlaagt de
+    // grondslag, maar werkt door de tariefaanpassing van lid 2 in de hoogste schijf
+    // maar tegen 49,50% - 11,94% = 37,56% uit.
+    // Gecontroleerd 2026-09-04.
+    // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk2/Afdeling2.3/Artikel2.10
+    // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk3/Afdeling3.2/Paragraaf3.2.5/Artikel3.79a
+    ib: { topTarief: 0.4950, tariefaanpassing: 0.1194, mkbWinstvrijstelling: 0.127 },
+  },
+};
+
+/** Kortste termijn waarin een post volgens art. 3.30 lid 2 Wet IB 2001 mag worden
+ *  afgeschreven: 10 jaar voor goodwill, 5 jaar voor andere bedrijfsmiddelen. */
+function minimaleAfschrijvingstermijn(soort) {
+  const maximum = AFSCHRIJVING_MAXIMUM[soort];
+  return maximum === undefined ? null : 1 / maximum;
+}
+
+/** Vennootschapsbelasting over een belastbaar bedrag, met het gemiddelde en het
+ *  marginale tarief. Geeft null bij een jaar dat de tabel niet kent. */
+function vpbTarief(belastbaarBedrag, jaar) {
+  const tarieven = TARIEVEN_PER_JAAR[jaar];
+  if (!tarieven) return null;
+  const { grens, laag, hoog } = tarieven.vpb;
+  if (!Number.isFinite(belastbaarBedrag) || belastbaarBedrag < 0) return null;
+  const belasting = belastbaarBedrag <= grens
+    ? belastbaarBedrag * laag
+    : grens * laag + (belastbaarBedrag - grens) * hoog;
+  return {
+    belasting,
+    gemiddeld: belastbaarBedrag === 0 ? laag : belasting / belastbaarBedrag,
+    // De volgende euro valt boven de grens zodra het belastbare bedrag de grens heeft
+    // bereikt, dus precies op de grens is het marginale tarief al het hoge tarief.
+    marginaal: belastbaarBedrag < grens ? laag : hoog,
+  };
+}
+
+/** Marginaal tarief over winst uit onderneming in de hoogste schijf, na
+ *  MKB-winstvrijstelling en tariefaanpassing. Geeft null bij een onbekend jaar. */
+function ibMarginaalTopTarief(jaar) {
+  const tarieven = TARIEVEN_PER_JAAR[jaar];
+  if (!tarieven) return null;
+  const { topTarief, tariefaanpassing, mkbWinstvrijstelling } = tarieven.ib;
+  return topTarief - mkbWinstvrijstelling * (topTarief - tariefaanpassing);
+}
+
+/** Lineaire afschrijvingsreeks: elk jaar bedrag/termijn, maar nooit meer dan wat er
+ *  nog niet is afgeschreven. Die bovengrens geldt vanaf het eerste jaar, zodat een
+ *  termijn korter dan een jaar niet meer dan het bedrag zelf oplevert. */
+function afschrijvingsreeks(bedrag, termijn) {
+  if (!(bedrag > 0) || !(termijn > 0)) return [];
+  // De marge vangt op dat 10 exact 10 jaren geeft en niet 11 door een afrondingsrest.
+  const aantalJaren = Math.ceil(termijn - 1e-9);
+  const perJaar = bedrag / termijn;
+  const reeks = [];
+  let rest = bedrag;
+  for (let j = 0; j < aantalJaren; j++) {
+    const bedragVanJaar = Math.max(0, Math.min(perJaar, rest));
+    reeks.push(bedragVanJaar);
+    rest -= bedragVanJaar;
+  }
+  return reeks;
+}
+
+/** Contante waarde van een bedrag dat over `jaar` jaar valt. Waarderingsconventie:
+ *  een bedrag van jaar t wordt t volle jaren teruggerekend (eind-van-jaar). */
+function contantemaking(bedrag, voet, jaar) {
+  return bedrag / Math.pow(1 + voet, jaar);
+}
+
+/** Nettodisconteringsvoet uit de brutovoet. Waarderingsconventie, geen wettelijke
+ *  regel: de rente is aftrekbaar, dus de voet wordt na belasting genomen. */
+function nettoDisconteringsvoet(bruto, tarief) {
+  return bruto * (1 - tarief);
+}
+
+function valideerInvoer(invoer) {
+  const fouten = [];
+  const deel = (waarde, naam) => {
+    if (!Number.isFinite(waarde)) fouten.push(naam + ' is geen getal.');
+    else if (waarde < 0 || waarde > 1) fouten.push(naam + ' moet tussen 0% en 100% liggen.');
+  };
+  deel(invoer.tariefAfschrijving, 'Het belastingtarief afschrijving');
+  deel(invoer.tariefUitgesteld, 'Het belastingtarief uitgestelde heffing');
+  deel(invoer.disconteringsvoet, 'De disconteringsvoet');
+
+  if (invoer.disconteringsgrondslag !== 'netto' && invoer.disconteringsgrondslag !== 'direct') {
+    fouten.push('De grondslag van de disconteringsvoet moet "netto" of "direct" zijn.');
+  }
+
+  (invoer.posten || []).forEach((post, i) => {
+    const nummer = 'Afschrijfbare meerwaarde ' + (i + 1);
+    if (!Number.isFinite(post.bedrag) || post.bedrag < 0) {
+      fouten.push(nummer + ': het bedrag moet nul of hoger zijn.');
+    }
+    if (post.bedrag > 0) {
+      if (!Number.isFinite(post.termijn) || post.termijn <= 0) {
+        fouten.push(nummer + ': de afschrijvingstermijn moet groter dan nul zijn.');
+      }
+      if (post.soort !== undefined && AFSCHRIJVING_MAXIMUM[post.soort] === undefined) {
+        fouten.push(nummer + ': onbekende soort "' + post.soort + '".');
+      }
+    }
+  });
+
+  const niet = invoer.nietAfschrijfbaar || { bedrag: 0, jaar: 0 };
+  if (!Number.isFinite(niet.bedrag) || niet.bedrag < 0) {
+    fouten.push('De niet-afschrijfbare meerwaarde moet nul of hoger zijn.');
+  }
+  if (niet.bedrag > 0 && (!Number.isFinite(niet.jaar) || niet.jaar < 0)) {
+    fouten.push('Het jaar waarin de heffing plaatsvindt moet nul of hoger zijn.');
+  }
+  return fouten;
+}
+
+function verzamelWaarschuwingen(invoer, voet) {
+  const waarschuwingen = [];
+  (invoer.posten || []).forEach((post, i) => {
+    if (!(post.bedrag > 0)) return;
+    const minimum = minimaleAfschrijvingstermijn(post.soort);
+    if (minimum !== null && post.termijn < minimum - 1e-9) {
+      const percentage = (100 / post.termijn).toFixed(1).replace('.', ',');
+      const maximum = (AFSCHRIJVING_MAXIMUM[post.soort] * 100).toFixed(0);
+      waarschuwingen.push(
+        'Afschrijfbare meerwaarde ' + (i + 1) + ': een termijn van ' + post.termijn +
+        ' jaar komt neer op ' + percentage + '% per jaar op ' + SOORT_OMSCHRIJVING[post.soort] +
+        '. Art. 3.30 lid 2 Wet IB 2001 staat ten hoogste ' + maximum +
+        '% per jaar toe, dus ten minste ' + minimum + ' jaar. De uitkomst valt hierdoor te hoog uit.'
+      );
+    }
+  });
+  if (voet === 0) {
+    waarschuwingen.push(
+      'De disconteringsvoet komt op nul uit. De contante waarde is dan gelijk aan het ' +
+      'nominale bedrag; er wordt niet contant gemaakt.'
+    );
+  }
+  const niet = invoer.nietAfschrijfbaar || { bedrag: 0, jaar: 0 };
+  if (niet.bedrag > 0 && niet.jaar === 0) {
+    waarschuwingen.push(
+      'De heffing over de niet-afschrijfbare meerwaarde valt in jaar 0 en wordt daarom ' +
+      'niet contant gemaakt. Er is dan geen latentie maar een heffing op korte termijn.'
+    );
+  }
+  return waarschuwingen;
+}
+
+/**
+ * Berekent de belastinglatentie.
+ *
+ * invoer = {
+ *   tariefAfschrijving, tariefUitgesteld, disconteringsvoet  (alle als deel van 1),
+ *   disconteringsgrondslag: 'netto' | 'direct',
+ *   posten: [{ bedrag, termijn, soort: 'goodwill' | 'overig' }],
+ *   nietAfschrijfbaar: { bedrag, jaar },
+ * }
+ */
+function berekenLatentie(invoer) {
+  const fouten = valideerInvoer(invoer);
+  if (fouten.length) return { fouten, waarschuwingen: [] };
+
+  const voet = invoer.disconteringsgrondslag === 'direct'
+    ? invoer.disconteringsvoet
+    : nettoDisconteringsvoet(invoer.disconteringsvoet, invoer.tariefAfschrijving);
+
+  const posten = (invoer.posten || []).filter(post => post.bedrag > 0);
+  const reeksen = posten.map(post => afschrijvingsreeks(post.bedrag, post.termijn));
+  const aantalJaren = reeksen.reduce((n, reeks) => Math.max(n, reeks.length), 0);
+
+  const jaren = [];
+  let contanteWaardeAfschrijving = 0;
+  for (let i = 0; i < aantalJaren; i++) {
+    const afschrijvingen = reeksen.map(reeks => reeks[i] || 0);
+    const afschrijvingTotaal = afschrijvingen.reduce((a, b) => a + b, 0);
+    const fiscaalVoordeel = invoer.tariefAfschrijving * afschrijvingTotaal;
+    const contant = contantemaking(fiscaalVoordeel, voet, i + 1);
+    contanteWaardeAfschrijving += contant;
+    jaren.push({ jaar: i + 1, afschrijvingen, afschrijvingTotaal, fiscaalVoordeel, contant });
+  }
+
+  const niet = invoer.nietAfschrijfbaar || { bedrag: 0, jaar: 0 };
+  const contanteWaardeUitgesteld = niet.bedrag > 0
+    ? contantemaking(niet.bedrag * invoer.tariefUitgesteld, voet, niet.jaar)
+    : 0;
+
+  const totaal = contanteWaardeAfschrijving + contanteWaardeUitgesteld;
+  const meerwaardeTotaal =
+    posten.reduce((som, post) => som + post.bedrag, 0) + (niet.bedrag > 0 ? niet.bedrag : 0);
+
+  return {
+    fouten: [],
+    waarschuwingen: verzamelWaarschuwingen(invoer, voet),
+    disconteringsvoetGebruikt: voet,
+    jaren,
+    contanteWaardeAfschrijving,
+    contanteWaardeUitgesteld,
+    totaal,
+    meerwaardeTotaal,
+    latentiePercentage: meerwaardeTotaal === 0 ? 0 : totaal / meerwaardeTotaal,
+  };
+}
+// FISCALE KERN — EINDE
+
+const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
+const procent = new Intl.NumberFormat('nl-NL', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const getal = new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const postenVak = document.getElementById('posten');
+let volgnummer = 0;
+
+function voegPostToe(bedrag, termijn, soort) {
+  volgnummer += 1;
+  const n = volgnummer;
+  const vak = document.createElement('div');
+  vak.className = 'post';
+  vak.innerHTML =
+    '<div class="kop"><span>Post ' + n + '</span>' +
+    '<button type="button" class="licht verwijder">Verwijderen</button></div>' +
+    '<div class="rij">' +
+      '<div class="veld"><label for="bedrag-' + n + '">Meerwaarde</label>' +
+      '<input type="number" id="bedrag-' + n + '" class="bedrag-in" step="0.01" min="0" value="' + bedrag + '"></div>' +
+      '<div class="veld"><label for="termijn-' + n + '">Af te schrijven in</label>' +
+      '<input type="number" id="termijn-' + n + '" class="termijn-in" step="1" min="0" value="' + termijn + '"> jaar</div>' +
+      '<div class="veld"><label for="soort-' + n + '">Soort</label>' +
+      '<select id="soort-' + n + '" class="soort-in">' +
+        '<option value="goodwill"' + (soort === 'goodwill' ? ' selected' : '') + '>Goodwill (ten hoogste 10% per jaar)</option>' +
+        '<option value="overig"' + (soort === 'overig' ? ' selected' : '') + '>Ander bedrijfsmiddel (ten hoogste 20% per jaar)</option>' +
+      '</select></div>' +
+    '</div>';
+  vak.querySelector('.verwijder').addEventListener('click', () => {
+    if (postenVak.children.length > 1) vak.remove();
+  });
+  postenVak.appendChild(vak);
+}
+
+voegPostToe(0, 10, 'goodwill');
+voegPostToe(0, 30, 'overig');
+document.getElementById('post-toevoegen').addEventListener('click', () => voegPostToe(0, 10, 'overig'));
+
+function leesInvoer() {
+  const posten = Array.from(postenVak.children).map(vak => ({
+    bedrag: parseFloat(vak.querySelector('.bedrag-in').value),
+    termijn: parseFloat(vak.querySelector('.termijn-in').value),
+    soort: vak.querySelector('.soort-in').value,
+  }));
+  return {
+    tariefAfschrijving: parseFloat(document.getElementById('tarief-afschrijving').value) / 100,
+    tariefUitgesteld: parseFloat(document.getElementById('tarief-uitgesteld').value) / 100,
+    disconteringsvoet: parseFloat(document.getElementById('disconteringsvoet').value) / 100,
+    disconteringsgrondslag: document.querySelector('input[name=grondslag]:checked').value,
+    posten,
+    nietAfschrijfbaar: {
+      bedrag: parseFloat(document.getElementById('niet-bedrag').value),
+      jaar: parseFloat(document.getElementById('niet-jaar').value),
+    },
+  };
+}
+
+function meldingen(lijst, soort, kop) {
+  if (!lijst.length) return '';
+  return '<div class="melding ' + soort + '"><b>' + kop + '</b><ul>' +
+    lijst.map(regel => '<li>' + regel + '</li>').join('') + '</ul></div>';
+}
+
+function jaartabel(uitkomst, posten) {
+  if (!uitkomst.jaren.length) return '';
+  const koppen = posten.map((post, i) => '<th class="getal">Afschrijving ' + (i + 1) + '</th>').join('');
+  const rijen = uitkomst.jaren.map(jaar =>
+    '<tr><td class="getal">' + jaar.jaar + '</td>' +
+    jaar.afschrijvingen.map(bedrag => '<td class="getal">' + getal.format(bedrag) + '</td>').join('') +
+    '<td class="getal">' + getal.format(jaar.fiscaalVoordeel) + '</td>' +
+    '<td class="getal">' + getal.format(jaar.contant) + '</td></tr>'
+  ).join('');
+  return '<h3>Verloop per jaar</h3><table><thead><tr><th class="getal">Jaar</th>' + koppen +
+    '<th class="getal">Fiscaal voordeel</th><th class="getal">Contant</th></tr></thead><tbody>' +
+    rijen + '<tr class="som"><td class="getal">Samen</td>' +
+    posten.map(() => '<td></td>').join('') + '<td></td><td class="getal">' +
+    getal.format(uitkomst.contanteWaardeAfschrijving) + '</td></tr></tbody></table>';
+}
+
+document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
+  gebeurtenis.preventDefault();
+  const invoer = leesInvoer();
+  const uitkomst = berekenLatentie(invoer);
+  const vak = document.getElementById('uitkomst');
+
+  if (uitkomst.fouten.length) {
+    vak.innerHTML = meldingen(uitkomst.fouten, 'fout', 'De invoer is niet bruikbaar');
+    return;
+  }
+
+  const posten = invoer.posten.filter(post => post.bedrag > 0);
+  vak.innerHTML =
+    '<h2>Uitkomst</h2>' +
+    '<p class="bedrag">' + euro.format(uitkomst.totaal) +
+    '<small>contante waarde van de belastinglatentie, ' +
+    procent.format(uitkomst.latentiePercentage) + ' van een meerwaarde van ' +
+    euro.format(uitkomst.meerwaardeTotaal) + '</small></p>' +
+    '<table><tbody>' +
+    '<tr><td>Contante waarde gemiste afschrijving</td><td class="getal">' +
+      euro.format(uitkomst.contanteWaardeAfschrijving) + '</td></tr>' +
+    '<tr><td>Contante waarde uitgestelde heffing</td><td class="getal">' +
+      euro.format(uitkomst.contanteWaardeUitgesteld) + '</td></tr>' +
+    '<tr class="som"><td>Totaal</td><td class="getal">' + euro.format(uitkomst.totaal) + '</td></tr>' +
+    '</tbody></table>' +
+    '<div class="melding vlak">Gerekend met een disconteringsvoet van ' +
+      procent.format(uitkomst.disconteringsvoetGebruikt) +
+      (invoer.disconteringsgrondslag === 'netto'
+        ? ', afgeleid uit de brutovoet van ' + procent.format(invoer.disconteringsvoet) +
+          ' en het tarief voor afschrijving van ' + procent.format(invoer.tariefAfschrijving) + '.'
+        : ', rechtstreeks ingevoerd als nettovoet.') +
+    '</div>' +
+    meldingen(uitkomst.waarschuwingen, 'let-op', 'Let op') +
+    jaartabel(uitkomst, posten) +
+    '<p class="dossierdatum">Berekend op ' + new Date().toLocaleDateString('nl-NL') + '.</p>' +
+    '<button type="button" class="afdrukknop" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+});
+
+function toonTariefhulp() {
+  const jaar = parseInt(document.getElementById('hulp-jaar').value, 10);
+  const winst = parseFloat(document.getElementById('hulp-winst').value);
+  const vak = document.getElementById('hulp-uitkomst');
+  const vpb = vpbTarief(winst, jaar);
+  const ib = ibMarginaalTopTarief(jaar);
+
+  if (vpb === null || ib === null) {
+    vak.innerHTML = '<div class="melding fout">Voor ' +
+      (Number.isFinite(jaar) ? jaar : 'dit jaar') +
+      ' zijn geen tarieven vastgelegd. De tool valt niet terug op een ander jaar; ' +
+      'vul het tarief zelf in of laat de tabel uitbreiden.</div>';
+    return;
+  }
+
+  vak.innerHTML =
+    '<p class="tariefuitkomst">Vennootschapsbelasting ' + jaar + ': marginaal <b>' +
+      procent.format(vpb.marginaal) + '</b>, gemiddeld over ' + euro.format(winst) + ' <b>' +
+      procent.format(vpb.gemiddeld) + '</b> (' + euro.format(vpb.belasting) + ').' +
+      ' <button type="button" class="licht" data-tarief="' + vpb.marginaal + '" data-doel="tarief-afschrijving">Naar afschrijving</button>' +
+      ' <button type="button" class="licht" data-tarief="' + vpb.marginaal + '" data-doel="tarief-uitgesteld">Naar uitgestelde heffing</button></p>' +
+    '<p class="tariefuitkomst">Inkomstenbelasting ' + jaar +
+      ', winst uit onderneming in de hoogste schijf, na MKB-winstvrijstelling en ' +
+      'tariefaanpassing: <b>' + procent.format(ib) + '</b>.' +
+      ' <button type="button" class="licht" data-tarief="' + ib + '" data-doel="tarief-afschrijving">Naar afschrijving</button>' +
+      ' <button type="button" class="licht" data-tarief="' + ib + '" data-doel="tarief-uitgesteld">Naar uitgestelde heffing</button></p>';
+
+  vak.querySelectorAll('button[data-tarief]').forEach(knop => {
+    knop.addEventListener('click', () => {
+      const waarde = parseFloat(knop.dataset.tarief) * 100;
+      document.getElementById(knop.dataset.doel).value = waarde.toFixed(2);
+    });
+  });
+}
+
+document.getElementById('hulp-jaar').addEventListener('input', toonTariefhulp);
+document.getElementById('hulp-winst').addEventListener('input', toonTariefhulp);
+toonTariefhulp();
+</script>
+
+  <details open>
+    <summary>Waarop de uitkomst is gebaseerd</summary>
+    <div class="inhoud">
+      <h3>Wat wettelijk vastligt</h3>
+      <ul>
+        <li>
+          <b>Afschrijving op bedrijfsmiddelen</b> bedraagt op jaarbasis ten hoogste 10% van
+          de aanschaffings- of voortbrengingskosten voor goodwill en ten hoogste 20% voor
+          andere bedrijfsmiddelen: art. 3.30 lid 2 Wet IB 2001. Een kortere termijn dan tien
+          respectievelijk vijf jaar is daarmee niet mogelijk; de tool waarschuwt daarvoor.
+        </li>
+        <li>
+          <b>Afschrijving op gebouwen</b> is alleen mogelijk zolang de boekwaarde boven de
+          bodemwaarde ligt, en de bodemwaarde is de WOZ-waarde: art. 3.30a lid 1 en lid 3
+          Wet IB 2001. In de praktijk hoort een gebouw daarom bij de niet-afschrijfbare
+          meerwaarde, net als grond.
+        </li>
+        <li>
+          <b>De winstbepaling</b> van de Wet IB 2001, waaronder art. 3.25 en de artikelen
+          3.30 en 3.30a, geldt via art. 8 lid 1 Wet Vpb 1969 ook voor de
+          vennootschapsbelasting.
+        </li>
+        <li>
+          <b>Tarieven 2026.</b> Vennootschapsbelasting 19% tot een belastbaar bedrag van
+          € 200.000 en 25,8% daarboven (art. 22 Wet Vpb 1969). Inkomstenbelasting: het
+          toptarief van 49,50% met de tariefaanpassing van 11,94% over grondslagverminderende
+          posten (art. 2.10 lid 1 en 2 Wet IB 2001) en een MKB-winstvrijstelling van 12,7%
+          (art. 3.79a Wet IB 2001), samen 44,73% marginaal in de hoogste schijf.
+        </li>
+      </ul>
+
+      <h3>Wat conventie is en geen wettelijke regel</h3>
+      <ul>
+        <li>
+          <b>De hoogte van de disconteringsvoet.</b> Die volgt uit de vermogenskostenvoet van
+          de betrokken onderneming, met de risicograad en de looptijd erin verwerkt. De wet
+          zegt er niets over en in de praktijk is de latentie mede de uitkomst van
+          onderhandeling.
+        </li>
+        <li>
+          <b>Bruto naar netto.</b> De omzetting <code>netto = bruto &times; (1 &minus; tarief)</code>
+          gaat ervan uit dat de rente aftrekbaar is en dat het tarief voor afschrijving daarbij
+          het passende tarief is. Wie daar anders over denkt, voert de nettovoet rechtstreeks in.
+        </li>
+        <li>
+          <b>Contant maken per heel jaar aan het einde van het jaar.</b> Het bedrag van jaar t
+          wordt t volle jaren teruggerekend. Een halfjaarsconventie zou een hogere uitkomst geven.
+        </li>
+        <li>
+          <b>Lineaire afschrijving.</b> De tool verdeelt de meerwaarde gelijk over de termijn.
+          Goed koopmansgebruik (art. 3.25 Wet IB 2001) laat ook andere bestendige stelsels toe.
+        </li>
+      </ul>
+
+      <h3>Wat de tool niet doet</h3>
+      <ul>
+        <li>
+          Geen beoordeling of een meerwaarde afschrijfbaar is; dat blijft een vakinhoudelijk
+          oordeel. De tool rekent met wat wordt ingevoerd.
+        </li>
+        <li>
+          Geen tariefsverloop over de jaren. Er wordt met één tarief voor afschrijving en één
+          tarief voor de uitgestelde heffing gerekend, beide vast over de hele looptijd.
+        </li>
+        <li>
+          Geen verliesverrekening, geen herinvesteringsreserve, geen renteaftrekbeperking en
+          geen doorschuif- of bedrijfsopvolgingsregelingen.
+        </li>
+        <li>
+          De tariefhulp kent alleen de jaren die in de tabel staan. Een ander jaar levert een
+          melding op en geen tarief.
+        </li>
+      </ul>
+    </div>
+  </details>
+</main>
