@@ -128,6 +128,22 @@ repository; ze zijn los geupload.
   `ADMIN_TOKEN` en `CF_API_TOKEN` blijven staan. Zo is het op 02-09-2026 gedaan
   (versie 5da12ce2). Terugrollen doe je door de vorige versie opnieuw te deployen;
   daarvóór draaide 101987dc van 29-08-2026.
+- Sinds 03-09-2026 kan het eenvoudiger, met de configuratie die hier inmiddels staat:
+  `npx wrangler deploy -c wrangler.access-beheer.jsonc --keep-vars` vanuit deze map. Dat
+  is die dag gedaan om `berekeningen.html` in `APP_IDS` live te krijgen; de KV-binding
+  `PERMISSIONS` bleef bestaan. Draaiende versie daarna: 22899ac8, daarvóór 5da12ce2.
+  Terugrollen kan met `npx wrangler rollback --name access-beheer`.
+- **Deployen alleen is niet genoeg.** `syncCFAccess` loopt uitsluitend bij een opslag- of
+  verwijderactie op een gebruiker, niet periodiek. Heb je rechten toegekend vóór de
+  deploy, dan staat de Access-policy nog op de oude lijst: sla daarna in `beheer.html`
+  één keer een gebruiker op om alle policies te laten herschrijven. Op 03-09-2026 leek
+  het toekennen bij Berekeningen te lukken terwijl de policy alleen de eigenaar bevatte,
+  precies om deze reden.
+- De sync loopt in `ctx.waitUntil` en **slikt fouten**. Is de `CF_API_TOKEN` op de worker
+  verlopen, dan mislukt het bijwerken van de policies voor alle tools zonder melding.
+  Controleer bij twijfel de policy aan de bron:
+  `GET /accounts/<acc>/access/apps/<app_id>/policies` en kijk of de verwachte adressen
+  erin staan.
 - **Let op de valstrik:** `wrangler.toml` in deze repo beschrijft een worker `kvk-proxy`
   met `main = kvk-worker.js`. Die worker bestaat niet op het account. `wrangler deploy`
   vanuit deze map maakt dus een nieuwe, ongebruikte worker aan en werkt `access-beheer`
