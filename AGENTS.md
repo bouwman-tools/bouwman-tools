@@ -33,14 +33,24 @@ stil te mergen.
 
 ## tools.json is de enige bron van de toolportefeuille
 
-`tools.json` legt per tool vast: naam, bestand of URL, categorie, status, bronrepo,
-het Cloudflare Access-app-id, welke jaarafhankelijke waarden erin zitten en wie de
-inhoudelijk verantwoordelijke is. Voeg je een tool toe of haal je er een weg, dan begin
-je daar. `tools.schema.json` beschrijft de toegestane velden; `check_tools.py`
+`tools.json` legt per tool vast: naam, de korte beschrijving, bestand of URL, categorie,
+status, bronrepo, het Cloudflare Access-app-id, welke jaarafhankelijke waarden erin zitten
+en wie de inhoudelijk verantwoordelijke is. Voeg je een tool toe of haal je er een weg, dan
+begin je daar. `tools.schema.json` beschrijft de toegestane velden; `check_tools.py`
 valideert daartegen zodra `jsonschema` beschikbaar is.
 
 - `portal.html`, `beheer.html`, `access-beheer-worker.js` (APP_IDS) en `TOOLS.md` moeten
   daarmee overeenkomen. Houd nergens een tweede lijst bij.
+- `beschrijving` is de tekst op de toolkaart in het portaal en is **verplicht**.
+  `portal.html` haalt hem sinds 03-09-2026 op met een `fetch('tools.json')` in
+  `getBeschrijvingen()`; in de `TOOLS`-lijst daar staat alleen nog wat presentatie is
+  (zichtbaarheid, indeling, icoon, tags). Mislukt het ophalen, dan verschijnt de kaart
+  zonder beschrijving in plaats van dat het portaal breekt. `tools.json` staat
+  onafgeschermd op `https://bouwman.tools/tools.json`; het bestand staat toch al in deze
+  publieke repo, maar zet er dus niets in wat niet openbaar mag zijn.
+- `beheer.html` toont geen beschrijvingen — daar staat per tool alleen de naam bij een
+  aanvinkvakje — en `TOOLS.md` neemt de beschrijving niet op: die tabel heeft al negen
+  kolommen.
 - `TOOLS.md` wordt **gegenereerd**: `python tools/check_tools.py --schrijf-tools-md`.
   Bewerk dat bestand niet met de hand.
 - `python tools/check_tools.py` faalt bij drift, en draait ook in CI
