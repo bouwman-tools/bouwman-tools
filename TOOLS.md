@@ -76,7 +76,15 @@ Bijgewerkt: 2026-09-03
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
+| ⚪ verborgen | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | **nee** | 2026-09-02 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+
+## Let op: niet afgeschermd
+
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
+
+- Berekeningen (`berekeningen.html`)
 
 ## Vervallen
 
