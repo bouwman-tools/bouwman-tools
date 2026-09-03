@@ -53,6 +53,13 @@ valideert daartegen zodra `jsonschema` beschikbaar is.
   categorie, niet als tiende kolom, want dan wordt die tabel onleesbaar.
 - `TOOLS.md` wordt **gegenereerd**: `python tools/check_tools.py --schrijf-tools-md`.
   Bewerk dat bestand niet met de hand.
+- Een tool met status `concept` is nog niet gepubliceerd: het bestand staat alleen in
+  de bronrepo. Zo staat werk in uitvoering toch in `tools.json` en in `TOOLS.md`, zonder
+  dat de controle struikelt op een bestand dat hier ontbreekt. `bestand` blijft verplicht
+  en noemt de beoogde naam. De controle keert het ook om: staat het bestand hier wel, of
+  is `in_portal` of `in_beheer` true, dan faalt hij en moet de status naar `beta` of
+  `live`. Een concepttool geeft geen waarschuwing over een ontbrekende Access-app, want
+  er is nog niets bereikbaar.
 - `python tools/check_tools.py` faalt bij drift, en draait ook in CI
   (`.github/workflows/check-tools.yml`). Een tool die gepubliceerd staat maar niet in
   `tools.json` voorkomt, laat de controle falen.

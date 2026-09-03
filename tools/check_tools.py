@@ -165,11 +165,26 @@ def main() -> int:
             fouten.append(f"{naam}: geen bestand en geen url.")
             continue
 
+        # Een tool met status 'concept' is nog niet gepubliceerd: het bestand staat
+        # alleen in de bronrepo. Zo staat werk in uitvoering toch in tools.json,
+        # zonder dat de controle daarop struikelt. 'bestand' blijft verplicht en
+        # noemt de beoogde bestandsnaam.
+        concept = tool["status"] == "concept"
+
         # 1. Bestaat het bestand echt?
-        if not tool.get("extern") and ref not in html_in_repo:
+        if not tool.get("extern") and not concept and ref not in html_in_repo:
             fouten.append(f"{naam}: {ref} staat in tools.json maar bestaat niet in de repo.")
+        if concept and ref in html_in_repo:
+            fouten.append(
+                f"{naam}: status is concept maar {ref} staat gepubliceerd in de repo. "
+                "Zet de status op beta of live."
+            )
 
         # 2. Menuzichtbaarheid
+        if concept and (tool.get("in_portal") or tool.get("in_beheer")):
+            fouten.append(
+                f"{naam}: status is concept, dus in_portal en in_beheer horen false te zijn."
+            )
         if tool.get("in_portal") and ref not in portal_refs:
             fouten.append(f"{naam}: in_portal is true maar {ref} staat niet in portal.html.")
         if not tool.get("in_portal") and ref in portal_refs:
@@ -183,7 +198,7 @@ def main() -> int:
             fouten.append(
                 f"{naam}: access_app_id in tools.json komt niet overeen met APP_IDS in de worker."
             )
-        if not app_id and not tool.get("extern"):
+        if not app_id and not tool.get("extern") and not concept:
             waarschuwingen.append(
                 f"{naam} ({ref}) heeft geen Access-app: het bestand is voor iedereen "
                 "met de URL bereikbaar en rechten toekennen in beheer.html heeft geen effect."
@@ -318,8 +333,13 @@ def schrijf_tools_md() -> None:
             "|---|---|---|---|---|---|---|---|---|",
         ]
         for tool in in_categorie:
-            doel = tool.get("url") or ("/" + tool["bestand"])
-            schild = "ja" if tool.get("access_app_id") else ("n.v.t." if tool.get("extern") else "**nee**")
+            concept = tool["status"] == "concept"
+            doel = "nog niet gepubliceerd" if concept else (
+                tool.get("url") or ("/" + tool["bestand"]))
+            if concept or tool.get("extern"):
+                schild = "n.v.t."
+            else:
+                schild = "ja" if tool.get("access_app_id") else "**nee**"
             status = ICOON.get(tool["status"], "") + " " + tool["status"]
             # Bewust alleen de kale datum (geen actualiteitsoordeel): dat oordeel
             # hangt van de dag af en zou dit gegenereerde bestand laten verouderen
@@ -335,7 +355,8 @@ def schrijf_tools_md() -> None:
                 "n.v.t." if ritme == "geen" else "**nooit**"
             )
             regels.append(
-                f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} "
+                f"| {status} | {tool['naam']} | {'' if concept else '`'}{doel}"
+                f"{'' if concept else '`'} | {tool['repo']} | {schild} "
                 f"| {jw} | {eigenaar} | {ritme} | {akkoord} |"
             )
         # De beschrijving staat als aparte regel onder de tabel en niet als tiende
@@ -349,7 +370,10 @@ def schrijf_tools_md() -> None:
             regels += [""] + beschrijvingen
         regels.append("")
 
-    onbeschermd = [t for t in bron["tools"] if not t.get("access_app_id") and not t.get("extern")]
+    onbeschermd = [
+        t for t in bron["tools"]
+        if not t.get("access_app_id") and not t.get("extern") and t["status"] != "concept"
+    ]
     if onbeschermd:
         regels += [
             "## Let op: niet afgeschermd",
