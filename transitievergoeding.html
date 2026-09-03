@@ -1,0 +1,738 @@
+<meta charset="utf-8">
+<title>Transitievergoeding berekenen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --inkt: #17212b;
+    --gedempt: #5a6b7b;
+    --lijn: #d4dce4;
+    --vlak: #f4f7fa;
+    --accent: #14507d;
+    --waarschuwing: #8a5300;
+    --waarschuwing-vlak: #fdf4e3;
+    --fout: #9b2226;
+    --fout-vlak: #fdeded;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--inkt);
+    background: #fff;
+  }
+  main { max-width: 52rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
+  h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
+  p.intro { color: var(--gedempt); margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem 1.2rem; margin: 0 0 1.25rem; }
+  legend { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
+  label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
+  .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
+  input[type=date], input[type=number], input[type=text] {
+    width: 100%; padding: .5rem .6rem; font: inherit; font-size: .95rem;
+    border: 1px solid var(--lijn); border-radius: 4px; background: #fff; color: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .rij { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+  .veld { margin-bottom: .9rem; }
+  .keuze { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .7rem; }
+  .keuze input { margin-top: .3rem; flex: none; }
+  .keuze label { font-weight: 400; font-size: .9rem; margin: 0; }
+  button {
+    font: inherit; font-weight: 600; padding: .6rem 1.4rem; border: 0; border-radius: 4px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #0f3d61; }
+  #uitkomst { margin-top: 1.5rem; }
+  .bedrag { font-size: 2rem; font-weight: 700; letter-spacing: -.02em; }
+  .bedrag small { display: block; font-size: .82rem; font-weight: 400; color: var(--gedempt); letter-spacing: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .75rem 0; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--lijn); vertical-align: top; }
+  th { font-weight: 600; }
+  td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.som td { font-weight: 700; border-top: 2px solid var(--inkt); border-bottom: 0; }
+  .melding { padding: .7rem .9rem; border-radius: 4px; font-size: .88rem; margin: .6rem 0; }
+  .melding.fout { background: var(--fout-vlak); color: var(--fout); border-left: 3px solid var(--fout); }
+  .melding.let-op { background: var(--waarschuwing-vlak); color: var(--waarschuwing); border-left: 3px solid var(--waarschuwing); }
+  .melding.vlak { background: var(--vlak); border-left: 3px solid var(--lijn); }
+  details { margin-top: 2rem; border-top: 1px solid var(--lijn); padding-top: 1rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  details .inhoud { font-size: .9rem; color: var(--inkt); }
+  details li { margin-bottom: .4rem; }
+  code { background: var(--vlak); padding: .1rem .3rem; border-radius: 3px; font-size: .85em; }
+  a { color: var(--accent); }
+  .afdrukknop {
+    margin-top: 1.25rem; background: #fff; color: var(--accent);
+    border: 1px solid var(--accent); font-weight: 600;
+  }
+  .afdrukknop:hover { background: var(--vlak); }
+  .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
+
+  @media print {
+    body { padding: 0; font-size: 10.5pt; }
+    form, p.intro, .afdrukknop { display: none; }
+    main { max-width: none; }
+    #uitkomst { margin-top: 0; }
+    h1 { font-size: 1.35rem; }
+    h2, h3 { page-break-after: avoid; }
+    table, .melding { page-break-inside: avoid; }
+    .melding { border: 1px solid var(--lijn); }
+    .melding.let-op, .melding.fout { color: var(--inkt); }
+    details { margin-top: 1.5rem; page-break-inside: avoid; }
+    summary { list-style: none; }
+  }
+</style>
+
+<main>
+  <h1>Transitievergoeding berekenen</h1>
+  <p class="intro">
+    Berekent de transitievergoeding van artikel 7:673 BW voor een arbeidsovereenkomst
+    die op of na 1 januari 2020 eindigt. Alle rekenregels en bedragen zijn herleid tot
+    de wettekst; de vindplaatsen staan onder de uitkomst en in <code>BRONNEN.md</code>.
+  </p>
+
+  <form id="formulier">
+    <fieldset>
+      <legend>Is er een transitievergoeding verschuldigd?</legend>
+      <p class="hint" style="margin-top:0">
+        Artikel 7:673 lid 7 BW noemt drie gevallen waarin niets verschuldigd is. Beantwoord
+        die eerst: anders rolt er een bedrag uit waar geen recht op bestaat.
+      </p>
+      <div class="keuze">
+        <input type="checkbox" id="jong">
+        <label for="jong">
+          Het dienstverband eindigt vóór de achttiende verjaardag én de gemiddelde
+          arbeidsomvang was ten hoogste twaalf uur per week (lid 7 onderdeel a).
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="checkbox" id="pensioen">
+        <label for="pensioen">
+          Het dienstverband eindigt in verband met of na de pensioen- of AOW-leeftijd
+          (lid 7 onderdeel b).
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="checkbox" id="verwijtbaar">
+        <label for="verwijtbaar">
+          Het eindigen is het gevolg van ernstig verwijtbaar handelen of nalaten van de
+          werknemer (lid 7 onderdeel c).
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Duur van de arbeidsovereenkomst</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="aanvang">Eerste dag van de arbeidsovereenkomst
+            <span class="hint">De datum waarop het dienstverband begon.</span>
+          </label>
+          <input type="date" id="aanvang" value="2020-01-01">
+        </div>
+        <div class="veld">
+          <label for="einde">Laatste dag van de arbeidsovereenkomst
+            <span class="hint">De laatste dag ván het dienstverband, niet de eerste dag daarna.</span>
+          </label>
+          <input type="date" id="einde" value="2025-12-31">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Loon per maand</legend>
+      <p class="hint" style="margin-top:0">
+        Het loonbegrip staat in artikel 3 lid 1 van het Besluit loonbegrip vergoeding
+        aanzegtermijn en transitievergoeding. Vul per component het jaarbedrag in; de
+        tool past de voorgeschreven deler toe.
+      </p>
+      <div class="rij">
+        <div class="veld">
+          <label for="maandloon">Bruto maandloon (€)
+            <span class="hint">Uurloon maal de overeengekomen arbeidsduur per maand, art. 2 lid 1.</span>
+          </label>
+          <input type="number" id="maandloon" step="0.01" min="0" value="4000">
+        </div>
+        <div class="veld">
+          <label for="vakantiebijslag">Vakantiebijslag over twaalf maanden (€)
+            <span class="hint">Art. 3 lid 1 a, gedeeld door 12.</span>
+          </label>
+          <input type="number" id="vakantiebijslag" step="0.01" min="0" value="0">
+        </div>
+        <div class="veld">
+          <label for="eindejaar">Vaste eindejaarsuitkering over twaalf maanden (€)
+            <span class="hint">Art. 3 lid 1 a, gedeeld door 12. Alleen als het bedrag vaststaat.</span>
+          </label>
+          <input type="number" id="eindejaar" step="0.01" min="0" value="0">
+        </div>
+        <div class="veld">
+          <label for="vast">Vaste looncomponenten over twaalf maanden (€)
+            <span class="hint">Overwerkvergoedingen en ploegentoeslagen, art. 4 Regeling. Gedeeld door 12.</span>
+          </label>
+          <input type="number" id="vast" step="0.01" min="0" value="0">
+        </div>
+        <div class="veld">
+          <label for="variabel">Variabele looncomponenten over drie kalenderjaren (€)
+            <span class="hint">Bonussen, winstuitkeringen en niet-vaste eindejaarsuitkeringen, art. 5 Regeling. Gedeeld door 36.</span>
+          </label>
+          <input type="number" id="variabel" step="0.01" min="0" value="0">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Restperiode</legend>
+      <p class="hint" style="margin-top:0">
+        Over de periode na de volle jaren rekent de wet met het brutoloon dat feitelijk
+        over die periode is ontvangen. De tool leidt dat af uit het maandloon en de
+        kalenderdagen. Kent u het uitbetaalde bedrag, vul het dan hier in.
+      </p>
+      <div class="veld" style="max-width:22rem">
+        <label for="restloon">Feitelijk brutoloon over de restperiode (€)
+          <span class="hint">Laat leeg om de afleiding van de tool te gebruiken.</span>
+        </label>
+        <input type="text" id="restloon" inputmode="decimal" placeholder="leeg = afgeleid">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Voor het dossier</legend>
+      <p class="hint" style="margin-top:0">
+        Wat u hier invult komt boven de afdruk te staan, zodat een uitdraai in het dossier
+        terug te vinden is. De tool bewaart niets: alles staat alleen in dit venster.
+      </p>
+      <div class="rij">
+        <div class="veld">
+          <label for="kenmerk">Kenmerk
+            <span class="hint">Bijvoorbeeld het dossier- of personeelsnummer.</span>
+          </label>
+          <input type="text" id="kenmerk" autocomplete="off">
+        </div>
+        <div class="veld">
+          <label for="opsteller">Opgesteld door
+            <span class="hint">Naam van wie de berekening maakt.</span>
+          </label>
+          <input type="text" id="opsteller" autocomplete="off">
+        </div>
+      </div>
+    </fieldset>
+
+    <button type="submit">Bereken</button>
+  </form>
+
+  <div id="uitkomst"></div>
+  <button type="button" id="afdrukken" class="afdrukknop" hidden>
+    Afdrukken of opslaan als PDF
+  </button>
+
+  <details>
+    <summary>Wat deze tool niet doet</summary>
+    <div class="inhoud">
+      <p>
+        Dit is geen voorbehoud maar afbakening: hieronder staat waar u zelf aan zet bent.
+        De tool berekent één ding, namelijk de hoogte van de transitievergoeding van
+        artikel 7:673 lid 2 BW bij een gegeven duur en een gegeven loon.
+      </p>
+      <ul>
+        <li>
+          <strong>Of er recht op bestaat.</strong> Artikel 7:673 lid 1 noemt de gronden.
+          Eindigt de arbeidsovereenkomst op initiatief van de werknemer zonder ernstig
+          verwijtbaar handelen van de werkgever, dan is er geen transitievergoeding en
+          rekent u hier niets uit dat betekenis heeft.
+        </li>
+        <li>
+          <strong>De duur samenstellen.</strong> Opvolgende arbeidsovereenkomsten met
+          tussenpozen van ten hoogste zes maanden en opvolgend werkgeverschap worden op
+          grond van lid 4 onderdeel b samengeteld. Maanden vóór de achttiende verjaardag
+          met ten hoogste twaalf uur per week blijven op grond van lid 4 onderdeel a
+          buiten beschouwing. Bepaal de begin- en einddatum daarom eerst zelf.
+        </li>
+        <li>
+          <strong>Aftrekposten.</strong> Een eerder betaalde transitievergoeding of
+          voorziening (lid 5) en transitie- en inzetbaarheidskosten (lid 6) gaan van de
+          uitkomst af. De tool doet dat niet.
+        </li>
+        <li>
+          <strong>Uitzonderingen buiten artikel 7:673.</strong> Een cao-voorziening in
+          plaats van de vergoeding (art. 7:673b) en faillissement, surseance,
+          schuldsanering of betaling in termijnen (art. 7:673c) blijven buiten beeld.
+        </li>
+        <li>
+          <strong>Ontslagen vóór 1 januari 2020.</strong> Tot die datum gold een andere
+          rekenwijze, met afronding op halve dienstjaren, een referteperiode van twee jaar
+          en de verhoogde opbouw voor vijftigplussers. De tool weigert die jaren.
+        </li>
+        <li>
+          <strong>De AOW-leeftijd opzoeken.</strong> Dat is een vraag over de werknemer,
+          niet over de berekening; u beantwoordt hem hierboven zelf.
+        </li>
+        <li>
+          <strong>De verdeling van een aangebroken maand.</strong> De wet stuurt op het
+          feitelijk ontvangen loon en wijst geen verdeelsleutel aan. De tool gebruikt
+          kalenderdagen en laat u het bedrag overschrijven.
+        </li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>Het wettelijk maximum per jaar, met vindplaats</summary>
+    <div class="inhoud">
+      <p>
+        Het bedrag van artikel 7:673 lid 2 BW wordt jaarlijks geïndexeerd en in december in
+        de Staatscourant gepubliceerd. Het geldt voor een arbeidsovereenkomst die in dat
+        jaar eindigt (lid 3, slotzin). Elk bedrag hieronder is teruggelezen in de regeling
+        die het vaststelde én in de wettekst op de ingangsdatum.
+      </p>
+      <table id="maximatabel">
+        <tr><th>Jaar van einde</th><th class="getal">Maximum</th><th>Vastgesteld bij</th></tr>
+      </table>
+      <p>
+        De reeks begint bij 2020. De rekenwijze hierboven geldt pas sinds de Wet
+        arbeidsmarkt in balans (Stb. 2019, 219), in werking per 1 januari 2020. Voor een
+        jaar dat hier niet staat geeft de tool geen uitkomst en ook geen benadering.
+      </p>
+    </div>
+  </details>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+// Vindplaatsen staan bij de waarde; de onderbouwing staat in BRONNEN.md.
+
+// Maximum van art. 7:673 lid 2 BW, per jaar waarin de arbeidsovereenkomst eindigt.
+// Art. 7:673 lid 3 BW, slotzin: het gewijzigde bedrag geldt indien de
+// arbeidsovereenkomst op of na de wijzigingsdatum eindigt of niet wordt voortgezet.
+// De reeks begint bij 2020: de rekenwijze hieronder geldt pas sinds de Wet
+// arbeidsmarkt in balans (Stb. 2019, 219), in werking per 1 januari 2020.
+// Gecontroleerd 2026-09-04.
+// De vindplaats staat bij het bedrag en niet alleen in BRONNEN.md: de sync kopieert
+// uitsluitend dit HTML-bestand naar het portaal, en daar is een bedrag zonder vindplaats
+// niet te controleren. Elk bedrag is teruggelezen in de wijzigingsregeling die het
+// vaststelde én in de wettekst op de ingangsdatum.
+const MAXIMUM_PER_JAAR = {
+  2020: { bedrag:  83000, bron: 'Stcrt. 2019, 69523, art. II' },
+  2021: { bedrag:  84000, bron: 'Stcrt. 2020, 66672, art. II' },
+  2022: { bedrag:  86000, bron: 'Stcrt. 2021, 49951, art. II' },
+  2023: { bedrag:  89000, bron: 'Stcrt. 2022, 35085, art. I' },
+  2024: { bedrag:  94000, bron: 'Stcrt. 2023, 35303, art. I' },
+  2025: { bedrag:  98000, bron: 'Stcrt. 2024, 42068, art. II' },
+  2026: { bedrag: 102000, bron: 'Stcrt. 2025, 43567, art. I' },
+};
+
+// Eerste jaar waarvoor de rekenwijze van de Wet arbeidsmarkt in balans geldt.
+const EERSTE_JAAR = 2020;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return maand === 2 && isSchrikkeljaar(jaar) ? 29 : lengtes[maand - 1];
+}
+
+// Doorlopende dagteller. Bewust eigen rekenwerk in plaats van Date: een Date draagt
+// een tijdzone met zich mee, en dan verschuift een datum rond een jaargrens een dag.
+function dagnummer({ jaar, maand, dag }) {
+  const j = maand <= 2 ? jaar - 1 : jaar;
+  const m = maand <= 2 ? maand + 12 : maand;
+  return Math.floor(365.25 * (j + 4716)) + Math.floor(30.6001 * (m + 1)) + dag
+       - Math.floor(j / 100) + Math.floor(Math.floor(j / 100) / 4) - 1524;
+}
+
+function ontleedDatum(tekst) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(tekst || '').trim());
+  if (!m) return null;
+  const datum = { jaar: +m[1], maand: +m[2], dag: +m[3] };
+  if (datum.maand < 1 || datum.maand > 12) return null;
+  if (datum.dag < 1 || datum.dag > dagenInMaand(datum.jaar, datum.maand)) return null;
+  return datum;
+}
+
+// Verschuift een datum met een aantal maanden. Bestaat de dag niet in de doelmaand
+// (31 januari plus een maand), dan wordt teruggezet naar de laatste dag van die maand.
+// Altijd toepassen op de oorspronkelijke datum, nooit stap voor stap: anders stapelt
+// die terugzetting zich op en loopt de reeks weg.
+function verschuifMaanden({ jaar, maand, dag }, aantal) {
+  const totaal = jaar * 12 + (maand - 1) + aantal;
+  const nieuwJaar = Math.floor(totaal / 12);
+  const nieuwMaand = totaal - nieuwJaar * 12 + 1;
+  return { jaar: nieuwJaar, maand: nieuwMaand, dag: Math.min(dag, dagenInMaand(nieuwJaar, nieuwMaand)) };
+}
+
+// Duur volgens art. 7:673 lid 2 BW: eerst de volle jaren, dan de rest naar rato.
+// De einddatum telt mee; hij is de laatste dag van de arbeidsovereenkomst.
+function duurArbeidsovereenkomst(aanvang, einde) {
+  const eindeNr = dagnummer(einde);
+  const past = (maanden) => dagnummer(verschuifMaanden(aanvang, maanden)) - 1 <= eindeNr;
+
+  let volleJaren = 0;
+  while (past(12 * (volleJaren + 1))) volleJaren++;
+
+  let volleMaanden = 0;
+  while (volleMaanden < 11 && past(12 * volleJaren + volleMaanden + 1)) volleMaanden++;
+
+  const restBegin = verschuifMaanden(aanvang, 12 * volleJaren + volleMaanden);
+  const restEinde = verschuifMaanden(aanvang, 12 * volleJaren + volleMaanden + 1);
+  const lengteAangebrokenMaand = dagnummer(restEinde) - dagnummer(restBegin);
+  const losseDagen = eindeNr + 1 - dagnummer(restBegin);
+
+  return {
+    volleJaren,
+    volleMaanden,
+    losseDagen,
+    lengteAangebrokenMaand,
+    restInMaanden: volleMaanden + losseDagen / lengteAangebrokenMaand,
+    dagenTotaal: eindeNr + 1 - dagnummer(aanvang),
+  };
+}
+
+// Loon per maand volgens art. 3 lid 1 Besluit loonbegrip vergoeding aanzegtermijn en
+// transitievergoeding: het maandloon van art. 2, vermeerderd met de opgesomde
+// componenten met hun eigen deler.
+function loonPerMaand({
+  maandloon = 0,
+  vakantiebijslagPerJaar = 0,
+  eindejaarsuitkeringPerJaar = 0,
+  vasteLooncomponentenPerJaar = 0,
+  variabeleLooncomponentenDrieJaar = 0,
+} = {}) {
+  return maandloon
+    + vakantiebijslagPerJaar / 12          // art. 3 lid 1 onderdeel a
+    + eindejaarsuitkeringPerJaar / 12      // art. 3 lid 1 onderdeel a
+    + vasteLooncomponentenPerJaar / 12     // art. 3 lid 1 onderdeel b
+    + variabeleLooncomponentenDrieJaar / 36; // art. 3 lid 1 onderdeel c
+}
+
+function maximumVoorEindjaar(jaar) {
+  const regel = MAXIMUM_PER_JAAR[jaar];
+  if (regel === undefined) {
+    throw new Error(
+      `Voor een arbeidsovereenkomst die in ${jaar} eindigt is geen wettelijk maximum ` +
+      `vastgelegd. Het bedrag van artikel 7:673 lid 2 BW wordt jaarlijks in december ` +
+      `in de Staatscourant gepubliceerd. Er wordt niet doorgerekend met het bedrag van ` +
+      `een ander jaar.`
+    );
+  }
+  return regel.bedrag;
+}
+
+// De vindplaats bij het gekozen bedrag, voor in het dossierstuk.
+function bronVoorEindjaar(jaar) {
+  const regel = MAXIMUM_PER_JAAR[jaar];
+  return regel ? regel.bron : null;
+}
+
+function afrondenCent(bedrag) {
+  return Math.round((bedrag + Number.EPSILON) * 100) / 100;
+}
+
+function berekenTransitievergoeding({
+  aanvang,
+  einde,
+  loon,
+  restloonHandmatig = null,
+  nietVerschuldigd = null,
+}) {
+  const start = typeof aanvang === 'string' ? ontleedDatum(aanvang) : aanvang;
+  const stop = typeof einde === 'string' ? ontleedDatum(einde) : einde;
+
+  if (!start) throw new Error('De eerste dag van de arbeidsovereenkomst is geen geldige datum.');
+  if (!stop) throw new Error('De laatste dag van de arbeidsovereenkomst is geen geldige datum.');
+
+  // Art. 7:673 lid 2 BW kent een vergoeding toe voor elk jaar dat de arbeidsovereenkomst
+  // heeft geduurd. Een negatieve duur is geen duur. Weigeren in plaats van afkappen op
+  // nihil: een uitkomst van nul verbergt de invoerfout.
+  if (dagnummer(stop) < dagnummer(start)) {
+    throw new Error('De laatste dag ligt vóór de eerste dag van de arbeidsovereenkomst.');
+  }
+
+  if (stop.jaar < EERSTE_JAAR) {
+    throw new Error(
+      `De arbeidsovereenkomst eindigt in ${stop.jaar}. De rekenwijze hieronder geldt pas ` +
+      `sinds de Wet arbeidsmarkt in balans, in werking per 1 januari ${EERSTE_JAAR}. Voor ` +
+      `eerdere jaren gold onder meer afronding op halve dienstjaren en een referteperiode.`
+    );
+  }
+
+  if (!(loon >= 0)) throw new Error('Het loon per maand is geen bedrag van nul of hoger.');
+
+  const duur = duurArbeidsovereenkomst(start, stop);
+  const maximumWettelijk = maximumVoorEindjaar(stop.jaar);
+  const bronMaximumWettelijk = bronVoorEindjaar(stop.jaar);
+
+  // Art. 7:673 lid 7 BW: in deze drie gevallen is niets verschuldigd.
+  const uitsluiting = nietVerschuldigd && Object.keys(nietVerschuldigd).find((k) => nietVerschuldigd[k]);
+  if (uitsluiting) {
+    return {
+      verschuldigd: false, grond: uitsluiting, duur,
+      loonPerMaand: loon, vergoedingVolleJaren: 0, vergoedingRest: 0,
+      restloon: 0, restloonAfgeleid: true, korterDanEenMaand: false,
+      bruto: 0, maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: loon * 12,
+      maximum: Math.max(maximumWettelijk, loon * 12), afgetopt: false, uitkomst: 0,
+    };
+  }
+
+  // Art. 4 Besluit loonbegrip: duurde de arbeidsovereenkomst korter dan een maand, dan
+  // geldt als loon het bedrag dat over die duur verschuldigd was, en niet een maandloon.
+  // Het loonveld betekent dan iets anders dan anders. Die betekenis stilzwijgend
+  // omdraaien scheelt al gauw een factor zes, dus wordt er gevraagd in plaats van
+  // aangenomen.
+  const korterDanEenMaand = duur.volleJaren === 0 && duur.volleMaanden === 0
+    && duur.losseDagen < duur.lengteAangebrokenMaand;
+
+  const restloonAfgeleid = restloonHandmatig === null || restloonHandmatig === undefined;
+
+  if (korterDanEenMaand && restloonAfgeleid) {
+    throw new Error(
+      'De arbeidsovereenkomst duurde korter dan een maand. Artikel 4 van het Besluit ' +
+      'loonbegrip stelt dan als loon het bedrag dat over die duur verschuldigd was, en ' +
+      'niet een herleid maandloon. Vul dat bedrag in bij het feitelijk brutoloon over ' +
+      'de restperiode.'
+    );
+  }
+
+  const restloon = restloonAfgeleid ? loon * duur.restInMaanden : restloonHandmatig;
+
+  // Art. 7:673 lid 2 BW, eerste volzin, met de formule uit Kamerstukken II 2018/19,
+  // 35 074, nr. 3, paragraaf 3.4.3.2: eerst de volle jaren, daarna het restloon
+  // gedeeld door 36, want (restloon / maandloon) × (1/3 maandloon / 12) = restloon / 36.
+  const vergoedingVolleJaren = duur.volleJaren * (loon / 3);
+  const vergoedingRest = restloon / 36;
+  const bruto = vergoedingVolleJaren + vergoedingRest;
+
+  const maximumJaarloon = loon * 12;
+  const maximum = Math.max(maximumWettelijk, maximumJaarloon);
+  const afgetopt = bruto > maximum;
+
+  return {
+    verschuldigd: true, grond: null, duur,
+    loonPerMaand: loon,
+    vergoedingVolleJaren: afrondenCent(vergoedingVolleJaren),
+    vergoedingRest: afrondenCent(vergoedingRest),
+    restloon: afrondenCent(restloon),
+    restloonAfgeleid, korterDanEenMaand,
+    bruto: afrondenCent(bruto),
+    maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: afrondenCent(maximumJaarloon),
+    maximum: afrondenCent(maximum), afgetopt,
+    uitkomst: afrondenCent(Math.min(bruto, maximum)),
+  };
+}
+// FISCALE KERN — EINDE
+
+const $ = (id) => document.getElementById(id);
+const euro = (n) => n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
+const getal = (n, d = 4) => n.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: d });
+
+const GRONDEN = {
+  jong: 'artikel 7:673 lid 7 onderdeel a BW: einde vóór de achttiende verjaardag bij ten hoogste twaalf uur per week',
+  pensioen: 'artikel 7:673 lid 7 onderdeel b BW: einde in verband met of na de pensioen- of AOW-leeftijd',
+  verwijtbaar: 'artikel 7:673 lid 7 onderdeel c BW: ernstig verwijtbaar handelen of nalaten van de werknemer',
+};
+
+function nummer(id) {
+  const waarde = parseFloat(String($(id).value).replace(',', '.'));
+  return Number.isFinite(waarde) ? waarde : 0;
+}
+
+function toonFout(bericht) {
+  $('uitkomst').innerHTML = `<div class="melding fout">${bericht}</div>`;
+  $('afdrukken').hidden = true;
+}
+
+$('formulier').addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  const loon = loonPerMaand({
+    maandloon: nummer('maandloon'),
+    vakantiebijslagPerJaar: nummer('vakantiebijslag'),
+    eindejaarsuitkeringPerJaar: nummer('eindejaar'),
+    vasteLooncomponentenPerJaar: nummer('vast'),
+    variabeleLooncomponentenDrieJaar: nummer('variabel'),
+  });
+
+  const ruwRestloon = String($('restloon').value).trim();
+  const restloonHandmatig = ruwRestloon === '' ? null : parseFloat(ruwRestloon.replace(',', '.'));
+  if (restloonHandmatig !== null && !Number.isFinite(restloonHandmatig)) {
+    return toonFout('Het feitelijk brutoloon over de restperiode is geen bedrag. Laat het veld leeg om het te laten afleiden.');
+  }
+
+  let r;
+  try {
+    r = berekenTransitievergoeding({
+      aanvang: $('aanvang').value,
+      einde: $('einde').value,
+      loon,
+      restloonHandmatig,
+      nietVerschuldigd: {
+        jong: $('jong').checked,
+        pensioen: $('pensioen').checked,
+        verwijtbaar: $('verwijtbaar').checked,
+      },
+    });
+  } catch (fout) {
+    return toonFout(fout.message);
+  }
+
+  if (!r.verschuldigd) {
+    const extra = r.grond === 'verwijtbaar'
+      ? '<div class="melding let-op">Op grond van artikel 7:673 lid 8 BW kan de kantonrechter de vergoeding alsnog geheel of gedeeltelijk toekennen als het niet toekennen naar maatstaven van redelijkheid en billijkheid onaanvaardbaar is.</div>'
+      : '';
+    $('uitkomst').innerHTML = `
+      <h2>Uitkomst</h2>
+      <p class="bedrag">Geen transitievergoeding<small>${GRONDEN[r.grond]}</small></p>
+      ${extra}
+      ${dossierstuk()}`;
+    $('afdrukken').hidden = false;
+    return;
+  }
+
+  const d = r.duur;
+  const restOmschrijving = d.volleMaanden === 0 && d.losseDagen === 0
+    ? 'geen restperiode'
+    : `${d.volleMaanden} ${d.volleMaanden === 1 ? 'maand' : 'maanden'} en ${d.losseDagen} ${d.losseDagen === 1 ? 'dag' : 'dagen'}`;
+
+  const meldingen = [];
+  if (r.afgetopt) {
+    meldingen.push(`<div class="melding let-op">De vergoeding is afgetopt. Berekend ${euro(r.bruto)}, maximum ${euro(r.maximum)}. Het maximum is ${r.maximumJaarloon > r.maximumWettelijk ? 'het loon over twaalf maanden' : `het wettelijke bedrag voor ${ontleedDatum($('einde').value).jaar}`}.</div>`);
+  }
+  if (r.korterDanEenMaand) {
+    meldingen.push('<div class="melding let-op">De arbeidsovereenkomst duurde korter dan een maand. Er is gerekend met artikel 4 van het Besluit loonbegrip: het ingevulde brutoloon over de restperiode is hier het loon over de hele arbeidsovereenkomst. Het loonveld hierboven speelt alleen nog een rol bij de toets op het loon over twaalf maanden, en die toets bindt hier niet.</div>');
+  }
+  if (!r.restloonAfgeleid) {
+    meldingen.push('<div class="melding vlak">Er is gerekend met het ingevulde brutoloon over de restperiode, niet met de afleiding van de tool.</div>');
+  }
+
+  $('uitkomst').innerHTML = `
+    <h2>Uitkomst</h2>
+    <p class="bedrag">${euro(r.uitkomst)}<small>bruto transitievergoeding, artikel 7:673 lid 2 BW</small></p>
+    ${meldingen.join('')}
+
+    <h3>Duur van de arbeidsovereenkomst</h3>
+    <table>
+      <tr><td>Volle jaren</td><td class="getal">${d.volleJaren}</td></tr>
+      <tr><td>Restperiode</td><td class="getal">${restOmschrijving}</td></tr>
+      <tr><td>Restperiode in maanden</td><td class="getal">${getal(d.restInMaanden, 6)}</td></tr>
+      <tr><td>Dagen dienstverband, einddatum meegeteld</td><td class="getal">${d.dagenTotaal}</td></tr>
+    </table>
+
+    <h3>Opbouw van het bedrag</h3>
+    <table>
+      <tr><td>Loon per maand, art. 3 lid 1 Besluit loonbegrip</td><td class="getal">${euro(r.loonPerMaand)}</td></tr>
+      <tr><td>Per vol jaar, een derde maandloon</td><td class="getal">${euro(afrondenCent(r.loonPerMaand / 3))}</td></tr>
+      <tr><td>${d.volleJaren} volle ${d.volleJaren === 1 ? 'jaar' : 'jaren'}</td><td class="getal">${euro(r.vergoedingVolleJaren)}</td></tr>
+      <tr><td>Brutoloon over de restperiode${r.restloonAfgeleid ? ' (afgeleid)' : ' (ingevuld)'}</td><td class="getal">${euro(r.restloon)}</td></tr>
+      <tr><td>Restperiode, brutoloon gedeeld door 36</td><td class="getal">${euro(r.vergoedingRest)}</td></tr>
+      <tr class="som"><td>Berekende vergoeding</td><td class="getal">${euro(r.bruto)}</td></tr>
+    </table>
+
+    <h3>Aftopping, art. 7:673 lid 2 BW slotzin</h3>
+    <table>
+      <tr><td>Wettelijk maximum voor ${ontleedDatum($('einde').value).jaar}<span class="hint">${r.bronMaximumWettelijk}</span></td><td class="getal">${euro(r.maximumWettelijk)}</td></tr>
+      <tr><td>Loon over twaalf maanden</td><td class="getal">${euro(r.maximumJaarloon)}</td></tr>
+      <tr><td>Hoogste van beide, dit is het maximum</td><td class="getal">${euro(r.maximum)}</td></tr>
+      <tr class="som"><td>Verschuldigde transitievergoeding</td><td class="getal">${euro(r.uitkomst)}</td></tr>
+    </table>
+
+    <div class="melding vlak">
+      Rekenregels: art. 7:673 lid 2, 3 en 7 BW; het loonbegrip uit art. 2 en 3 van het
+      Besluit loonbegrip vergoeding aanzegtermijn en transitievergoeding; de aanwijzing
+      van de looncomponenten uit art. 4 en 5 van de Regeling looncomponenten en
+      arbeidsduur; en voor de volgorde van de berekening Kamerstukken II 2018/19,
+      35 074, nr. 3, paragraaf 3.4.3.2. Vindplaats per bedrag in BRONNEN.md.
+    </div>
+    ${dossierstuk()}`;
+  $('afdrukken').hidden = false;
+});
+
+// ---------------------------------------------------------------------------
+// Dossierstuk. De afdruk verbergt het formulier, dus de invoer moet in de
+// uitkomst zelf staan: anders is een uitdraai in een ontslagdossier niet meer
+// te herleiden tot wat er is ingevuld.
+// ---------------------------------------------------------------------------
+
+// Kenmerk en opsteller zijn vrije tekst en gaan via innerHTML de pagina in. Het blijft
+// in dit venster, maar een invoerveld hoort geen opmaak te kunnen injecteren.
+function veilig(tekst) {
+  return String(tekst).replace(/[&<>"']/g, (teken) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[teken]
+  ));
+}
+
+function datumNederlands(iso) {
+  if (!iso) return 'niet ingevuld';
+  const delen = iso.split('-');
+  return delen.length === 3 ? `${delen[2]}-${delen[1]}-${delen[0]}` : iso;
+}
+
+// Kenmerk en opsteller horen in de kopregel en niet in de invoertabel: zij zijn geen
+// invoer voor de berekening maar identificeren het stuk.
+const BUITEN_INVOERTABEL = new Set(['kenmerk', 'opsteller']);
+
+function invoerRegels() {
+  const regels = [];
+  for (const el of $('formulier').querySelectorAll('input')) {
+    if (BUITEN_INVOERTABEL.has(el.id)) continue;
+    const label = document.querySelector(`label[for="${el.id}"]`);
+    if (!label) continue;
+    const kopie = label.cloneNode(true);
+    kopie.querySelectorAll('.hint').forEach((h) => h.remove());
+    const naam = kopie.textContent.replace(/\s+/g, ' ').trim();
+    let waarde;
+    if (el.type === 'checkbox') {
+      waarde = el.checked ? 'ja' : 'nee';
+    } else if (el.type === 'date') {
+      waarde = datumNederlands(el.value);
+    } else {
+      waarde = el.value.trim() === '' ? 'niet ingevuld' : el.value.trim();
+    }
+    regels.push(`<tr><td>${naam}</td><td class="getal">${waarde}</td></tr>`);
+  }
+  return regels.join('');
+}
+
+function dossierstuk() {
+  const nu = new Date();
+  const tweecijferig = (n) => String(n).padStart(2, '0');
+  const datum = `${tweecijferig(nu.getDate())}-${tweecijferig(nu.getMonth() + 1)}-${nu.getFullYear()}`;
+  const tijd = `${tweecijferig(nu.getHours())}:${tweecijferig(nu.getMinutes())}`;
+  const kenmerk = $('kenmerk').value.trim();
+  const opsteller = $('opsteller').value.trim();
+  const kop = [
+    kenmerk ? `Kenmerk ${veilig(kenmerk)}` : null,
+    opsteller ? `Opgesteld door ${veilig(opsteller)}` : null,
+    `Berekend op ${datum} om ${tijd} uur`,
+  ].filter(Boolean).join(' &middot; ');
+  return `
+    <h2>Gegevens van deze berekening</h2>
+    <p class="dossierdatum">${kop}.</p>
+    <table>${invoerRegels()}</table>`;
+}
+
+$('afdrukken').addEventListener('click', () => window.print());
+
+// De tabel onderaan komt uit dezelfde constante als de berekening. Zo kan er geen verschil
+// ontstaan tussen wat de tool rekent en wat zij als vindplaats toont.
+$('maximatabel').insertAdjacentHTML('beforeend', Object.entries(MAXIMUM_PER_JAAR)
+  .map(([jaar, regel]) => `<tr><td>${jaar}</td><td class="getal">${euro(regel.bedrag)}</td><td>${regel.bron}</td></tr>`)
+  .join(''));
+
+// Een gesloten <details> drukt alleen zijn kop af. De afbakening is juist wat een
+// beoordelaar in het dossier moet zien, dus vouw open tijdens het afdrukken en
+// zet daarna terug wat de gebruiker had openstaan.
+window.addEventListener('beforeprint', () => {
+  for (const d of document.querySelectorAll('details')) {
+    d.dataset.stondOpen = d.open ? 'ja' : 'nee';
+    d.open = true;
+  }
+});
+window.addEventListener('afterprint', () => {
+  for (const d of document.querySelectorAll('details')) {
+    d.open = d.dataset.stondOpen === 'ja';
+  }
+});
+</script>
