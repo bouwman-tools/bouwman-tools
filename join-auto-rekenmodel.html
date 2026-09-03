@@ -355,6 +355,15 @@
           <div class="field-note">Vanaf welke maand u de auto gaat gebruiken</div>
         </div>
       </div>
+      <div class="fg1" id="veld_youngtimer" style="display:none;margin-top:10px;">
+        <div class="field">
+          <label>Waarde in het economische verkeer</label>
+          <div class="pw" id="w_wev"><span class="af">&euro;</span><input type="number" id="wev_bedrag" step="100" min="0" placeholder="dagwaarde"></div>
+          <div class="field-note"><span class="bron bron-regel">fiscale regel</span> Deze auto passeert binnen de gebruiksduur de youngtimergrens. De bijtelling gaat dan over 35% van deze waarde in plaats van over de cataloguswaarde (art. 3.20 lid 1 onderdeel b en lid 5b Wet IB 2001)</div>
+          <label class="rb" id="lbl_yt_overgang" style="display:none;margin-top:8px;"><input type="checkbox" id="youngtimer_overgang"> Overgangsregeling 2026 toepassen</label>
+          <div class="field-note" id="note_yt_overgang" style="display:none;">Besluit van 12-02-2026, nr. 2026-2493: voor een auto die in 2025 ouder werd dan 15 jaar en toen al ter beschikking stond mag in 2026 de oude grens van 15 jaar worden aangehouden. Keuzeregeling, dus alleen als u daarvoor kiest</div>
+        </div>
+      </div>
       <hr class="sep">
       <div class="fg">
         <div class="field">
@@ -366,6 +375,11 @@
           <label>Autokostenforfait</label>
           <div class="sw"><input type="number" id="forfait_pct" value="22" step="0.5" min="0" max="35"><span class="af">%</span></div>
           <div class="field-note">Alleen voor de IB-ondernemer (art. 3.20 Wet IB)</div>
+        </div>
+        <div class="field">
+          <label>Aandeel in bijtelling / forfait</label>
+          <div class="sw"><input type="number" id="aandeel_pct" value="100" step="1" min="0" max="100"><span class="af">%</span></div>
+          <div class="field-note">Staat de auto aan meer dan &eacute;&eacute;n ondernemer ter beschikking, bijvoorbeeld in een VOF, dan wordt de onttrekking in de praktijk verdeeld. Voor die verdeelsleutel bestaat geen wettelijke regel; vul dan ook de autokosten voor hetzelfde aandeel in</div>
         </div>
         <div class="field">
           <label>Btw bij aanschaf afgetrokken</label>
@@ -381,9 +395,9 @@
           <div class="field-note" id="btw_aansch_note"><span class="bron bron-schatting">schatting</span> Leeg = (aanschafprijs − BPM) ÷ 1,21 × 21%. Vul bij een gebruikte auto de btw van de factuur in</div>
         </div>
         <div class="field">
-          <label>% btw-aftrek (bij deels vrijgestelde omzet)</label>
+          <label>Aandeel belaste prestaties</label>
           <div class="sw"><input type="number" id="btw_aftrek_pct" value="100" step="1" min="0" max="100"><span class="af">%</span></div>
-          <div class="field-note">0% is een geldige invoer</div>
+          <div class="field-note"><span class="bron bron-regel">fiscale regel</span> Verricht u ook vrijgestelde prestaties, dan is de btw maar voor dit deel aftrekbaar (art. 15 lid 1 Wet OB) &eacute;n wordt de correctie priv&eacute;gebruik evenredig verlaagd: bij 50% belast zakt 2,7% naar 1,35%. 0% is een geldige invoer</div>
         </div>
         <div class="field">
           <label>Correctie privégebruik</label>
@@ -825,6 +839,24 @@ function toonTenaamstellingVeld() {
   document.getElementById('veld_tenaam').style.display = nodig ? '' : 'none';
 }
 
+// De waarde in het economische verkeer is alleen nodig als de auto binnen de
+// gebruiksduur de youngtimergrens passeert. youngtimerInPeriode meldt dat
+// bewust iets te vroeg (het toetst op de verjaardag zelf); voor het tonen van
+// een invoerveld is te vroeg beter dan te laat.
+function toonYoungtimerVelden(start, mnd) {
+  const det = document.getElementById('datum_toelating').value.trim();
+  const blok = document.getElementById('veld_youngtimer');
+  const nodig = !!youngtimerInPeriode(det, start, mnd);
+  blok.style.display = nodig ? '' : 'none';
+
+  // De overgangsregeling 2026 geldt maar voor een smalle groep; de keuze
+  // verschijnt alleen als die groep in beeld is.
+  const overgang = nodig && youngtimerOvergang2026(det, start);
+  document.getElementById('lbl_yt_overgang').style.display = overgang ? 'inline-flex' : 'none';
+  document.getElementById('note_yt_overgang').style.display = overgang ? '' : 'none';
+  if (!overgang) document.getElementById('youngtimer_overgang').checked = false;
+}
+
 // Leidt bijtelling en forfait af uit het 60-maandenregime en vult de velden.
 // Eén plek, zodat de RDW-lookup en bereken() niet elk hun eigen model hebben —
 // dat was precies het probleem met het oude platte bijtellingsmodel.
@@ -843,6 +875,10 @@ function werkBijtellingBij(basis, mnd, start) {
     isNulemissie:        enk.isNulemissie,
     isWaterstof:         enk.isWaterstof,
     isZonnecel:          zonnecel,
+    // Youngtimer: 35% van de waarde in het economische verkeer, en de keuze
+    // voor de overgangsregeling 2026.
+    waardeEconomischVerkeer: +(document.getElementById('wev_bedrag') || {}).value || 0,
+    youngtimerOvergangGekozen: !!(document.getElementById('youngtimer_overgang') || {}).checked,
   });
   if (periode.fout) return periode;
 
@@ -1142,8 +1178,35 @@ async function zoekKenteken() {
 // i = { kosten, bijtelling, forfait, kmVergoed, priveKmPerJaar, ibTarief, bvTarief }
 function berekenBelastingeffect(rol, i) {
   const verschuldigd = bijtellingVerschuldigd(i.priveKmPerJaar);
-  const bijtelling = verschuldigd ? (i.bijtelling || 0) : 0;
-  const forfait    = verschuldigd ? (i.forfait || 0) : 0;
+  // Aandeel van deze belastingplichtige in bijtelling en forfait. Standaard 1.
+  // Zie AANDEEL_ONTTREKKING voor waarom dit een invoerwaarde is en geen regel.
+  const aandeel = (i.aandeel === undefined || i.aandeel === null) ? 1 : i.aandeel;
+  const bijtelling = verschuldigd ? (i.bijtelling || 0) * aandeel : 0;
+  let   forfait    = verschuldigd ? (i.forfait || 0) * aandeel : 0;
+
+  // Begrenzing tot de werkelijke autokosten. De onttrekking van art. 3.20 Wet IB
+  // 2001 corrigeert kosten die daadwerkelijk ten laste van de winst zijn
+  // gebracht en kan die kosten niet overtreffen. De Belastingdienst rekent dat
+  // in haar voorbeelden voor: bij een cataloguswaarde van EUR 50.000 en
+  // EUR 9.000 autokosten is de bijtelling EUR 9.000 in plaats van EUR 11.000.
+  // Bron: belastingdienst.nl, "Voorbeelden berekening privégebruik auto",
+  // gecontroleerd 03-09-2026. Bij de parlementaire behandeling van art. 3.20 is
+  // bevestigd dat de correctie op grond van jurisprudentie nooit uitgaat boven
+  // de werkelijke kosten.
+  //
+  // De btw-correctie privégebruik hoort tot die autokosten: zij wordt geboekt
+  // ten laste van de autokosten en verhoogt het plafond dus. Dat is uitleg, geen
+  // wettekst; daarom staat het hier expliciet en is het bedrag een aparte
+  // invoerwaarde in plaats van stil verwerkt.
+  //
+  // Alleen voor de IB-ondernemer. Bij de DGA en de werknemer is de bijtelling
+  // loon (art. 13bis Wet LB 1964) en kent zij deze begrenzing niet.
+  let forfaitBegrensd = false;
+  if (rol !== 'dga' && rol !== 'werknemer') {
+    const plafond = (i.kosten || 0) + (i.btwCorrectie || 0);
+    if (forfait > plafond) { forfait = Math.max(0, plafond); forfaitBegrensd = true; }
+  }
+
   let aftrekbaar, effect_z, effect_p;
 
   if (rol === 'werknemer') {
@@ -1171,9 +1234,21 @@ function berekenBelastingeffect(rol, i) {
     verschil:   effect_z - effect_p,
     // Of de bijtelling/het forfait is toegepast, zodat de UI dat kan uitleggen
     // in plaats van een onverklaarde nul te tonen.
-    bijtellingVerschuldigd: verschuldigd
+    bijtellingVerschuldigd: verschuldigd,
+    // Of het forfait is afgetopt op de werkelijke autokosten.
+    forfaitBegrensd: forfaitBegrensd
   };
 }
+
+// ─── Aandeel in de onttrekking ────────────────────────────────────────────────
+//
+// Staat een auto van de onderneming aan meer dan een ondernemer ter beschikking
+// (de klassieke VOF), dan wordt de onttrekking in de praktijk over hen verdeeld,
+// vaak half om half. Voor die verdeelsleutel is geen wettelijke regel, geen
+// goedkeuring en geen jurisprudentie gevonden waarnaar hier verwezen kan worden.
+// De tool schrijft daarom geen verdeling voor: het aandeel is invoer, standaard
+// 100%, en wie het verlaagt moet de autokosten voor hetzelfde aandeel invullen.
+const AANDEEL_ONTTREKKING_STANDAARD = 1;
 
 // Belastingeffect over de hele gebruiksduur, per gebruiksjaar gerekend.
 //
@@ -1187,7 +1262,7 @@ function berekenBelastingeffect(rol, i) {
 // weging naar het aantal maanden gebeurt hier.
 function berekenEffectOverPeriode(rol, i) {
   let effect_z = 0, effect_p = 0, bijtellingTotaal = 0, forfaitTotaal = 0, aftrekbaarTotaal = 0;
-  let verschuldigd = false;
+  let verschuldigd = false, forfaitBegrensd = false;
 
   for (const j of i.perJaar) {
     const deel = j.maanden / 12;
@@ -1198,7 +1273,11 @@ function berekenEffectOverPeriode(rol, i) {
       kmVergoed:      i.kmVergoedJr,
       priveKmPerJaar: i.priveKmPerJaar,
       ibTarief:       i.ibTarief,
-      bvTarief:       i.bvTarief
+      bvTarief:       i.bvTarief,
+      aandeel:        i.aandeel,
+      // Jaarbedrag van de btw-correctie privégebruik; verhoogt het plafond
+      // waartoe het forfait wordt begrensd.
+      btwCorrectie:   i.btwCorrectieJr
     });
     effect_z         += r.effect_z * deel;
     effect_p         += r.effect_p * deel;
@@ -1206,6 +1285,7 @@ function berekenEffectOverPeriode(rol, i) {
     forfaitTotaal    += r.forfait * deel;
     aftrekbaarTotaal += r.aftrekbaar * deel;
     verschuldigd = r.bijtellingVerschuldigd;
+    if (r.forfaitBegrensd) forfaitBegrensd = true;
   }
 
   const jaren = i.perJaar.reduce((som, j) => som + j.maanden, 0) / 12;
@@ -1220,7 +1300,8 @@ function berekenEffectOverPeriode(rol, i) {
     effectZJr:    jaren > 0 ? effect_z / jaren : 0,
     effectPJr:    jaren > 0 ? effect_p / jaren : 0,
     jaren: jaren,
-    bijtellingVerschuldigd: verschuldigd
+    bijtellingVerschuldigd: verschuldigd,
+    forfaitBegrensd: forfaitBegrensd
   };
 }
 
@@ -1260,8 +1341,46 @@ function valideerInvoer(i) {
     fouten.push('Voor het ankerjaar van deze auto is geen verlagingspercentage bekend. De tabel loopt van 2017 tot en met 2027.');
   }
 
-  if (i.youngtimerJaar) {
-    waarschuwingen.push(`Deze auto is in ${i.youngtimerJaar} een youngtimer. De bijtelling gaat dan over 35% van de waarde in het economisch verkeer in plaats van over de cataloguswaarde; dat regime rekent deze tool niet.`);
+  if (i.regimeFout === 'geen-wev') {
+    fouten.push('Deze auto valt binnen de gebruiksduur onder de youngtimerregeling. Vul de waarde in het economische verkeer in: de bijtelling gaat dan over 35% van die waarde in plaats van over de cataloguswaarde (art. 3.20 lid 1 onderdeel b en lid 5b Wet IB 2001).');
+  }
+
+  if (i.youngtimerMaanden > 0) {
+    waarschuwingen.push(`Deze auto valt ${i.youngtimerMaanden} van de ${i.mnd} maanden onder de youngtimerregeling: 35% van de waarde in het economische verkeer. Die waarde is een schatting die u zelf onderbouwt; de uitkomst is niet beter dan dat bedrag.`);
+  }
+  if (i.wevBandMaanden > 0) {
+    waarschuwingen.push(`In ${i.wevBandJaar} is de auto ouder dan 15 jaar maar nog niet ouder dan de youngtimergrens van dat jaar. De tool rekent dan met het reguliere percentage over de cataloguswaarde, in lijn met de toelichting bij het besluit van 12-02-2026 (nr. 2026-2493). De wettekst van art. 3.20 lid 5b stelt de waarde bij meer dan vijftien jaar echter op de waarde in het economische verkeer; dat verschil is niet opgelost en kan een lagere bijtelling verdedigbaar maken.`);
+  }
+  if (i.overgangBeschikbaar && !i.youngtimerOvergangGekozen) {
+    waarschuwingen.push('Voor deze auto lijkt de overgangsregeling van het besluit van 12-02-2026 (nr. 2026-2493) open te staan: hij werd in 2025 ouder dan 15 jaar en stond toen al ter beschikking. U mag dan in 2026 de oude youngtimergrens van 15 jaar toepassen. Zet dat aan als u daarvoor kiest.');
+  }
+  if (i.forfaitBegrensd) {
+    waarschuwingen.push('Het autokostenforfait is afgetopt op de werkelijke autokosten inclusief de btw-correctie privégebruik; zonder die aftopping zou de onttrekking hoger uitkomen dan de kosten die ten laste van de winst zijn gebracht.');
+  }
+  if (i.belastAandeel !== undefined && i.belastAandeel < 1) {
+    const pct = Math.round(i.belastAandeel * 1000) / 10;
+    waarschuwingen.push(`Met ${pct}% belaste prestaties is de btw op de auto maar voor dat deel aftrekbaar en wordt de correctie privégebruik evenredig verlaagd (besluit privégebruik auto, paragrafen 2.2 en 2.7). Controleer of dit percentage het pro rata van het betreffende jaar is.`);
+  }
+
+  // Vermogensetikettering. Alleen de IB-ondernemer heeft hier een keuze te
+  // maken, en die keuze gaat vooraf aan deze hele vergelijking: staat de auto
+  // verplicht in prive, dan bestaat het zakelijke scenario niet.
+  //
+  // Criteria van de Belastingdienst, "Vermogensetikettering bedrijfsmiddel":
+  // 90% of meer zakelijk gebruik is verplicht ondernemingsvermogen, 10% of
+  // minder zakelijk gebruik is verplicht privévermogen, daartussen keuzevermogen.
+  // Voor een auto geldt daarnaast dat hij verplicht ondernemingsvermogen is bij
+  // meer zakelijke dan privekilometers en niet meer dan 500 kilometer prive.
+  // Gecontroleerd 03-09-2026.
+  if (i.rol === 'ondernemer' && i.kmTotaal > 0) {
+    const zakelijkAandeel = (i.kmZakelijkWoonwerk || 0) / i.kmTotaal;
+    const priveKm = i.kmTotaal - (i.kmZakelijkWoonwerk || 0);
+    if (zakelijkAandeel >= 0.9 ||
+        ((i.kmZakelijkWoonwerk || 0) > priveKm && priveKm <= PRIVE_KM_GRENS)) {
+      waarschuwingen.push('Bij dit kilometerbeeld is de auto verplicht ondernemingsvermogen; het privéscenario is dan geen keuze die u nog heeft.');
+    } else if (zakelijkAandeel <= 0.1) {
+      waarschuwingen.push('Bij dit kilometerbeeld is de auto verplicht privévermogen: 10% of minder zakelijk gebruik. Het scenario "auto van de zaak" is dan niet beschikbaar.');
+    }
   }
   if (i.datumToelatingRuw === '') {
     waarschuwingen.push(i.isNulemissie
@@ -1338,19 +1457,107 @@ const EV_KORTING_LAATSTE_JAAR = 2027;
 // zonnecelautos pas vanaf 2021 (Belastingplan 2021).
 const EV_ZONNECEL_VANAF = 2021;
 
-// Youngtimergrens in jaren, per kalenderjaar. Overgenomen uit auto-fiscaal-2027.
-// De grens loopt op: 15 jaar t/m 2025, 16 jaar in 2026 en 25 jaar vanaf 2027.
-// Een youngtimer wordt bijgeteld tegen 35% van de waarde in het economisch
-// verkeer in plaats van een percentage van de cataloguswaarde. Deze tool rekent
-// alleen met de cataloguswaarde en modelleert dat regime NIET; de grens staat
-// hier om ervoor te kunnen waarschuwen.
+// ─── Youngtimer ───────────────────────────────────────────────────────────────
+//
+// Art. 3.20 lid 1 Wet IB 2001 (en art. 13bis lid 1 Wet LB 1964) kent twee
+// forfaits: 22% van de waarde van de auto als die NIET meer dan X jaar geleden
+// voor het eerst in gebruik is genomen, en 35% als dat WEL zo is. X is per
+// amendement op het Belastingplan 2026 verhoogd:
+//
+//   t/m 2025   15 jaar   (tekst art. 3.20 lid 1 per 01-01-2025)
+//   2026       16 jaar   (tekst art. 3.20 lid 1 per 01-01-2026)
+//   vanaf 2027 25 jaar   (tekst art. 3.20 lid 1 per 01-01-2027)
+//
+// Bron: wetten.overheid.nl, art. 3.20 Wet IB 2001, versies 2025-01-01,
+// 2026-01-01 en 2027-01-01. Gecontroleerd 03-09-2026.
+//
+// Lid 5b bepaalt de grondslag: de catalogusprijs plus BPM, "met dien verstande
+// dat de waarde van een auto die meer dan vijftien jaar geleden voor het eerst
+// in gebruik is genomen, wordt gesteld op de waarde in het economische verkeer".
+//
+// LET OP — die vijftien jaar in lid 5b is NIET meeverhoogd. Voor een auto tussen
+// de 15 jaar en de leeftijdsgrens van lid 1 wijst de wettekst dus naar de waarde
+// in het economische verkeer, terwijl de toelichting bij het beleidsbesluit van
+// 12 februari 2026 (nr. 2026-2493, Stcrt. 2026, 6596) voor precies die groep
+// rekent met "22% (bij onder het overgangsrecht uit 2017 vallende auto's: 25%)
+// van de catalogusprijs". Deze tool volgt de uitvoeringslijn — catalogusprijs —
+// en waarschuwt voor het verschil; zie WAARDE_WEV_GRENS.
 const YOUNGTIMER_LEEFTIJD = { 2024: 15, 2025: 15, 2026: 16 };
 const YOUNGTIMER_LEEFTIJD_VANAF_2027 = 25;
-const BIJTELLING_YOUNGTIMER = 0.35;   // % van de waarde economisch verkeer
+const BIJTELLING_YOUNGTIMER = 0.35;   // art. 3.20 lid 1 onderdeel b
+// Leeftijd waarboven lid 5b de grondslag op de waarde in het economische
+// verkeer stelt. Ongewijzigd 15 jaar in de teksten 2025, 2026 en 2027.
+const WAARDE_WEV_GRENS = 15;
 
 function youngtimerGrens(jaar) {
   if (jaar >= 2027) return YOUNGTIMER_LEEFTIJD_VANAF_2027;
   return YOUNGTIMER_LEEFTIJD[jaar] !== undefined ? YOUNGTIMER_LEEFTIJD[jaar] : 15;
+}
+
+// "Meer dan N jaar geleden voor het eerst in gebruik genomen" — strikt meer dan.
+// Op de verjaardag zelf is het nog niet MEER dan N jaar geleden; leeftijdOp telt
+// hele jaren en kan dat onderscheid niet maken.
+function meerDanJaarGeleden(datum, peildatum, jaren) {
+  const d = parseDatum(datum), ref = parseDatum(peildatum);
+  if (!d || !ref) return null;
+  const grens = new Date(d.getFullYear() + jaren, d.getMonth(), d.getDate());
+  return ref > grens;
+}
+
+// Overgangsregeling 2026 bij de verhoging van 15 naar 16 jaar.
+//
+// Besluit van de Staatssecretaris van Financiën van 12 februari 2026,
+// nr. 2026-2493 (Stcrt. 2026, 6596), art. 2.2 voor de inkomstenbelasting en
+// art. 2.1 voor de loonheffingen: art. 3.20 lid 1 onderdeel b respectievelijk
+// art. 13bis lid 1 onderdeel b zoals dat op 31-12-2025 luidde MAG gedurende
+// 2026 worden toegepast als de auto
+//   a. in de loop van 2025 meer dan 15 maar minder dan 16 jaar geleden voor het
+//      eerst in gebruik is genomen, en
+//   b. uiterlijk 31-12-2025 ter beschikking stond aan de belastingplichtige.
+// Het besluit werkt terug tot 01-01-2026 en vervalt op 01-01-2027. Het is een
+// keuzeregeling ("mag worden toegepast"), dus de tool past het pas toe als de
+// gebruiker daarvoor kiest.
+//
+// Voorwaarde a betekent: het venster tussen de 15e en de 16e verjaardag
+// overlapt met kalenderjaar 2025.
+function youngtimerOvergang2026(datumToelating, start) {
+  const d = parseDatum(datumToelating);
+  if (!d) return false;
+  const vijftien = new Date(d.getFullYear() + 15, d.getMonth(), d.getDate());
+  const zestien  = new Date(d.getFullYear() + 16, d.getMonth(), d.getDate());
+  const overlaptMet2025 = vijftien < new Date(2026, 0, 1) && zestien > new Date(2025, 0, 1);
+  if (!overlaptMet2025) return false;
+  // Voorwaarde b: de auto stond uiterlijk 31-12-2025 ter beschikking. In deze
+  // tool is dat de start van de gebruiksduur.
+  if (!start || !(start.jaar > 0)) return false;
+  return start.jaar <= 2025;
+}
+
+// Welk waarderingsregime geldt in één kalendermaand?
+//   'youngtimer'  35% van de waarde in het economische verkeer
+//   'wev-band'    ouder dan 15 jaar maar onder de leeftijdsgrens van lid 1:
+//                 regulier percentage, grondslag betwistbaar (zie hierboven)
+//   'regulier'    regulier percentage van de cataloguswaarde
+//
+// Peildatum is de LAATSTE dag van de maand. De maand waarin de auto de grens
+// passeert telt daarmee volledig als youngtimer. Deze tool rekent overal in hele
+// maanden; per dag knippen zou een schijnprecisie geven die de rest van het
+// model niet heeft.
+function waarderingsRegimeVoorMaand(maandIdx, auto) {
+  const jaar  = Math.floor(maandIdx / 12);
+  const maand = maandIdx % 12;
+  const peildatum = new Date(jaar, maand + 1, 0);
+  const det = parseDatum(auto.datumToelating);
+  if (!det) return 'regulier';
+
+  // Keuze voor de overgangsregeling: in 2026 geldt dan de grens van 15 jaar.
+  const overgang = jaar === 2026 && auto.youngtimerOvergangGekozen === true &&
+                   youngtimerOvergang2026(auto.datumToelating, auto.start);
+  const grens = overgang ? 15 : youngtimerGrens(jaar);
+
+  if (meerDanJaarGeleden(det, peildatum, grens)) return 'youngtimer';
+  if (meerDanJaarGeleden(det, peildatum, WAARDE_WEV_GRENS)) return 'wev-band';
+  return 'regulier';
 }
 
 // Strikte parser voor DD-MM-JJJJ en JJJJ-MM-DD. Weigert onbestaande datums
@@ -1543,6 +1750,16 @@ function bijtellingJaarbedragVoorMaand(maandIdx, auto) {
   if (!(waarde > 0)) return null;
   const basisPct = regulierBijtellingPct(auto.datumToelating);
 
+  // Youngtimer: 35% van de waarde in het economische verkeer in plaats van een
+  // percentage van de cataloguswaarde (art. 3.20 lid 1 onderdeel b en lid 5b).
+  // De nulemissieverlaging van lid 2 blijft hier buiten beschouwing: die tabel
+  // begint in 2017 en een auto die de youngtimergrens haalt is ouder dan dat.
+  if (waarderingsRegimeVoorMaand(maandIdx, auto) === 'youngtimer') {
+    const wev = Number(auto.waardeEconomischVerkeer);
+    if (!(wev > 0)) return null;
+    return wev * BIJTELLING_YOUNGTIMER;
+  }
+
   // Fossiel en (plug-in) hybride kennen geen nulemissiekorting.
   if (!auto.isNulemissie) return waarde * basisPct;
 
@@ -1580,12 +1797,26 @@ function bijtellingOverPeriode(start, mnd, auto) {
   }
 
   const startIdx = start.jaar * 12 + (start.maand - 1);
+  // De maandlus heeft de startmaand nodig om de overgangsregeling 2026 te kunnen
+  // toetsen; die eist dat de auto uiterlijk 31-12-2025 ter beschikking stond.
+  const ctx = Object.assign({}, auto, { start: start });
   const perJaar = new Map();
   let totaal = 0;
+  let youngtimerMaanden = 0, wevBandMaanden = 0, wevBandJaar = null;
+  let raakt2026 = false;
 
   for (let i = 0; i < mnd; i++) {
     const idx = startIdx + i;
-    const jaarbedrag = bijtellingJaarbedragVoorMaand(idx, auto);
+    if (Math.floor(idx / 12) === 2026) raakt2026 = true;
+    const regime = waarderingsRegimeVoorMaand(idx, ctx);
+    if (regime === 'youngtimer') {
+      if (!(Number(ctx.waardeEconomischVerkeer) > 0)) return { fout: 'geen-wev' };
+      youngtimerMaanden += 1;
+    } else if (regime === 'wev-band') {
+      wevBandMaanden += 1;
+      if (wevBandJaar === null) wevBandJaar = Math.floor(idx / 12);
+    }
+    const jaarbedrag = bijtellingJaarbedragVoorMaand(idx, ctx);
     if (jaarbedrag === null) {
       return { fout: 'regime-onbekend', onbekendJaar: Math.floor(idx / 12) };
     }
@@ -1613,6 +1844,14 @@ function bijtellingOverPeriode(start, mnd, auto) {
     basisPct: regulierBijtellingPct(auto.datumToelating),
     termijnEinde: anker ? termijnEindeDatum(anker) : null,
     ankerJaar: anker ? parseDatum(anker).getFullYear() : null,
+    // Youngtimer: hoeveel maanden vielen onder het 35%-regime, hoeveel onder de
+    // band tussen 15 jaar en de leeftijdsgrens waarin de grondslag betwistbaar is.
+    youngtimerMaanden: youngtimerMaanden,
+    wevBandMaanden: wevBandMaanden,
+    wevBandJaar: wevBandJaar,
+    // De overgangsregeling doet er alleen toe als de gebruiksduur 2026 raakt;
+    // het besluit vervalt op 01-01-2027 en geldt niet voor eerdere jaren.
+    overgangBeschikbaar: raakt2026 && youngtimerOvergang2026(auto.datumToelating, start),
   };
 }
 
@@ -1705,6 +1944,9 @@ function kmAandelen(km) {
 // autokosten — en voor de btw hoort woon-werk in dat privé-aandeel.
 const BTW_CORRECTIE_HOOG   = 0.027;
 const BTW_CORRECTIE_LAAG   = 0.015;
+// Aandeel belaste prestaties. Standaard 1: de ondernemer verricht uitsluitend
+// met btw belaste prestaties en trekt alle voorbelasting af.
+const BELAST_AANDEEL_STANDAARD = 1;
 // Het jaar van ingebruikname plus de vier jaren daarna: vijf KALENDERJAREN.
 const BTW_HERZIENING_JAREN = 5;
 
@@ -1731,6 +1973,37 @@ const BTW_HERZIENING_JAREN = 5;
 // auto van een particulier: dan is over de waarde nooit btw afgetrokken en zou
 // 2,7% te veel corrigeren, ook in het eerste jaar. Bij lease is dat niet zo —
 // de btw op de termijn dekt ook het waardeverlies.
+// ─── Pro rata: gedeeltelijk vrijgestelde prestaties ───────────────────────────
+//
+// Verricht de ondernemer (ook) van btw vrijgestelde prestaties, dan is de btw op
+// de autokosten maar gedeeltelijk aftrekbaar (art. 15 lid 1 Wet OB 1968) en
+// wordt HET FORFAIT EVENREDIG VERLAAGD. Het besluit is daar uitdrukkelijk over:
+//
+//   "Het niet volledig in aftrek kunnen brengen van de btw heeft wel tot gevolg
+//    dat het forfait van 2,7% van de catalogusprijs daarmee evenredig wordt
+//    verlaagd. In het geval bijvoorbeeld dat een ondernemer voor 50% belaste en
+//    voor 50% vrijgestelde handelingen verricht [...] wordt het forfait
+//    dienovereenkomstig verlaagd tot 1,35% (50% van 2,7%)."
+//
+// Dezelfde regel staat bij het verlaagde forfait van 1,5%. Bron: besluit
+// "Omzetbelasting, heffing privégebruik auto en toepassing BUA", paragrafen 2.2
+// en 2.7, geldend vanaf 04-07-2020, wetten.overheid.nl BWBR0043783,
+// gecontroleerd 03-09-2026.
+//
+// Praktisch: het aandeel belaste prestaties werkt door in DRIE posten, en in
+// alle drie dezelfde kant op, zodat een vrijgestelde ondernemer niet per saldo
+// beter of slechter uitkomt dan hij is:
+//   1. de aftrekbare btw op de aanschaf;
+//   2. de aftrekbare btw op gebruik en onderhoud;
+//   3. de correctie privégebruik (forfaitair en op werkelijk gebruik).
+//
+// Bij 100% vrijgestelde prestaties is er niets af te trekken en blijft er ook
+// niets te corrigeren: alle drie de posten worden nul.
+function btwAandeel(belastAandeel) {
+  return (belastAandeel === undefined || belastAandeel === null)
+    ? BELAST_AANDEEL_STANDAARD : belastAandeel;
+}
+
 function btwCorrectiePct(jaar, jaarIngebruikname, geenAftrekKapitaal) {
   if (geenAftrekKapitaal) return BTW_CORRECTIE_LAAG;
   return jaar > jaarIngebruikname + (BTW_HERZIENING_JAREN - 1)
@@ -1772,7 +2045,8 @@ function btwKalenderjaren(start, mnd) {
 // Btw-effect van het zakelijke scenario over de hele gebruiksduur.
 // Positief = per saldo btw terug.
 function berekenBtwZakelijk(i) {
-  const aanschaf = i.btwAanschaf || 0;
+  const belast = btwAandeel(i.belastAandeel);
+  const aanschaf = (i.btwAanschaf || 0) * belast;
   const geenAftrekKapitaal = !!i.geenAftrekKapitaal;
   const rijen = [];
   let kostenTotaal = 0, correctieTotaal = 0;
@@ -1782,7 +2056,7 @@ function berekenBtwZakelijk(i) {
   const jaarIngebruikname = i.start.jaar;
 
   for (const j of btwKalenderjaren(i.start, i.mnd)) {
-    const kostenAftrek = (i.btwKostenJr || 0) * j.deel;
+    const kostenAftrek = (i.btwKostenJr || 0) * j.deel * belast;
     let correctie, pct = null;
 
     if (i.methode === 'werkelijk') {
@@ -1793,7 +2067,7 @@ function berekenBtwZakelijk(i) {
       // dan is er niets te corrigeren.
       correctie = 0;
     } else {
-      pct = btwCorrectiePct(j.jaar, jaarIngebruikname, geenAftrekKapitaal);
+      pct = btwCorrectiePct(j.jaar, jaarIngebruikname, geenAftrekKapitaal) * belast;
       correctie = (i.cataloguswaarde || 0) * pct * j.deel;
       if (geenAftrekKapitaal) {
         // Begrensd op de btw die dat jaar op gebruik en onderhoud is afgetrokken:
@@ -1814,6 +2088,10 @@ function berekenBtwZakelijk(i) {
     correctieTotaal: correctieTotaal,
     netto: aanschaf + kostenTotaal - correctieTotaal,
     jaarIngebruikname: jaarIngebruikname,
+    belastAandeel: belast,
+    // Gemiddelde correctie per jaar: het plafond waartoe het forfait van de
+    // IB-ondernemer wordt begrensd rekent met deze post mee.
+    correctieJr: correctieTotaal / ((i.mnd || 12) / 12),
     rijen: rijen,
   };
 }
@@ -1833,8 +2111,12 @@ function berekenBtwPrive(rol, i) {
     return { netto: 0, aftrek: 0, aandeel: 0, vanToepassing: false };
   }
   const aandeel = i.zakelijkAandeelBtw || 0;
-  const aftrek = (i.btwKostenPriveJr || 0) * (i.mnd / 12) * aandeel;
-  return { netto: aftrek, aftrek: aftrek, aandeel: aandeel, vanToepassing: true };
+  const belast = btwAandeel(i.belastAandeel);
+  // Ook hier geldt art. 15 lid 1 Wet OB 1968: alleen de voorbelasting die aan
+  // belaste handelingen is toe te rekenen komt voor aftrek in aanmerking.
+  const aftrek = (i.btwKostenPriveJr || 0) * (i.mnd / 12) * aandeel * belast;
+  return { netto: aftrek, aftrek: aftrek, aandeel: aandeel,
+           belastAandeel: belast, vanToepassing: true };
 }
 
 // Netto btw-effect voor de vergelijking, over de hele gebruiksduur.
@@ -1908,6 +2190,7 @@ function bereken() {
   const btw_a    = document.querySelector('input[name="btw_aanschaf"]:checked').value;
   const aanschafBtwAfgetrokken = btw_a === 'ja';
   const btw_af   = veldWaarde('btw_aftrek_pct',  { standaard: 100, min: 0, max: 100 }) / 100;
+  const aandeel_ont = veldWaarde('aandeel_pct', { standaard: 100, min: 0, max: 100 }) / 100;
   const btw_corr_methode = (document.querySelector('input[name="btw_correctie"]:checked') || {}).value || 'forfait';
 
   // Geen fallback: een stille 48 zou de validatie hieronder dode code maken.
@@ -1995,6 +2278,7 @@ function bereken() {
   // getypt maar gevuld is (RDW, paste): anders wijst de foutmelding hieronder
   // naar een veld dat niet op het scherm staat.
   toonTenaamstellingVeld();
+  toonYoungtimerVelden(start, mnd);
 
   // Afgeleid percentage, tenzij de gebruiker zelf een percentage heeft getypt.
   // Art. 3.20 lid 2 Wet IB kent dezelfde verlaging voor het autokostenforfait
@@ -2026,11 +2310,73 @@ function bereken() {
         forfait:    basis * forf_pct_eff
       }));
 
+  // ── BTW ──
+  // Btw-tarief over de posten die btw dragen. MRB en verzekering dragen geen
+  // btw (motorrijtuigenbelasting resp. assurantiebelasting), dus die blijven
+  // buiten de grondslag. Bij operational lease zit het onderhoud in de termijn.
+  const btwT = TARIEVEN_2026.btwTarief / 100;
+  const btwIn = (bedragInclBtw) => bedragInclBtw / (1 + btwT) * btwT;
+
+  const kostenMetBtwJr = leaseActief ? (lease + k_brand + ovr) : (ond + k_brand + ovr);
+  // Bruto, vóór pro rata: het aandeel belaste prestaties gaat als belastAandeel
+  // naar de kern en werkt daar door in aftrek én correctie. Hier nog een keer
+  // vermenigvuldigen zou het dubbel toepassen.
+  const btwKostenJr    = btwIn(kostenMetBtwJr);
+
+  // Aftrekbare btw op de aanschaf. Expliciet invoerveld, want de vuistregel
+  // (cataloguswaarde - BPM) / 1,21 x 21% klopt alleen voor een nieuwe auto: bij
+  // een gebruikte auto is de btw die je kunt aftrekken die op de FACTUUR, en
+  // bij een marge-auto is er niets af te trekken. Leeg veld valt terug op de
+  // vuistregel over de AANSCHAFPRIJS (niet de cataloguswaarde), als schatting.
+  const btwAanschafVeld = veld('btw_aanschaf_bedrag', { standaard: -1, min: 0 });
+  const btwAanschafSchatting = Math.max(0, (aansch - bpm)) / (1 + btwT) * btwT;
+  const btwAanschafGeschat = btwAanschafVeld.standaardGebruikt;
+  // Bij operational lease wordt de auto niet gekocht: geen aanschaf-btw.
+  const btwAanschaf = (aanschafBtwAfgetrokken && !leaseActief)
+    ? (btwAanschafGeschat ? btwAanschafSchatting : btwAanschafVeld.waarde)
+    : 0;
+
+  // Bij operational lease is er wél btw-aftrek over het waardeverlies (via de
+  // termijn), dus geen 1,5% en geen maximum; alleen is er geen aanschafbedrag.
+  const geenAftrekKapitaal = !aanschafBtwAfgetrokken && !leaseActief;
+  const btwZ = berekenBtwZakelijk({
+    btwAanschaf:          btwAanschaf,
+    btwKostenJr:          btwKostenJr,
+    cataloguswaarde:      basis,
+    geenAftrekKapitaal:   geenAftrekKapitaal,
+    methode:              btw_corr_methode,
+    priveAandeelBtw:      aandeel.priveBtw,
+    // Aandeel belaste prestaties: verlaagt de aftrek én het forfait evenredig
+    // (besluit privégebruik auto, § 2.2 en § 2.7).
+    belastAandeel:        btw_af,
+    // Kalenderjaren: de tijdsgrens van 2,7% naar 1,5% loopt vanaf het JAAR van
+    // ingebruikname, niet vanaf de startmaand.
+    start:                start,
+    mnd:                  mnd
+  });
+
+  // Privéscenario: alleen de IB-ondernemer heeft hier aftrekrecht, naar rato van
+  // het zakelijk gebruik — en voor de btw is woon-werk géén zakelijk gebruik.
+  // De kosten in het privéscenario zijn dezelfde autokosten, maar zonder
+  // leasetermijn: dat scenario gaat over een eigen auto.
+  const btwKostenPriveJr = btwIn(ond + k_brand + ovr);
+  const btwP = berekenBtwPrive(rol, {
+    btwKostenPriveJr:  btwKostenPriveJr,
+    zakelijkAandeelBtw: aandeel.zakelijkBtw,
+    belastAandeel:      btw_af,
+    mnd:                mnd
+  });
+
   // Belastingeffect per rol — zie FISCALE KERN. Per jaar gerekend, want de
   // IB-tak is niet lineair in het forfait.
   const fisc = berekenEffectOverPeriode(rol, {
     kostenJr:    k_totaal,
     kmVergoedJr: km_vergoed,
+    // Aandeel van deze ondernemer in bijtelling en forfait (VOF).
+    aandeel:     aandeel_ont,
+    // De btw-correctie hoort tot de autokosten en verhoogt daarmee het plafond
+    // waartoe het forfait van de IB-ondernemer wordt begrensd.
+    btwCorrectieJr: btwZ.correctieJr,
     // Alleen echte privékilometers; woon-werk is voor de IB en de loonheffingen
     // zakelijk verkeer en telt hier dus niet mee.
     priveKmPerJaar: kp,
@@ -2047,56 +2393,6 @@ function bereken() {
   // Verschil: totaal over de duur, niet een jaarbedrag maal de jaren.
   const vj = fisc.verschil / (fisc.jaren || 1);
   const vd = fisc.verschil;
-
-  // ── BTW ──
-  // Btw-tarief over de posten die btw dragen. MRB en verzekering dragen geen
-  // btw (motorrijtuigenbelasting resp. assurantiebelasting), dus die blijven
-  // buiten de grondslag. Bij operational lease zit het onderhoud in de termijn.
-  const btwT = TARIEVEN_2026.btwTarief / 100;
-  const btwIn = (bedragInclBtw) => bedragInclBtw / (1 + btwT) * btwT;
-
-  const kostenMetBtwJr = leaseActief ? (lease + k_brand + ovr) : (ond + k_brand + ovr);
-  const btwKostenJr    = btwIn(kostenMetBtwJr) * btw_af;
-
-  // Aftrekbare btw op de aanschaf. Expliciet invoerveld, want de vuistregel
-  // (cataloguswaarde - BPM) / 1,21 x 21% klopt alleen voor een nieuwe auto: bij
-  // een gebruikte auto is de btw die je kunt aftrekken die op de FACTUUR, en
-  // bij een marge-auto is er niets af te trekken. Leeg veld valt terug op de
-  // vuistregel over de AANSCHAFPRIJS (niet de cataloguswaarde), als schatting.
-  const btwAanschafVeld = veld('btw_aanschaf_bedrag', { standaard: -1, min: 0 });
-  const btwAanschafSchatting = Math.max(0, (aansch - bpm)) / (1 + btwT) * btwT;
-  const btwAanschafGeschat = btwAanschafVeld.standaardGebruikt;
-  // Bij operational lease wordt de auto niet gekocht: geen aanschaf-btw.
-  const btwAanschaf = (aanschafBtwAfgetrokken && !leaseActief)
-    ? (btwAanschafGeschat ? btwAanschafSchatting : btwAanschafVeld.waarde) * btw_af
-    : 0;
-
-  // Bij operational lease is er wél btw-aftrek over het waardeverlies (via de
-  // termijn), dus geen 1,5% en geen maximum; alleen is er geen aanschafbedrag.
-  const geenAftrekKapitaal = !aanschafBtwAfgetrokken && !leaseActief;
-  const btwZ = berekenBtwZakelijk({
-    btwAanschaf:          btwAanschaf,
-    btwKostenJr:          btwKostenJr,
-    cataloguswaarde:      basis,
-    geenAftrekKapitaal:   geenAftrekKapitaal,
-    methode:              btw_corr_methode,
-    priveAandeelBtw:      aandeel.priveBtw,
-    // Kalenderjaren: de tijdsgrens van 2,7% naar 1,5% loopt vanaf het JAAR van
-    // ingebruikname, niet vanaf de startmaand.
-    start:                start,
-    mnd:                  mnd
-  });
-
-  // Privéscenario: alleen de IB-ondernemer heeft hier aftrekrecht, naar rato van
-  // het zakelijk gebruik — en voor de btw is woon-werk géén zakelijk gebruik.
-  // De kosten in het privéscenario zijn dezelfde autokosten, maar zonder
-  // leasetermijn: dat scenario gaat over een eigen auto.
-  const btwKostenPriveJr = btwIn(ond + k_brand + ovr) * btw_af;
-  const btwP = berekenBtwPrive(rol, {
-    btwKostenPriveJr:  btwKostenPriveJr,
-    zakelijkAandeelBtw: aandeel.zakelijkBtw,
-    mnd:                mnd
-  });
 
   const btwUitkomst = berekenBtwEffect(rol, {
     btwZakelijkNetto: btwZ.netto,
@@ -2123,11 +2419,12 @@ function bereken() {
   // Waar het eindoordeel op rust, per rol.
   const oordeelBasis = rol === 'werknemer' ? nettoWnDuur : totaal;
 
-  // Een youngtimer rekent deze tool niet: de bijtelling gaat dan over 35% van de
-  // waarde in het economisch verkeer. Een normale bijtelling presenteren als
-  // eindconclusie zou dan schijnzekerheid zijn.
-  const ytJaar = youngtimerInPeriode(detRaw, start, mnd);
-  const oordeelBetrouwbaar = !ytJaar;
+  // De youngtimerregeling wordt nu wél gerekend: 35% van de waarde in het
+  // economische verkeer, per maand. Ontbreekt die waarde, dan geeft
+  // bijtellingOverPeriode de fout 'geen-wev' en blokkeert de validatie de
+  // uitkomst. Een oordeel zonder dat bedrag zou schijnzekerheid zijn.
+  const ytMaanden = regimeOk ? (bijtPeriode.youngtimerMaanden || 0) : 0;
+  const oordeelBetrouwbaar = true;
 
   // ── VALIDATIE ──
   const val = valideerInvoer({
@@ -2145,7 +2442,14 @@ function bereken() {
     startGeldig:        startRaw === '' || parseMaandJaar(startRaw) !== null,
     regimeFout:         bijtPeriode ? (bijtPeriode.fout || null) : null,
     isNulemissie:       enk.isNulemissie,
-    youngtimerJaar:     ytJaar,
+    rol:                rol,
+    youngtimerMaanden:  ytMaanden,
+    wevBandMaanden:     regimeOk ? (bijtPeriode.wevBandMaanden || 0) : 0,
+    wevBandJaar:        regimeOk ? bijtPeriode.wevBandJaar : null,
+    overgangBeschikbaar: regimeOk ? !!bijtPeriode.overgangBeschikbaar : false,
+    youngtimerOvergangGekozen: !!(document.getElementById('youngtimer_overgang') || {}).checked,
+    forfaitBegrensd:    fisc.forfaitBegrensd,
+    belastAandeel:      btw_af,
     cataloguswaarde:        cat,
     bijtellingVerschuldigd: fisc.bijtellingVerschuldigd,
     btwAanschafGeschat:     btwAanschafGeschat,
@@ -2379,12 +2683,9 @@ function bereken() {
   const klein = (tekst) => `<br><span style="font-size:11px;opacity:.75;">${tekst}</span>`;
 
   if (!oordeelBetrouwbaar) {
-    // Geen richting geven waar het model het regime niet rekent.
     verd.className = 'verdict';
     document.getElementById('v_main').textContent = 'Geen betrouwbare conclusie';
-    document.getElementById('v_sub').innerHTML =
-      `Deze auto is in ${ytJaar} een youngtimer.`
-      + klein('De bijtelling gaat dan over 35% van de waarde in het economisch verkeer, en dat regime rekent deze tool niet. De bedragen hieronder gaan uit van de normale bijtelling over de cataloguswaarde en zijn dus niet bruikbaar als eindconclusie.');
+    document.getElementById('v_sub').innerHTML = klein('De invoer laat geen eindoordeel toe.');
   } else if (rol === 'werknemer') {
     verd.className = 'verdict ' + (oordeelBasis >= 0 ? 'v-z' : 'v-p');
     document.getElementById('v_main').textContent = oordeelBasis >= 0 ? 'Auto van de zaak' : 'Auto privé';
@@ -2433,7 +2734,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 20 aug 2026, 23:44</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 00:09</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
