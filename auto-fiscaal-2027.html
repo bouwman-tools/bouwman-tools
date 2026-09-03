@@ -710,7 +710,8 @@ footer a:hover { color: var(--mint); }
         <div class="brief-subject">Jouw youngtimer op de zaak — let op deze wetswijziging</div>
         <p id="brief_aanhef_s">Beste,</p>
         <p>We nemen even contact op omdat we zien dat je een youngtimer op de zaak hebt staan. Per <strong>1 januari 2027</strong> verandert de youngtimerregeling ingrijpend en dat kan gevolgen hebben voor jouw fiscale situatie.</p>
-        <p>De leeftijdsgrens voor de youngtimerregeling schuift in twee stappen op. Per 1 januari 2026 ging die van 15 naar 16 jaar, en per 1 januari 2027 gaat hij naar 25 jaar. Voor auto's die op 31 december 2025 al vijftien jaar of ouder waren en toen al aan dezelfde persoon ter beschikking stonden, geldt in 2026 nog een overgangsregeling.</p>
+        <p>De leeftijdsgrens voor de youngtimerregeling schuift in twee stappen op. Per 1 januari 2026 ging die van 15 naar 16 jaar, en per 1 januari 2027 gaat hij naar 25 jaar. Werd je auto in de loop van 2025 meer dan vijftien maar nog geen zestien jaar oud en stond hij toen al aan jou ter beschikking, dan geldt er voor 2026 een overgangsregeling waarvan je gebruik mag maken.</p>
+        <p>Wel een kanttekening: de stap naar 25 jaar staat in de wet, maar is politiek nog niet uitgekristalliseerd. De Tweede Kamer heeft het kabinet in maart 2026 gevraagd hiervan af te zien en te komen met een geleidelijker pad. Er ligt nog geen definitieve keuze. We houden dit voor je in de gaten en rekenen voorlopig met de wet zoals die er nu staat.</p>
         <p>Auto's die nu nog onder de gunstige youngtimer-bijtelling van 35 procent van de waarde in het economische verkeer vallen, gaan in 2027 over naar de reguliere bijtelling: 22 procent van de cataloguswaarde, of 25 procent als de auto voor 1 januari 2017 voor het eerst is toegelaten. Afhankelijk van de waarde van je auto en je belastbaar inkomen kan dat per jaar flink schelen.</p>
         <p>We kunnen de gevolgen voor jouw specifieke situatie doorrekenen en je adviseren over de beste aanpak. Denk bijvoorbeeld aan heretikettering van de auto naar privé, waarbij de Belastingdienst heeft aangegeven dat deze wetswijziging als bijzondere omstandigheid kan gelden.</p>
         <p id="brief_extra_s" style="display:none;"></p>
@@ -931,15 +932,32 @@ const TARIEVEN = {
   // ingangsdatum 01-01-2026, 25 jaar in die met ingangsdatum 01-01-2027.
   youngtimerLeeftijd:        { 2024: 15, 2025: 15, 2026: 16, 2027: 25 },
   youngtimerLeeftijdVanaf2027: 25,
-  // Overgangsrecht 2026: auto die op 31-12-2025 al 15 jaar of ouder was ÉN in
-  // 2025 al ter beschikking stond aan dezelfde persoon, houdt heel 2026 de
-  // youngtimerbehandeling — ook als hij in 2026 pas 16 wordt. Grondslag is een
-  // goedkeuring, geen wet: besluit van 12 februari 2026, nr. 2026-2493,
-  // Stcrt. 2026, 6596, onderdeel 2.1. Voorwaarden daar: de auto is in de loop
-  // van 2025 meer dan 15 maar minder dan 16 jaar geleden voor het eerst in
-  // gebruik genomen én uiterlijk 31-12-2025 ter beschikking gesteld. De
-  // goedkeuring geldt alleen voor 2026 en vervalt per 01-01-2027.
-  youngtimerOvergang2026:    { peildatum: '2025-12-31', minLeeftijd: 15 },
+  // De grens van 25 jaar per 2027 is aangenomen wet, maar politiek niet
+  // afgerond. De Tweede Kamer nam op 31-03-2026 de motie Grinwis/Oosterhuis aan
+  // (Kamerstukken II, 32 140, nr. 294; 124 voor, 26 tegen), waarin zij uitspreekt
+  // dat van de verhoging van 16 naar 25 jaar per 2027 moet worden afgezien en de
+  // regering vraagt vóór de zomer met een geleidelijker transitiepad te komen.
+  // De staatssecretaris heeft op 22-06-2026 vier mogelijke afbouwpaden geschetst,
+  // uitdrukkelijk als illustratie en zonder budgettaire dekking. Zolang de wet
+  // niet is gewijzigd rekent de tool met 25 jaar; markeer de uitkomst voor 2027
+  // wel als voorlopig. CONTROLEER DIT ROND PRINSJESDAG.
+  youngtimerGrensStatus:     { 2026: 'wet', 2027: 'wet, wijziging in behandeling' },
+  // Overgangsrecht 2026: goedkeuring vooruitlopend op wetgeving, geen wet.
+  // Besluit van de Staatssecretaris van Financiën van 12 februari 2026,
+  // nr. 2026-2493, Stcrt. 2026, 6596. Artikel 2.2 geldt voor de ter beschikking
+  // staande auto (art. 3.20 Wet IB 2001), artikel 2.1 voor de ter beschikking
+  // gestelde auto (art. 13bis Wet LB 1964). Voorwaarden van artikel 2.2:
+  //   a. de auto is in de loop van kalenderjaar 2025 meer dan 15 jaar maar
+  //      minder dan 16 jaar geleden voor het eerst in gebruik genomen; én
+  //      b. staat uiterlijk 31-12-2025 ter beschikking aan de belastingplichtige.
+  // Dan mag art. 3.20 lid 1 onderdeel b zoals dat op 31-12-2025 luidde (grens
+  // 15 jaar) gedurende heel 2026 worden toegepast. Het besluit zegt "mag worden
+  // toegepast" en de toelichting noemt het uitdrukkelijk een keuzeregeling,
+  // omdat toepassen niet in alle gevallen voordelig is. Vervalt per 01-01-2027.
+  youngtimerOvergang2026:    {
+    jaar: 2026, minLeeftijd: 15, maxLeeftijd: 16,
+    vensterVan: '2025-01-01', vensterTot: '2025-12-31',
+  },
 
   // ── Box 1 / loonheffing 2026, jonger dan AOW-leeftijd ──
   // Schijfgrenzen en tarieven: art. 2.10 lid 1 Wet IB 2001 (toestand
@@ -1049,26 +1067,78 @@ function youngtimerGrens(jaar) {
   return TARIEVEN.youngtimerLeeftijd[jaar] ?? 15;
 }
 
-// Bepaalt of de auto in `jaar` onder de youngtimerregeling valt, inclusief het
-// overgangsrecht 2026.
+// Dagnummer sinds epoch, los van tijdzone en zomertijd. Alleen bedoeld om hele
+// dagen te tellen, niet als tijdstip.
+function dagIndex(d) {
+  return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+}
+
+function dagenTussen(van, tot) {
+  return dagIndex(tot) - dagIndex(van) + 1;
+}
+
+// Eerste dag waarop de auto "meer dan `jaren` jaar geleden voor het eerst in
+// gebruik is genomen" (art. 3.20 lid 1 Wet IB 2001): de dag ná de verjaardag.
+// De wet zegt "meer dan", niet "ten minste", dus op de verjaardag zelf is de
+// grens nog niet gepasseerd. Valt de verjaardag op 29 februari in een jaar
+// zonder die datum, dan rolt Date door naar 1 maart en is dat de omslagdag.
+function omslagdatumMeerDan(datumToelating, jaren) {
+  const d = parseDatum(datumToelating);
+  if (!d) return null;
+  const v = new Date(d.getFullYear() + jaren, d.getMonth(), d.getDate());
+  v.setDate(v.getDate() + 1);
+  return v;
+}
+
+// Toetst voorwaarde a van de goedkeuring uit het besluit van 12-02-2026: de
+// auto is "in de loop van het kalenderjaar 2025 meer dan 15 jaar maar minder
+// dan 16 jaar geleden voor het eerst in gebruik genomen". Dat is zo als het
+// venster tussen die twee leeftijden het kalenderjaar 2025 raakt.
+function voldoetOvergangsrecht2026(datumToelating) {
+  const o = TARIEVEN.youngtimerOvergang2026;
+  if (!parseDatum(datumToelating)) return false;
+  // Eerste dag "meer dan 15 jaar" is de verjaardag + 1 dag.
+  const eersteDag = omslagdatumMeerDan(datumToelating, o.minLeeftijd);
+  // Laatste dag "minder dan 16 jaar" is de verjaardag - 1 dag; omslagdatumMeerDan
+  // geeft de verjaardag + 1, dus twee dagen terug.
+  const laatsteDag = omslagdatumMeerDan(datumToelating, o.maxLeeftijd);
+  laatsteDag.setDate(laatsteDag.getDate() - 2);
+  return eersteDag <= parseDatum(o.vensterTot) && laatsteDag >= parseDatum(o.vensterVan);
+}
+
+// Bepaalt of de auto in `jaar` onder de youngtimerregeling valt. De status kan
+// in de loop van het jaar omslaan: de wet knoopt aan de dag waarop de auto de
+// leeftijdsgrens passeert, niet aan 1 januari. `heelJaar` zegt of het regime
+// het hele jaar geldt, `omslagdatum` geeft anders de eerste youngtimerdag.
 function bepaalYoungtimer(jaar, datumToelating, terBeschikking2025) {
-  const grens   = youngtimerGrens(jaar);
+  const grens    = youngtimerGrens(jaar);
   const leeftijd = leeftijdOp(datumToelating, new Date(jaar, 0, 1));
   if (leeftijd === null) return null;
 
-  if (leeftijd >= grens) {
-    return { isYoungtimer: true, leeftijd, grens, viaOvergangsrecht: false };
+  const jan1  = new Date(jaar, 0, 1);
+  const dec31 = new Date(jaar, 11, 31);
+  const om    = omslagdatumMeerDan(datumToelating, grens);
+  if (om === null) return null;
+
+  const uit = (v) => ({ leeftijd, grens, ...v });
+
+  // Grens al vóór het jaar gepasseerd: heel het jaar youngtimer.
+  if (om <= jan1) {
+    return uit({ isYoungtimer: true, heelJaar: true, omslagdatum: null, viaOvergangsrecht: false });
   }
 
-  if (jaar === 2026 && terBeschikking2025 === true) {
-    const o = TARIEVEN.youngtimerOvergang2026;
-    const leeftijdPeil = leeftijdOp(datumToelating, o.peildatum);
-    if (leeftijdPeil !== null && leeftijdPeil >= o.minLeeftijd) {
-      return { isYoungtimer: true, leeftijd, grens, viaOvergangsrecht: true };
-    }
+  // Goedkeuring 2026: dan geldt de oude grens van 15 jaar heel 2026.
+  if (jaar === TARIEVEN.youngtimerOvergang2026.jaar && terBeschikking2025 === true &&
+      voldoetOvergangsrecht2026(datumToelating)) {
+    return uit({ isYoungtimer: true, heelJaar: true, omslagdatum: null, viaOvergangsrecht: true });
   }
 
-  return { isYoungtimer: false, leeftijd, grens, viaOvergangsrecht: false };
+  // Grens wordt in de loop van het jaar gepasseerd.
+  if (om <= dec31) {
+    return uit({ isYoungtimer: true, heelJaar: false, omslagdatum: om, viaOvergangsrecht: false });
+  }
+
+  return uit({ isYoungtimer: false, heelJaar: false, omslagdatum: null, viaOvergangsrecht: false });
 }
 
 // Reguliere bijtellingspercentage: 25% voor auto's met datum eerste toelating
@@ -1083,7 +1153,9 @@ function bepaalYoungtimer(jaar, datumToelating, terBeschikking2025) {
 //   - de Cijferbijlage 2026 bij de Nieuwsbrief Loonheffingen, die 22% / 25% /
 //     35% expliciet naast elkaar noemt met "datum 1e toelating vóór 1 januari
 //     2017 → 25%";
-//   - de toelichting van de staatssecretaris van 15-01-2026.
+//   - de brief van de staatssecretaris van 15-01-2026 (kenmerk
+//     2026-0000009508), die in voetnoot 2 de 25% bevestigt onder verwijzing
+//     naar art. 36c lid 1 Wet LB 1964, de parallel van art. 10a.4 Wet IB 2001.
 // Op grond van wettekst en toelichting houden wij 25% aan. Wijkt de
 // Belastingdienst hier later alsnog van af, dan is dit de plek om het terug te
 // zetten — en pas dan.
@@ -1093,43 +1165,140 @@ function regulierBijtellingPct(datumToelating) {
   return pre ? TARIEVEN.bijtellingPre2017 : TARIEVEN.bijtellingRegulier;
 }
 
+// Verdeelt het belastingjaar in perioden met elk een eigen percentage en
+// grondslag, uitgaande van leeftijdsgrens `grens`.
+//
+// GRONDSLAG — bewuste afwijking van de geconsolideerde wettekst.
+// Art. 3.20 lid 5 onderdeel b Wet IB 2001 stelt de waarde op de waarde in het
+// economische verkeer bij een auto die "meer dan vijftien jaar" geleden voor
+// het eerst in gebruik is genomen. Die vijftien jaar staat ongewijzigd in de
+// toestanden 2025-01-01, 2026-01-01 én 2027-01-01, terwijl lid 1 naar 16 (2026)
+// en 25 jaar (2027) ging. Naar de letter zou een auto van 15 tot 25 jaar in
+// 2027 dus 22% of 25% van de waarde economisch verkeer krijgen.
+// De staatssecretaris heeft dat in zijn brief van 15-01-2026 "Herstel omissie
+// versobering youngtimerregeling" (kenmerk 2026-0000009508, Tweede Kamer
+// 2026Z00622) uitdrukkelijk een omissie genoemd: de leeftijdsgrens voor de
+// waarderingsgrondslag is "abusievelijk niet verhoogd naar 16 jaar", en het
+// kabinet herstelt dit met terugwerkende kracht vanaf 01-01-2026 in het
+// eerstvolgende passende wetgevingstraject, aangekondigd voor Overige Fiscale
+// Maatregelen 2027. Wij volgen die herstelde bedoeling: de grondslag volgt
+// dezelfde grens als het percentage. Wordt de reparatie anders vastgesteld,
+// dan is dit de plek om het aan te passen.
+function bijtellingPerioden(jaar, auto, grens) {
+  const { datumToelating, cataloguswaarde, dagwaarde } = auto;
+  const om = omslagdatumMeerDan(datumToelating, grens);
+  if (om === null) return { fout: 'ongeldige-datum' };
+
+  const jan1      = new Date(jaar, 0, 1);
+  const dec31     = new Date(jaar, 11, 31);
+  const dagenJaar = dagenTussen(jan1, dec31);
+  const regPct    = regulierBijtellingPct(datumToelating);
+
+  const maak = (van, tot, isYoungtimer) => {
+    const grondslag = Number(isYoungtimer ? dagwaarde : cataloguswaarde);
+    if (!(grondslag > 0)) {
+      return { fout: isYoungtimer ? 'geen-dagwaarde' : 'geen-cataloguswaarde' };
+    }
+    const pct   = isYoungtimer ? TARIEVEN.bijtellingYoungtimer : regPct;
+    const dagen = dagenTussen(van, tot);
+    return {
+      van, tot, dagen, isYoungtimer, pct, grondslag,
+      grondslagSoort: isYoungtimer ? 'waarde economisch verkeer' : 'cataloguswaarde',
+      bedrag: pct * grondslag * dagen / dagenJaar,
+    };
+  };
+
+  let delen;
+  if (om > dec31)      delen = [maak(jan1, dec31, false)];
+  else if (om <= jan1) delen = [maak(jan1, dec31, true)];
+  else {
+    const laatsteRegulier = new Date(om);
+    laatsteRegulier.setDate(laatsteRegulier.getDate() - 1);
+    delen = [maak(jan1, laatsteRegulier, false), maak(om, dec31, true)];
+  }
+
+  const mislukt = delen.find(d => d.fout);
+  if (mislukt) return { fout: mislukt.fout };
+
+  return {
+    perioden: delen,
+    dagenJaar,
+    bedrag: delen.reduce((s, d) => s + d.bedrag, 0),
+    gesplitst: delen.length > 1,
+  };
+}
+
+// Leesbare samenvatting van een uitkomst: één percentage als het jaar niet
+// splitst, anders beide met het aantal dagen erbij.
+function omschrijfBijtelling(res, viaOvergangsrecht) {
+  const p        = res.perioden;
+  const pctTekst = (x) => (x * 100).toFixed(0) + '%';
+  if (p.length === 1) {
+    const e = p[0];
+    return {
+      pct: e.pct,
+      grondslag: e.grondslag,
+      grondslagSoort: e.grondslagSoort,
+      pctOmschrijving: pctTekst(e.pct),
+      soort: e.isYoungtimer
+        ? (viaOvergangsrecht ? 'Youngtimer (35%, overgangsrecht 2026)' : 'Youngtimer (35%)')
+        : `Regulier (${pctTekst(e.pct)})`,
+    };
+  }
+  const [a, b] = p;
+  return {
+    pct: null,
+    grondslag: null,
+    grondslagSoort: null,
+    pctOmschrijving: `${pctTekst(a.pct)} en ${pctTekst(b.pct)}`,
+    soort: `Gesplitst: ${pctTekst(a.pct)} ${a.grondslagSoort} (${a.dagen} dgn), ` +
+           `daarna ${pctTekst(b.pct)} ${b.grondslagSoort} (${b.dagen} dgn)`,
+  };
+}
+
 // Bijtelling voor één belastingjaar. Retourneert ook waaróm, zodat de UI en de
 // klantbrief dezelfde onderbouwing gebruiken.
+//
+// Valt de auto onder de goedkeuring van 2026, dan is dat een keuzeregeling: het
+// besluit zegt "mag worden toegepast" en de toelichting motiveert uitdrukkelijk
+// dat toepassen niet altijd voordelig is. `keuze` bevat dan beide uitkomsten en
+// `bedrag` volgt de laagste, want een lagere onttrekking is gunstiger.
 function bepaalBijtelling(jaar, auto) {
-  const { datumToelating, cataloguswaarde, dagwaarde, terBeschikking2025 } = auto;
-  const yt = bepaalYoungtimer(jaar, datumToelating, terBeschikking2025);
+  const yt = bepaalYoungtimer(jaar, auto.datumToelating, auto.terBeschikking2025);
   if (!yt) return { fout: 'ongeldige-datum' };
 
-  if (yt.isYoungtimer) {
-    const grondslag = Number(dagwaarde);
-    if (!(grondslag > 0)) {
-      return { fout: 'geen-dagwaarde', isYoungtimer: true, ...yt };
+  const wettelijk = bijtellingPerioden(jaar, auto, youngtimerGrens(jaar));
+
+  if (yt.viaOvergangsrecht) {
+    const o           = TARIEVEN.youngtimerOvergang2026;
+    const goedkeuring = bijtellingPerioden(jaar, auto, o.minLeeftijd);
+    if (goedkeuring.fout) return { ...yt, fout: goedkeuring.fout };
+    // Zonder cataloguswaarde valt de wettelijke route niet te berekenen; dan
+    // staat de goedkeuring als enige uitkomst, zonder keuze.
+    if (wettelijk.fout) {
+      return { ...yt, ...goedkeuring, ...omschrijfBijtelling(goedkeuring, true), keuze: null };
     }
+    const metLager = goedkeuring.bedrag <= wettelijk.bedrag;
+    const gekozen  = metLager ? goedkeuring : wettelijk;
     return {
       ...yt,
-      pct: TARIEVEN.bijtellingYoungtimer,
-      grondslag,
-      grondslagSoort: 'dagwaarde',
-      bedrag: grondslag * TARIEVEN.bijtellingYoungtimer,
-      soort: yt.viaOvergangsrecht
-        ? 'Youngtimer (35%, overgangsrecht 2026)'
-        : 'Youngtimer (35%)',
+      // Wordt de wettelijke route gekozen, dan berust de uitkomst niet op de
+      // goedkeuring en splitst het jaar zich alsnog.
+      viaOvergangsrecht: metLager,
+      heelJaar:          !gekozen.gesplitst,
+      omslagdatum:       gekozen.gesplitst ? gekozen.perioden[1].van : null,
+      ...gekozen, ...omschrijfBijtelling(gekozen, metLager),
+      keuze: {
+        metGoedkeuring:    { ...goedkeuring, ...omschrijfBijtelling(goedkeuring, true) },
+        zonderGoedkeuring: { ...wettelijk,   ...omschrijfBijtelling(wettelijk, false) },
+        voordeligst: metLager ? 'met' : 'zonder',
+        verschil:    Math.abs(goedkeuring.bedrag - wettelijk.bedrag),
+      },
     };
   }
 
-  const pct = regulierBijtellingPct(datumToelating);
-  const grondslag = Number(cataloguswaarde);
-  if (!(grondslag > 0)) {
-    return { fout: 'geen-cataloguswaarde', isYoungtimer: false, ...yt, pct };
-  }
-  return {
-    ...yt,
-    pct,
-    grondslag,
-    grondslagSoort: 'cataloguswaarde',
-    bedrag: grondslag * pct,
-    soort: `Regulier (${(pct * 100).toFixed(0)}%)`,
-  };
+  if (wettelijk.fout) return { ...yt, fout: wettelijk.fout };
+  return { ...yt, ...wettelijk, ...omschrijfBijtelling(wettelijk, false), keuze: null };
 }
 
 // ─── Heffing box 1 ────────────────────────────────────────────────────────────
@@ -1428,6 +1597,8 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TARIEVEN, parseDatum, parseRdwDatum, formatDatumNl, leeftijdOp, isPre2017,
     youngtimerGrens, bepaalYoungtimer, regulierBijtellingPct, bepaalBijtelling,
+    omslagdatumMeerDan, dagenTussen, voldoetOvergangsrecht2026,
+    bijtellingPerioden, omschrijfBijtelling,
     schijventarief, algemeneHeffingskorting, arbeidskorting, tariefsaanpassing,
     berekenJaarIB, berekenJaarDGA, maandenTerBeschikking, bepaalPseudoEindheffing,
     positiefBedrag, percentage,
@@ -1800,15 +1971,19 @@ function updateLeeftijd() {
   const y27 = bepaalYoungtimer(2027, d, terB);
   badge.style.display = 'block';
 
+  // Een jaar kan ook deels youngtimer zijn: de grens valt op de dag na de
+  // verjaardag, dus het regime kan halverwege het jaar omslaan.
+  const deel = (y) => y.heelJaar ? '' : ` vanaf ${formatDatumNl(y.omslagdatum)}`;
+
   let cls, txt;
   if (y26.isYoungtimer && y27.isYoungtimer) {
     cls = 'lb-ok';
-    txt = `✅ Youngtimer in 2026 (${y26.leeftijd} jr) én 2027 (${y27.leeftijd} jr)`;
+    txt = `✅ Youngtimer in 2026${deel(y26)} én 2027${deel(y27)}`;
   } else if (y26.isYoungtimer && !y27.isYoungtimer) {
     cls = 'lb-warn';
     txt = y26.viaOvergangsrecht
-      ? `⚠️ Youngtimer 2026 via overgangsrecht (${y26.leeftijd} jr) — NIET in 2027 (${y27.leeftijd} jr, grens 25)`
-      : `⚠️ Youngtimer 2026 (${y26.leeftijd} jr) — NIET in 2027 (${y27.leeftijd} jr, grens 25)`;
+      ? `⚠️ Youngtimer 2026 via de goedkeuring (${y26.leeftijd} jr) — NIET in 2027 (${y27.leeftijd} jr, grens 25)`
+      : `⚠️ Youngtimer 2026${deel(y26)} — NIET in 2027 (${y27.leeftijd} jr, grens 25)`;
   } else if (!y26.isYoungtimer && y27.isYoungtimer) {
     cls = 'lb-warn';
     txt = `⚠️ Geen youngtimer 2026 (${y26.leeftijd} jr) — wél in 2027 (${y27.leeftijd} jr)`;
@@ -1927,14 +2102,14 @@ function bereken() {
   if (!b26.isYoungtimer && !b27.isYoungtimer) {
     vClass = 'v-ok'; vMain = 'Geen impact';
     vSub = 'Buiten de youngtimerregeling in beide jaren';
-    conclusie = `Deze auto valt in 2026 én 2027 buiten de youngtimerregeling. De bijtelling blijft ${(b26.pct * 100).toFixed(0)}% van de cataloguswaarde. De wetswijziging heeft voor deze auto geen gevolgen.`;
+    conclusie = `Deze auto valt in 2026 én 2027 buiten de youngtimerregeling. De bijtelling blijft ${b26.pctOmschrijving} van de cataloguswaarde. De wetswijziging heeft voor deze auto geen gevolgen.`;
   } else if (b26.isYoungtimer && !b27.isYoungtimer) {
     vClass = 'v-bad'; vMain = fmtSigned(diff);
     vSub = 'Auto valt in 2027 buiten youngtimer → overweeg heretikettering';
     const via = b26.viaOvergangsrecht
-      ? ` De youngtimerbehandeling in 2026 berust op het overgangsrecht: de auto was op 31-12-2025 al 15 jaar of ouder en stond toen al ter beschikking aan dezelfde persoon.`
+      ? ` De youngtimerbehandeling in 2026 berust op de goedkeuring van het besluit van 12 februari 2026: de auto werd in de loop van 2025 meer dan 15 maar minder dan 16 jaar oud en stond op 31-12-2025 al ter beschikking aan dezelfde persoon.`
       : '';
-    conclusie = `Deze auto is in 2026 nog youngtimer (${b26.leeftijd} jaar, grens ${b26.grens}), maar voldoet in 2027 niet meer aan de nieuwe grens van 25 jaar.${via} De bijtelling schakelt over van 35% van de waarde economisch verkeer naar ${(b27.pct * 100).toFixed(0)}% van de cataloguswaarde. Dat leidt tot een extra ${soortHeffing} van ${fmtE(Math.abs(diff))} per jaar (${fmtE(Math.abs(diffMnd))} per maand). Het is zinvol om heretikettering naar privé per 1 januari 2027 te overwegen.`;
+    conclusie = `Deze auto is in 2026 nog youngtimer (${b26.leeftijd} jaar, grens ${b26.grens}), maar voldoet in 2027 niet meer aan de nieuwe grens van 25 jaar.${via} De bijtelling schakelt over naar ${b27.pctOmschrijving} van de cataloguswaarde. Dat leidt tot een extra ${soortHeffing} van ${fmtE(Math.abs(diff))} per jaar (${fmtE(Math.abs(diffMnd))} per maand). Het is zinvol om heretikettering naar privé per 1 januari 2027 te overwegen.`;
   } else if (b26.isYoungtimer && b27.isYoungtimer) {
     vClass = Math.abs(diff) > 200 ? 'v-warn' : 'v-ok';
     vMain = fmtSigned(diff);
@@ -1946,7 +2121,21 @@ function bereken() {
     conclusie = `Bijzondere situatie: de auto voldeed in 2026 niet aan de grens van ${b26.grens} jaar, maar in 2027 wél aan de nieuwe grens van 25 jaar. Nader onderzoek is zinvol.`;
   }
 
-  const voorbehoud = ' De berekening gaat uit van uitsluitend de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden.';
+  // De goedkeuring 2026 is een keuzeregeling: het besluit zegt "mag worden
+  // toegepast". Toon daarom altijd beide uitkomsten, ook de niet-gekozen.
+  if (b26.keuze) {
+    const k = b26.keuze;
+    conclusie += k.voordeligst === 'met'
+      ? ` De goedkeuring voor 2026 is een keuzeregeling. Toepassen levert ${fmtE(k.metGoedkeuring.bedrag)} op tegen ${fmtE(k.zonderGoedkeuring.bedrag)} zonder, dus ${fmtE(k.verschil)} voordeliger; de berekening gaat daarvan uit.`
+      : ` Let op: de goedkeuring voor 2026 is een keuzeregeling en pakt hier ongunstig uit. Toepassen zou ${fmtE(k.metGoedkeuring.bedrag)} geven tegen ${fmtE(k.zonderGoedkeuring.bedrag)} zonder. De berekening gaat uit van niet toepassen, wat ${fmtE(k.verschil)} scheelt.`;
+  }
+  [[2026, b26], [2027, b27]].forEach(([jaar, b]) => {
+    if (b.gesplitst) {
+      conclusie += ` In ${jaar} passeert de auto de leeftijdsgrens op ${formatDatumNl(b.perioden[1].van)}; de bijtelling is daarom tijdsevenredig over ${b.perioden[0].dagen} en ${b.perioden[1].dagen} dagen berekend.`;
+    }
+  });
+
+  const voorbehoud = ' De grens van 25 jaar per 2027 staat in de wet, maar is politiek niet afgerond: de Tweede Kamer nam op 31-03-2026 een motie aan om ervan af te zien en het kabinet heeft alternatieve afbouwpaden geschetst zonder er al een te kiezen. Zolang de wet niet is gewijzigd rekent deze tool met 25 jaar; controleer de stand van zaken vóór je hierop een onomkeerbare keuze baseert. De berekening gaat verder uit van uitsluitend de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden.';
   conclusie += voorbehoud;
 
   $('verd').className = 'verdict ' + vClass;
@@ -2163,13 +2352,47 @@ function bcBereken() {
 
   let percentagePct, cap = null, isGelocked = false, lockUitleg = '', bijtellingJaar, berekeningUitleg;
 
-  if (yt.isYoungtimer) {
+  if (yt.heelJaar) {
     percentagePct = TARIEVEN.bijtellingYoungtimer;
     bijtellingJaar = dagwaarde * percentagePct;
     berekeningUitleg = `35% × waarde economisch verkeer ${fmtE(dagwaarde)} = ${fmtE(bijtellingJaar)} per jaar`;
     lockUitleg = yt.viaOvergangsrecht
-      ? `Overgangsrecht 2026: op 31-12-2025 al 15 jaar of ouder én toen al ter beschikking gesteld`
+      ? `Goedkeuring 2026 (besluit 12-02-2026, art. 2.2): in de loop van 2025 tussen 15 en 16 jaar én toen al ter beschikking`
       : `Youngtimer: ${yt.leeftijd} jaar, grens ${yt.grens} jaar in ${controleJaar}`;
+
+  } else if (yt.isYoungtimer) {
+    // De auto passeert de leeftijdsgrens in de loop van het jaar. Voor een
+    // emissievrije auto loopt dat samen met het 60-maandenregime; die
+    // combinatie rekent de tool bewust niet uit.
+    if (isEmissievrij) {
+      resultEl.innerHTML = `<div style="padding:14px 16px;"><div class="melding m-waarschuwing">
+        <strong>Handmatige controle nodig</strong><br>
+        Deze emissievrije auto passeert op ${esc(formatDatumNl(yt.omslagdatum))} de grens van ${yt.grens} jaar.
+        De youngtimerregeling en het 60-maandenregime voor de nulemissiekorting lopen dan door elkaar.
+        De tool rekent die combinatie bewust niet uit.
+      </div></div>`;
+      return;
+    }
+    if (!catalogusprijs) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'Catalogusprijs niet beschikbaar in RDW.');
+      return;
+    }
+    const split = bepaalBijtelling(controleJaar, {
+      datumToelating, cataloguswaarde: catalogusprijs, dagwaarde, terBeschikking2025: terB,
+    });
+    if (split.fout) {
+      resultEl.innerHTML = bcPlaceholder('⚠️', 'De bijtelling kon niet worden bepaald. Controleer de RDW-gegevens.');
+      return;
+    }
+    bijtellingJaar = split.bedrag;
+    percentagePct  = null;
+    const [eerste, tweede] = split.perioden;
+    berekeningUitleg =
+      `${eerste.dagen}/${split.dagenJaar} × ${fmtPct(eerste.pct, 0)} × ${fmtE(eerste.grondslag)} + ` +
+      `${tweede.dagen}/${split.dagenJaar} × ${fmtPct(tweede.pct, 0)} × ${fmtE(tweede.grondslag)} = ${fmtE(bijtellingJaar)} per jaar`;
+    lockUitleg =
+      `Youngtimer vanaf ${formatDatumNl(yt.omslagdatum)}: art. 3.20 lid 1 Wet IB 2001 knoopt aan ` +
+      `"meer dan ${yt.grens} jaar geleden", dus het jaar splitst op de dag na de verjaardag`;
 
   } else if (!isEmissievrij) {
     // Regulier: 25% bij datum eerste toelating t/m 31-12-2016, anders 22%.
@@ -2250,8 +2473,10 @@ function bcBereken() {
   }
 
   const brandstofType = isEmissievrij ? (isWaterstof ? 'Waterstof' : 'Elektrisch') : 'Fossiel (incl. hybride)';
-  const pctLabel = yt.isYoungtimer
+  const pctLabel = yt.heelJaar
     ? '35% (youngtimer, grondslag waarde economisch verkeer)'
+    : yt.isYoungtimer
+    ? `gesplitst — youngtimer vanaf ${formatDatumNl(yt.omslagdatum)}`
     : isEmissievrij
       ? `effectief ${fmtPct(percentagePct, 1)}` + (cap ? ` — verlaging tot ${fmtE(cap)}` : '')
       : fmtPct(percentagePct, 0);
@@ -2269,8 +2494,10 @@ function bcBereken() {
             <span class="gegeven-waarde">${esc(brandstofType)}</span></div>
           <div class="gegeven"><span class="gegeven-label">Youngtimer (${controleJaar})</span>
             <span class="gegeven-waarde" style="color:${yt.isYoungtimer ? 'var(--yellow)' : 'var(--mint)'};">
-              ${yt.isYoungtimer
+              ${yt.heelJaar
                 ? `Ja &mdash; ${yt.leeftijd} jr (grens ${yt.grens})${yt.viaOvergangsrecht ? ', overgangsrecht' : ''}`
+                : yt.isYoungtimer
+                ? `Deels &mdash; vanaf ${formatDatumNl(yt.omslagdatum)} (grens ${yt.grens})`
                 : `Nee &mdash; ${yt.leeftijd} jr (grens ${yt.grens})`}</span></div>
           <div class="gegeven"><span class="gegeven-label">Bijtellingspercentage</span>
             <span class="gegeven-waarde">${esc(pctLabel)}</span></div>
@@ -2293,7 +2520,7 @@ function bcBereken() {
 
     <div class="rs">
       <div class="rs-title">Berekening</div>
-      <div class="rrow"><span class="rl">Grondslag</span><span class="rv">${yt.isYoungtimer ? `Waarde economisch verkeer ${fmtE(dagwaarde)}` : `Catalogusprijs ${fmtE(catalogusprijs)}`}</span></div>
+      <div class="rrow"><span class="rl">Grondslag</span><span class="rv">${yt.heelJaar ? `Waarde economisch verkeer ${fmtE(dagwaarde)}` : yt.isYoungtimer ? `Catalogusprijs ${fmtE(catalogusprijs)}, daarna waarde economisch verkeer ${fmtE(dagwaarde)}` : `Catalogusprijs ${fmtE(catalogusprijs)}`}</span></div>
       <div class="rrow"><span class="rl">Bijtelling per jaar</span><span class="rv mint">${fmtE(bijtellingJaar)}</span></div>
       <div class="rrow"><span class="rl">Bijtelling per maand</span><span class="rv mint">${fmtE(bijtellingMaand)}</span></div>
       <div class="rrow" style="border-top:none;"><span class="rl" style="font-size:11px;color:var(--muted);line-height:1.5;">${esc(berekeningUitleg)}</span></div>
@@ -2365,6 +2592,6 @@ setBrief('signaal');
 setEhCatalogusprijsStatus('-', 'We proberen de catalogusprijs automatisch op te halen via RDW.', 'leeg', 'Nog niet bepaald');
 berekenEindheffing();
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 31 aug 2026, 12:24</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 3 sep 2026, 09:09</div>
 </body>
 </html>
