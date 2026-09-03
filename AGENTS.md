@@ -48,9 +48,9 @@ valideert daartegen zodra `jsonschema` beschikbaar is.
   zonder beschrijving in plaats van dat het portaal breekt. `tools.json` staat
   onafgeschermd op `https://bouwman.tools/tools.json`; het bestand staat toch al in deze
   publieke repo, maar zet er dus niets in wat niet openbaar mag zijn.
-- `beheer.html` toont geen beschrijvingen — daar staat per tool alleen de naam bij een
-  aanvinkvakje — en `TOOLS.md` neemt de beschrijving niet op: die tabel heeft al negen
-  kolommen.
+- `beheer.html` toont geen beschrijvingen: daar staat per tool alleen de naam bij een
+  aanvinkvakje. In `TOOLS.md` staan de beschrijvingen als lijst onder de tabel van elke
+  categorie, niet als tiende kolom, want dan wordt die tabel onleesbaar.
 - `TOOLS.md` wordt **gegenereerd**: `python tools/check_tools.py --schrijf-tools-md`.
   Bewerk dat bestand niet met de hand.
 - `python tools/check_tools.py` faalt bij drift, en draait ook in CI

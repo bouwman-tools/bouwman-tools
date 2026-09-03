@@ -13,17 +13,25 @@ Bijgewerkt: 2026-09-03
 | ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
+- **Auditfile App**: Analyseer XAF-auditfiles en exporteer gestructureerde overzichten per grootboekrekening of kostensoort
+- **Jaarrekening review**: Toets een jaarrekening aan de kantoorstandaard voordat die naar de klant gaat
+- **XAF Raw Export**: Verwerk XAF-auditfiles (3.2 & 4.0) naar Excel of CSV — volledig in de browser, ook voor bestanden van 700 MB+
+
 ## Administratie & Archief
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
+- **Bewaarplicht Checker**: Bereken de wettelijke bewaartermijn (AWR art. 52) voor elk documenttype — inclusief einddatum
+
 ## Arbeidsrecht & Compliance
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
+
+- **DBA Risicoscan**: Indicatieve beoordeling van de arbeidsrelatie op basis van de negen gezichtspunten uit het Deliveroo/Uber-arrest
 
 ## Auto & Mobiliteit
 
@@ -32,12 +40,18 @@ Bijgewerkt: 2026-09-03
 | 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
+- **Auto Fiscaal 2027**: Gecombineerde tool voor eindheffing, youngtimer-bijtelling en RDW-kentekenlookup — alle grote autowijzigingen per 1 januari 2027
+- **Auto van de Zaak**: Bereken snel of een auto op de zaak of privé fiscaal gunstiger uitpakt
+
 ## BTW & Omzetbelasting
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | **tbd** | belastingplan | **nooit** |
+
+- **BTW Teruggaaf EU**: Bereken en onderbouw een BTW-teruggaafverzoek voor kosten gemaakt in EU-landen
+- **BUA en kantineregeling**: Bereken de uitsluiting van btw-aftrek voor personeelsvoorzieningen, de kantine en relatiegeschenken, met de drempel per begunstigde
 
 ## BV & DGA
 
@@ -51,6 +65,14 @@ Bijgewerkt: 2026-09-03
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | **tbd** | belastingplan | **nooit** |
 
+- **BV Ja/Nee**: Doorrekenen of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
+- **Dividend & Uitkeringstoets**: Balanstoets en liquiditeitstoets (art. 2:216 BW) doorlopen en direct AVA-notulen en bestuursbesluit genereren
+- **Earningsstripping**: Renteaftrekbeperking art. 15b Wet Vpb doorrekenen: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
+- **Gebruikelijk loon**: Toets het DGA-loon aan de wettelijke norm — vergelijkingsloon, hoogste werknemer en afroommethode
+- **Herstructurering**: Stap-voor-stap herstructureringstrajecten doorrekenen en adviseren via AI
+- **Rekeningcourant + Dividend**: Bereken de optimale aflossingsroute van een rekening-courantschuld voor een DGA
+- **Sjablonen DGA**: Genereer juridische documenten voor de inrichting van een holdingstructuur voor een DGA
+
 ## Belastingdienst
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
@@ -58,11 +80,16 @@ Bijgewerkt: 2026-09-03
 | 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 
+- **Belastingtool JoinDK**: Betalingskenmerk decoderen, belastingrente IB en VpB, BTW-correctie en bijtelling auto, VIES en KvK/SBI — zes tools in één app
+- **Kennisgroepen-zoeker**: Zoek en analyseer kennisgroepstandpunten van de Belastingdienst via AI
+
 ## Kantoor
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+
+- **Prijsafspraken**: Prijsafspraken Viewer: per klant de geldende tariefafspraken, werkstatus en factuurhistorie uit een Excel-export
 
 ## Loonheffing & WKR
 
@@ -72,12 +99,19 @@ Bijgewerkt: 2026-09-03
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
 | 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 
+- **WKR Agent**: AI-assistent voor vragen over de werkkostenregeling
+- **Werkgeversverklaring NHG**: Genereer snel en foutloos een NHG-werkgeversverklaring via een stap-voor-stap wizard
+- **Werkkostenregeling**: Bereken de vrije ruimte en de eindheffing per inhoudingsplichtige (2024–2026), met de normbedragen van het jaar als naslag
+
 ## Overig
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | **tbd** | jaarlijks | **nooit** |
+
+- **Berekeningen**: Annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente en doorverkoop overdrachtsbelasting
+- **KvK Nummers Zoeken**: Laad een Excel in en vul automatisch KvK-nummers aan — voor Payroll
 
 ## Vervallen
 

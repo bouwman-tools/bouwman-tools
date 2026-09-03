@@ -309,6 +309,7 @@ def schrijf_tools_md() -> None:
         per_categorie.setdefault(tool["categorie"], []).append(tool)
 
     for categorie in sorted(per_categorie):
+        in_categorie = sorted(per_categorie[categorie], key=lambda t: t["naam"])
         regels += [
             f"## {categorie}",
             "",
@@ -316,7 +317,7 @@ def schrijf_tools_md() -> None:
             "| Eigenaar | Ritme | Geaccordeerd |",
             "|---|---|---|---|---|---|---|---|---|",
         ]
-        for tool in sorted(per_categorie[categorie], key=lambda t: t["naam"]):
+        for tool in in_categorie:
             doel = tool.get("url") or ("/" + tool["bestand"])
             schild = "ja" if tool.get("access_app_id") else ("n.v.t." if tool.get("extern") else "**nee**")
             status = ICOON.get(tool["status"], "") + " " + tool["status"]
@@ -337,6 +338,15 @@ def schrijf_tools_md() -> None:
                 f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} "
                 f"| {jw} | {eigenaar} | {ritme} | {akkoord} |"
             )
+        # De beschrijving staat als aparte regel onder de tabel en niet als tiende
+        # kolom: die tabel is al breed genoeg om onleesbaar te worden.
+        beschrijvingen = [
+            f"- **{tool['naam']}**: {tool['beschrijving']}"
+            for tool in in_categorie
+            if tool.get("beschrijving")
+        ]
+        if beschrijvingen:
+            regels += [""] + beschrijvingen
         regels.append("")
 
     onbeschermd = [t for t in bron["tools"] if not t.get("access_app_id") and not t.get("extern")]
