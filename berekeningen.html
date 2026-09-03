@@ -91,6 +91,7 @@
   button.actie:hover { border-color: var(--accent); color: var(--accent); }
   .bron { font-size: 12px; color: var(--zacht); margin-top: 14px; line-height: 1.5; }
   .bron code { font-family: var(--mono); font-size: 11px; }
+  .exportstatus { font-size: 12px; color: var(--zacht); align-self: center; }
   [hidden] { display: none !important; }
 </style>
 
@@ -1686,6 +1687,447 @@ function schrijfVeld(veld, waarde) {
   return veld.t === 'procent' ? +(waarde * 100).toFixed(6) : waarde;
 }
 
+/* ============================================================
+   Export naar Excel en naar het klembord. Deze laag rekent niet: ze schrijft
+   op wat de kern al heeft opgeleverd. Het xlsx-bestand wordt hier zelf
+   opgebouwd, zonder bibliotheek, zodat de tool offline blijft werken en
+   niets van buiten haalt.
+   ============================================================ */
+// EXPORT — BEGIN
+
+/* Een xlsx is een zipbestand met XML erin. De leden gaan er ongecomprimeerd in
+   ("stored"), want dan is er geen deflate nodig; de bestanden blijven klein
+   genoeg om dat te kunnen missen. */
+const CRC_TABEL = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [];
+  const centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);        // benodigde versie
+    kv.setUint16(6, 0x0800, true);    // bestandsnaam in UTF-8
+    kv.setUint16(8, 0, true);         // opgeslagen, niet gecomprimeerd
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce((s, c) => s + c.length, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = [...stukken, ...centraal, slot];
+  const uit = new Uint8Array(alles.reduce((s, d) => s + d.length, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+/* --- Cellen --- */
+
+const FMT_EURO = '"€ "#,##0.00;"€ "-#,##0.00';
+const FMT_GETAL = '#,##0.00';
+
+const xmlTekst = s => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const celTekst = (tekst, vet = false) => ({ tekst: tekst ?? '', vet });
+
+/* weergave is de tekst zoals de pagina die toont. Die gaat naar het klembord,
+   terwijl het xlsx-bestand het getal met een eigen getalformaat krijgt. */
+const celGetal = (waarde, formaat, vet = false, weergave = null) =>
+  ({ getal: waarde, formaat, vet, weergave: weergave === null ? getal(waarde) : weergave });
+
+const celNaarTekst = c => !c ? ''
+  : (c.weergave !== undefined && c.weergave !== null ? String(c.weergave) : String(c.tekst ?? ''));
+
+const NL_GETAL = /^-?(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/;
+
+/* De onderwerpen leveren hun uitkomst als opgemaakte tekst op, want dat is wat
+   de pagina toont. Voor Excel wordt die tekst hier terug gelezen naar een getal
+   met een bijpassend getalformaat, zodat er in het werkblad mee te rekenen
+   valt. Lukt dat niet, dan gaat de tekst ongewijzigd mee. */
+function uitWeergave(tekst, vet = false) {
+  const oorspronkelijk = String(tekst ?? '').replace(/\u00A0/g, ' ').trim();
+  let s = oorspronkelijk;
+  if (s === '' || s === '—') return celTekst('', vet);
+
+  let formaat = null, deler = 1;
+  if (s.indexOf('€') !== -1) { s = s.replace('€', '').trim(); formaat = FMT_EURO; }
+  else if (s.endsWith('%')) { s = s.slice(0, -1).trim(); formaat = 'procent'; deler = 100; }
+
+  let teken = 1;
+  if (s.startsWith('-')) { teken = -1; s = s.slice(1).trim(); }
+
+  const m = s.match(NL_GETAL);
+  if (!m) return celTekst(oorspronkelijk, vet);
+  const decimalen = m[1] ? m[1].length : 0;
+  /* Stond er geen scheidingsteken in de tekst, dan komt het er ook in
+     Excel niet bij: een termijnnummer of een jaartal blijft zo leesbaar. */
+  const geheel = s.indexOf('.') === -1 ? '0' : '#,##0';
+  const waarde = teken * Number(s.replace(/\./g, '').replace(',', '.')) / deler;
+  if (!isFinite(waarde)) return celTekst(oorspronkelijk, vet);
+
+  if (formaat === 'procent') {
+    formaat = geheel + (decimalen ? '.' + '0'.repeat(decimalen) : '') + '%';
+  } else if (formaat === null) {
+    formaat = geheel + (decimalen ? '.' + '0'.repeat(decimalen) : '');
+  }
+  return celGetal(waarde, formaat, vet, oorspronkelijk);
+}
+
+function celInvoer(veld, waarde) {
+  if (veld.t === 'vinkje') return celTekst(waarde ? 'ja' : 'nee');
+  if (veld.t === 'keuze') {
+    const opt = veld.opties.find(x => String(x.w) === String(waarde));
+    return celTekst(opt ? opt.l : String(waarde ?? ''));
+  }
+  if (veld.t === 'datum') return celTekst(waarde || '');
+  if (waarde === null || waarde === undefined || !isFinite(waarde)) return celTekst('');
+  if (veld.t === 'procent') return celGetal(waarde, '0.00##%', false, procent(waarde, 2));
+  if (veld.t === 'geheel') {
+    return Number.isInteger(waarde)
+      ? celGetal(waarde, '0', false, String(waarde))
+      : celGetal(waarde, FMT_GETAL, false, getal(waarde));
+  }
+  if (veld.t === 'euro') return celGetal(waarde, FMT_EURO, false, euro(waarde));
+  return celGetal(waarde, FMT_GETAL, false, getal(waarde));
+}
+
+/* --- Stijlen, bladen en het xlsx-bestand --- */
+
+/* Een getalformaat wordt pas aangemaakt wanneer een cel erom vraagt, zodat een
+   percentage met vier decimalen er ook vier houdt. */
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor(formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml() {
+      const nf = [...formaten.entries()]
+        .map(([code, id]) => '<numFmt numFmtId="' + id + '" formatCode="' +
+          xmlTekst(code) + '"/>').join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(x => '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+          ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>').join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach((b, i) => d.push('<col min="' + (i + 1) + '" max="' + (i + 1) +
+      '" width="' + b + '" customWidth="1"/>'));
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach((rij, ri) => {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach((cel, ki) => {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(b => bladXml(b, stijlen));
+  const rid = i => 'rId' + (i + 1);
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map((b, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+          '.xml" ContentType="' + SS + '.worksheet+xml"/>').join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map((b, i) => '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+          '" r:id="' + rid(i) + '"/>').join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map((b, i) => '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+          '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach((x, i) => leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x }));
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+/* --- Wat er van een onderwerp mee gaat --- */
+
+const meldingTekst = m => m.tekst +
+  (m.bedrag === undefined ? '' : euro(m.bedrag)) + (m.staart || '');
+
+const BRONREGEL = 'De vindplaats van elke jaargebonden waarde staat in BRONNEN.md ' +
+  'en in het commentaar bij de waarde in de rekenkern van dit bestand.';
+
+function exportBladen(o, r) {
+  const bladen = [];
+  const rijen = [];
+
+  rijen.push([celTekst(o.titel, true)]);
+  if (o.grondslag) rijen.push([celTekst(o.grondslag)]);
+  rijen.push([celTekst('Geëxporteerd op'),
+    celTekst(new Date().toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' }))]);
+  rijen.push([celTekst('Versie van de tool'), celTekst(VERSIE)]);
+  rijen.push([]);
+
+  if (o.velden.length) {
+    rijen.push([celTekst('Invoer', true)]);
+    for (const v of o.velden) rijen.push([celTekst(v.l), celInvoer(v, invoer[o.id][v.k])]);
+    rijen.push([]);
+  }
+
+  rijen.push([celTekst('Berekening', true)]);
+  for (const regel of o.uit(r)) {
+    rijen.push([celTekst(regel[0], !!regel[2]), uitWeergave(regel[1], !!regel[2])]);
+  }
+
+  const meldingen = o.meldingen ? o.meldingen(r) : (r.meldingen || []);
+  if (meldingen.length) {
+    rijen.push([]);
+    rijen.push([celTekst('Meldingen', true)]);
+    for (const m of meldingen) rijen.push([celTekst(meldingTekst(m))]);
+  }
+
+  rijen.push([]);
+  rijen.push([celTekst(BRONREGEL)]);
+  bladen.push({ naam: 'Berekening', breedtes: [54, 22], rijen });
+
+  /* De reeksinvoer gaat mee zonder de lege regels: alleen wat is ingevuld. */
+  if (o.reeks) {
+    const kol = o.reeks.kolommen;
+    const rijenR = [[celTekst('Maand', true),
+      ...kol.map(k => celTekst(k.charAt(0).toUpperCase() + k.slice(1), true))]];
+    reeksen[o.id].forEach((cel, n) => {
+      const waarden = kol.length === 1 ? [cel] : kol.map(k => (cel ? cel[k] : null));
+      if (!waarden.some(w => typeof w === 'number' && isFinite(w))) return;
+      const label = o.reeks.beginLabel + n;
+      rijenR.push([celTekst(label === 0 ? 'start' : String(label)),
+        ...waarden.map(w => (typeof w === 'number' && isFinite(w))
+          ? celGetal(w, FMT_EURO, false, euro(w)) : celTekst(''))]);
+    });
+    if (rijenR.length > 1) {
+      bladen.push({ naam: 'Invoerreeks', breedtes: [10, ...kol.map(() => 18)], rijen: rijenR });
+    }
+  }
+
+  const schema = o.schema ? o.schema(r) : null;
+  if (schema) {
+    const rijenS = [schema.koppen.map(k => celTekst(k, true))];
+    for (const rij of schema.rijen) rijenS.push(rij.map(c => uitWeergave(c)));
+    bladen.push({ naam: 'Uitwerking', breedtes: schema.koppen.map(() => 18), rijen: rijenS });
+  }
+
+  return bladen;
+}
+
+/* Voor het klembord dezelfde inhoud, met tabs tussen de kolommen. Zo plakt het
+   rechtstreeks in een openstaand werkblad. */
+function bladenNaarTekst(bladen) {
+  const uit = [];
+  bladen.forEach((b, i) => {
+    if (i > 0) uit.push('', b.naam);
+    for (const rij of b.rijen) uit.push(rij.map(celNaarTekst).join('\t').replace(/\t+$/, ''));
+  });
+  return uit.join('\r\n');
+}
+
+function bestandsnaam(o) {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return 'berekening-' + o.id + '-' +
+    d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.xlsx';
+}
+
+function bewaarBestand(bytes, naam) {
+  const blob = new Blob([bytes],
+    { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* Het klembord van de browser is niet in elke omgeving toegankelijk; dan volgt
+   de oude weg via een verborgen tekstvak. */
+function naarKlembord(tekst) {
+  const terugval = () => {
+    const ta = document.createElement('textarea');
+    ta.value = tekst; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, tekst.length);
+    const gelukt = document.execCommand('copy');
+    ta.remove();
+    return gelukt ? Promise.resolve()
+      : Promise.reject(new Error('het klembord is niet toegankelijk'));
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(tekst).catch(terugval);
+  }
+  return terugval();
+}
+
+function exportKnoppen(o, r) {
+  const kn = document.createElement('div');
+  kn.className = 'knoppen';
+  const status = document.createElement('span');
+  status.className = 'exportstatus';
+  status.setAttribute('aria-live', 'polite');
+
+  const bExcel = document.createElement('button');
+  bExcel.type = 'button'; bExcel.className = 'actie';
+  bExcel.textContent = 'Exporteer naar Excel';
+  bExcel.addEventListener('click', () => {
+    try {
+      bewaarBestand(xlsxBytes(exportBladen(o, r)), bestandsnaam(o));
+      status.textContent = 'Het bestand is aangemaakt.';
+    } catch (e) {
+      status.textContent = 'De export is niet gelukt: ' + e.message;
+    }
+  });
+
+  const bKlem = document.createElement('button');
+  bKlem.type = 'button'; bKlem.className = 'actie';
+  bKlem.textContent = 'Kopieer naar klembord';
+  bKlem.addEventListener('click', () => {
+    let tekst;
+    try { tekst = bladenNaarTekst(exportBladen(o, r)); }
+    catch (e) { status.textContent = 'De export is niet gelukt: ' + e.message; return; }
+    naarKlembord(tekst).then(
+      () => { status.textContent = 'Gekopieerd. Plakken kan nu in een werkblad.'; },
+      e => { status.textContent = 'Kopiëren is niet gelukt: ' + e.message; }
+    );
+  });
+
+  kn.appendChild(bExcel); kn.appendChild(bKlem); kn.appendChild(status);
+  return kn;
+}
+
+// EXPORT — EINDE
+
 function toon() {
   const o = ONDERWERPEN.find(x => x.id === huidig);
   const main = document.getElementById('main');
@@ -1840,9 +2282,7 @@ function rekenEnToon(o) {
   for (const m of meldingen) {
     const p = document.createElement('p');
     p.className = 'melding ' + (m.soort === 'fout' ? 'fout' : m.soort === 'info' ? 'info' : 'let');
-    p.textContent = m.tekst +
-      (m.bedrag === undefined ? '' : euro(m.bedrag)) +
-      (m.staart || '');
+    p.textContent = meldingTekst(m);
     fs.appendChild(p);
   }
   vak.appendChild(fs);
@@ -1869,9 +2309,10 @@ function rekenEnToon(o) {
     vak.appendChild(fs2);
   }
 
+  vak.appendChild(exportKnoppen(o, r));
+
   const bron = document.createElement('p'); bron.className = 'bron';
-  bron.textContent = 'De vindplaats van elke jaargebonden waarde staat in BRONNEN.md ' +
-    'en in het commentaar bij de waarde in de rekenkern van dit bestand.';
+  bron.textContent = BRONREGEL;
   vak.appendChild(bron);
 }
 
