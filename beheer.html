@@ -101,6 +101,21 @@
     }
     .btn-cancel:hover { background: #F5EBE0; }
 
+    /* Melding over de laatste synchronisatie of controle van de toegang.
+       Zonder deze balk kan het bijwerken van de Access-policies stil mislukken. */
+    .statusbalk {
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      border: 1px solid;
+    }
+    .statusbalk.fout { background: #FBEAEA; border-color: #D99; color: #8A1B1B; }
+    .statusbalk.goed { background: #EDF7F0; border-color: #A8CBB4; color: #1D6B3F; }
+    .statusbalk b { font-weight: 700; }
+    .statusbalk ul { margin: 8px 0 0; padding-left: 20px; }
+
     .toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
       background: #2C1A0E; color: white; padding: 10px 22px;
@@ -132,6 +147,8 @@
 </header>
 
 <main id="app" style="display:none">
+
+  <div class="statusbalk" id="statusbalk" hidden></div>
 
   <div class="card" id="users-card">
     <div class="section-title">Huidige gebruikers</div>
@@ -317,10 +334,74 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
+  // Toont of het bijwerken van de Access-policies werkelijk is gelukt. De
+  // synchronisatie wordt losgelaten met waitUntil, dus het opslaan zelf kan
+  // niets over de uitkomst zeggen; die staat in de KV-opslag. Faalt dit
+  // ophalen, dan blijft de balk weg: het is een melding, geen blokkade.
+  async function laadStatus() {
+    const balk = document.getElementById('statusbalk');
+    try {
+      const st = await api('/admin/status');
+      if (!st || (!st.synchronisatie && !st.controle)) return;
+
+      const regels = [];
+      const sync = st.synchronisatie;
+      const contr = st.controle;
+      let fout = false;
+
+      if (sync) {
+        const fouten = sync.fouten || [];
+        if (sync.mislukt || fouten.length) {
+          fout = true;
+          regels.push(`De laatste keer opslaan (${tijd(sync.tijdstip)}) heeft de toegang ` +
+            `<b>niet</b> volledig bijgewerkt: ${sync.mislukt} van de tools mislukte.`);
+          for (const f of fouten.slice(0, 5)) regels.push(`${f.tool}: ${f.reden}`);
+        } else {
+          regels.push(`Laatste keer opslaan (${tijd(sync.tijdstip)}): ` +
+            `${sync.gelukt} tools bijgewerkt.`);
+        }
+      }
+
+      if (contr) {
+        const afw = contr.afwijkingen || [];
+        if (afw.length) {
+          fout = true;
+          regels.push(`De dagelijkse controle (${tijd(contr.tijdstip)}) vond ` +
+            `<b>${afw.length} afwijking(en)</b> tussen de rechten hier en wat er ` +
+            `werkelijk op Cloudflare staat.`);
+          for (const a of afw.slice(0, 5)) regels.push(`${a.tool}: ${a.reden}`);
+        } else {
+          regels.push(`Dagelijkse controle (${tijd(contr.tijdstip)}): ` +
+            `${contr.gecontroleerd} tools in orde.`);
+        }
+      }
+
+      if (fout) {
+        regels.push('Sla hieronder een gebruiker op om de toegang opnieuw te laten schrijven. ' +
+          'Blijft het misgaan, dan is het token op de worker de eerste verdachte.');
+      }
+
+      balk.className = 'statusbalk ' + (fout ? 'fout' : 'goed');
+      balk.innerHTML = regels.length > 1
+        ? `${regels[0]}<ul>${regels.slice(1).map(r => `<li>${r}</li>`).join('')}</ul>`
+        : regels[0];
+      balk.hidden = false;
+    } catch (e) {
+      console.error('status ophalen mislukt:', e);
+    }
+  }
+
+  function tijd(iso) {
+    if (!iso) return 'onbekend';
+    const d = new Date(iso);
+    return isNaN(d) ? 'onbekend' : d.toLocaleString('nl-NL');
+  }
+
   // Init
   document.getElementById('app').style.display = '';
   buildToolsGrid([]);
   loadUsers();
+  laadStatus();
 </script>
 </body>
 </html>

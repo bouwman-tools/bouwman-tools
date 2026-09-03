@@ -5,6 +5,13 @@
 
 const CF_ACCOUNT_ID = '9f2508dc476f0183404720277152eb16';
 
+// Sleutels in de KV-opslag met de uitkomst van de laatste synchronisatie en van
+// de laatste controle. beheer.html leest die en meldt het als er iets mis is.
+// Zonder deze twee kon het bijwerken van de toegang volledig mislukken terwijl
+// het beheerscherm succes meldde; zie AGENTS.md.
+const STATUS_SYNC = 'sync-status';
+const STATUS_CONTROLE = 'controle-status';
+
 const APP_IDS = {
   'portal.html':                         '4f132e0b-6557-4726-8371-111024d21f39',
   'Join-jaarrekening-review.html':       '8a515a1c-6b83-4d4c-9c1d-b42a7a9b61a8',
@@ -57,6 +64,14 @@ export default {
       return ok(await getPermissions(env), request);
     }
 
+    // Uitkomst van de laatste synchronisatie en van de laatste controle.
+    if (path === '/admin/status' && request.method === 'GET') {
+      return ok({
+        synchronisatie: JSON.parse(await env.PERMISSIONS.get(STATUS_SYNC) || 'null'),
+        controle: JSON.parse(await env.PERMISSIONS.get(STATUS_CONTROLE) || 'null'),
+      }, request);
+    }
+
     if (path === '/admin/upsert' && request.method === 'POST') {
       const { email, tools } = await request.json();
       if (!email) return ok({ error: 'email verplicht' }, request, 400);
@@ -78,8 +93,108 @@ export default {
     }
 
     return new Response('Not found', { status: 404 });
+  },
+
+  // Dagelijkse controle. Deze kijkt naar het account en niet naar de
+  // repository, en vindt daarom ook een verlopen token of een worker die
+  // achterloopt. check_tools.py in de repo kan dat per definitie niet zien.
+  async scheduled(event, env, ctx) {
+    const tijdstip = new Date().toISOString();
+
+    if (!env.CF_API_TOKEN) {
+      const reden = 'CF_API_TOKEN ontbreekt op de worker';
+      console.error('controle: ' + reden);
+      await schrijfStatus(env, STATUS_CONTROLE, {
+        tijdstip, gecontroleerd: 0, overgeslagen: 0,
+        afwijkingen: [{ tool: '*', reden }],
+      });
+      return;
+    }
+
+    const permissions = await getPermissions(env);
+    const uit = await controleerPolicies(permissions, env);
+    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit });
+
+    if (uit.afwijkingen.length) {
+      console.error(`controle: ${uit.afwijkingen.length} afwijking(en) gevonden: ` +
+        uit.afwijkingen.map(a => `${a.tool} (${a.reden})`).join('; '));
+    } else {
+      console.log(`controle: ${uit.gecontroleerd} tools in orde, ` +
+        `${uit.overgeslagen} overgeslagen`);
+    }
   }
 };
+
+async function schrijfStatus(env, sleutel, status) {
+  try {
+    await env.PERMISSIONS.put(sleutel, JSON.stringify(status));
+  } catch (e) {
+    console.error(`status ${sleutel} wegschrijven mislukt: ${e && e.message ? e.message : String(e)}`);
+  }
+}
+
+// Welke adressen horen volgens de opslag toegang te hebben tot dit bestand.
+function rechthebbenden(permissions, file) {
+  if (file === 'portal.html') return Object.keys(permissions);
+  return Object.entries(permissions)
+    .filter(([, t]) => t === 'all' || (Array.isArray(t) && t.includes(file)))
+    .map(([e]) => e);
+}
+
+// Vergelijkt per Access-app de toegelaten adressen met de rechten in de opslag.
+// Bewaart geen adressen in de uitkomst, alleen aantallen en de naam van de tool:
+// die uitkomst is voor een melding, niet voor een ledenlijst.
+async function controleerPolicies(permissions, env) {
+  const afwijkingen = [];
+  let gecontroleerd = 0, overgeslagen = 0;
+
+  for (const [file, appId] of Object.entries(APP_IDS)) {
+    const verwacht = rechthebbenden(permissions, file);
+
+    // De synchronisatie laat een policy bewust ongemoeid als niemand recht
+    // heeft op die tool, want een lege lijst wordt door de API geweigerd.
+    // De controle moet dat overslaan, anders klaagt zij daar eeuwig over.
+    if (verwacht.length === 0) { overgeslagen++; continue; }
+
+    try {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
+        { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+      );
+      if (!res.ok) {
+        afwijkingen.push({ tool: file, reden: `policies ophalen gaf HTTP ${res.status}` });
+        continue;
+      }
+      const data = await res.json();
+      const policy = data.result?.[0];
+      if (!policy) {
+        afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
+        continue;
+      }
+
+      const aanwezig = (policy.include || []).map(r => r?.email?.email).filter(Boolean);
+      const ontbreekt = verwacht.filter(e => !aanwezig.includes(e)).length;
+      const teveel = aanwezig.filter(e => !verwacht.includes(e)).length;
+      gecontroleerd++;
+
+      if (ontbreekt || teveel) {
+        afwijkingen.push({
+          tool: file,
+          reden: `${ontbreekt} ontbreekt in de policy, ${teveel} staat er te veel in`,
+          verwacht: verwacht.length,
+          aanwezig: aanwezig.length,
+        });
+      }
+    } catch (e) {
+      afwijkingen.push({
+        tool: file,
+        reden: `onverwachte fout: ${e && e.message ? e.message : String(e)}`,
+      });
+    }
+  }
+
+  return { gecontroleerd, overgeslagen, afwijkingen };
+}
 
 async function getPermissions(env) {
   return JSON.parse(await env.PERMISSIONS.get('data') || '{}');
@@ -106,8 +221,10 @@ function ok(data, request, status = 200) {
 // werkelijk lukt. Meelezen kan met: npx wrangler tail --name access-beheer
 async function syncCFAccess(permissions, env) {
   let gelukt = 0, overgeslagen = 0, mislukt = 0;
+  const fouten = [];
   if (!env.CF_API_TOKEN) {
     console.error('syncCFAccess: CF_API_TOKEN ontbreekt op de worker; elke aanroep zal falen');
+    fouten.push({ tool: '*', reden: 'CF_API_TOKEN ontbreekt op de worker' });
   }
 
   for (const [file, appId] of Object.entries(APP_IDS)) {
@@ -129,6 +246,7 @@ async function syncCFAccess(permissions, env) {
     );
     if (!pRes.ok) {
       console.error(`syncCFAccess ${file}: policies ophalen gaf HTTP ${pRes.status}`);
+      fouten.push({ tool: file, reden: `policies ophalen gaf HTTP ${pRes.status}` });
     }
     const pData = await pRes.json();
     const policy = pData.result?.[0];
@@ -136,6 +254,7 @@ async function syncCFAccess(permissions, env) {
       mislukt++;
       console.error(`syncCFAccess ${file}: geen policy gevonden om bij te werken; ` +
         `antwoord: ${JSON.stringify(pData).slice(0, 300)}`);
+      fouten.push({ tool: file, reden: 'geen policy gevonden om bij te werken' });
       continue;
     }
 
@@ -155,8 +274,9 @@ async function syncCFAccess(permissions, env) {
     );
     if (!put.ok) {
       mislukt++;
-      console.error(`syncCFAccess ${file}: policy bijwerken gaf HTTP ${put.status}: ` +
-        `${(await put.text()).slice(0, 300)}`);
+      const tekst = (await put.text()).slice(0, 300);
+      console.error(`syncCFAccess ${file}: policy bijwerken gaf HTTP ${put.status}: ${tekst}`);
+      fouten.push({ tool: file, reden: `policy bijwerken gaf HTTP ${put.status}` });
     } else {
       gelukt++;
       console.log(`syncCFAccess ${file}: policy bijgewerkt met ${emails.length} adres(sen)`);
@@ -165,4 +285,10 @@ async function syncCFAccess(permissions, env) {
 
   console.log(`syncCFAccess klaar: ${gelukt} bijgewerkt, ${overgeslagen} overgeslagen ` +
     `(niemand heeft recht), ${mislukt} mislukt`);
+
+  // Bewaren zodat beheer.html kan melden of het bijwerken werkelijk lukte.
+  await schrijfStatus(env, STATUS_SYNC, {
+    tijdstip: new Date().toISOString(),
+    gelukt, overgeslagen, mislukt, fouten,
+  });
 }
