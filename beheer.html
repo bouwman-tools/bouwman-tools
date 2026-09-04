@@ -183,46 +183,35 @@
 <script>
   const WORKER = 'https://access-beheer.s-bouwman.workers.dev';
 
-  const TOOLS = [
-    // BV & DGA
-    { file: 'bv_janee_DK.html',                     name: 'BV Ja/Nee' },
-    { file: 'join-bv-documenten.html',              name: 'Sjablonen DGA' },
-    { file: 'rc-schuld-dga.html',                   name: 'Rekeningcourant + Dividend' },
-    { file: 'gebruikelijk-loon.html',               name: 'Gebruikelijk loon' },
-    { file: 'dividend-uitkeringstoets.html',        name: 'Dividend & Uitkeringstoets' },
-    { file: 'herstructurering-assistent-v3.html',   name: 'Herstructurering' },
-    { file: 'earningsstripping.html',               name: 'Earningsstripping' },
-    { file: 'belastinglatentie.html',               name: 'Belastinglatentie' },
-    // Auto & Mobiliteit
-    { file: 'auto-fiscaal-2027.html',               name: 'Auto Fiscaal 2027' },
-    { file: 'join-auto-rekenmodel.html',            name: 'Auto van de Zaak' },
-    // Loonheffing & WKR
-    { file: 'join-wkr-agent.html',                  name: 'WKR Agent' },
-    { file: 'werkkostenregeling.html',              name: 'Werkkostenregeling' },
-    { file: 'nhg-werkgeversverklaring-wizard.html', name: 'Werkgeversverklaring NHG' },
-    // Accountancy & Jaarrekening
-    { file: 'xaf_export.html',                      name: 'XAF Raw Export' },
-    { file: 'https://auditfile-app.streamlit.app/', name: 'Auditfile App' },
-    // BTW & Omzetbelasting
-    { file: 'btw-teruggaaf-eu.html',               name: 'BTW Teruggaaf EU' },
-    { file: 'bua.html',                            name: 'BUA en kantineregeling' },
-    { file: 'herziening-btw.html',                  name: 'Herziening btw' },
-    // Belastingdienst
-    { file: 'https://belastingtooljoindk.streamlit.app/', name: 'Belastingtool JoinDK' },
-    { file: 'kennisgroepen-zoeker.html',            name: 'Kennisgroepen-zoeker' },
-    // Administratie & Archief
-    { file: 'bewaarplicht.html',                    name: 'Bewaarplicht Checker' },
-    // Arbeidsrecht & Compliance
-    { file: 'https://dba-risicoscan.streamlit.app/', name: 'DBA Risicoscan' },
-    { file: 'transitievergoeding.html',             name: 'Transitievergoeding' },
-    // Overig
-    { file: 'kvk-zoeker.html',                      name: 'KvK Nummers Zoeken' },
-    { file: 'berekeningen.html',                    name: 'Berekeningen' },
-    { file: 'vastgoedrendement.html',               name: 'Rendementsstructuur vastgoed' },
-    // Kantoor — verborgen pagina's: staan niet in het portaal maar hebben wel een
-    // Access-app, dus zonder vinkje hier komt er nooit iemand in de policy.
-    { file: 'modellen-naar-tools.html',             name: 'Van rekenmodel naar bouwman.tools' },
+  // De toollijst komt uit tools.json, het register. Stond die lijst hier ook, dan zou een
+  // nieuwe tool wel een Access-app kunnen hebben en toch buiten het toegangsbeheer vallen:
+  // dat gebeurde op 04-09-2026 bij herziening-btw en de inventarisatiepagina.
+  //
+  // De sleutel is het bestand, of bij een externe tool de URL. Die waarde staat ook in de
+  // opgeslagen rechten per gebruiker, dus hij mag niet veranderen zonder migratie.
+  let TOOLS = [];
+
+  const CATEGORIEVOLGORDE = [
+    'BV & DGA', 'Auto & Mobiliteit', 'Loonheffing & WKR', 'Accountancy & Jaarrekening',
+    'BTW & Omzetbelasting', 'Belastingdienst', 'Administratie & Archief',
+    'Arbeidsrecht & Compliance', 'Kantoor', 'Overig',
   ];
+
+  async function laadTools() {
+    const r = await fetch('tools.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(`tools.json gaf ${r.status}`);
+    const data = await r.json();
+    const rijen = (data.tools || []).filter(t => t.in_beheer === true);
+    if (rijen.length === 0) throw new Error('tools.json bevat geen enkele tool met in_beheer');
+    const rang = c => {
+      const i = CATEGORIEVOLGORDE.indexOf(c);
+      return i === -1 ? CATEGORIEVOLGORDE.length : i;
+    };
+    TOOLS = rijen
+      .map(t => ({ file: t.extern ? t.url : t.bestand, name: t.naam, categorie: t.categorie }))
+      .filter(t => t.file)
+      .sort((a, b) => rang(a.categorie) - rang(b.categorie) || a.name.localeCompare(b.name, 'nl'));
+  }
 
   let editingEmail = null;
 
@@ -412,11 +401,26 @@
     return isNaN(d) ? 'onbekend' : d.toLocaleString('nl-NL');
   }
 
-  // Init
-  document.getElementById('app').style.display = '';
-  buildToolsGrid([]);
-  loadUsers();
-  laadStatus();
+  // Init. De app verschijnt pas als de toollijst geladen is: met een lege lijst zou het
+  // scherm tonen dat een gebruiker nergens recht op heeft, en een opslagactie zou dat
+  // vervolgens waarmaken.
+  (async () => {
+    try {
+      await laadTools();
+    } catch (e) {
+      console.error('toollijst laden mislukt:', e);
+      document.body.insertAdjacentHTML('afterbegin',
+        '<div style="margin:1rem;padding:1rem;border-left:3px solid #9b2226;background:#fdeded">' +
+        '<strong>De toollijst kon niet worden geladen.</strong> Het beheerscherm blijft daarom ' +
+        'dicht: met een lege lijst zou opslaan de rechten van een gebruiker wissen. ' +
+        'Details staan in de console.</div>');
+      return;
+    }
+    document.getElementById('app').style.display = '';
+    buildToolsGrid([]);
+    loadUsers();
+    laadStatus();
+  })();
 </script>
 </body>
 </html>
