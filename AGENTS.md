@@ -301,6 +301,25 @@ Sinds 04-09-2026 kijkt de dagelijkse controle daarom ook naar de Workers:
   wijzigt niets. Zonder dat zou je na een deploy tot de volgende ochtend moeten aannemen
   dat de controle werkt.
 
+**Wanneer hij verdween, en hoe je dat naleest.** Het audit log van het account geeft het
+antwoord waar de repository dat niet kan:
+`GET /accounts/<acc>/audit_logs?since=<datum>&per_page=200&page=<n>&direction=desc`.
+Nagelezen op 04-09-2026: `script_delete` van `kvk-proxy` op **15-07-2026 om 07:39 CEST**
+(05:39 UTC), een handmatige verwijdering vanaf het account. Hij was dus **51 dagen** weg
+voordat iemand erover struikelde.
+
+Het was een losstaande handeling: in de drie uur eromheen staat verder niets in het log,
+dus er is niets met hem meegegaan. Er was wel een opruiming, maar op 21-06-2026, en dat is
+een ander patroon: daar gingen twee zones, hun certificate packs, veel DNS-records en de
+Worker `syls-kledingkast` weg, alle van privéprojecten. Verder is er tussen mei en
+september **geen enkele Access-app en geen KV-namespace verwijderd**. De
+`access_delete_application_policy`-regels gaan over policies binnen een app, niet over de
+app zelf.
+
+Bij een volgende "waar is dit gebleven" is het audit log dus de eerste plek, en niet de
+git-historie: die laat zien wat wij in de repo deden en niet wat er op het account
+gebeurde.
+
 **Openstaand: `CF_API_TOKEN` mist leesrecht op Workers Scripts.** Het token op de worker
 is gemaakt voor Cloudflare Access. Gemeten op 04-09-2026 20:35 CEST, meteen na de deploy:
 `GET /admin/workers` antwoordt met `scriptlijst ophalen gaf HTTP 403`. De controle draait
