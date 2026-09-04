@@ -93,12 +93,84 @@
   .bron code { font-family: var(--mono); font-size: 11px; }
   .exportstatus { font-size: 12px; color: var(--zacht); align-self: center; }
   [hidden] { display: none !important; }
+
+  /* Dossierbalk: het kenmerk, de datum en de drie uitgangen van de tool. */
+  .dossierbalk { background: var(--pap); border-bottom: 1px solid var(--lijn);
+    padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+  .dossier-veld { display: flex; flex-direction: column; gap: 4px; }
+  .dossier-veld label { font: 600 11px system-ui; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--zacht); }
+  .dossier-veld input { width: 260px; max-width: 100%; font: inherit; font-size: 14px;
+    padding: 6px 9px; border: 1px solid var(--lijn); border-radius: 5px;
+    background: var(--grond); color: var(--ink); }
+  .dossier-veld .vast { font-size: 14px; padding: 6px 0; font-family: var(--mono); }
+  .dossier-melding { font-size: 12px; color: var(--zacht); flex: 1 1 220px; line-height: 1.5; }
+  .dossier-melding.fout { color: var(--fout); }
+  .dossier-melding.goed { color: var(--goed); }
+  .toelichting ul { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; }
+  .toelichting li { margin: 2px 0; }
+  .toelichting p { font-size: 13px; margin: 4px 0 10px; }
+  .toelichting h3 { font: 600 12px system-ui; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--zacht); margin: 10px 0 0; }
+
+  /* Afdruk. Er is geen tweede opbouw van de gegevens: de afdruk toont dezelfde
+     elementen als het scherm, met de invoervelden vlak getekend en met alles
+     verborgen wat knop of bediening is. Een lege regel in de reeksinvoer draagt
+     de klasse "leeg" en valt daarmee van de afdruk af. */
+  @media print {
+    body { background: #fff; color: #000; font-size: 11pt; }
+    nav, .noprint, button { display: none !important; }
+    header { border-bottom: 1px solid #666; padding: 0 0 6px; }
+    header h1 { font-size: 15pt; }
+    header .versie { color: #444; }
+    .dossierbalk { border: 0; padding: 6px 0 0; background: none; gap: 24px; }
+    .dossier-veld input { border: 0; padding: 0; background: none; width: auto;
+      color: #000; font-weight: 600; }
+    /* Een niet ingevuld kenmerk hoort leeg te blijven; de suggestie in het vak
+       is bediening en geen inhoud. */
+    .dossier-veld input::placeholder { color: transparent; }
+    .schil { display: block; min-height: 0; }
+    main { padding: 10px 0 0; max-width: 100%; }
+    fieldset { border: 1px solid #999; break-inside: avoid; page-break-inside: avoid;
+      background: none; }
+    .veld input:not([type=checkbox]), .veld select { border: 0; background: none;
+      padding: 0; color: #000; -webkit-appearance: none; appearance: none; }
+    table.uit td.w, table.uit tr.hoofd td.w { color: #000; }
+    .melding { border-left: 3px solid #666; background: none; color: #000; }
+    .reeks-wrap, .schema-wrap { max-height: none; overflow: visible; border: 1px solid #999; }
+    table.reeks tr.leeg { display: none; }
+    table.reeks input { border: 0; background: none; padding: 0; color: #000; }
+    table.reeks th, table.schema th { position: static; background: none; }
+    .bron, .toelichting p, .toelichting ul { color: #000; }
+    @page { size: A4 portrait; margin: 14mm 12mm; }
+  }
 </style>
 
 <header>
   <h1>Berekeningen</h1>
   <span class="versie" id="versie"></span>
 </header>
+
+<div class="dossierbalk">
+  <div class="dossier-veld">
+    <label for="kenmerk">Kenmerk of klantnaam</label>
+    <input type="text" id="kenmerk" maxlength="80" autocomplete="off"
+           placeholder="bijv. dossiernummer">
+  </div>
+  <div class="dossier-veld">
+    <label for="afdrukdatum">Datum</label>
+    <span class="vast" id="afdrukdatum"></span>
+  </div>
+  <button type="button" class="actie noprint" id="afdrukken">Afdrukken</button>
+  <button type="button" class="actie noprint" id="dossier-opslaan">Opslaan als bestand</button>
+  <button type="button" class="actie noprint" id="dossier-openen">Bestand openen</button>
+  <input type="file" id="dossier-bestand" accept="application/json,.json"
+         aria-label="Dossierbestand kiezen" class="noprint" hidden>
+  <span class="dossier-melding noprint" id="dossier-melding" role="status">Het kenmerk komt
+    op de afdruk, in het werkblad en in de bestandsnaam. Bewaar de ingevulde gegevens als
+    bestand in de klantmap en open ze later weer; de tool bewaart zelf niets en verstuurt
+    niets.</span>
+</div>
 
 <div class="schil">
   <nav id="nav" aria-label="Onderwerpen"></nav>
@@ -1142,7 +1214,7 @@ function ovbVoordeelBeding({ grondslagVerkrijging1, koopsomVerkrijging2, tarief 
    Weergave. Roept de kern aan en raakt geen rekenlogica.
    ============================================================ */
 
-const VERSIE = '2026-09-02';
+const VERSIE = '2026-09-04';
 document.getElementById('versie').textContent = 'versie ' + VERSIE;
 
 const euro = n => (n === null || n === undefined || !isFinite(n))
@@ -1157,6 +1229,13 @@ const procent = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
 /* Elk onderwerp: velden, rekenfunctie en opmaak van de uitkomst. */
 const ONDERWERPEN = [
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).'
+  ],
+  afbakening: 'De tool rekent de termijn uit; hij beoordeelt geen leningvoorwaarden en toetst geen ' +
+    'fiscale aftrekbaarheid. Voor de eigenwoninglening is deze tool niet bedoeld.',
   id: 'annuiteit-jaar-vooraf', groep: 'Annuïteiten', naam: 'Annuïteit jaar vooraf',
   titel: 'Annuïteit op basis van de huidige waarde, jaartermijnen vooraf',
   grondslag: 'Termijnen aan het begin van elk jaar.',
@@ -1173,6 +1252,16 @@ const ONDERWERPEN = [
   ]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'De renteaangroei tot de eerstvolgende balansdatum volgt uit de ingangsdatum; een ' +
+      'dag telt daarbij als een driehonderdzestigste jaar.'
+  ],
+  afbakening: 'De tool rekent de termijn uit; hij beoordeelt geen leningvoorwaarden en toetst geen ' +
+    'fiscale aftrekbaarheid. Voor de eigenwoninglening is deze tool niet bedoeld. Het ' +
+    'aflossingsschema veronderstelt een gelijkblijvende rente over de hele looptijd.',
   id: 'annuiteit-jaar-achteraf', groep: 'Annuïteiten', naam: 'Annuïteit jaar achteraf',
   titel: 'Annuïteit op basis van de huidige waarde, jaartermijnen achteraf',
   grondslag: 'Termijnen aan het eind van elk jaar, met aflossingsschema en de ' +
@@ -1210,6 +1299,16 @@ const ONDERWERPEN = [
   }
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend, omdat ' +
+      'leningvoorwaarden beide gebruiken.'
+  ],
+  afbakening: 'Welke van de twee maandrentes geldt, volgt uit het contract en niet uit de tool. De ' +
+    'tool rekent de termijn uit; hij beoordeelt geen leningvoorwaarden en toetst geen ' +
+    'fiscale aftrekbaarheid. Voor de eigenwoninglening is deze tool niet bedoeld.',
   id: 'annuiteit-maand-vooraf', groep: 'Annuïteiten', naam: 'Annuïteit maand vooraf',
   titel: 'Annuïteit op basis van de huidige waarde, maandtermijnen vooraf',
   grondslag: 'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend, ' +
@@ -1236,6 +1335,17 @@ const ONDERWERPEN = [
   ]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend, omdat ' +
+      'leningvoorwaarden beide gebruiken.'
+  ],
+  afbakening: 'Welke van de twee maandrentes geldt, volgt uit het contract en niet uit de tool. Het ' +
+    'aflossingsschema volgt de samengestelde maandrente. De tool rekent de termijn uit; ' +
+    'hij beoordeelt geen leningvoorwaarden en toetst geen fiscale aftrekbaarheid. Voor de ' +
+    'eigenwoninglening is deze tool niet bedoeld.',
   id: 'annuiteit-maand-achteraf', groep: 'Annuïteiten', naam: 'Annuïteit maand achteraf',
   titel: 'Annuïteit op basis van de huidige waarde, maandtermijnen achteraf',
   grondslag: 'De maandrente wordt zowel samengesteld als enkelvoudig uitgerekend.',
@@ -1269,6 +1379,16 @@ const ONDERWERPEN = [
   }
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'Voor de periode geldt een maand als een twaalfde jaar en een dag als een ' +
+      'driehonderdzestigste. Bij dagen wijkt die conventie licht af van een ' +
+      'kalendermaand.'
+  ],
+  afbakening: 'De rente of het rendement is een uitgangspunt van de gebruiker. De tool rekent geen ' +
+    'belasting en geen inflatie in.',
   id: 'cw-een-bedrag', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde één bedrag',
   titel: 'Contante waarde van één toekomstig bedrag',
   grondslag: 'Maanden gaan door twaalf, dagen door driehonderdzestig.',
@@ -1284,6 +1404,16 @@ const ONDERWERPEN = [
              ['Huidige waarde', euro(r.huidigeWaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'Voor de periode geldt een maand als een twaalfde jaar en een dag als een ' +
+      'driehonderdzestigste. Bij dagen wijkt die conventie licht af van een ' +
+      'kalendermaand.'
+  ],
+  afbakening: 'De rente of het rendement is een uitgangspunt van de gebruiker. De tool rekent geen ' +
+    'belasting en geen inflatie in.',
   id: 'tw-een-bedrag', groep: 'Contante en toekomstige waarde', naam: 'Toekomstige waarde één bedrag',
   titel: 'Toekomstige waarde van één huidig bedrag',
   grondslag: 'Maanden gaan door twaalf, dagen door driehonderdzestig.',
@@ -1299,6 +1429,16 @@ const ONDERWERPEN = [
              ['Eindwaarde', euro(r.eindwaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'Voor de periode geldt een maand als een twaalfde jaar en een dag als een ' +
+      'driehonderdzestigste. Bij dagen wijkt die conventie licht af van een ' +
+      'kalendermaand.'
+  ],
+  afbakening: 'De uitkeringen zijn gelijk en vallen aan het eind van elk jaar. De rente is een ' +
+    'uitgangspunt van de gebruiker.',
   id: 'cw-vaste-reeks', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde vaste reeks',
   titel: 'Contante waarde van een vaste reeks uitkeringen',
   grondslag: 'Gelijke jaarlijkse uitkeringen, achteraf.',
@@ -1314,6 +1454,13 @@ const ONDERWERPEN = [
              ['Huidige waarde', euro(r.huidigeWaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).'
+  ],
+  afbakening: 'Het bedrag bij maand nul valt op vandaag. De disconteringsvoet is een uitgangspunt ' +
+    'van de gebruiker en bepaalt de uitkomst sterk.',
   id: 'cw-variabele-reeks', groep: 'Contante en toekomstige waarde', naam: 'Contante waarde variabele reeks',
   titel: 'Contante waarde van meerdere toekomstige ontvangsten of uitgaven',
   grondslag: 'Per maand een eigen bedrag. Het bedrag bij maand nul valt op vandaag.',
@@ -1328,6 +1475,13 @@ const ONDERWERPEN = [
              ['Contante waarde', euro(r.contanteWaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).'
+  ],
+  afbakening: 'Inleg aan het eind van elk jaar. Het rendement na kosten is een aanname van de ' +
+    'gebruiker; de tool rekent geen belasting over het vermogen en geen inflatie in.',
   id: 'inleg-vast', groep: 'Periodieke inleg', naam: 'Periodieke inleg vast bedrag',
   titel: 'Vermogensopbouw bij een vaste jaarlijkse inleg',
   grondslag: 'Inleg aan het eind van elk jaar, rendement na kosten.',
@@ -1340,6 +1494,14 @@ const ONDERWERPEN = [
   uit: r => [['Waarde aan het einde van de periode', euro(r.eindwaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).'
+  ],
+  afbakening: 'Het rendement loopt over de stand aan het begin van de maand. Het rendement na ' +
+    'kosten is een aanname van de gebruiker; de tool rekent geen belasting over het ' +
+    'vermogen en geen inflatie in.',
   id: 'inleg-variabel', groep: 'Periodieke inleg', naam: 'Periodieke inleg variabel',
   titel: 'Vermogensopbouw bij variabele inleg en onttrekkingen',
   grondslag: 'Per maand een storting en een onttrekking. Het rendement loopt over de ' +
@@ -1355,6 +1517,17 @@ const ONDERWERPEN = [
              ['Eindwaarde', euro(r.eindwaarde), true]]
 },
 {
+  vindplaatsen: [
+    'Algemene financiële mathematica, geen fiscale bron. De annuïteits- en ' +
+      'waardefuncties volgen de definities van de gelijknamige spreadsheetfuncties (PMT, ' +
+      'PV, FV, IRR).',
+    'De interne rentevoet is onafhankelijk nagerekend aan een rekenvoorbeeld waarvan de ' +
+      'uitkomst vooraf bekend was.'
+  ],
+  afbakening: 'Zonder ten minste een betaling en een ontvangst is er geen interne rentevoet. De ' +
+    'reeks loopt per maand en het bedrag bij maand nul valt op vandaag. Bij meer dan een ' +
+    'tekenwisseling in de kasstroom kan er meer dan een oplossing bestaan; de tool toont ' +
+    'er een.',
   id: 'irr', groep: 'Rendement', naam: 'Interne rentevoet',
   titel: 'Interne rentevoet over een maandreeks',
   grondslag: 'De rentevoet waarbij de contante waarde van alle betalingen en ' +
@@ -1374,6 +1547,14 @@ const ONDERWERPEN = [
     tekst: 'Zonder ten minste één betaling en één ontvangst is er geen interne rentevoet.' }] : []
 },
 {
+  vindplaatsen: [
+    'Black-Scholes-Merton. Algemene financiële mathematica, geen fiscale bron.',
+    'De uitkomst is onafhankelijk nagerekend met een eigen herberekening van de normale ' +
+      'verdeling.'
+  ],
+  afbakening: 'Uitoefening alleen aan het einde van de looptijd, en een continu betaalbaar ' +
+    'dividendrendement. De volatiliteit is een aanname van de gebruiker en bepaalt de ' +
+    'uitkomst sterk.',
   id: 'black-scholes', groep: 'Rendement', naam: 'Opties Black-Scholes',
   titel: 'Optiewaardering volgens Black-Scholes-Merton',
   grondslag: 'Uitoefening alleen aan het einde van de looptijd. Het dividendrendement ' +
@@ -1393,6 +1574,31 @@ const ONDERWERPEN = [
              ['Waarde van de optie', euro(r.waarde), true]]
 },
 {
+  vindplaatsen: [
+    'Waarde van het genotsrecht is het gekapitaliseerde jaarlijkse voordeel: art. 18 ' +
+      'lid 1 Uitv.besl. IB 2001.',
+    'Jaarlijks voordeel is vier procent van de waarde van het onderworpen goed: art. 18 ' +
+      'lid 2 Uitv.besl. IB 2001.',
+    'Bezitting onder een genotsrecht is de onbezwaarde waarde min de waarde van het ' +
+      'genotsrecht: art. 5.22 lid 2 Wet IB 2001.',
+    'Kapitalisatiefactoren per soort recht: art. 19 lid 1 tot en met lid 6 Uitv.besl. ' +
+      'IB 2001.',
+    'Een vrouw wordt gelijkgesteld met een man die vijf jaar jonger is: art. 19 lid 7 ' +
+      'Uitv.besl. IB 2001.',
+    'Langstlevende van twee of meer personen: art. 19 lid 8 onderdeel a; ' +
+      'eerststervende: art. 19 lid 8 onderdeel b Uitv.besl. IB 2001.',
+    'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026.'
+  ],
+  afbakening: 'De tool dekt de forfaitaire regeling van art. 18 en 19 Uitv.besl. IB 2001 voor box ' +
+    '3. Hij dekt niet: de waardering voor de erf- en schenkbelasting, een genotsrecht in ' +
+    'de vorm van verstrekkingen (art. 5.22 lid 4 Wet IB 2001, waarde nihil), een ' +
+    'uitkering tot een onzeker bedrag of in andere goederen dan geld (art. 19 lid 9 en ' +
+    '10) en het restgeval van art. 19 lid 11, waarvoor de aankoopwaarde geldt. De ' +
+    'leeftijd volgt uit de geboortedatum; wie alleen een geboortejaar invoert krijgt een ' +
+    'benadering en een waarschuwing. Bij twee of meer levens is niet uit art. 19 vast te ' +
+    'stellen of de vijfjaarscorrectie van lid 7 doorwerkt bij het bepalen van de jongste ' +
+    'onderscheidenlijk de oudste; de tool volgt de letterlijke tekst en toont bij dat ' +
+    'geval ook de uitkomst van de andere lezing.',
   id: 'genotsrecht', groep: 'Waardering box 3', naam: 'Vruchtgebruik en genotsrechten',
   titel: 'Waardering van een genotsrecht in box 3',
   grondslag: 'Art. 5.22 Wet IB 2001 met art. 18 en 19 Uitv.besl. IB 2001. Het jaarlijkse ' +
@@ -1477,6 +1683,30 @@ const ONDERWERPEN = [
   } : null
 },
 {
+  vindplaatsen: [
+    'Waarde is de WOZ-waarde maal de leegwaarderatio: art. 17a lid 1 Uitv.besl. IB ' +
+      '2001.',
+    'Tabel leegwaarderatio: art. 17a lid 2 Uitv.besl. IB 2001, ongewijzigd 2023 tot en ' +
+      'met 2026.',
+    'Jaarhuur is twaalf maal de maandhuur aan het begin van het kalenderjaar: art. 17a ' +
+      'lid 3 Uitv.besl. IB 2001.',
+    'Verlaging van € 20.000 bij een woning die deel is van een gebouwd eigendom en niet ' +
+      'afzonderlijk vervreemdbaar is: art. 17a lid 4 Uitv.besl. IB 2001.',
+    'Gedeeltelijke verhuur: art. 17a lid 5. Tegenbewijs bij een uitkomst die ten minste ' +
+      'tien procent hoger is dan de waarde in verhuurde staat: art. 17a lid 6 Uitv.besl. ' +
+      'IB 2001.',
+    'Kapitalisatie van de erfpachtcanon, zeventienvoud of twintigvoud: art. 17b ' +
+      'Uitv.besl. IB 2001.',
+    'Voorrang van de erfpachtvermindering: art. 5.20 lid 4 Wet IB 2001. Voorwaarden en ' +
+      'uitsluitingen: art. 5.20 lid 3 en lid 5 Wet IB 2001.',
+    'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026.'
+  ],
+  afbakening: 'De tool dekt 2023 tot en met 2026; een ander jaar rekent niet door maar geeft een ' +
+    'melding. Of de huurbescherming van Boek 7 BW van toepassing is, of de ' +
+    'huurovereenkomst voor bepaalde tijd is aangegaan, en of een prijs tussen gelieerde ' +
+    'partijen zakelijk is, zijn vragen die de tool aan de gebruiker stelt en zelf niet ' +
+    'beoordeelt. Het tegenbewijs van art. 17a lid 6 vraagt een waarde in het economische ' +
+    'verkeer in verhuurde staat die de gebruiker zelf aanlevert.',
   id: 'leegwaarderatio', groep: 'Waardering box 3', naam: 'Leegwaarderatio',
   titel: 'Waardering van een verhuurde woning in box 3',
   grondslag: 'Art. 5.20 Wet IB 2001 met art. 17a en 17b Uitv.besl. IB 2001. De ' +
@@ -1514,6 +1744,16 @@ const ONDERWERPEN = [
   meldingen: r => r.meldingen || []
 },
 {
+  vindplaatsen: [
+    'De boeterente berust niet op een wettelijke waarderingsregel maar op de contante ' +
+      'waarde van het verschil tussen de contractrente en de marktrente over de ' +
+      'resterende rentevastperiode. Geen fiscale bron.'
+  ],
+  afbakening: 'De uitkomst is de theoretische boeterente. Wat een geldverstrekker daadwerkelijk in ' +
+    'rekening brengt, volgt uit zijn voorwaarden en kan lager uitvallen. De tool kent ' +
+    'alleen een annuïtaire en een aflossingsvrije lening; voor een andere vorm zet u de ' +
+    'kasstroom in de variabele reeks. De keuze van de marktrente bij de naastbijgelegen ' +
+    'looptijd is een uitgangspunt van de gebruiker.',
   id: 'boeterente', groep: 'Hypotheek', naam: 'Boeterente',
   titel: 'Theoretische boeterente bij vervroegd aflossen',
   grondslag: 'De contante waarde van het verschil tussen de contractrente en de ' +
@@ -1548,6 +1788,24 @@ const ONDERWERPEN = [
   } : null
 },
 {
+  vindplaatsen: [
+    'Termijn van zes maanden en vermindering van de grondslag: art. 13 lid 1 Wet BRV.',
+    'Belastingvermindering bij een verlaagd tarief bij de vorige verkrijging, met de ' +
+      'uitkomst van lid 1 als ondergrens: art. 13 lid 4 Wet BRV.',
+    'Algemeen tarief 10,4 procent: art. 14 lid 1 Wet BRV. Woning niet als hoofdverblijf ' +
+      '8 procent: art. 14 lid 2, vanaf 2026. Woning als hoofdverblijf 2 procent: art. 14 ' +
+      'lid 3 Wet BRV.',
+    'In 2025 bestond het tarief van acht procent nog niet; een woning die geen ' +
+      'hoofdverblijf werd viel onder het algemene tarief.',
+    'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026.'
+  ],
+  afbakening: 'De tool rekent de vermindering van art. 13 lid 1 en de belastingvermindering van lid ' +
+    '4. Hij toetst de termijn van zes maanden niet en beoordeelt niet welk tarief van ' +
+    'toepassing is. De tool dekt geen vrijstellingen, geen samenloop met de ' +
+    'omzetbelasting en niet de gevallen van art. 13 lid 2 over aandelen en rechten. Voor ' +
+    'de aftrek van notariskosten in de netto-opbrengst van de verkoper en voor het ' +
+    'afkappen van de grondslag op hele euro is geen wettelijke basis teruggevonden; de ' +
+    'tool meldt dat bij de uitkomst.',
   id: 'ovb', groep: 'Overdrachtsbelasting', naam: 'Doorverkoopregeling',
   titel: 'Doorverkoopregeling overdrachtsbelasting',
   grondslag: 'Art. 13 Wet BRV. Bij een verkrijging binnen zes maanden na een vorige ' +
@@ -1636,15 +1894,18 @@ const ONDERWERPEN = [
    waarmee de kern rekent. */
 const invoer = {};
 const reeksen = {};
+
+function legeReeks(o) {
+  return Array.from({ length: o.reeks.aantal }, () => {
+    if (o.reeks.kolommen.length === 1) return null;
+    const r = {}; for (const k of o.reeks.kolommen) r[k] = null; return r;
+  });
+}
+
 for (const o of ONDERWERPEN) {
   invoer[o.id] = {};
   for (const v of o.velden) invoer[o.id][v.k] = leesVeld(v, v.v);
-  if (o.reeks) {
-    reeksen[o.id] = Array.from({ length: o.reeks.aantal }, () => {
-      if (o.reeks.kolommen.length === 1) return null;
-      const r = {}; for (const k of o.reeks.kolommen) r[k] = null; return r;
-    });
-  }
+  if (o.reeks) reeksen[o.id] = legeReeks(o);
 }
 
 let huidig = ONDERWERPEN[0].id;
@@ -1688,12 +1949,27 @@ function schrijfVeld(veld, waarde) {
 }
 
 /* ============================================================
-   Export naar Excel en naar het klembord. Deze laag rekent niet: ze schrijft
-   op wat de kern al heeft opgeleverd. Het xlsx-bestand wordt hier zelf
-   opgebouwd, zonder bibliotheek, zodat de tool offline blijft werken en
-   niets van buiten haalt.
+   Werkbladschrijver. Bouwt een xlsx-bestand op zonder bibliotheek en zonder
+   CDN, zodat de pagina zelfstandig blijft en offline werkt.
+
+   DIT BLOK IS GEDEELDE CODE. Het weet niets van de onderwerpen van deze tool en
+   is bedoeld om ongewijzigd in een volgende tool te worden overgenomen. Wat een
+   volgende tool wél zelf schrijft, staat hieronder in het blok EXPORT: de
+   vertaling van zijn eigen velden en uitkomsten naar bladen.
+
+   Een blad is { naam, breedtes, rijen }, waarin rijen een lijst van rijen is en
+   elke rij een lijst van cellen. Een cel maak je met celTekst() of celGetal(),
+   of laat je maken door uitWeergave() uit de tekst die het scherm toont. Een
+   lege plek in een rij mag null zijn.
+
+   Wat een volgende tool aanpast:
+   - de vier vaste secties van zijn eerste blad (kop, invoer, uitkomst,
+     toelichting en vindplaatsen) - zie exportBladen hieronder als voorbeeld;
+   - de tool-identificatie die hij aan uitgangBestandsnaam() meegeeft;
+   - niets in dit blok zelf. Moet er hier toch iets bij, dan hoort het bij elke
+     tool te passen, want anders loopt de gedeelde code alsnog uiteen.
    ============================================================ */
-// EXPORT — BEGIN
+// WERKBLADSCHRIJVER — BEGIN
 
 /* Een xlsx is een zipbestand met XML erin. De leden gaan er ongecomprimeerd in
    ("stored"), want dan is er geen deflate nodig; de bestanden blijven klein
@@ -1792,9 +2068,10 @@ const xmlTekst = s => String(s)
 const celTekst = (tekst, vet = false) => ({ tekst: tekst ?? '', vet });
 
 /* weergave is de tekst zoals de pagina die toont. Die gaat naar het klembord,
-   terwijl het xlsx-bestand het getal met een eigen getalformaat krijgt. */
+   terwijl het xlsx-bestand het getal met een eigen getalformaat krijgt. Geef
+   haar altijd mee: hoe een bedrag eruitziet hoort bij de tool, niet hier. */
 const celGetal = (waarde, formaat, vet = false, weergave = null) =>
-  ({ getal: waarde, formaat, vet, weergave: weergave === null ? getal(waarde) : weergave });
+  ({ getal: waarde, formaat, vet, weergave: weergave === null ? String(waarde) : weergave });
 
 const celNaarTekst = c => !c ? ''
   : (c.weergave !== undefined && c.weergave !== null ? String(c.weergave) : String(c.tekst ?? ''));
@@ -1806,7 +2083,7 @@ const NL_GETAL = /^-?(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/;
    met een bijpassend getalformaat, zodat er in het werkblad mee te rekenen
    valt. Lukt dat niet, dan gaat de tekst ongewijzigd mee. */
 function uitWeergave(tekst, vet = false) {
-  const oorspronkelijk = String(tekst ?? '').replace(/\u00A0/g, ' ').trim();
+  const oorspronkelijk = String(tekst ?? '').replace(/ /g, ' ').trim();
   let s = oorspronkelijk;
   if (s === '' || s === '—') return celTekst('', vet);
 
@@ -1832,24 +2109,6 @@ function uitWeergave(tekst, vet = false) {
     formaat = geheel + (decimalen ? '.' + '0'.repeat(decimalen) : '');
   }
   return celGetal(waarde, formaat, vet, oorspronkelijk);
-}
-
-function celInvoer(veld, waarde) {
-  if (veld.t === 'vinkje') return celTekst(waarde ? 'ja' : 'nee');
-  if (veld.t === 'keuze') {
-    const opt = veld.opties.find(x => String(x.w) === String(waarde));
-    return celTekst(opt ? opt.l : String(waarde ?? ''));
-  }
-  if (veld.t === 'datum') return celTekst(waarde || '');
-  if (waarde === null || waarde === undefined || !isFinite(waarde)) return celTekst('');
-  if (veld.t === 'procent') return celGetal(waarde, '0.00##%', false, procent(waarde, 2));
-  if (veld.t === 'geheel') {
-    return Number.isInteger(waarde)
-      ? celGetal(waarde, '0', false, String(waarde))
-      : celGetal(waarde, FMT_GETAL, false, getal(waarde));
-  }
-  if (veld.t === 'euro') return celGetal(waarde, FMT_EURO, false, euro(waarde));
-  return celGetal(waarde, FMT_GETAL, false, getal(waarde));
 }
 
 /* --- Stijlen, bladen en het xlsx-bestand --- */
@@ -1973,7 +2232,82 @@ function xlsxBytes(bladen) {
   return zipBytes(leden);
 }
 
-/* --- Wat er van een onderwerp mee gaat --- */
+/* Voor het klembord dezelfde inhoud, met tabs tussen de kolommen. Zo plakt het
+   rechtstreeks in een openstaand werkblad. */
+function bladenNaarTekst(bladen) {
+  const uit = [];
+  bladen.forEach((b, i) => {
+    if (i > 0) uit.push('', b.naam);
+    for (const rij of b.rijen) uit.push(rij.map(celNaarTekst).join('\t').replace(/\t+$/, ''));
+  });
+  return uit.join('\r\n');
+}
+
+/* --- Bestandsnamen, opslaan en klembord --- */
+
+const isoDatum = (d = new Date()) => {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+};
+
+/* Het kenmerk komt van de gebruiker en gaat in een bestandsnaam. Alles wat een
+   pad kan breken gaat eruit; een leeg kenmerk valt terug op "dossier". */
+function slugKenmerk(ruw) {
+  const schoon = String(ruw ?? '')
+    .replace(/[^\wÀ-ɏ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  return schoon ? schoon.replace(/ /g, '-') : 'dossier';
+}
+
+const uitgangBestandsnaam = (toolId, kenmerk, extensie) =>
+  toolId + '-' + slugKenmerk(kenmerk) + '-' + isoDatum() + '.' + extensie;
+
+const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const MIME_JSON = 'application/json';
+
+function bewaarBestand(inhoud, naam, type) {
+  const blob = new Blob([inhoud], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* Het klembord van de browser is niet in elke omgeving toegankelijk; dan volgt
+   de oude weg via een verborgen tekstvak. */
+function naarKlembord(tekst) {
+  const terugval = () => {
+    const ta = document.createElement('textarea');
+    ta.value = tekst; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, tekst.length);
+    const gelukt = document.execCommand('copy');
+    ta.remove();
+    return gelukt ? Promise.resolve()
+      : Promise.reject(new Error('het klembord is niet toegankelijk'));
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(tekst).catch(terugval);
+  }
+  return terugval();
+}
+
+// WERKBLADSCHRIJVER — EINDE
+
+/* ============================================================
+   Export naar Excel en naar het klembord. Deze laag rekent niet: ze schrijft op
+   wat de kern al heeft opgeleverd en zet dat om in de bladen die de
+   werkbladschrijver hierboven verwacht. Dit is het stuk dat een volgende tool
+   voor zijn eigen velden en uitkomsten opnieuw schrijft.
+   ============================================================ */
+// EXPORT — BEGIN
+
+const TOOLNAAM = 'Berekeningen';
+const TOOL_ID = 'berekeningen';
 
 const meldingTekst = m => m.tekst +
   (m.bedrag === undefined ? '' : euro(m.bedrag)) + (m.staart || '');
@@ -1981,12 +2315,44 @@ const meldingTekst = m => m.tekst +
 const BRONREGEL = 'De vindplaats van elke jaargebonden waarde staat in BRONNEN.md ' +
   'en in het commentaar bij de waarde in de rekenkern van dit bestand.';
 
+/* Het kenmerk van de gebruiker. Het staat op één plek in de pagina en wordt
+   daar gelezen, zodat de afdruk, het werkblad en het dossierbestand hetzelfde
+   kenmerk dragen. */
+function huidigKenmerk() {
+  const veld = document.getElementById('kenmerk');
+  return veld && veld.value ? String(veld.value).trim() : '';
+}
+
+/* Een invoerveld naar een cel. De weergave is precies wat het invoervak toont,
+   zodat het klembord en het scherm gelijk blijven. */
+function celInvoer(veld, waarde) {
+  if (veld.t === 'vinkje') return celTekst(waarde ? 'ja' : 'nee');
+  if (veld.t === 'keuze') {
+    const opt = veld.opties.find(x => String(x.w) === String(waarde));
+    return celTekst(opt ? opt.l : String(waarde ?? ''));
+  }
+  if (veld.t === 'datum') return celTekst(waarde || '');
+  if (waarde === null || waarde === undefined || !isFinite(waarde)) return celTekst('');
+  if (veld.t === 'procent') return celGetal(waarde, '0.00##%', false, procent(waarde, 2));
+  if (veld.t === 'geheel') {
+    return Number.isInteger(waarde)
+      ? celGetal(waarde, '0', false, String(waarde))
+      : celGetal(waarde, FMT_GETAL, false, getal(waarde));
+  }
+  if (veld.t === 'euro') return celGetal(waarde, FMT_EURO, false, euro(waarde));
+  return celGetal(waarde, FMT_GETAL, false, getal(waarde));
+}
+
+/* De vier vaste secties van het eerste blad: kop, invoer, uitkomst, toelichting
+   en vindplaatsen. Een reeksinvoer en een uitwerking krijgen elk een eigen blad.
+   Dit is de indeling die elke tool aanhoudt. */
 function exportBladen(o, r) {
   const bladen = [];
   const rijen = [];
 
-  rijen.push([celTekst(o.titel, true)]);
+  rijen.push([celTekst(TOOLNAAM + ': ' + o.titel, true)]);
   if (o.grondslag) rijen.push([celTekst(o.grondslag)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(huidigKenmerk())]);
   rijen.push([celTekst('Geëxporteerd op'),
     celTekst(new Date().toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' }))]);
   rijen.push([celTekst('Versie van de tool'), celTekst(VERSIE)]);
@@ -2011,7 +2377,12 @@ function exportBladen(o, r) {
   }
 
   rijen.push([]);
+  rijen.push([celTekst('Toelichting en vindplaatsen', true)]);
+  for (const bron of o.vindplaatsen) rijen.push([celTekst(bron)]);
   rijen.push([celTekst(BRONREGEL)]);
+  rijen.push([]);
+  rijen.push([celTekst('Afbakening', true)]);
+  rijen.push([celTekst(o.afbakening)]);
   bladen.push({ naam: 'Berekening', breedtes: [54, 22], rijen });
 
   /* De reeksinvoer gaat mee zonder de lege regels: alleen wat is ingevuld. */
@@ -2042,57 +2413,9 @@ function exportBladen(o, r) {
   return bladen;
 }
 
-/* Voor het klembord dezelfde inhoud, met tabs tussen de kolommen. Zo plakt het
-   rechtstreeks in een openstaand werkblad. */
-function bladenNaarTekst(bladen) {
-  const uit = [];
-  bladen.forEach((b, i) => {
-    if (i > 0) uit.push('', b.naam);
-    for (const rij of b.rijen) uit.push(rij.map(celNaarTekst).join('\t').replace(/\t+$/, ''));
-  });
-  return uit.join('\r\n');
-}
-
-function bestandsnaam(o) {
-  const d = new Date();
-  const p = n => String(n).padStart(2, '0');
-  return 'berekening-' + o.id + '-' +
-    d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '.xlsx';
-}
-
-function bewaarBestand(bytes, naam) {
-  const blob = new Blob([bytes],
-    { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = naam;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-/* Het klembord van de browser is niet in elke omgeving toegankelijk; dan volgt
-   de oude weg via een verborgen tekstvak. */
-function naarKlembord(tekst) {
-  const terugval = () => {
-    const ta = document.createElement('textarea');
-    ta.value = tekst; ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed'; ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select(); ta.setSelectionRange(0, tekst.length);
-    const gelukt = document.execCommand('copy');
-    ta.remove();
-    return gelukt ? Promise.resolve()
-      : Promise.reject(new Error('het klembord is niet toegankelijk'));
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(tekst).catch(terugval);
-  }
-  return terugval();
-}
-
 function exportKnoppen(o, r) {
   const kn = document.createElement('div');
-  kn.className = 'knoppen';
+  kn.className = 'knoppen noprint';
   const status = document.createElement('span');
   status.className = 'exportstatus';
   status.setAttribute('aria-live', 'polite');
@@ -2102,7 +2425,8 @@ function exportKnoppen(o, r) {
   bExcel.textContent = 'Exporteer naar Excel';
   bExcel.addEventListener('click', () => {
     try {
-      bewaarBestand(xlsxBytes(exportBladen(o, r)), bestandsnaam(o));
+      bewaarBestand(xlsxBytes(exportBladen(o, r)),
+        uitgangBestandsnaam(TOOL_ID, huidigKenmerk(), 'xlsx'), MIME_XLSX);
       status.textContent = 'Het bestand is aangemaakt.';
     } catch (e) {
       status.textContent = 'De export is niet gelukt: ' + e.message;
@@ -2127,6 +2451,174 @@ function exportKnoppen(o, r) {
 }
 
 // EXPORT — EINDE
+
+/* ============================================================
+   Dossierbestand. Zodat een casus in de klantmap kan staan en later weer geopend
+   kan worden. De tool bewaart zelf niets: opslaan is een handeling van de
+   gebruiker naar een plek die hij kiest, en er gaat niets naar buiten. Ook geen
+   localStorage - dat zit vast aan één browser op één apparaat en is voor een
+   collega onvindbaar.
+
+   In het bestand staat alleen invoer, nooit een uitkomst: die wordt bij het
+   openen opnieuw berekend, met de dan geldende tool.
+
+   Een dossier wordt gelezen als GEGEVEN, nooit als opdracht. Alleen bekende
+   onderwerpen en velden worden gebruikt, elke waarde wordt op vorm getoetst, en
+   een bestand van een andere tool of van een nieuwere formaatversie wordt
+   geweigerd met een melding in plaats van half ingelezen. Een ontbrekende waarde
+   valt terug op de standaardwaarde van de tool en wordt genoemd, want een oud
+   dossier dat stil met een ander uitgangspunt opent is erger dan een dossier dat
+   niet opent.
+   ============================================================ */
+// DOSSIERBESTAND — BEGIN
+
+const DOSSIER_FORMAATVERSIE = 1;
+const DOSSIER_MAX_KENMERK = 80;
+
+/* De waarde zoals zij in het invoervak staat, dus een percentage als 10 en niet
+   als 0,10. Daardoor is het bestand met het oog te lezen en loopt het via
+   leesVeld exact terug naar dezelfde stand. */
+function dossierStand() {
+  const onderwerpen = {};
+  for (const o of ONDERWERPEN) {
+    const post = { velden: {} };
+    for (const v of o.velden) post.velden[v.k] = schrijfVeld(v, invoer[o.id][v.k]);
+    if (o.reeks) {
+      /* Alleen de ingevulde regels, met het regelnummer als sleutel. Een reeks
+         van honderdtwintig lege regels hoort niet in een dossierbestand. */
+      const reeks = {};
+      reeksen[o.id].forEach((cel, n) => {
+        if (o.reeks.kolommen.length === 1) {
+          if (typeof cel === 'number' && isFinite(cel)) reeks[n] = cel;
+          return;
+        }
+        const rij = {};
+        for (const k of o.reeks.kolommen) {
+          const w = cel ? cel[k] : null;
+          if (typeof w === 'number' && isFinite(w)) rij[k] = w;
+        }
+        if (Object.keys(rij).length) reeks[n] = rij;
+      });
+      post.reeks = reeks;
+    }
+    onderwerpen[o.id] = post;
+  }
+  return {
+    tool: TOOL_ID,
+    formaatversie: DOSSIER_FORMAATVERSIE,
+    toolversie: VERSIE,
+    opgeslagen: isoDatum(),
+    kenmerk: huidigKenmerk().slice(0, DOSSIER_MAX_KENMERK),
+    onderwerp: huidig,
+    onderwerpen
+  };
+}
+
+const maakDossierTekst = () => JSON.stringify(dossierStand(), null, 2);
+
+/* Toetst één waarde op de vorm die het veld verlangt. Geeft undefined terug
+   zodra de waarde niet deugt; de lezer behandelt dat als ontbrekend en meldt
+   het, in plaats van iets aan te nemen. */
+function dossierWaarde(veld, ruw) {
+  if (ruw === undefined || ruw === null) return undefined;
+  if (veld.t === 'vinkje') return typeof ruw === 'boolean' ? ruw : undefined;
+  if (veld.t === 'keuze') {
+    return veld.opties.some(x => String(x.w) === String(ruw)) ? ruw : undefined;
+  }
+  if (veld.t === 'datum') {
+    if (ruw === '') return '';
+    return (typeof ruw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ruw)) ? ruw : undefined;
+  }
+  if (ruw === '') return '';
+  return (typeof ruw === 'number' && isFinite(ruw)) ? ruw : undefined;
+}
+
+/**
+ * Leest de tekst van een dossierbestand.
+ * @returns {ok:false, fouten:[...]} of {ok:true, dossier:<stand>, ontbrekend:[...]}
+ */
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(tekst); }
+  catch (e) {
+    return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fouten: ['Dit dossier hoort niet bij de tool ' + TOOLNAAM + '.'] };
+  }
+  if (typeof rauw.formaatversie !== 'number' || !isFinite(rauw.formaatversie)) {
+    return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+  }
+  if (rauw.formaatversie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fouten: ['Dit dossier is gemaakt met een nieuwere versie van de tool ' +
+      '(formaat ' + rauw.formaatversie + ', deze tool kent ' + DOSSIER_FORMAATVERSIE + ').'] };
+  }
+  const bron = (rauw.onderwerpen && typeof rauw.onderwerpen === 'object') ? rauw.onderwerpen : {};
+
+  const ontbrekend = [];
+  const velden = {};
+  const nieuweReeksen = {};
+  for (const o of ONDERWERPEN) {
+    const post = (bron[o.id] && typeof bron[o.id] === 'object') ? bron[o.id] : null;
+    const bronVelden = (post && post.velden && typeof post.velden === 'object') ? post.velden : {};
+    velden[o.id] = {};
+    for (const v of o.velden) {
+      const w = dossierWaarde(v, bronVelden[v.k]);
+      if (w === undefined) ontbrekend.push(o.naam + ': ' + v.l);
+      else velden[o.id][v.k] = w;
+    }
+    if (o.reeks) {
+      const bronReeks = (post && post.reeks && typeof post.reeks === 'object') ? post.reeks : {};
+      nieuweReeksen[o.id] = legeReeks(o);
+      for (const sleutel of Object.keys(bronReeks)) {
+        const n = Number(sleutel);
+        if (!Number.isInteger(n) || n < 0 || n >= o.reeks.aantal) continue;
+        const cel = bronReeks[sleutel];
+        if (o.reeks.kolommen.length === 1) {
+          if (typeof cel === 'number' && isFinite(cel)) nieuweReeksen[o.id][n] = cel;
+          continue;
+        }
+        if (!cel || typeof cel !== 'object') continue;
+        for (const k of o.reeks.kolommen) {
+          if (typeof cel[k] === 'number' && isFinite(cel[k])) nieuweReeksen[o.id][n][k] = cel[k];
+        }
+      }
+    }
+  }
+
+  const gekozen = ONDERWERPEN.some(o => o.id === rauw.onderwerp) ? rauw.onderwerp : null;
+  return {
+    ok: true,
+    ontbrekend,
+    dossier: {
+      kenmerk: typeof rauw.kenmerk === 'string' ? rauw.kenmerk.slice(0, DOSSIER_MAX_KENMERK) : '',
+      onderwerp: gekozen,
+      velden,
+      reeksen: nieuweReeksen
+    }
+  };
+}
+
+/* Zet de gelezen stand in de tool. Wat in het dossier ontbrak blijft op de
+   standaardwaarde staan; de lezer heeft dat al gemeld. */
+function zetDossier(d) {
+  for (const o of ONDERWERPEN) {
+    for (const v of o.velden) {
+      if (Object.prototype.hasOwnProperty.call(d.velden[o.id], v.k)) {
+        invoer[o.id][v.k] = leesVeld(v, d.velden[o.id][v.k]);
+      }
+    }
+    if (o.reeks && d.reeksen[o.id]) reeksen[o.id] = d.reeksen[o.id];
+  }
+  const veld = document.getElementById('kenmerk');
+  if (veld) veld.value = d.kenmerk;
+  if (d.onderwerp) huidig = d.onderwerp;
+}
+
+// DOSSIERBESTAND — EINDE
 
 function toon() {
   const o = ONDERWERPEN.find(x => x.id === huidig);
@@ -2197,6 +2689,14 @@ function toon() {
     }
     thead.appendChild(trh); tb.appendChild(thead);
     const tbody = document.createElement('tbody');
+    /* Een regel zonder enige waarde krijgt de klasse "leeg". Op het scherm is dat
+       niets, op de afdruk valt de regel eraf: honderdtwintig lege invoervakken
+       zijn geen dossierstuk. */
+    const merkLeeg = (tr, n) => {
+      const cel = reeksen[o.id][n];
+      const waarden = o.reeks.kolommen.length === 1 ? [cel] : o.reeks.kolommen.map(k => cel ? cel[k] : null);
+      tr.className = waarden.some(w => typeof w === 'number' && isFinite(w)) ? '' : 'leeg';
+    };
     for (let n = 0; n < o.reeks.aantal; n++) {
       const tr = document.createElement('tr');
       const td0 = document.createElement('td');
@@ -2217,22 +2717,21 @@ function toon() {
             if (!reeksen[o.id][n]) reeksen[o.id][n] = {};
             reeksen[o.id][n][k] = w;
           }
+          merkLeeg(tr, n);
           rekenEnToon(o);
         });
         td.appendChild(inp); tr.appendChild(td);
       }
+      merkLeeg(tr, n);
       tbody.appendChild(tr);
     }
     tb.appendChild(tbody); wrap.appendChild(tb); fs.appendChild(wrap);
 
-    const kn = document.createElement('div'); kn.className = 'knoppen';
+    const kn = document.createElement('div'); kn.className = 'knoppen noprint';
     const leeg = document.createElement('button');
     leeg.type = 'button'; leeg.className = 'actie'; leeg.textContent = 'Reeks leegmaken';
     leeg.addEventListener('click', () => {
-      reeksen[o.id] = Array.from({ length: o.reeks.aantal }, () => {
-        if (o.reeks.kolommen.length === 1) return null;
-        const r = {}; for (const k of o.reeks.kolommen) r[k] = null; return r;
-      });
+      reeksen[o.id] = legeReeks(o);
       toon();
     });
     kn.appendChild(leeg); fs.appendChild(kn);
@@ -2310,12 +2809,116 @@ function rekenEnToon(o) {
   }
 
   vak.appendChild(exportKnoppen(o, r));
+  vak.appendChild(toelichtingVak(o));
+}
+
+/* De vindplaatsen en de afbakening van dit onderwerp. Zij staan op het scherm en
+   gaan daarmee vanzelf mee op de afdruk; er is geen tweede opbouw. */
+function toelichtingVak(o) {
+  const fs = document.createElement('fieldset');
+  fs.className = 'toelichting';
+  const lg = document.createElement('legend');
+  lg.textContent = 'Toelichting en vindplaatsen'; fs.appendChild(lg);
+
+  const ul = document.createElement('ul');
+  for (const bron of o.vindplaatsen) {
+    const li = document.createElement('li'); li.textContent = bron; ul.appendChild(li);
+  }
+  fs.appendChild(ul);
+
+  const kop = document.createElement('h3'); kop.textContent = 'Afbakening';
+  fs.appendChild(kop);
+  const p = document.createElement('p'); p.textContent = o.afbakening;
+  fs.appendChild(p);
 
   const bron = document.createElement('p'); bron.className = 'bron';
   bron.textContent = BRONREGEL;
-  vak.appendChild(bron);
+  fs.appendChild(bron);
+  return fs;
 }
 
+/* ============================================================
+   De dossierbalk: kenmerk, datum, afdrukken en het dossierbestand.
+   ============================================================ */
+
+function dossierMelding(tekst, soort) {
+  const m = document.getElementById('dossier-melding');
+  if (!m) return;
+  m.textContent = tekst;
+  m.className = 'dossier-melding noprint' + (soort ? ' ' + soort : '');
+}
+
+/* De datum op de afdruk is de dag waarop wordt afgedrukt, niet de dag waarop de
+   pagina toevallig is geopend. Daarom ook vlak voor het afdrukken opnieuw. */
+function zetAfdrukdatum() {
+  const veld = document.getElementById('afdrukdatum');
+  if (veld) veld.textContent = new Date().toLocaleDateString('nl-NL', { dateStyle: 'long' });
+}
+
+function dossierOpslaan() {
+  const naam = uitgangBestandsnaam(TOOL_ID, huidigKenmerk(), 'json');
+  bewaarBestand(maakDossierTekst(), naam, MIME_JSON);
+  dossierMelding('Opgeslagen als ' + naam + '. Zet het bestand in de klantmap, dan gaat ' +
+    'het mee in de back-up en kan een collega het openen.', 'goed');
+}
+
+function dossierGelezen(tekst) {
+  const uit = leesDossier(tekst);
+  if (!uit.ok) { dossierMelding(uit.fouten.join(' '), 'fout'); return false; }
+  zetDossier(uit.dossier);
+  bouwNavigatie();
+  toon();
+  zetAfdrukdatum();
+  if (uit.ontbrekend.length) {
+    const eerste = uit.ontbrekend.slice(0, 5).join('; ');
+    const rest = uit.ontbrekend.length > 5
+      ? ' en ' + (uit.ontbrekend.length - 5) + ' andere' : '';
+    dossierMelding('Dossier geopend, maar er ontbraken ' + uit.ontbrekend.length +
+      ' waarden: ' + eerste + rest + '. Die staan nu op de standaardwaarde van deze ' +
+      'versie van de tool; controleer ze voordat u de uitkomst gebruikt.', 'fout');
+  } else {
+    dossierMelding('Dossier geopend' + (uit.dossier.kenmerk ? ' (' + uit.dossier.kenmerk + ')' : '') +
+      '. De uitkomst is opnieuw berekend met de nu geldende tool.', 'goed');
+  }
+  return true;
+}
+
+function dossierOpenen(bestand) {
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onerror = () => dossierMelding('Het bestand kon niet worden gelezen.', 'fout');
+  lezer.onload = () => dossierGelezen(String(lezer.result));
+  lezer.readAsText(bestand);
+}
+
+function bouwDossierbalk() {
+  const knop = (id, doen) => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', doen);
+  };
+  knop('afdrukken', () => { zetAfdrukdatum(); window.print(); });
+  knop('dossier-opslaan', dossierOpslaan);
+  knop('dossier-openen', () => {
+    const kiezer = document.getElementById('dossier-bestand');
+    if (kiezer) kiezer.click();
+  });
+  const kiezer = document.getElementById('dossier-bestand');
+  if (kiezer) {
+    kiezer.addEventListener('change', ev => {
+      const bestanden = ev && ev.target && ev.target.files;
+      if (bestanden && bestanden[0]) dossierOpenen(bestanden[0]);
+      /* Leeggooien, anders opent hetzelfde bestand een tweede keer niet. */
+      ev.target.value = '';
+    });
+  }
+  /* Ook bij Ctrl+P, want dan komt er geen klik op de afdrukknop. */
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('beforeprint', zetAfdrukdatum);
+  }
+  zetAfdrukdatum();
+}
+
+bouwDossierbalk();
 bouwNavigatie();
 toon();
 </script>
