@@ -86,6 +86,42 @@ velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
   De controle rapporteert dat apart. `tools/maak_access_apps.py` maakt de ontbrekende
   apps aan; dat script draait de eigenaar zelf met een eigen `CF_API_TOKEN`.
 
+## Wat hier openbaar mag staan
+
+Deze repository is publiek en dat is geen toeval: het portaal draait op GitHub Pages, en
+op GitHub Free publiceert Pages alleen uit een publieke repository. Nagemeten 04-09-2026:
+de organisatie `bouwman-tools` staat op Free. De repository privé maken haalt het portaal
+dus offline, en een privé Pages-site achter toegangscontrole vraagt zelfs GitHub
+Enterprise Cloud.
+
+Een afzonderlijk bestand afschermen is daarom geen oplossing, en op 04-09-2026 ook
+mislukt: een eigen Access-app op `tools.json` liet de `fetch` uit `portal.html` stuklopen
+en `beheer.html` dicht blijven, en `raw.githubusercontent.com` geeft het bestand toch.
+De vraag gaat over de hele repository en niet over een bestand. `tools.json`, `TOOLS.md`,
+`AGENTS.md` en `update-bram.md` dragen dezelfde soort interne informatie, en `TOOLS.md`
+wordt zelfs uit `tools.json` gegenereerd. Een daarvan dichtzetten verandert niets.
+
+**Besloten 04-09-2026 (beslispunt 24): het register blijft openbaar.** Wat erin staat is de
+toestand van de portefeuille, dus eigenaar, status, beoordelingsdatum en welke uitgangen
+ontbreken. Dat is dezelfde strekking als wat een gebruiker op de toolkaart al ziet aan het
+bèta-label. Wat er niet in hoort, hoort ook nergens anders in deze repository:
+
+- klantnamen, klantwaarden en daarvan afgeleide gegevens;
+- secrets, tokens en API-sleutels;
+- oordelen over personen of over het werk van anderen;
+- wat een vertrouwelijke afspraak of een lopende onderhandeling raakt.
+
+Hoort iets in die categorie, dan gaat het naar `PostbusClaude`, dat buiten alle
+repositories staat, of naar een privérepository met een Worker die de pagina op een exacte
+route serveert, zoals `modellen-roadmap` doet.
+
+Moet het register later toch worden afgeschermd, dan is de enige route zonder betaald plan:
+de presentatievelden hier publiek houden, want portaal, beheer en `check_tools.py` hebben
+die nodig, en `eigenaar`, `status_reden`, `laatst_beoordeeld`, `jaarwaarden_gecontroleerd`
+en `uitgangen` naar die privérepo verhuizen, met een controle die de id's van beide helften
+naast elkaar legt. Het register volledig verhuizen kan niet: dan kan de CI van deze
+publieke repo de drift niet meer controleren.
+
 ## Nieuwe tools gaan direct het portaal in
 
 Vaste afspraak (Sylvain, 29-08-2026): een nieuwe tool gaat meteen als `beta` het
