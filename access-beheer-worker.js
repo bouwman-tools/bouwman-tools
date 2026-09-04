@@ -39,6 +39,8 @@ const APP_IDS = {
   'dcf-rekentool.html':                  '0056eab8-2ed6-4fc0-a0d8-6f675b0aa310',
   'rc-rente.html':                       'd8b2c28a-a1a3-46ec-94c0-55047e210f77',
   'dividend-scenarios.html':             'e5d48bf8-16d3-408e-8de6-1eae46fdfd29',
+  'belastinglatentie.html':              '751d9e97-65b6-4564-8083-9ce37cfc035b',
+  'vastgoedrendement.html':              '73dde839-43d7-44d7-82ec-3a15486203b4',
 };
 
 export default {

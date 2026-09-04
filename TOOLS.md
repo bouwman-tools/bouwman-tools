@@ -60,7 +60,7 @@ Bijgewerkt: 2026-09-04
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟡 beta | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | **nee** | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | DCF-rekenmodel | nog niet gepubliceerd | bouwman-tools/dcf-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🔵 concept | Dividendscenario's | nog niet gepubliceerd | bouwman-tools/dividend-scenarios | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
@@ -119,19 +119,11 @@ Bijgewerkt: 2026-09-04
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | **nee** | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Berekeningen**: Rekent zestien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente en doorverkoop overdrachtsbelasting
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- Belastinglatentie (`belastinglatentie.html`)
-- Rendementsstructuur vastgoed (`vastgoedrendement.html`)
 
 ## Vervallen
 
