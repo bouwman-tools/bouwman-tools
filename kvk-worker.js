@@ -145,12 +145,28 @@ async function stuurNtfy(env, count) {
   }
 }
 
+// Alleen het eigen portaal mag deze worker vanuit de browser aanroepen. Eerder
+// werd de meegestuurde Origin teruggekaatst met '*' als terugval, waardoor elke
+// website de worker kon aanroepen op de sleutel in KVK_API_KEY.
+//
+// LET OP, dit dicht niet het hele gat: CORS werkt alleen tegen cross-site
+// browserverkeer. Een script of curl stuurt geen Origin mee en wordt hierdoor
+// niet geweerd, en de worker kent geen authenticatie. Wie het adres kent kan
+// dus nog steeds bevragen. Daarvoor is een gedeeld token of Cloudflare Access
+// nodig; dat staat als punt 25 in PostbusClaude/BESLISPUNTEN.md.
+const TOEGESTANE_ORIGINS = ['https://bouwman.tools'];
+
 function cors(request) {
-  return {
-    'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
+  const origin  = request.headers.get('Origin');
+  const headers = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
   };
+  if (origin && TOEGESTANE_ORIGINS.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
 }
 
 function json(data, status, request) {
