@@ -156,6 +156,12 @@ repository; ze zijn los geupload.
   versie daarna: 5aa32000, daarvóór 22899ac8. Let op: `npx wrangler whoami` en `deploy`
   doen er op deze machine ruim een minuut over en geven ondertussen geen uitvoer; dat is
   geen vastloper.
+- Later op 04-09-2026 nogmaals, voor de laatste twee: `belastinglatentie.html` en
+  `vastgoedrendement.html`. Daarmee heeft elke tool in de portefeuille een Access-app en
+  is de sectie "niet afgeschermd" uit `TOOLS.md` verdwenen. De KV-binding bleef bestaan.
+  Draaiende versie daarna: 2cac12df, daarvóór 5aa32000. Gecontroleerd aan de kant die
+  ervan afhangt: beide URL's geven nu een 302 naar de Access-login, en
+  `POST /permissions` op de worker antwoordt weer normaal.
 - **Deployen alleen is niet genoeg.** `syncCFAccess` loopt uitsluitend bij een opslag- of
   verwijderactie op een gebruiker, niet periodiek. Heb je rechten toegekend vóór de
   deploy, dan staat de Access-policy nog op de oude lijst: sla daarna in `beheer.html`
