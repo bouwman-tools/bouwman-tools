@@ -1,0 +1,648 @@
+<meta charset="utf-8">
+<title>Rendementsstructuur vastgoed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --inkt: #17212b;
+    --gedempt: #5a6b7b;
+    --lijn: #d4dce4;
+    --vlak: #f4f7fa;
+    --accent: #14507d;
+    --waarschuwing: #8a5300;
+    --waarschuwing-vlak: #fdf4e3;
+    --fout: #9b2226;
+    --fout-vlak: #fdeded;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--inkt);
+    background: #fff;
+  }
+  main { max-width: 54rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
+  h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
+  p.intro { color: var(--gedempt); margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem 1.2rem; margin: 0 0 1.25rem; }
+  legend { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
+  label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
+  .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: .5rem .6rem; font: inherit; font-size: .95rem;
+    border: 1px solid var(--lijn); border-radius: 4px; background: #fff; color: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .rij { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+  .veld { margin-bottom: .9rem; }
+  .keuze { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .7rem; }
+  .keuze input { margin-top: .3rem; flex: none; width: auto; }
+  .keuze label { font-weight: 400; font-size: .9rem; margin: 0; }
+  button {
+    font: inherit; font-weight: 600; padding: .6rem 1.4rem; border: 0; border-radius: 4px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #0f3d61; }
+  #uitkomst { margin-top: 1.5rem; }
+  .bedrag { font-size: 2rem; font-weight: 700; letter-spacing: -.02em; }
+  .bedrag small { display: block; font-size: .82rem; font-weight: 400; color: var(--gedempt); letter-spacing: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .75rem 0; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--lijn); vertical-align: top; }
+  th { font-weight: 600; }
+  td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.som td { font-weight: 700; border-top: 2px solid var(--inkt); border-bottom: 0; }
+  tr.tussen td { font-weight: 600; border-top: 1px solid var(--inkt); }
+  .toelichting { color: var(--gedempt); font-size: .82rem; font-weight: 400; }
+  .melding { padding: .7rem .9rem; border-radius: 4px; font-size: .88rem; margin: .6rem 0; }
+  .melding.fout { background: var(--fout-vlak); color: var(--fout); border-left: 3px solid var(--fout); }
+  .melding.let-op { background: var(--waarschuwing-vlak); color: var(--waarschuwing); border-left: 3px solid var(--waarschuwing); }
+  .melding.vlak { background: var(--vlak); border-left: 3px solid var(--lijn); }
+  details { margin-top: 2rem; border-top: 1px solid var(--lijn); padding-top: 1rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  details .inhoud { font-size: .9rem; }
+  details li { margin-bottom: .4rem; }
+  a { color: var(--accent); }
+  .afdrukknop {
+    margin-top: 1.25rem; background: #fff; color: var(--accent);
+    border: 1px solid var(--accent); font-weight: 600;
+  }
+  .afdrukknop:hover { background: var(--vlak); }
+  .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
+
+  @media print {
+    body { padding: 0; font-size: 10.5pt; }
+    form, p.intro, .afdrukknop { display: none; }
+    main { max-width: none; }
+    #uitkomst { margin-top: 0; }
+    h1 { font-size: 1.35rem; }
+    h2, h3 { page-break-after: avoid; }
+    table, .melding { page-break-inside: avoid; }
+    details { page-break-inside: avoid; }
+  }
+</style>
+
+<main>
+  <h1>Rendementsstructuur vastgoed</h1>
+  <p class="intro">
+    Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met
+    vreemd vermogen met dat rendement doet. Bedoeld als scan vooraf en niet als fiscale
+    keuzetool; de afbakening staat onderaan.
+  </p>
+
+  <form id="formulier">
+    <fieldset>
+      <legend>Object en financiering</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="jaar">Jaar van verkrijging
+            <span class="hint">Bepaalt welke tarieven overdrachtsbelasting gelden.</span>
+          </label>
+          <select id="jaar"></select>
+        </div>
+        <div class="veld">
+          <label for="waarde">Kostprijs of waarde
+            <span class="hint">In euro, zonder de kosten van verkrijging.</span>
+          </label>
+          <input type="number" id="waarde" value="500000" step="1000" min="0">
+        </div>
+        <div class="veld">
+          <label for="financiering">Financiering
+            <span class="hint">Hoofdsom van de lening in euro.</span>
+          </label>
+          <input type="number" id="financiering" value="300000" step="1000" min="0">
+        </div>
+        <div class="veld">
+          <label for="rente">Rente financiering
+            <span class="hint">Percentage per jaar over de hoofdsom.</span>
+          </label>
+          <input type="number" id="rente" value="5" step="0.05" min="0">
+        </div>
+        <div class="veld">
+          <label for="aflossing">Aflossing per jaar
+            <span class="hint">In euro. Nul bij een aflossingsvrije lening.</span>
+          </label>
+          <input type="number" id="aflossing" value="0" step="500" min="0">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Exploitatie per jaar</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="huur">Huur
+            <span class="hint">Bruto huuropbrengst bij volledige verhuur, in euro.</span>
+          </label>
+          <input type="number" id="huur" value="25000" step="500" min="0">
+        </div>
+        <div class="veld">
+          <label for="kosten">Kosten
+            <span class="hint">Onderhoud, verzekering, gemeentelijke lasten en andere doorlopende eigenaarslasten.</span>
+          </label>
+          <input type="number" id="kosten" value="5000" step="250" min="0">
+        </div>
+        <div class="veld">
+          <label for="waardestijging">Verwachte waardestijging per jaar
+            <span class="hint">Percentage van de waarde.</span>
+          </label>
+          <input type="number" id="waardestijging" value="2" step="0.25">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Leegstand</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="leegstandMaanden">Leegstand in maanden
+            <span class="hint">Aantal maanden zonder huur per periode hiernaast.</span>
+          </label>
+          <input type="number" id="leegstandMaanden" value="12" step="1" min="0" max="12">
+        </div>
+        <div class="veld">
+          <label for="leegstandPeriode">Eens per hoeveel jaar
+            <span class="hint">De derving wordt over die jaren op jaarbasis herrekend.</span>
+          </label>
+          <input type="number" id="leegstandPeriode" value="15" step="1" min="1">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Kosten van verkrijging</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="ovbKeuze">Overdrachtsbelasting
+            <span class="hint">Tarief volgens artikel 14 Wet BRV.</span>
+          </label>
+          <select id="ovbKeuze"></select>
+        </div>
+        <div class="veld" id="ovbEigenVeld" hidden>
+          <label for="ovbEigen">Eigen tarief overdrachtsbelasting
+            <span class="hint">Percentage. Gebruik dit alleen met een eigen onderbouwing.</span>
+          </label>
+          <input type="number" id="ovbEigen" value="8" step="0.1" min="0">
+        </div>
+        <div class="veld">
+          <label for="overigeKosten">Overige kosten koper
+            <span class="hint">Notaris, makelaar, taxatie, advies. Percentage van de waarde.</span>
+          </label>
+          <input type="number" id="overigeKosten" value="2" step="0.1" min="0">
+        </div>
+      </div>
+      <h3>Hoe tellen die kosten mee?</h3>
+      <div class="keuze">
+        <input type="radio" name="verkrijgingswijze" id="wijzeInvestering" value="investering" checked>
+        <label for="wijzeInvestering">
+          <strong>Als investering.</strong> De kosten van verkrijging worden bij aanvang uit eigen
+          middelen betaald en verhogen dus het bedrag waarover je rendement maakt.
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="radio" name="verkrijgingswijze" id="wijzeJaarlast" value="jaarlast">
+        <label for="wijzeJaarlast">
+          <strong>Als jaarlast.</strong> De kosten worden over de bezitsduur uitgesmeerd en van het
+          rendement afgetrokken. Het eigen vermogen blijft dan waarde min financiering.
+        </label>
+      </div>
+      <div class="veld" id="bezitsduurVeld" hidden style="max-width:16rem">
+        <label for="bezitsduur">Bezitsduur in jaren
+          <span class="hint">Waarover de kosten van verkrijging worden uitgesmeerd.</span>
+        </label>
+        <input type="number" id="bezitsduur" value="10" step="1" min="1">
+      </div>
+    </fieldset>
+
+    <button type="submit">Bereken</button>
+  </form>
+
+  <div id="uitkomst"></div>
+
+  <details>
+    <summary>Verantwoording: waar elke regel vandaan komt</summary>
+    <div class="inhoud">
+      <h3>De wettelijke waarde</h3>
+      <p>
+        De tool kent één fiscale waarde: het tarief van de overdrachtsbelasting. Dat volgt uit
+        artikel 14 van de Wet op belastingen van rechtsverkeer. Per 2026 gelden een algemeen
+        tarief van 10,4 procent (lid 1), een tarief van 8 procent voor een woning die niet als
+        hoofdverblijf gaat dienen (lid 2) en een tarief van 2 procent voor een woning die dat wel
+        doet (lid 3). Gecontroleerd op 4 september 2026 in de versie
+        <a href="https://wetten.overheid.nl/BWBR0002740/2026-01-01">geldend per 1 januari 2026</a>.
+      </p>
+      <p>
+        Voor 2027 is een verlaging van 8 naar 7 procent aangekondigd. Die is op 4 september 2026
+        niet in een officiële bron terug te vinden en dus geen geldend recht. De tool kent daarom
+        geen jaar 2027: een onbekend jaar rekent niet door, maar geeft een melding.
+        Controlemoment is Prinsjesdag op 15 september 2026 en daarna de behandeling van het
+        pakket Belastingplan 2027.
+      </p>
+
+      <h3>De rekenregels</h3>
+      <ul>
+        <li><strong>Kosten van verkrijging.</strong> De overdrachtsbelasting wordt berekend over de
+          waarde van de onroerende zaak, en ten minste over de tegenprestatie (artikel 9 lid 1 Wet
+          BRV). De overige kosten koper zijn geen fiscale waarde maar een eigen schatting; daarom
+          staan ze apart en zijn ze niet in één percentage samengevoegd.</li>
+        <li><strong>Eigen vermogen.</strong> Waarde min financiering, en bij verwerking als
+          investering vermeerderd met de kosten van verkrijging. Dat is het bedrag dat bij aanvang
+          uit eigen middelen wordt betaald.</li>
+        <li><strong>Leegstandsderving.</strong> De huur die je misloopt, herrekend naar jaarbasis:
+          de huur maal de leegstand in maanden gedeeld door twaalf, gedeeld door het aantal jaren
+          van de periode. De kosten en de rente lopen tijdens leegstand door en worden dus niet
+          verminderd.</li>
+        <li><strong>Rente.</strong> Het percentage over de volledige hoofdsom. De tool rekent één
+          exploitatiejaar door en houdt de hoofdsom binnen dat jaar gelijk.</li>
+        <li><strong>Aflossing.</strong> Aflossing is geen kostenpost maar een verschuiving van
+          vreemd naar eigen vermogen. Zij drukt daarom wel de kasstroom en niet het rendement.</li>
+        <li><strong>Direct rendement.</strong> Het uitkeerbare rendement gedeeld door het eigen
+          vermogen.</li>
+        <li><strong>Indirect rendement.</strong> De verwachte waardestijging over de volle waarde
+          van het object, gedeeld door het eigen vermogen. Daar zit de hefboom: de stijging loopt
+          over de hele waarde terwijl je maar een deel zelf hebt ingelegd.</li>
+      </ul>
+
+      <h3>Aannames die de tool maakt</h3>
+      <ul>
+        <li>De scan geldt voor <strong>één exploitatiejaar</strong>. Huur, kosten en rente zijn
+          bedragen voor dat jaar en de waardestijging is een verwachting per jaar. De uitkomst is
+          dus geen meerjarig rendement en houdt geen rekening met indexatie of met een rente die na
+          een rentevastperiode verandert.</li>
+        <li>De waardestijging is <strong>nominaal</strong>: er wordt niet contant gemaakt en er
+          wordt geen inflatie afgetrokken.</li>
+        <li>Er wordt gerekend <strong>vóór belasting over het rendement zelf</strong>. Box 3,
+          vennootschapsbelasting, terbeschikkingstelling en de aftrekbaarheid van de rente blijven
+          buiten beschouwing.</li>
+        <li>Bij leegstand loopt alleen de huur weg. Extra <strong>mutatiekosten</strong> zoals
+          makelaarskosten bij een nieuwe huurder zitten er niet in; die kun je in de kosten
+          opnemen.</li>
+        <li>Er wordt geen rekening gehouden met <strong>verkoopkosten</strong> aan het einde van de
+          bezitsduur, en evenmin met groot onderhoud dat ineens komt.</li>
+      </ul>
+
+      <h3>Wat deze tool niet doet</h3>
+      <p>
+        Dit is een <strong>rendementsscan</strong> en geen fiscale keuzetool. Hij zegt niets over de
+        vraag of een pand beter in privé of in een bv kan worden gehouden, wat de gevolgen zijn in
+        box 3, hoe een terbeschikkingstelling uitwerkt of hoe een pand het beste kan worden
+        ingebracht. Ook rekent hij geen doorverkoop binnen zes maanden door en geen herziening van
+        btw. Daarvoor bestaan of komen andere tools in de portefeuille.
+      </p>
+    </div>
+  </details>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+
+// Tarieven overdrachtsbelasting, artikel 14 Wet op belastingen van rechtsverkeer.
+// Gecontroleerd 2026-09-04 op https://wetten.overheid.nl/BWBR0002740/2026-01-01
+// (versie "geldend van 01-01-2026 t/m heden") en op de tarieventabel van de
+// Belastingdienst. Het tarief van 8% voor een woning die niet als hoofdverblijf
+// gaat dienen bestaat pas vanaf 2026; in 2025 viel die verkrijging onder het
+// algemene tarief van artikel 14 lid 1.
+//
+// OPENSTAAND: voor 2027 is een verlaging van 8% naar 7% aangekondigd. Die is op
+// 2026-09-04 niet in een officiele bron terug te vinden en dus geen geldend
+// recht. Er is daarom bewust geen jaar 2027 opgenomen: een onbekend jaar hoort
+// niet stil door te rekenen. Controlemoment: Prinsjesdag 15 september 2026 en de
+// behandeling van het pakket Belastingplan 2027.
+const OVB_PER_JAAR = {
+  2025: [
+    { sleutel: 'algemeen',      tarief: 0.104, omschrijving: 'Algemeen tarief',                                             grondslag: 'Art. 14 lid 1 Wet BRV' },
+    { sleutel: 'hoofdverblijf', tarief: 0.02,  omschrijving: 'Woning als hoofdverblijf, natuurlijk persoon met verklaring', grondslag: 'Art. 14 lid 2 Wet BRV (2025)' }
+  ],
+  2026: [
+    { sleutel: 'algemeen',      tarief: 0.104, omschrijving: 'Niet-woning, bijvoorbeeld bedrijfspand of winkel',            grondslag: 'Art. 14 lid 1 Wet BRV' },
+    { sleutel: 'woning',        tarief: 0.08,  omschrijving: 'Woning die niet als hoofdverblijf gaat dienen',               grondslag: 'Art. 14 lid 2 Wet BRV' },
+    { sleutel: 'hoofdverblijf', tarief: 0.02,  omschrijving: 'Woning als hoofdverblijf, natuurlijk persoon met verklaring', grondslag: 'Art. 14 lid 3 Wet BRV' }
+  ]
+};
+
+const OVB_JAREN = Object.keys(OVB_PER_JAAR).map(Number).sort(function (a, b) { return a - b; });
+
+function ovbTarieven(jaar) {
+  return OVB_PER_JAAR[jaar] || null;
+}
+
+function isGetal(x) {
+  return typeof x === 'number' && Number.isFinite(x);
+}
+
+// Rendementsscan op een vastgoedbelegging, voor een vol exploitatiejaar.
+//
+// De opbouw staat bewust in losse tussenresultaten, zodat elke stap afzonderlijk
+// te controleren is en niet alleen het eindpercentage. Twee fouten die elkaar
+// opheffen geven immers hetzelfde eindpercentage als geen fout.
+//
+// Bedragen in euro, percentages als breuk (0.05 voor 5%).
+function rendementsscan(invoer) {
+  var jaar = invoer.jaar;
+  var waarde = invoer.waarde;
+  var financiering = invoer.financiering;
+  var rente = invoer.rente;
+  var aflossing = invoer.aflossing === undefined ? 0 : invoer.aflossing;
+  var huur = invoer.huur;
+  var kosten = invoer.kosten;
+  var waardestijging = invoer.waardestijging;
+  var leegstandMaanden = invoer.leegstandMaanden === undefined ? 0 : invoer.leegstandMaanden;
+  var leegstandPeriode = invoer.leegstandPeriode === undefined ? 1 : invoer.leegstandPeriode;
+  var ovbTarief = invoer.ovbTarief;
+  var overigeKostenPct = invoer.overigeKostenPct === undefined ? 0 : invoer.overigeKostenPct;
+  var verkrijgingswijze = invoer.verkrijgingswijze === undefined ? 'investering' : invoer.verkrijgingswijze;
+  var bezitsduur = invoer.bezitsduur === undefined ? null : invoer.bezitsduur;
+
+  // Een onbekend jaar rekent niet door. Stil terugvallen op een ander jaar geeft
+  // een fout antwoord dat niemand opmerkt.
+  if (!ovbTarieven(jaar)) {
+    return { fout: 'Voor ' + jaar + ' zijn geen tarieven overdrachtsbelasting vastgelegd. Bekende jaren: ' + OVB_JAREN.join(', ') + '.' };
+  }
+  if (!isGetal(waarde) || waarde <= 0) return { fout: 'Geef een kostprijs of waarde groter dan nul op.' };
+  if (!isGetal(financiering) || financiering < 0) return { fout: 'Geef een financiering van nul of meer op.' };
+  if (!isGetal(rente) || rente < 0) return { fout: 'Geef een rentepercentage van nul of meer op.' };
+  if (!isGetal(aflossing) || aflossing < 0) return { fout: 'Geef een aflossing van nul of meer op.' };
+  if (!isGetal(huur) || huur < 0) return { fout: 'Geef een huuropbrengst van nul of meer op.' };
+  if (!isGetal(kosten) || kosten < 0) return { fout: 'Geef kosten van nul of meer op.' };
+  if (!isGetal(waardestijging)) return { fout: 'Geef een verwachte waardestijging op.' };
+  if (!isGetal(ovbTarief) || ovbTarief < 0) return { fout: 'Geef een tarief overdrachtsbelasting van nul of meer op.' };
+  if (!isGetal(overigeKostenPct) || overigeKostenPct < 0) return { fout: 'Geef overige kosten koper van nul of meer op.' };
+  if (!isGetal(leegstandMaanden) || leegstandMaanden < 0 || leegstandMaanden > 12) {
+    return { fout: 'De leegstand per periode ligt tussen nul en twaalf maanden.' };
+  }
+  if (!isGetal(leegstandPeriode) || leegstandPeriode <= 0) {
+    return { fout: 'Geef een leegstandsperiode groter dan nul jaar op.' };
+  }
+  if (verkrijgingswijze !== 'investering' && verkrijgingswijze !== 'jaarlast') {
+    return { fout: 'Onbekende verwerking van de kosten van verkrijging.' };
+  }
+  if (verkrijgingswijze === 'jaarlast' && (!isGetal(bezitsduur) || bezitsduur <= 0)) {
+    return { fout: 'Bij verwerking als jaarlast is een bezitsduur groter dan nul jaar nodig.' };
+  }
+
+  // Kosten van verkrijging. Het wettelijke deel en het vrije deel staan apart,
+  // zodat de vindplaats aan het wettelijke deel blijft hangen.
+  var overdrachtsbelasting = ovbTarief * waarde;
+  var overigeKosten = overigeKostenPct * waarde;
+  var verkrijgingskosten = overdrachtsbelasting + overigeKosten;
+
+  // Eigen vermogen. Wie de kosten van verkrijging als investering aanmerkt,
+  // betaalt ze bij aanvang uit eigen middelen; dan horen ze in de noemer.
+  var eigenVermogen = verkrijgingswijze === 'investering'
+    ? waarde - financiering + verkrijgingskosten
+    : waarde - financiering;
+
+  if (!(eigenVermogen > 0)) {
+    return {
+      fout: 'Het eigen vermogen komt uit op ' + Math.round(eigenVermogen) + ' euro. ' +
+            'Bij nul of minder is een rendement op eigen vermogen niet te berekenen.'
+    };
+  }
+
+  // Exploitatie.
+  var rentelast = rente * financiering;
+  var leegstandsderving = huur * (leegstandMaanden / 12) / leegstandPeriode;
+  var exploitatiesaldo = huur - leegstandsderving - kosten - rentelast;
+  var kasstroomNaAflossing = exploitatiesaldo - aflossing;
+
+  // Bij verwerking als jaarlast drukken de kosten van verkrijging op het
+  // rendement in plaats van op het eigen vermogen.
+  var verkrijgingskostenPerJaar = verkrijgingswijze === 'jaarlast'
+    ? verkrijgingskosten / bezitsduur
+    : 0;
+
+  var uitkeerbaar = exploitatiesaldo - verkrijgingskostenPerJaar;
+  var waardestijgingBedrag = waardestijging * waarde;
+
+  var directRendement = uitkeerbaar / eigenVermogen;
+  var indirectRendement = waardestijgingBedrag / eigenVermogen;
+  var totaalRendement = directRendement + indirectRendement;
+
+  // Het rendement op het object zelf, zonder hefboom. Het verschil met het
+  // totaalrendement is precies wat de financiering doet.
+  var rendementObject = (huur - leegstandsderving - kosten + waardestijgingBedrag) / waarde;
+
+  var signalen = [];
+  if (exploitatiesaldo < 0) {
+    signalen.push('Het exploitatiesaldo is negatief: de huur dekt de kosten, de rente en de leegstand niet.');
+  }
+  if (aflossing > 0 && kasstroomNaAflossing < 0) {
+    signalen.push('Na aflossing is de kasstroom negatief; er moet dan jaarlijks geld bij.');
+  }
+  if (eigenVermogen / waarde < 0.1) {
+    signalen.push('Het eigen vermogen is minder dan een tiende van de waarde. Het rendementspercentage reageert dan zeer sterk op kleine wijzigingen in huur of rente.');
+  }
+  if (leegstandMaanden === 0) {
+    signalen.push('Er is geen leegstand ingevuld; de scan rekent met volledige verhuur in elk jaar.');
+  }
+  if (financiering > waarde) {
+    signalen.push('De financiering is hoger dan de waarde van het object.');
+  }
+
+  return {
+    overdrachtsbelasting: overdrachtsbelasting,
+    overigeKosten: overigeKosten,
+    verkrijgingskosten: verkrijgingskosten,
+    eigenVermogen: eigenVermogen,
+    rentelast: rentelast,
+    leegstandsderving: leegstandsderving,
+    exploitatiesaldo: exploitatiesaldo,
+    aflossing: aflossing,
+    kasstroomNaAflossing: kasstroomNaAflossing,
+    verkrijgingskostenPerJaar: verkrijgingskostenPerJaar,
+    uitkeerbaar: uitkeerbaar,
+    waardestijgingBedrag: waardestijgingBedrag,
+    directRendement: directRendement,
+    indirectRendement: indirectRendement,
+    totaalRendement: totaalRendement,
+    rendementObject: rendementObject,
+    hefboomeffect: totaalRendement - rendementObject,
+    signalen: signalen
+  };
+}
+// FISCALE KERN — EINDE
+
+// ---------------------------------------------------------------- UI
+
+var euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+var procent = new Intl.NumberFormat('nl-NL', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function veld(id) { return document.getElementById(id); }
+function getal(id) {
+  var rauw = veld(id).value.trim();
+  return rauw === '' ? NaN : Number(rauw);
+}
+
+function vulJaren() {
+  veld('jaar').innerHTML = OVB_JAREN.map(function (j) { return '<option value="' + j + '">' + j + '</option>'; }).join('');
+  veld('jaar').value = String(OVB_JAREN[OVB_JAREN.length - 1]);
+}
+
+function vulTarieven() {
+  var jaar = Number(veld('jaar').value);
+  var tarieven = ovbTarieven(jaar) || [];
+  var vorige = veld('ovbKeuze').value;
+  var opties = tarieven.map(function (t) {
+    return '<option value="' + t.sleutel + '">' + t.omschrijving + ' (' + procent.format(t.tarief) + ')</option>';
+  });
+  opties.push('<option value="eigen">Eigen tarief invullen</option>');
+  veld('ovbKeuze').innerHTML = opties.join('');
+
+  var bestaat = vorige === 'eigen' || tarieven.some(function (t) { return t.sleutel === vorige; });
+  if (bestaat) {
+    veld('ovbKeuze').value = vorige;
+  } else if (tarieven.some(function (t) { return t.sleutel === 'woning'; })) {
+    veld('ovbKeuze').value = 'woning';
+  }
+  toonEigenTarief();
+}
+
+function toonEigenTarief() {
+  veld('ovbEigenVeld').hidden = veld('ovbKeuze').value !== 'eigen';
+}
+
+function toonBezitsduur() {
+  var gekozen = document.querySelector('input[name=verkrijgingswijze]:checked').value;
+  veld('bezitsduurVeld').hidden = gekozen !== 'jaarlast';
+}
+
+function gekozenTarief(jaar) {
+  var sleutel = veld('ovbKeuze').value;
+  if (sleutel === 'eigen') {
+    return { tarief: getal('ovbEigen') / 100, omschrijving: 'Eigen tarief', grondslag: null };
+  }
+  var gevonden = (ovbTarieven(jaar) || []).filter(function (t) { return t.sleutel === sleutel; })[0];
+  return gevonden || { tarief: NaN, omschrijving: '', grondslag: null };
+}
+
+function regel(naam, bedrag, toelichting, klasse) {
+  return '<tr' + (klasse ? ' class="' + klasse + '"' : '') + '>' +
+    '<td>' + naam + (toelichting ? '<br><span class="toelichting">' + toelichting + '</span>' : '') + '</td>' +
+    '<td class="getal">' + euro.format(bedrag) + '</td></tr>';
+}
+
+function procentregel(naam, waarde, toelichting, klasse) {
+  return '<tr' + (klasse ? ' class="' + klasse + '"' : '') + '>' +
+    '<td>' + naam + (toelichting ? '<br><span class="toelichting">' + toelichting + '</span>' : '') + '</td>' +
+    '<td class="getal">' + procent.format(waarde) + '</td></tr>';
+}
+
+function toon(uit, invoer, tarief) {
+  var doel = veld('uitkomst');
+
+  if (uit.fout) {
+    doel.innerHTML = '<div class="melding fout">' + uit.fout + '</div>';
+    return;
+  }
+
+  var alsJaarlast = invoer.verkrijgingswijze === 'jaarlast';
+  var vandaag = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  var meldingen = uit.signalen.map(function (s) { return '<div class="melding let-op">' + s + '</div>'; }).join('');
+  var eigenTariefMelding = tarief.grondslag ? '' :
+    '<div class="melding let-op">Er is een eigen tarief overdrachtsbelasting ingevuld. Dat wijkt af van de tarieven van artikel 14 Wet BRV en vraagt om een eigen onderbouwing.</div>';
+
+  doel.innerHTML =
+    '<h2>Uitkomst</h2>' +
+    '<p class="bedrag">' + procent.format(uit.totaalRendement) +
+      '<small>totaalrendement op eigen vermogen, bij ' + euro.format(uit.eigenVermogen) + ' eigen vermogen</small></p>' +
+    '<p class="dossierdatum">Berekend op ' + vandaag + '. Verkrijging in ' + invoer.jaar + '.</p>' +
+    eigenTariefMelding + meldingen +
+
+    '<h3>Kosten van verkrijging</h3><table>' +
+    '<tr><th>Post</th><th class="getal">Bedrag</th></tr>' +
+    regel('Overdrachtsbelasting', uit.overdrachtsbelasting,
+      procent.format(tarief.tarief) + ' over ' + euro.format(invoer.waarde) +
+      (tarief.grondslag ? ' volgens ' + tarief.grondslag : '')) +
+    regel('Overige kosten koper', uit.overigeKosten,
+      procent.format(invoer.overigeKostenPct) + ' over ' + euro.format(invoer.waarde) + ', eigen schatting') +
+    regel('Totaal', uit.verkrijgingskosten, '', 'som') +
+    '</table>' +
+
+    '<h3>Geïnvesteerd eigen vermogen</h3><table>' +
+    regel('Kostprijs of waarde', invoer.waarde) +
+    regel('Af: financiering', -invoer.financiering) +
+    (alsJaarlast
+      ? regel('Kosten van verkrijging', 0, 'Als jaarlast verwerkt, dus niet in het eigen vermogen')
+      : regel('Bij: kosten van verkrijging', uit.verkrijgingskosten, 'Bij aanvang uit eigen middelen betaald')) +
+    regel('Eigen vermogen', uit.eigenVermogen, '', 'som') +
+    '</table>' +
+
+    '<h3>Exploitatie per jaar</h3><table>' +
+    regel('Huur bij volledige verhuur', invoer.huur) +
+    regel('Af: leegstandsderving', -uit.leegstandsderving,
+      invoer.leegstandMaanden + ' maand(en) per ' + invoer.leegstandPeriode + ' jaar, op jaarbasis herrekend') +
+    regel('Af: kosten', -invoer.kosten) +
+    regel('Af: rente', -uit.rentelast,
+      procent.format(invoer.rente) + ' over ' + euro.format(invoer.financiering)) +
+    regel('Exploitatiesaldo', uit.exploitatiesaldo, '', 'som') +
+    (invoer.aflossing > 0
+      ? regel('Af: aflossing', -uit.aflossing,
+          'Geen kostenpost maar een verschuiving van vermogen; staat daarom buiten het rendement') +
+        regel('Kasstroom na aflossing', uit.kasstroomNaAflossing, '', 'tussen')
+      : '') +
+    '</table>' +
+
+    '<h3>Rendement</h3><table>' +
+    regel('Exploitatiesaldo', uit.exploitatiesaldo) +
+    (alsJaarlast
+      ? regel('Af: kosten van verkrijging op jaarbasis', -uit.verkrijgingskostenPerJaar,
+          euro.format(uit.verkrijgingskosten) + ' over ' + invoer.bezitsduur + ' jaar')
+      : '') +
+    regel('Uitkeerbaar rendement', uit.uitkeerbaar, '', 'tussen') +
+    procentregel('Direct rendement', uit.directRendement, 'Uitkeerbaar rendement gedeeld door eigen vermogen') +
+    regel('Verwachte waardestijging', uit.waardestijgingBedrag,
+      procent.format(invoer.waardestijging) + ' over ' + euro.format(invoer.waarde)) +
+    procentregel('Indirect rendement', uit.indirectRendement, 'Waardestijging gedeeld door eigen vermogen') +
+    procentregel('Totaalrendement', uit.totaalRendement, '', 'som') +
+    '</table>' +
+
+    '<h3>Wat de financiering doet</h3><table>' +
+    procentregel('Rendement op het object zelf', uit.rendementObject,
+      'Huur na leegstand en kosten, plus waardestijging, gedeeld door de waarde. Zonder financiering en zonder kosten van verkrijging.') +
+    procentregel('Totaalrendement op eigen vermogen', uit.totaalRendement) +
+    procentregel('Effect van de financiering', uit.hefboomeffect,
+      uit.hefboomeffect >= 0
+        ? 'De financiering verhoogt het rendement: het object brengt meer op dan de rente kost.'
+        : 'De financiering verlaagt het rendement: de rente kost meer dan het object opbrengt.',
+      'som') +
+    '</table>' +
+
+    '<button type="button" class="afdrukknop" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+}
+
+veld('formulier').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var jaar = Number(veld('jaar').value);
+  var tarief = gekozenTarief(jaar);
+  var invoer = {
+    jaar: jaar,
+    waarde: getal('waarde'),
+    financiering: getal('financiering'),
+    rente: getal('rente') / 100,
+    aflossing: getal('aflossing'),
+    huur: getal('huur'),
+    kosten: getal('kosten'),
+    waardestijging: getal('waardestijging') / 100,
+    leegstandMaanden: getal('leegstandMaanden'),
+    leegstandPeriode: getal('leegstandPeriode'),
+    ovbTarief: tarief.tarief,
+    overigeKostenPct: getal('overigeKosten') / 100,
+    verkrijgingswijze: document.querySelector('input[name=verkrijgingswijze]:checked').value,
+    bezitsduur: getal('bezitsduur')
+  };
+  toon(rendementsscan(invoer), invoer, tarief);
+});
+
+veld('jaar').addEventListener('change', vulTarieven);
+veld('ovbKeuze').addEventListener('change', toonEigenTarief);
+Array.prototype.forEach.call(document.querySelectorAll('input[name=verkrijgingswijze]'), function (r) {
+  r.addEventListener('change', toonBezitsduur);
+});
+
+vulJaren();
+vulTarieven();
+toonBezitsduur();
+</script>
