@@ -367,12 +367,19 @@
 
       if (contr) {
         const afw = contr.afwijkingen || [];
+        const hersteld = contr.hersteld || 0;
         if (afw.length) {
           fout = true;
           regels.push(`De dagelijkse controle (${tijd(contr.tijdstip)}) vond ` +
             `<b>${afw.length} afwijking(en)</b> tussen de rechten hier en wat er ` +
-            `werkelijk op Cloudflare staat.`);
+            `werkelijk op Cloudflare staat, en kon die niet herstellen.`);
           for (const a of afw.slice(0, 5)) regels.push(`${a.tool}: ${a.reden}`);
+        } else if (hersteld) {
+          // Geen foutmelding: de controle heeft zijn werk gedaan. Wel tonen, want een
+          // afwijking die telkens terugkomt is een signaal op zichzelf.
+          regels.push(`Dagelijkse controle (${tijd(contr.tijdstip)}): ` +
+            `${hersteld} afwijking(en) gevonden en hersteld, ` +
+            `${contr.gecontroleerd} tools nu in orde.`);
         } else {
           regels.push(`Dagelijkse controle (${tijd(contr.tijdstip)}): ` +
             `${contr.gecontroleerd} tools in orde.`);
@@ -380,8 +387,9 @@
       }
 
       if (fout) {
-        regels.push('Sla hieronder een gebruiker op om de toegang opnieuw te laten schrijven. ' +
-          'Blijft het misgaan, dan is het token op de worker de eerste verdachte.');
+        regels.push('De dagelijkse controle probeert dit zelf te herstellen. Blijft het ' +
+          'staan, dan lukt dat niet: sla hieronder een gebruiker op om het meteen opnieuw ' +
+          'te laten schrijven, en is het token op de worker de eerste verdachte.');
       }
 
       balk.className = 'statusbalk ' + (fout ? 'fout' : 'goed');

@@ -102,9 +102,13 @@ export default {
     return new Response('Not found', { status: 404 });
   },
 
-  // Dagelijkse controle. Deze kijkt naar het account en niet naar de
+  // Dagelijkse controle en herstel. Deze kijkt naar het account en niet naar de
   // repository, en vindt daarom ook een verlopen token of een worker die
   // achterloopt. check_tools.py in de repo kan dat per definitie niet zien.
+  //
+  // Vindt hij een afwijking, dan schrijft hij de policies opnieuw en meet daarna
+  // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
+  // dan staan tot iemand in beheer.html een gebruiker opsloeg.
   async scheduled(event, env, ctx) {
     const tijdstip = new Date().toISOString();
 
@@ -119,16 +123,38 @@ export default {
     }
 
     const permissions = await getPermissions(env);
-    const uit = await controleerPolicies(permissions, env);
-    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit });
+    let uit = await controleerPolicies(permissions, env);
+    let hersteld = 0;
 
+    // Een afwijking die vanzelf te herstellen is, hoort niet te blijven staan tot
+    // iemand toevallig een gebruiker opslaat in beheer.html. Juist bij een nieuwe tool
+    // loopt de policy achter terwijl de rechten hier al kloppen: wie 'all' heeft, heeft
+    // recht op die tool, maar Cloudflare weet dat pas na een synchronisatie. Zo bleef
+    // xaf_export.html op 02-09-2026 onbereikbaar voor wie er wel recht op had.
+    //
+    // De opslag is de bron: syncCFAccess schrijft de policy uit de rechten hier, en
+    // slaat een tool over waar niemand recht op heeft. Een lege of onbereikbare opslag
+    // sluit dus niemand buiten; er wordt dan niets geschreven.
     if (uit.afwijkingen.length) {
       console.error(`controle: ${uit.afwijkingen.length} afwijking(en) gevonden: ` +
         uit.afwijkingen.map(a => `${a.tool} (${a.reden})`).join('; '));
+
+      await syncCFAccess(permissions, env);
+
+      // Opnieuw meten in plaats van aannemen dat het herstel is gelukt: wat overblijft
+      // is een echt probleem en hoort in beheer.html te blijven staan.
+      const na = await controleerPolicies(permissions, env);
+      hersteld = uit.afwijkingen.length - na.afwijkingen.length;
+      uit = na;
+
+      console.log(`controle: ${hersteld} afwijking(en) hersteld, ` +
+        `${uit.afwijkingen.length} over`);
     } else {
       console.log(`controle: ${uit.gecontroleerd} tools in orde, ` +
         `${uit.overgeslagen} overgeslagen`);
     }
+
+    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit, hersteld });
   }
 };
 
