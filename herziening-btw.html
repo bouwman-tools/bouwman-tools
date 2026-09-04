@@ -1,0 +1,974 @@
+<meta charset="utf-8">
+<title>Herziening btw op investeringsgoederen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --inkt: #17212b;
+    --gedempt: #5a6b7b;
+    --lijn: #d4dce4;
+    --vlak: #f4f7fa;
+    --accent: #14507d;
+    --waarschuwing: #8a5300;
+    --waarschuwing-vlak: #fdf4e3;
+    --fout: #9b2226;
+    --fout-vlak: #fdeded;
+    --goed: #1c5d3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--inkt);
+    background: #fff;
+  }
+  main { max-width: 58rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
+  h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
+  p.intro { color: var(--gedempt); margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem 1.2rem; margin: 0 0 1.25rem; }
+  legend { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
+  label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
+  .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
+  input[type=number], input[type=text], select {
+    width: 100%; padding: .5rem .6rem; font: inherit; font-size: .95rem;
+    border: 1px solid var(--lijn); border-radius: 4px; background: #fff; color: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .rij { display: grid; gap: 1rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+  .veld { margin-bottom: .9rem; }
+  .keuze { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .7rem; }
+  .keuze input { margin-top: .3rem; flex: none; width: auto; }
+  .keuze label { font-weight: 400; font-size: .9rem; margin: 0; }
+  button {
+    font: inherit; font-weight: 600; padding: .6rem 1.4rem; border: 0; border-radius: 4px;
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #0f3d61; }
+  #uitkomst { margin-top: 1.5rem; }
+  .bedrag { font-size: 2rem; font-weight: 700; letter-spacing: -.02em; }
+  .bedrag small { display: block; font-size: .82rem; font-weight: 400; color: var(--gedempt); letter-spacing: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .75rem 0; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--lijn); vertical-align: top; }
+  th { font-weight: 600; }
+  td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.som td { font-weight: 700; border-top: 2px solid var(--inkt); border-bottom: 0; }
+  tr.rustig td { color: var(--gedempt); }
+  .melding { padding: .7rem .9rem; border-radius: 4px; font-size: .88rem; margin: .6rem 0; }
+  .melding.fout { background: var(--fout-vlak); color: var(--fout); border-left: 3px solid var(--fout); }
+  .melding.let-op { background: var(--waarschuwing-vlak); color: var(--waarschuwing); border-left: 3px solid var(--waarschuwing); }
+  .melding.vlak { background: var(--vlak); border-left: 3px solid var(--lijn); }
+  .jaartabel input { padding: .35rem .45rem; font-size: .88rem; }
+  .jaartabel td { padding: .3rem .35rem; }
+  .jaartabel th { font-size: .82rem; color: var(--gedempt); font-weight: 600; }
+  details { margin-top: 2rem; border-top: 1px solid var(--lijn); padding-top: 1rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+  details .inhoud { font-size: .9rem; }
+  details li { margin-bottom: .4rem; }
+  #toelichting { margin-top: 2.5rem; }
+  #toelichting details { margin-top: 0; padding: .8rem 0; }
+  #toelichting details:last-of-type { border-bottom: 1px solid var(--lijn); }
+  #toelichting .inhoud { padding-top: .4rem; }
+  #toelichting .inhoud p:first-child { margin-top: .5rem; }
+  #toelichting dt { font-weight: 600; margin-top: .8rem; }
+  #toelichting dd { margin: .15rem 0 0; color: var(--gedempt); }
+  code { background: var(--vlak); padding: .1rem .3rem; border-radius: 3px; font-size: .85em; }
+  a { color: var(--accent); }
+  .afdrukknop {
+    margin-top: 1.25rem; background: #fff; color: var(--accent);
+    border: 1px solid var(--accent); font-weight: 600;
+  }
+  .afdrukknop:hover { background: var(--vlak); }
+  .verborgen { display: none; }
+
+  @media print {
+    body { padding: 0; font-size: 10.5pt; }
+    form, p.intro, .afdrukknop { display: none; }
+    main { max-width: none; }
+    #uitkomst { margin-top: 0; }
+    h1 { font-size: 1.35rem; }
+    h2, h3 { page-break-after: avoid; }
+    table, .melding { page-break-inside: avoid; }
+    .melding { border: 1px solid var(--lijn); }
+    .melding.let-op, .melding.fout { color: var(--inkt); }
+    details { margin-top: 1.5rem; page-break-inside: avoid; }
+    summary { list-style: none; }
+    /* Op papier hoort de toelichting erbij te staan, ook als de gebruiker de blokken
+       dichtgeklapt liet. Anders drukt hij een uitkomst af zonder de afbakening. */
+    details > .inhoud { display: block !important; }
+    #toelichting dd { color: var(--inkt); }
+  }
+</style>
+
+<main>
+  <h1>Herziening btw op investeringsgoederen</h1>
+  <p class="intro">
+    Berekent de herziening van de afgetrokken voorbelasting op een onroerende zaak, een
+    roerend investeringsgoed of een investeringsdienst, over de volle herzieningstermijn en
+    bij vervreemding binnen die termijn. Alle rekenregels zijn herleid tot artikel 15 Wet OB
+    1968 en de artikelen 11 tot en met 13a van de Uitvoeringsbeschikking omzetbelasting 1968;
+    de vindplaatsen staan in de toelichting onderaan en in <code>BRONNEN.md</code>.
+  </p>
+
+  <form id="formulier">
+    <fieldset>
+      <legend>De investering</legend>
+      <div class="rij">
+        <div class="veld">
+          <label for="soort">Soort investering</label>
+          <select id="soort">
+            <option value="onroerend">Onroerende zaak of een recht daarop (tien boekjaren)</option>
+            <option value="roerend">Roerende zaak waarop wordt afgeschreven (vijf boekjaren)</option>
+            <option value="investeringsdienst">Investeringsdienst aan een onroerende zaak (vijf boekjaren)</option>
+          </select>
+          <span class="hint" id="soort-hint"></span>
+        </div>
+        <div class="veld">
+          <label for="jaar">Boekjaar van ingebruikneming</label>
+          <input type="number" id="jaar" step="1" value="2026">
+          <span class="hint">De herzieningstermijn begint met dit boekjaar; het telt altijd als een vol jaar mee.</span>
+        </div>
+      </div>
+      <div class="rij">
+        <div class="veld">
+          <label for="voorbelasting">Btw op de investering (&euro;)</label>
+          <input type="number" id="voorbelasting" step="0.01" min="0" placeholder="0,00">
+          <span class="hint">De volledige aan u in rekening gebrachte btw, ongeacht wat u ervan hebt afgetrokken.</span>
+        </div>
+        <div class="veld verborgen" id="veld-vergoeding">
+          <label for="vergoeding">Vergoeding voor de dienst, exclusief btw (&euro;)</label>
+          <input type="number" id="vergoeding" step="0.01" min="0" placeholder="0,00">
+          <span class="hint">Vanaf 2026 wordt alleen herzien bij een vergoeding van ten minste &euro;&nbsp;30.000.</span>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Gebruik</legend>
+      <div class="veld">
+        <label for="invoerwijze">Hoe voert u het gebruik in?</label>
+        <select id="invoerwijze">
+          <option value="verhouding">Als belast gebruik tegenover totaal gebruik</option>
+          <option value="percentage">Als percentage belast gebruik</option>
+        </select>
+      </div>
+
+      <div class="rij">
+        <div class="veld">
+          <label for="bestemming">Afgetrokken bij aanschaf, naar bestemming (% belast)</label>
+          <input type="number" id="bestemming" step="0.01" min="0" max="100" placeholder="leeg = gelijk aan het gebruik in het eerste boekjaar">
+          <span class="hint">
+            Het percentage waarnaar u de btw op de factuur hebt afgetrokken. Wijkt het gebruik
+            daarvan af, dan corrigeert artikel 15 lid 4 Wet OB dat bij ingebruikneming.
+          </span>
+        </div>
+      </div>
+
+      <h3>Gebruik per boekjaar</h3>
+      <p class="hint" style="margin-top:0">
+        Het eerste boekjaar is het jaar van ingebruikneming. Alle volgende jaren worden
+        vergeleken met dat eerste jaar, nooit met het jaar ervoor.
+      </p>
+      <table class="jaartabel">
+        <thead id="jaarkop"></thead>
+        <tbody id="jaarrijen"></tbody>
+      </table>
+    </fieldset>
+
+    <fieldset>
+      <legend>Bijzondere situaties</legend>
+      <div class="keuze">
+        <input type="checkbox" id="kor">
+        <label for="kor">
+          De herziening is het gevolg van het aangaan of beëindigen van de
+          kleineondernemersregeling. Dan blijft een herziening van minder dan &euro;&nbsp;500
+          per boekjaar in ieder geval achterwege.
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="checkbox" id="levering-aan">
+        <label for="levering-aan">
+          Het goed of de onroerende zaak waaraan de dienst is verricht, wordt binnen de
+          herzieningstermijn geleverd.
+        </label>
+      </div>
+      <div id="leveringsvelden" class="verborgen">
+        <div class="rij">
+          <div class="veld">
+            <label for="leveringsjaar">Boekjaar van levering</label>
+            <input type="number" id="leveringsjaar" step="1">
+          </div>
+          <div class="veld">
+            <label for="leveringsmaand">Maand van levering</label>
+            <select id="leveringsmaand">
+              <option value="">niet opgeven</option>
+            </select>
+            <span class="hint">Alleen nodig voor de nevenberekening volgens het voorbeeld van de Belastingdienst.</span>
+          </div>
+          <div class="veld">
+            <label for="leveringswijze">Is over de levering btw verschuldigd?</label>
+            <select id="leveringswijze">
+              <option value="belast">Ja, belaste levering (of nultarief van artikel 15 lid 2)</option>
+              <option value="vrijgesteld">Nee, vrijgestelde levering</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <button type="submit">Bereken</button>
+  </form>
+
+  <div id="uitkomst"></div>
+
+  <section id="toelichting">
+    <h2>Toelichting</h2>
+
+    <details>
+      <summary>Nieuw sinds 2026: de investeringsdienst</summary>
+      <div class="inhoud">
+        <p>Tot 2026 gold de herziening alleen voor investeringsgoederen: onroerende zaken over
+          tien boekjaren en roerende zaken waarop wordt afgeschreven over vijf. Diensten vielen
+          erbuiten, hoe groot ook. Sinds 1 januari 2026 is er een derde soort bij gekomen: de
+          <strong>investeringsdienst</strong>, met een termijn van vijf boekjaren, dezelfde als
+          die van een roerende zaak.</p>
+        <p>Twee voorwaarden bepalen of u hier zit:</p>
+        <ul>
+          <li>de vergoeding voor de dienst is <strong>&euro;&nbsp;30.000 of meer</strong>,
+            exclusief btw;</li>
+          <li>de dienst is <strong>op of na 1 januari 2026 voor het eerst in gebruik
+            genomen</strong>.</li>
+        </ul>
+        <p>Is aan een van beide niet voldaan, dan is er geen herziening en rekent deze tool niet.
+          Dat is geen tekortkoming maar de regel: voor een dienst van vóór 2026 bestond de
+          herzieningsplicht niet, en met terugwerkende kracht herzien zou een verplichting
+          creëren die er nooit was.</p>
+        <p class="hint">Een investeringsdienst is een dienst <strong>aan een of meer onroerende
+          zaken</strong> die deze meerjarig dient, inclusief materialen, installaties, machines en
+          werktuigen die na installatie of montage als onroerend kwalificeren. Denk aan vernieuwen,
+          vergroten, herstellen, vervangen en groot onderhoud. Een meerjarige dienst die niet aan
+          een onroerende zaak wordt verricht valt erbuiten, hoe groot ook. Twijfelt u of iets een
+          investeringsgoed of een investeringsdienst is: de soort bepaalt de termijn, dus dat is de
+          eerste vraag en geen detail.</p>
+        <p class="hint">Artikel 13 lid 1 onderdeel c en lid 3 UB OB 1968, met het begrip in artikel
+          2a lid 1 onderdeel y Wet OB 1968. Sinds 25 augustus 2026 staat diezelfde omschrijving ook
+          in het besluit Omzetbelasting. Aftrek van omzetbelasting (Stcrt. 2026, 29217).</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>De tienprocentsmarge: tien procent van wát?</summary>
+      <div class="inhoud">
+        <p>Er wordt niet herzien als het verschil niet meer dan tien procent bedraagt. Dat is tien
+          procent <strong>van de in aftrek gebrachte belasting</strong> en niet tien procentpunt
+          gebruik. Bij vijfenzestig procent belast gebruik ligt de drempel dus op zes en een half
+          procentpunt, en bij twintig procent op twee. Dat is een strenger instrument dan een vaste
+          marge van tien punten.</p>
+        <p>De marge geldt <strong>per boekjaar</strong> en niet over de hele termijn. En "niet meer
+          dan tien percent" betekent dat er precies op de grens géén herziening volgt.</p>
+        <p>Elk boekjaar wordt vergeleken met het jaar van ingebruikneming en niet met het jaar
+          ervoor. Een gebruik dat in kleine stappen wegzakt kan daardoor jaren achter elkaar binnen
+          de marge blijven en op een gegeven moment toch worden herzien.</p>
+        <p class="hint">Artikel 13 lid 2 tot en met 4 UB OB 1968. De tool vergelijkt het verschil en
+          de marge op hele centen. Zonder die afronding beslist het rekengedrag van de machine over
+          een grensgeval in plaats van de regel.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Het eerste jaar is geen herzieningsjaar</summary>
+      <div class="inhoud">
+        <p>In het boekjaar van ingebruikneming wordt niet een tiende of een vijfde herzien maar de
+          <strong>volledige voorbelasting gecorrigeerd</strong>: van de bestemming die bij de
+          factuur gold naar het werkelijke gebruik. Er wordt daarbij niet tijdsevenredig geknipt.
+          Het jaar van ingebruikneming telt altijd als vol jaar mee, ook bij ingebruikneming in
+          november.</p>
+        <p>De tienprocentsmarge speelt in dat jaar niet, want die hoort bij de herziening in de
+          boekjaren daarna.</p>
+        <p>Dit is vaak het grootste bedrag in het dossier, en het is ook het punt waarop deze tool
+          afwijkt van het rekenmodel dat hij vervangt. Dat model neemt het gebruik in jaar één als
+          vertrekpunt en veronderstelt stilzwijgend dat er precies naar dat percentage is
+          afgetrokken. Laat u het veld "afgetrokken bij aanschaf, naar bestemming" leeg, dan doet
+          deze tool dezelfde aanname en is de correctie nul.</p>
+        <p class="hint">Artikel 15 lid 4 Wet OB 1968 met artikel 12 lid 2 en 3 UB OB 1968.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Welke boekjaren deze tool aankan</summary>
+      <div class="inhoud">
+        <p>De tool rekent voor boekjaren van ingebruikneming <strong>2020 tot en met
+          2026</strong>. Daarbuiten geeft hij geen uitkomst en ook geen benadering.</p>
+        <p><strong>Vóór 2020</strong> kende de regeling de ondergrens van &euro;&nbsp;500 nog niet
+          waaronder bij de kleineondernemersregeling niet wordt herzien. Zou de tool een boekjaar
+          van 2019 doorrekenen met de regels van nu, dan onderdrukt hij een herziening die toen wel
+          verschuldigd was. Te voorzichtig in plaats van te ruim, maar even fout.</p>
+        <p><strong>Na 2026</strong> zijn de regels nog niet nagetrokken. Doorrekenen met de regels
+          van 2026 zou een antwoord opleveren dat klopt zolang er niets is gewijzigd en stil fout
+          wordt zodra dat wel gebeurt. Dat is het gevaarlijke geval: een fout die niemand
+          opmerkt.</p>
+        <p class="hint">Loopt u hier tegenaan, meld het bij de eigenaar van deze tool. Een jaar
+          toevoegen is een kwestie van de regels voor dat jaar bij de bron nakijken.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Wat deze tool niet doet</summary>
+      <div class="inhoud">
+        <p class="hint" style="margin-top:0">Dit is geen voorbehoud maar afbakening: hieronder
+          staat waar u zelf aan zet bent.</p>
+        <dl>
+          <dt>Bepalen om welke soort het gaat</dt>
+          <dd>Onroerende zaak, roerende zaak waarop wordt afgeschreven, of investeringsdienst. De
+            soort bepaalt de termijn, dus deze vraag komt vóór de berekening en de tool neemt hem
+            niet van u over.</dd>
+
+          <dt>Het aftrekpercentage bepalen</dt>
+          <dd>De verhouding tussen belast en totaal gebruik volgt uit artikel 11 UB OB 1968 en is
+            een beoordeling per geval: de omzetverhouding, of het werkelijke gebruik als
+            aannemelijk is dat dat daarvan afwijkt. U voert de uitkomst daarvan in.</dd>
+
+          <dt>De aftrek in het jaar van de factuur opzoeken</dt>
+          <dd>Wat er bij de factuur op basis van de bestemming in aftrek is gebracht, haalt u uit
+            de administratie. De tool rekent met wat u invult en controleert niet of dat is wat er
+            destijds is aangegeven.</dd>
+
+          <dt>Beoordelen of de herziening uit de kleineondernemersregeling voortkomt</dt>
+          <dd>Dat vinkt u zelf aan. De tool past dan de ondergrens van &euro;&nbsp;500 per boekjaar
+            toe, bovenop de tienprocentsmarge en niet in plaats daarvan (slotzin artikel 13 lid 4
+            UB OB 1968).</dd>
+
+          <dt>Privégebruik, BUA en kantineregeling</dt>
+          <dd>De tool rekent geen privégebruik van een onroerende zaak uit en ook geen
+            BUA-correctie of kantineregeling.</dd>
+
+          <dt>Overdracht van een algemeenheid van goederen</dt>
+          <dd>Artikel 37d Wet OB 1968, waarbij de overnemer in de plaats treedt van de overdrager
+            en de lopende herzieningstermijn overneemt, zit hier niet in.</dd>
+
+          <dt>Het BTW-compensatiefonds</dt>
+          <dd>Voor publiekrechtelijke lichamen loopt een vergelijkbare herziening via de
+            Uitvoeringsregeling BTW-compensatiefonds. Die kent de tool niet.</dd>
+
+          <dt>Rekenen in dagen</dt>
+          <dd>De tool rekent in boekjaren. Een gebroken boekjaar voert u in als het boekjaar waarin
+            de ingebruikneming valt.</dd>
+
+          <dt>Meer dan één investering tegelijk</dt>
+          <dd>Een investeringsdienst aan een pand heeft een eigen termijn, los van die van het pand
+            zelf, en voert u apart in.</dd>
+
+          <dt>Boekjaren buiten 2020 tot en met 2026</dt>
+          <dd>Zie "Welke boekjaren deze tool aankan" hierboven.</dd>
+        </dl>
+      </div>
+    </details>
+
+    <details>
+      <summary>Waar de rekenregels vandaan komen</summary>
+      <div class="inhoud">
+        <ul>
+          <li><strong>Aftrek naar bestemming en correctie bij ingebruikneming</strong>: artikel 15
+            lid 1 en lid 4 Wet op de omzetbelasting 1968, met artikel 12 lid 2 en 3
+            Uitvoeringsbeschikking omzetbelasting 1968.</li>
+          <li><strong>Welke goederen en diensten afzonderlijk worden gevolgd</strong>: artikel 13
+            lid 1 UB OB 1968, dus onroerende zaken en rechten daarop, roerende zaken waarop wordt
+            afgeschreven, en vanaf 2026 investeringsdiensten met een vergoeding van ten minste
+            &euro;&nbsp;30.000. Het begrip investeringsdienst staat in artikel 2a lid 1 onderdeel y
+            Wet OB 1968.</li>
+          <li><strong>Herzieningstermijnen</strong>: artikel 13 lid 2 UB OB 1968 voor onroerende
+            zaken, negen boekjaren volgend op dat van ingebruikneming en telkens een tiende, en lid
+            3 voor roerende zaken en investeringsdiensten, vier volgende boekjaren en telkens een
+            vijfde.</li>
+          <li><strong>Tienprocentsmarge</strong>: artikel 13 lid 4 UB OB 1968.</li>
+          <li><strong>Ondergrens van &euro;&nbsp;500 bij de kleineondernemersregeling</strong>: de
+            slotzin van artikel 13 lid 4 UB OB 1968, die verwijst naar artikel 25a lid 1 en 2 en
+            artikel 25c lid 1 Wet OB 1968.</li>
+          <li><strong>Levering binnen de termijn</strong>: artikel 13a UB OB 1968.</li>
+        </ul>
+        <p>De volledige verantwoording, met versiedatum en controledatum per waarde, staat in
+          <code>BRONNEN.md</code> in de repository van deze tool.</p>
+      </div>
+    </details>
+  </section>
+</main>
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+
+// Regime per boekjaar van ingebruikneming. De herzieningstermijnen zelf staan al sinds
+// ten minste 2019 ongewijzigd in artikel 13 Uitvoeringsbeschikking omzetbelasting 1968;
+// wat per jaar verschilt is de KOR-ondergrens en de herziening op investeringsdiensten.
+//
+// 2020: de ondergrens van € 500 bij aanvang of beëindiging van de kleineondernemersregeling
+//       komt in artikel 13 lid 4 UB OB 1968 (versie geldend van 01-01-2020; in de versie
+//       van 01-01-2019 ontbreekt die zin nog). Gecontroleerd 2026-09-04 op
+//       https://wetten.overheid.nl/BWBR0002634/2020-01-01 en .../2019-01-01
+// 2026: artikel 13 lid 1 onderdeel c UB OB 1968 voegt de investeringsdienst toe, met een
+//       vergoeding van ten minste € 30.000; artikel 13 lid 3 geeft die dezelfde termijn van
+//       vijf boekjaren als roerende zaken. Begrip: artikel 2a lid 1 onderdeel y Wet OB 1968.
+//       Gecontroleerd 2026-09-04 op https://wetten.overheid.nl/BWBR0002634/2026-01-01
+const REGIMES = [
+  { vanaf: 2020, tot: 2025, investeringsdienstenHerzien: false, drempelInvesteringsdienst: null, ondergrensKOR: 500 },
+  { vanaf: 2026, tot: 2026, investeringsdienstenHerzien: true,  drempelInvesteringsdienst: 30000, ondergrensKOR: 500 },
+];
+
+const EERSTE_BOEKJAAR = 2020;
+const LAATSTE_BOEKJAAR = 2026;
+
+// Termijnen: artikel 13 lid 2 UB OB 1968 (onroerend: de negen boekjaren volgend op dat van
+// ingebruikneming, telkens een tiende) en artikel 13 lid 3 (roerende zaken en
+// investeringsdiensten: de vier volgende boekjaren, telkens een vijfde).
+// Gecontroleerd 2026-09-04 op https://wetten.overheid.nl/BWBR0002634/2026-01-01
+const SOORTEN = {
+  onroerend: {
+    naam: 'onroerende zaak of een recht waaraan deze is onderworpen',
+    termijnJaren: 10,
+    vindplaats: 'artikel 13 lid 1 onderdeel a en lid 2 UB OB 1968',
+  },
+  roerend: {
+    naam: 'roerende zaak waarop wordt afgeschreven',
+    termijnJaren: 5,
+    vindplaats: 'artikel 13 lid 1 onderdeel b en lid 3 UB OB 1968',
+  },
+  investeringsdienst: {
+    naam: 'investeringsdienst aan een onroerende zaak',
+    termijnJaren: 5,
+    vindplaats: 'artikel 13 lid 1 onderdeel c en lid 3 UB OB 1968',
+  },
+};
+
+// De tienprocentsmarge van artikel 13 lid 4 UB OB 1968: herziening blijft achterwege in het
+// boekjaar waarin de belasting die op basis van de gegevens van dat boekjaar voor aftrek in
+// aanmerking komt, niet meer dan tien procent verschilt van de in aftrek gebrachte belasting.
+// Dat is dus tien procent van het afgetrokken bedrag en niet tien procentpunt in het gebruik.
+const MARGE = 0.10;
+
+function regimeVoor(boekjaar) {
+  if (!Number.isInteger(boekjaar)) return null;
+  for (const regime of REGIMES) {
+    if (boekjaar >= regime.vanaf && boekjaar <= regime.tot) return regime;
+  }
+  return null;
+}
+
+function afrondenCent(bedrag) {
+  return Math.round((bedrag + Number.EPSILON) * 100) / 100;
+}
+
+// Percentage belast gebruik uit belast gebruik tegenover totaal gebruik. Een totaal van nul
+// levert geen percentage op: dan is er niets om aan toe te rekenen en moet de gebruiker het
+// zelf invullen. Stil terugvallen op volledige aftrek zou een leeg veld belonen.
+function percentageBelastGebruik(belast, totaal) {
+  if (!Number.isFinite(belast) || !Number.isFinite(totaal)) {
+    throw new Error('Belast gebruik en totaal gebruik moeten getallen zijn.');
+  }
+  if (belast < 0 || totaal < 0) {
+    throw new Error('Belast gebruik en totaal gebruik kunnen niet negatief zijn.');
+  }
+  if (totaal === 0) {
+    throw new Error('Het totale gebruik is nul; daar valt geen percentage belast gebruik uit af te leiden.');
+  }
+  if (belast > totaal) {
+    throw new Error('Het belaste gebruik kan niet groter zijn dan het totale gebruik.');
+  }
+  return belast / totaal;
+}
+
+function controleerInvoer(invoer) {
+  const fouten = [];
+  const soort = SOORTEN[invoer.soort];
+  if (!soort) {
+    fouten.push('Onbekende soort investering.');
+    return fouten;
+  }
+  const regime = regimeVoor(invoer.jaarIngebruikneming);
+  if (!regime) {
+    fouten.push(
+      'Het boekjaar van ingebruikneming ligt buiten de gecontroleerde jaren ' +
+      EERSTE_BOEKJAAR + ' tot en met ' + LAATSTE_BOEKJAAR + '. Voor eerdere jaren geldt ' +
+      'een deels ander artikel 13 UB OB 1968, voor latere jaren zijn de regels nog niet ' +
+      'geverifieerd. Er wordt niets berekend.'
+    );
+    return fouten;
+  }
+  if (invoer.soort === 'investeringsdienst') {
+    if (!regime.investeringsdienstenHerzien) {
+      fouten.push(
+        'Investeringsdiensten worden pas herzien als zij op of na 1 januari 2026 voor het ' +
+        'eerst in gebruik zijn genomen.'
+      );
+    } else if (!Number.isFinite(invoer.vergoeding)) {
+      fouten.push('Vul de vergoeding voor de dienst in, exclusief btw.');
+    } else if (invoer.vergoeding < regime.drempelInvesteringsdienst) {
+      fouten.push(
+        'De vergoeding is lager dan € ' + regime.drempelInvesteringsdienst +
+        '. Dan is er geen investeringsdienst en wordt niet herzien.'
+      );
+    }
+  }
+  if (!Number.isFinite(invoer.voorbelasting) || invoer.voorbelasting < 0) {
+    fouten.push('De btw op de investering moet een bedrag van nul of meer zijn.');
+  }
+  for (const [naam, waarde] of [
+    ['het percentage belast gebruik in het jaar van ingebruikneming', invoer.percentageIngebruikneming],
+    ['het aftrekpercentage naar bestemming', invoer.aftrekpercentageBestemming],
+  ]) {
+    if (waarde === null || waarde === undefined) continue;
+    if (!Number.isFinite(waarde) || waarde < 0 || waarde > 1) {
+      fouten.push('Waarde buiten bereik: ' + naam + ' moet tussen 0 en 100 procent liggen.');
+    }
+  }
+  if (!Number.isFinite(invoer.percentageIngebruikneming)) {
+    fouten.push('Vul het gebruik in het jaar van ingebruikneming in.');
+  }
+  if (!Array.isArray(invoer.percentagesPerJaar) || invoer.percentagesPerJaar.length !== soort.termijnJaren - 1) {
+    fouten.push('Er horen ' + (soort.termijnJaren - 1) + ' herzieningsjaren te zijn.');
+  } else {
+    invoer.percentagesPerJaar.forEach(function (p, i) {
+      if (p === null || p === undefined) return;
+      if (!Number.isFinite(p) || p < 0 || p > 1) {
+        fouten.push('Het percentage belast gebruik in herzieningsjaar ' + (i + 1) + ' moet tussen 0 en 100 procent liggen.');
+      }
+    });
+  }
+  if (invoer.levering) {
+    const eerste = invoer.jaarIngebruikneming;
+    const laatste = eerste + soort.termijnJaren - 1;
+    if (!Number.isInteger(invoer.levering.boekjaar) || invoer.levering.boekjaar < eerste || invoer.levering.boekjaar > laatste) {
+      fouten.push(
+        'Het boekjaar van levering moet binnen de herzieningstermijn liggen, dus tussen ' +
+        eerste + ' en ' + laatste + '. Levering daarbuiten leidt niet tot herziening.'
+      );
+    }
+    if (typeof invoer.levering.belastGeleverd !== 'boolean') {
+      fouten.push('Geef aan of over de levering btw verschuldigd is.');
+    }
+    const maand = invoer.levering.maand;
+    if (maand !== null && maand !== undefined && (!Number.isInteger(maand) || maand < 1 || maand > 12)) {
+      fouten.push('De maand van levering moet 1 tot en met 12 zijn.');
+    }
+  }
+  return fouten;
+}
+
+// Eén herzieningsjaar. Het vergelijkingspunt is altijd het jaar van ingebruikneming: aan elk
+// boekjaar wordt een gelijk deel van de bij ingebruikneming afgetrokken belasting toegerekend,
+// en daartegenover staat wat op basis van het gebruik in dát boekjaar aftrekbaar is.
+// Artikel 13 lid 2 en 3 UB OB 1968.
+function herzieningsjaar(gegevens) {
+  const deel = 1 / gegevens.termijnJaren;
+  const toegerekend = afrondenCent(deel * gegevens.voorbelasting * gegevens.percentageStart);
+  const opBasisVanGebruik = afrondenCent(deel * gegevens.voorbelasting * gegevens.percentageJaar);
+  const verschil = afrondenCent(opBasisVanGebruik - toegerekend);
+  const marge = afrondenCent(MARGE * Math.abs(toegerekend));
+
+  let herzien = Math.abs(verschil) > marge;
+  let reden = herzien
+    ? 'De afwijking is groter dan tien procent van de toegerekende aftrek.'
+    : 'De afwijking is niet groter dan tien procent van de toegerekende aftrek.';
+
+  if (herzien && gegevens.kor && Math.abs(verschil) < gegevens.ondergrensKOR) {
+    herzien = false;
+    reden = 'De herziening komt voort uit de kleineondernemersregeling en blijft onder € ' +
+            gegevens.ondergrensKOR + ' in dit boekjaar.';
+  }
+
+  return {
+    percentage: gegevens.percentageJaar,
+    toegerekend: toegerekend,
+    opBasisVanGebruik: opBasisVanGebruik,
+    verschil: verschil,
+    marge: marge,
+    herzien: herzien,
+    reden: reden,
+    bedrag: herzien ? verschil : 0,
+  };
+}
+
+// Levering binnen de herzieningstermijn. Artikel 13a UB OB 1968: de ondernemer wordt geacht
+// het goed tot het einde van de termijn uitsluitend belast te gebruiken als over de levering
+// btw verschuldigd is, en anders uitsluitend vrijgesteld. De herziening gaat in één keer in
+// het tijdvak van de levering. Artikel 13a verwijst alleen naar het tweede en derde lid van
+// artikel 13, dus de tienprocentsmarge geldt hier niet.
+function herzieningBijLevering(gegevens) {
+  const deel = 1 / gegevens.termijnJaren;
+  const laatsteJaar = gegevens.jaarIngebruikneming + gegevens.termijnJaren - 1;
+  const percentageFictie = gegevens.belastGeleverd ? 1 : 0;
+  const resterendeJaren = laatsteJaar - gegevens.boekjaarLevering + 1;
+  const bedrag = afrondenCent(resterendeJaren * deel * gegevens.voorbelasting * (percentageFictie - gegevens.percentageStart));
+
+  // Nevenberekening. Het voorbeeld van de Belastingdienst rekent het boekjaar van levering
+  // tijdsevenredig mee in plaats van als vol herzieningsjaar. Dat wijkt af van de tekst van
+  // artikel 13a, dat in hele boekjaren rekent, en van de toelichting bij Stcrt. 2026, 9831.
+  // De uitkomst wordt alleen ter vergelijking getoond.
+  let tijdsevenredig = null;
+  if (Number.isInteger(gegevens.maandLevering)) {
+    const jaren = (laatsteJaar - gegevens.boekjaarLevering) + (13 - gegevens.maandLevering) / 12;
+    tijdsevenredig = {
+      jaren: jaren,
+      bedrag: afrondenCent(jaren * deel * gegevens.voorbelasting * (percentageFictie - gegevens.percentageStart)),
+    };
+  }
+
+  return {
+    boekjaar: gegevens.boekjaarLevering,
+    laatsteJaarTermijn: laatsteJaar,
+    resterendeJaren: resterendeJaren,
+    percentageFictie: percentageFictie,
+    bedrag: bedrag,
+    tijdsevenredig: tijdsevenredig,
+  };
+}
+
+// Volledige berekening. Positief bedrag = alsnog aftrekken of terugvragen, negatief bedrag =
+// verschuldigd en te betalen.
+function berekenHerziening(invoer) {
+  const fouten = controleerInvoer(invoer);
+  if (fouten.length > 0) {
+    const fout = new Error(fouten[0]);
+    fout.fouten = fouten;
+    throw fout;
+  }
+
+  const soort = SOORTEN[invoer.soort];
+  const regime = regimeVoor(invoer.jaarIngebruikneming);
+  const n = soort.termijnJaren;
+  const btw = invoer.voorbelasting;
+  const pStart = invoer.percentageIngebruikneming;
+  const eersteJaar = invoer.jaarIngebruikneming;
+  const laatsteJaar = eersteJaar + n - 1;
+  const meldingen = [];
+
+  // Correctie op het tijdstip van ingebruikneming: artikel 15 lid 4 Wet OB 1968 in verbinding
+  // met artikel 12 lid 2 en 3 UB OB 1968. De aftrek is bij de factuur naar bestemming
+  // genomen; blijkt het gebruik af te wijken, dan wordt de volle voorbelasting gecorrigeerd.
+  // De tienprocentsmarge van artikel 13 lid 4 speelt hier niet: die hoort bij de herziening
+  // in de volgende boekjaren.
+  const pBestemming = (invoer.aftrekpercentageBestemming === null || invoer.aftrekpercentageBestemming === undefined)
+    ? pStart
+    : invoer.aftrekpercentageBestemming;
+  const ingebruikneming = {
+    boekjaar: eersteJaar,
+    percentageBestemming: pBestemming,
+    percentageGebruik: pStart,
+    afgetrokkenNaarBestemming: afrondenCent(btw * pBestemming),
+    aftrekbaarNaarGebruik: afrondenCent(btw * pStart),
+    bedrag: afrondenCent(btw * pStart - btw * pBestemming),
+  };
+
+  const leveringsjaar = invoer.levering ? invoer.levering.boekjaar : null;
+  const regels = [];
+  for (let i = 1; i < n; i++) {
+    const jaar = eersteJaar + i;
+    if (leveringsjaar !== null && jaar >= leveringsjaar) break;
+    const p = invoer.percentagesPerJaar[i - 1];
+    if (p === null || p === undefined) {
+      regels.push({ boekjaar: jaar, volgnummer: i, onbekend: true, bedrag: 0 });
+      meldingen.push('Voor boekjaar ' + jaar + ' is geen gebruik ingevuld; dat jaar telt niet mee in het totaal.');
+      continue;
+    }
+    const uitkomst = herzieningsjaar({
+      termijnJaren: n,
+      voorbelasting: btw,
+      percentageStart: pStart,
+      percentageJaar: p,
+      kor: invoer.kor === true,
+      ondergrensKOR: regime.ondergrensKOR,
+    });
+    uitkomst.boekjaar = jaar;
+    uitkomst.volgnummer = i;
+    uitkomst.onbekend = false;
+    regels.push(uitkomst);
+  }
+
+  let levering = null;
+  if (invoer.levering) {
+    levering = herzieningBijLevering({
+      termijnJaren: n,
+      voorbelasting: btw,
+      percentageStart: pStart,
+      jaarIngebruikneming: eersteJaar,
+      boekjaarLevering: leveringsjaar,
+      belastGeleverd: invoer.levering.belastGeleverd,
+      maandLevering: (invoer.levering.maand === null || invoer.levering.maand === undefined) ? null : invoer.levering.maand,
+    });
+  }
+
+  const totaalHerzieningsjaren = afrondenCent(
+    regels.reduce(function (som, r) { return som + r.bedrag; }, 0) + (levering ? levering.bedrag : 0)
+  );
+
+  return {
+    soort: invoer.soort,
+    soortNaam: soort.naam,
+    vindplaatsSoort: soort.vindplaats,
+    termijnJaren: n,
+    eersteJaar: eersteJaar,
+    laatsteJaar: laatsteJaar,
+    voorbelasting: btw,
+    ingebruikneming: ingebruikneming,
+    regels: regels,
+    levering: levering,
+    totaalHerzieningsjaren: totaalHerzieningsjaren,
+    totaalInclusiefIngebruikneming: afrondenCent(totaalHerzieningsjaren + ingebruikneming.bedrag),
+    meldingen: meldingen,
+  };
+}
+// FISCALE KERN — EINDE
+
+/* ---------------------------------------------------------------------------
+   Bediening. Vanaf hier alleen scherm en formulier, geen rekenregels.
+   --------------------------------------------------------------------------- */
+
+const $ = function (id) { return document.getElementById(id); };
+
+const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
+                 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+MAANDEN.forEach(function (naam, i) {
+  const optie = document.createElement('option');
+  optie.value = String(i + 1);
+  optie.textContent = naam;
+  $('leveringsmaand').appendChild(optie);
+});
+
+function euro(bedrag) {
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(bedrag);
+}
+
+function procent(deel) {
+  return new Intl.NumberFormat('nl-NL', { style: 'percent', maximumFractionDigits: 2 }).format(deel);
+}
+
+function getal(veld) {
+  const ruw = $(veld).value.trim().replace(',', '.');
+  if (ruw === '') return null;
+  const waarde = Number(ruw);
+  return Number.isFinite(waarde) ? waarde : NaN;
+}
+
+function bouwJaartabel() {
+  const soort = $('soort').value;
+  const n = SOORTEN[soort].termijnJaren;
+  const jaar = parseInt($('jaar').value, 10);
+  const perPercentage = $('invoerwijze').value === 'percentage';
+
+  const oud = {};
+  document.querySelectorAll('#jaarrijen input').forEach(function (invoerveld) {
+    oud[invoerveld.dataset.sleutel] = invoerveld.value;
+  });
+
+  $('jaarkop').innerHTML = perPercentage
+    ? '<tr><th>Boekjaar</th><th>Belast gebruik (%)</th><th></th></tr>'
+    : '<tr><th>Boekjaar</th><th>Belast gebruik</th><th>Totaal gebruik</th></tr>';
+
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const boekjaar = Number.isFinite(jaar) ? jaar + i : '';
+    const label = i === 0 ? boekjaar + ' <span class="hint">ingebruikneming</span>' : String(boekjaar);
+    if (perPercentage) {
+      html += '<tr><td>' + label + '</td>' +
+        '<td><input type="number" step="0.01" min="0" max="100" data-sleutel="p' + i + '" value="' + (oud['p' + i] || '') + '"></td>' +
+        '<td></td></tr>';
+    } else {
+      html += '<tr><td>' + label + '</td>' +
+        '<td><input type="number" step="any" min="0" data-sleutel="b' + i + '" value="' + (oud['b' + i] || '') + '"></td>' +
+        '<td><input type="number" step="any" min="0" data-sleutel="t' + i + '" value="' + (oud['t' + i] || '') + '"></td></tr>';
+    }
+  }
+  $('jaarrijen').innerHTML = html;
+}
+
+function leesPercentages() {
+  const n = SOORTEN[$('soort').value].termijnJaren;
+  const perPercentage = $('invoerwijze').value === 'percentage';
+  const waarden = [];
+  const fouten = [];
+  for (let i = 0; i < n; i++) {
+    if (perPercentage) {
+      const veld = document.querySelector('[data-sleutel="p' + i + '"]');
+      const ruw = veld ? veld.value.trim().replace(',', '.') : '';
+      if (ruw === '') { waarden.push(null); continue; }
+      const waarde = Number(ruw);
+      if (!Number.isFinite(waarde) || waarde < 0 || waarde > 100) {
+        fouten.push('Het percentage in het ' + (i + 1) + 'e boekjaar moet tussen 0 en 100 liggen.');
+        waarden.push(null);
+      } else {
+        waarden.push(waarde / 100);
+      }
+    } else {
+      const veldB = document.querySelector('[data-sleutel="b' + i + '"]');
+      const veldT = document.querySelector('[data-sleutel="t' + i + '"]');
+      const b = veldB ? veldB.value.trim().replace(',', '.') : '';
+      const t = veldT ? veldT.value.trim().replace(',', '.') : '';
+      if (b === '' && t === '') { waarden.push(null); continue; }
+      try {
+        waarden.push(percentageBelastGebruik(Number(b), Number(t)));
+      } catch (fout) {
+        fouten.push('Boekjaar ' + (i + 1) + ': ' + fout.message);
+        waarden.push(null);
+      }
+    }
+  }
+  return { waarden: waarden, fouten: fouten };
+}
+
+function toonFouten(lijst) {
+  $('uitkomst').innerHTML = '<div class="melding fout"><strong>Er wordt niets berekend.</strong><ul>' +
+    lijst.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul></div>';
+}
+
+function toonUitkomst(resultaat) {
+  const richting = function (bedrag) {
+    if (bedrag > 0) return 'terug te vragen';
+    if (bedrag < 0) return 'te betalen';
+    return 'geen herziening';
+  };
+
+  let html = '';
+
+  html += '<h2>Uitkomst</h2>';
+  html += '<p class="bedrag">' + euro(resultaat.totaalInclusiefIngebruikneming) +
+    '<small>saldo over de hele termijn ' + resultaat.eersteJaar + ' tot en met ' + resultaat.laatsteJaar +
+    ', inclusief de correctie bij ingebruikneming. Positief is terug te vragen, negatief is te betalen.</small></p>';
+
+  html += '<h3>Bij ingebruikneming in ' + resultaat.ingebruikneming.boekjaar + '</h3>';
+  html += '<table><tbody>';
+  html += '<tr><td>Afgetrokken naar bestemming (' + procent(resultaat.ingebruikneming.percentageBestemming) + ')</td>' +
+    '<td class="getal">' + euro(resultaat.ingebruikneming.afgetrokkenNaarBestemming) + '</td></tr>';
+  html += '<tr><td>Aftrekbaar op basis van het gebruik in dit boekjaar (' + procent(resultaat.ingebruikneming.percentageGebruik) + ')</td>' +
+    '<td class="getal">' + euro(resultaat.ingebruikneming.aftrekbaarNaarGebruik) + '</td></tr>';
+  html += '<tr class="som"><td>Correctie bij ingebruikneming, ' + richting(resultaat.ingebruikneming.bedrag) + '</td>' +
+    '<td class="getal">' + euro(resultaat.ingebruikneming.bedrag) + '</td></tr>';
+  html += '</tbody></table>';
+  html += '<p class="hint">Artikel 15 lid 4 Wet OB 1968 met artikel 12 lid 2 en 3 UB OB 1968. ' +
+    'De tienprocentsmarge geldt hier niet; die hoort bij de herziening in de volgende boekjaren.</p>';
+
+  if (resultaat.regels.length > 0) {
+    html += '<h3>Herziening per boekjaar</h3>';
+    html += '<table><thead><tr><th>Boekjaar</th><th class="getal">Belast gebruik</th>' +
+      '<th class="getal">Toegerekende aftrek</th><th class="getal">Aftrekbaar dit jaar</th>' +
+      '<th class="getal">Verschil</th><th class="getal">Marge</th><th class="getal">Herziening</th></tr></thead><tbody>';
+    resultaat.regels.forEach(function (r) {
+      if (r.onbekend) {
+        html += '<tr class="rustig"><td>' + r.boekjaar + '</td><td colspan="6">geen gebruik ingevuld</td></tr>';
+        return;
+      }
+      html += '<tr' + (r.herzien ? '' : ' class="rustig"') + '><td>' + r.boekjaar + '</td>' +
+        '<td class="getal">' + procent(r.percentage) + '</td>' +
+        '<td class="getal">' + euro(r.toegerekend) + '</td>' +
+        '<td class="getal">' + euro(r.opBasisVanGebruik) + '</td>' +
+        '<td class="getal">' + euro(r.verschil) + '</td>' +
+        '<td class="getal">' + euro(r.marge) + '</td>' +
+        '<td class="getal">' + (r.herzien ? euro(r.bedrag) : '–') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<p class="hint">Artikel 13 lid 2 tot en met 4 UB OB 1968. De marge is tien procent van ' +
+      'de aan het boekjaar toegerekende aftrek; is het verschil niet groter, dan blijft herziening achterwege.</p>';
+  }
+
+  if (resultaat.levering) {
+    const l = resultaat.levering;
+    html += '<h3>Levering in ' + l.boekjaar + '</h3>';
+    html += '<p>Vanaf de levering wordt het goed geacht tot en met ' + l.laatsteJaarTermijn +
+      ' uitsluitend te worden gebruikt voor ' + (l.percentageFictie === 1 ? 'belaste' : 'vrijgestelde') +
+      ' handelingen. De herziening over de resterende ' + l.resterendeJaren +
+      ' boekjaren vindt in één keer plaats in het tijdvak van de levering.</p>';
+    html += '<table><tbody><tr class="som"><td>Herziening bij levering, ' + richting(l.bedrag) + '</td>' +
+      '<td class="getal">' + euro(l.bedrag) + '</td></tr></tbody></table>';
+    html += '<p class="hint">Artikel 13a UB OB 1968. Artikel 13a verwijst alleen naar het tweede en ' +
+      'derde lid van artikel 13, dus de tienprocentsmarge is hier niet van toepassing. De boekjaren ' +
+      'vanaf de levering worden niet meer afzonderlijk herzien.</p>';
+    if (l.tijdsevenredig) {
+      html += '<div class="melding let-op"><strong>Twee lezingen van het boekjaar van levering.</strong> ' +
+        'Hierboven telt het boekjaar van levering als een vol herzieningsjaar. Dat volgt de tekst van ' +
+        'artikel 13a, dat in hele boekjaren rekent, en de toelichting bij Stcrt. 2026, 9831, die de ' +
+        'resterende periode uitdrukkelijk telt als het jaar van levering plus de jaren daarna. Het ' +
+        'rekenvoorbeeld op de website van de Belastingdienst rekent dat boekjaar tijdsevenredig mee en ' +
+        'komt dan uit op ' + l.tijdsevenredig.jaren.toLocaleString('nl-NL') + ' jaar en ' +
+        euro(l.tijdsevenredig.bedrag) + ', een verschil van ' +
+        euro(Math.abs(l.bedrag - l.tijdsevenredig.bedrag)) + '. ' +
+        '<strong>Leg in het dossier vast welke lezing u hebt gevolgd en waarom.</strong> Dat is geen ' +
+        'formaliteit: bij een levering laat in het jaar is het verschil aanzienlijk, en een keuze die ' +
+        'niet is vastgelegd is bij een controle geen keuze maar een aanname.</div>';
+    }
+  }
+
+  html += '<h3>Totaal</h3>';
+  html += '<table><tbody>';
+  html += '<tr><td>Correctie bij ingebruikneming</td><td class="getal">' + euro(resultaat.ingebruikneming.bedrag) + '</td></tr>';
+  html += '<tr><td>Herziening in de herzieningsjaren' + (resultaat.levering ? ' en bij levering' : '') + '</td>' +
+    '<td class="getal">' + euro(resultaat.totaalHerzieningsjaren) + '</td></tr>';
+  html += '<tr class="som"><td>Saldo, ' + richting(resultaat.totaalInclusiefIngebruikneming) + '</td>' +
+    '<td class="getal">' + euro(resultaat.totaalInclusiefIngebruikneming) + '</td></tr>';
+  html += '</tbody></table>';
+
+  resultaat.meldingen.forEach(function (m) {
+    html += '<div class="melding vlak">' + m + '</div>';
+  });
+
+  html += '<h3>Uitgangspunten</h3>';
+  html += '<ul class="inhoud"><li>Soort: ' + resultaat.soortNaam + ' (' + resultaat.vindplaatsSoort + ').</li>' +
+    '<li>Herzieningstermijn: ' + resultaat.termijnJaren + ' boekjaren, ' + resultaat.eersteJaar +
+    ' tot en met ' + resultaat.laatsteJaar + '. Het boekjaar van ingebruikneming telt als vol jaar mee.</li>' +
+    '<li>Btw op de investering: ' + euro(resultaat.voorbelasting) + '.</li>' +
+    '<li>Elk boekjaar wordt vergeleken met het jaar van ingebruikneming, niet met het jaar ervoor.</li></ul>';
+
+  html += '<button class="afdrukknop" type="button" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+
+  $('uitkomst').innerHTML = html;
+}
+
+function verversZichtbaarheid() {
+  $('veld-vergoeding').classList.toggle('verborgen', $('soort').value !== 'investeringsdienst');
+  $('leveringsvelden').classList.toggle('verborgen', !$('levering-aan').checked);
+  const n = SOORTEN[$('soort').value].termijnJaren;
+  $('soort-hint').textContent = 'Herzieningstermijn van ' + n + ' boekjaren, telkens ' +
+    (n === 10 ? 'een tiende' : 'een vijfde') + ' van de voorbelasting.';
+}
+
+['soort', 'jaar', 'invoerwijze'].forEach(function (id) {
+  $(id).addEventListener('change', function () { bouwJaartabel(); verversZichtbaarheid(); });
+});
+$('jaar').addEventListener('input', bouwJaartabel);
+$('levering-aan').addEventListener('change', verversZichtbaarheid);
+
+$('formulier').addEventListener('submit', function (gebeurtenis) {
+  gebeurtenis.preventDefault();
+
+  const gebruik = leesPercentages();
+  if (gebruik.fouten.length > 0) { toonFouten(gebruik.fouten); return; }
+
+  const bestemmingRuw = getal('bestemming');
+  const jaarRuw = parseInt($('jaar').value, 10);
+  const leveringAan = $('levering-aan').checked;
+  const maandRuw = $('leveringsmaand').value;
+
+  const invoer = {
+    soort: $('soort').value,
+    jaarIngebruikneming: Number.isFinite(jaarRuw) ? jaarRuw : null,
+    voorbelasting: getal('voorbelasting'),
+    vergoeding: getal('vergoeding'),
+    aftrekpercentageBestemming: bestemmingRuw === null ? null : bestemmingRuw / 100,
+    percentageIngebruikneming: gebruik.waarden[0],
+    percentagesPerJaar: gebruik.waarden.slice(1),
+    kor: $('kor').checked,
+    levering: leveringAan ? {
+      boekjaar: parseInt($('leveringsjaar').value, 10),
+      belastGeleverd: $('leveringswijze').value === 'belast',
+      maand: maandRuw === '' ? null : parseInt(maandRuw, 10),
+    } : null,
+  };
+
+  try {
+    toonUitkomst(berekenHerziening(invoer));
+  } catch (fout) {
+    toonFouten(fout.fouten || [fout.message]);
+  }
+});
+
+bouwJaartabel();
+verversZichtbaarheid();
+</script>
