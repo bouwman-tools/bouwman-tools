@@ -49,7 +49,7 @@ Bijgewerkt: 2026-09-04
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟡 beta | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
