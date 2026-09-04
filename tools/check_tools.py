@@ -3,6 +3,12 @@
 met tools.json, de enige bron van waarheid voor de toolportefeuille, en bewaakt de
 actualiteit van de jaargebonden waarden en de inhoudelijke beoordeling per tool.
 
+portal.html en beheer.html houden sinds 04-09-2026 geen eigen toollijst meer bij:
+zij bouwen hun kaarten en aanvinkvakjes op uit tools.json. Deze controle kijkt bij
+die twee daarom niet meer of elke tool erin voorkomt, maar of het mechanisme er nog
+staat en of het register alles bevat wat de paginas nodig hebben. APP_IDS in de
+worker is wel nog een eigen lijst en wordt regel voor regel vergeleken.
+
 Faalt met exitcode 1 zodra er drift is of jaarwaarden meer dan een jaar niet zijn
 gecontroleerd. Een ontbrekende eigenaar of achterstallige beoordeling blokkeert
 bewust niet: die worden gemeld, de tool blijft live. Draait lokaal en in CI
@@ -104,6 +110,35 @@ def beoordeling_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
     return "ok", str(datum)
 
 
+def leest_register(pagina: str, naam: str, vlag: str) -> list[str]:
+    """Controleert dat een pagina de toollijst uit tools.json haalt.
+
+    Sinds portal.html en beheer.html hun eigen lijst niet meer bijhouden, is dit de
+    controle die in de plaats komt van het vergelijken van die lijst met het register:
+    haalt de pagina het register op, filtert zij op de juiste vlag, en staat er geen
+    tweede lijst met bestandsnamen in die stil kan gaan afwijken?
+    """
+    meldingen = []
+    if "fetch('tools.json'" not in pagina:
+        meldingen.append(
+            f"{naam} haalt tools.json niet op; de toollijst hoort uit het register te komen."
+        )
+    if f"t.{vlag} === true" not in pagina:
+        meldingen.append(f"{naam} filtert niet op {vlag} uit tools.json.")
+    # Een teruggekeerde eigen lijst valt op aan losse .html-bestandsnamen in
+    # aanhalingstekens. Verwijzingen naar de infrastructuurpaginas zelf horen erbij.
+    eigen = {
+        f for f in re.findall(r"['\"]([A-Za-z0-9_.\-]+\.html)['\"]", pagina)
+        if f not in INFRA
+    }
+    if eigen:
+        meldingen.append(
+            f"{naam} noemt zelf weer bestandsnamen ({', '.join(sorted(eigen))}); "
+            "de lijst hoort alleen in tools.json te staan."
+        )
+    return meldingen
+
+
 def valideer_schema(bron: dict) -> list[str]:
     """Valideert tools.json tegen tools.schema.json als jsonschema beschikbaar is."""
     pad = os.path.join(WORTEL, "tools.schema.json")
@@ -127,18 +162,13 @@ def main() -> int:
         bron = json.load(fh)
 
     tools = bron["tools"]
+    volgorde = bron.get("categorievolgorde", [])
     vervallen = {v["bestand"] for v in bron.get("vervallen", [])}
 
     portal = lees("portal.html")
     beheer = lees("beheer.html")
     worker = lees("access-beheer-worker.js")
 
-    portal_refs = set(re.findall(r"file:\s*'([^']+)'", portal)) | set(
-        re.findall(r"url:\s*'([^']+)'", portal)
-    )
-    beheer_refs = set(re.findall(r"file:\s*'([^']+)'", beheer)) | set(
-        re.findall(r"url:\s*'([^']+)'", beheer)
-    )
     app_ids = dict(
         re.findall(r"'([A-Za-z0-9_.\-]+\.html)':\s*'([0-9a-f\-]{36})'", worker)
     )
@@ -171,9 +201,19 @@ def main() -> int:
         # noemt de beoogde bestandsnaam.
         concept = tool["status"] == "concept"
 
+        # bestand_in_repo false betekent: de pagina staat wel op bouwman.tools, maar
+        # een eigen Worker serveert haar en het bestand hoort hier bewust niet te
+        # staan, omdat de git-historie van deze repo publiek is.
+        in_repo = tool.get("bestand_in_repo", True)
+
         # 1. Bestaat het bestand echt?
-        if not tool.get("extern") and not concept and ref not in html_in_repo:
+        if not tool.get("extern") and not concept and in_repo and ref not in html_in_repo:
             fouten.append(f"{naam}: {ref} staat in tools.json maar bestaat niet in de repo.")
+        if not in_repo and ref in html_in_repo:
+            fouten.append(
+                f"{naam}: bestand_in_repo is false maar {ref} staat hier wel. Haal het weg "
+                "of zet bestand_in_repo op true; de git-historie van deze repo is publiek."
+            )
         if concept and ref in html_in_repo:
             fouten.append(
                 f"{naam}: status is concept maar {ref} staat gepubliceerd in de repo. "
@@ -185,12 +225,27 @@ def main() -> int:
             fouten.append(
                 f"{naam}: status is concept, dus in_portal en in_beheer horen false te zijn."
             )
-        if tool.get("in_portal") and ref not in portal_refs:
-            fouten.append(f"{naam}: in_portal is true maar {ref} staat niet in portal.html.")
-        if not tool.get("in_portal") and ref in portal_refs:
-            fouten.append(f"{naam}: in_portal is false maar {ref} staat wel in portal.html.")
-        if tool.get("in_beheer") and ref not in beheer_refs:
-            fouten.append(f"{naam}: in_beheer is true maar {ref} staat niet in beheer.html.")
+        # portal.html en beheer.html bouwen hun lijst uit het register op, dus een tool
+        # met in_portal of in_beheer true komt daar vanzelf in. Wat de controle hier nog
+        # moet doen is toetsen of het register alles bevat wat het portaal nodig heeft
+        # om een kaart te kunnen tekenen.
+        if tool.get("in_portal"):
+            if not tool.get("icon"):
+                fouten.append(
+                    f"{naam}: in_portal is true maar er is geen icon; portal.html tekent "
+                    "de kaart daaruit."
+                )
+            if tool["categorie"] not in volgorde:
+                fouten.append(
+                    f"{naam}: categorie {tool['categorie']!r} staat niet in "
+                    "categorievolgorde, dus die kop komt achteraan in portaal en beheer."
+                )
+        for tag in tool.get("tags", []):
+            if tag["label"].lower() in ("beta", "bèta"):
+                fouten.append(
+                    f"{naam}: de beta-tag hoort niet in tags; portal.html leidt die af uit "
+                    "status, anders staat de status op twee plekken."
+                )
 
         # 3. Afscherming
         app_id = tool.get("access_app_id")
@@ -232,10 +287,6 @@ def main() -> int:
 
     # 6. Verwijzingen die nergens meer op slaan
     bekend = {sleutel(t) for t in tools}
-    for ref in sorted(portal_refs - bekend):
-        fouten.append(f"portal.html verwijst naar {ref}, dat niet in tools.json staat.")
-    for ref in sorted(beheer_refs - bekend):
-        fouten.append(f"beheer.html verwijst naar {ref}, dat niet in tools.json staat.")
     for ref in sorted(set(app_ids) - bekend - INFRA):
         fouten.append(
             f"APP_IDS bevat {ref}, dat niet in tools.json staat"
@@ -250,9 +301,19 @@ def main() -> int:
             "Neem hem op, of haal de kopieerstap uit de sync-workflow van de bronrepo."
         )
 
+    # 8. Halen portaal en beheer hun lijst nog uit het register?
+    fouten += leest_register(portal, "portal.html", "in_portal")
+    fouten += leest_register(beheer, "beheer.html", "in_beheer")
+    for naam, pagina in (("portal.html", portal), ("beheer.html", beheer)):
+        if "categorievolgorde" not in pagina:
+            fouten.append(
+                f"{naam} gebruikt categorievolgorde uit tools.json niet; dan houdt de "
+                "pagina weer een eigen volgorde bij."
+            )
+
     print(f"tools.json: {len(tools)} tools, bijgewerkt {bron.get('bijgewerkt', '?')}")
-    print(f"portal {len(portal_refs)} · beheer {len(beheer_refs)} · APP_IDS {len(app_ids)} "
-          f"· HTML in repo {len(gepubliceerd)}")
+    print(f"in_portal {sum(1 for t in tools if t.get('in_portal'))} "
+          f"· APP_IDS {len(app_ids)} · HTML in repo {len(gepubliceerd)}")
     print()
 
     if waarschuwingen:
@@ -299,7 +360,7 @@ def main() -> int:
         print("Herstel de afwijking of werk tools.json bij. tools.json is leidend.")
         return 1
 
-    print("Geen drift: portal, beheer en worker komen overeen met tools.json.")
+    print("Geen drift: portaal, beheer en worker komen overeen met tools.json.")
     return 0
 
 

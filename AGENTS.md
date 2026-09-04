@@ -34,20 +34,35 @@ stil te mergen.
 ## tools.json is de enige bron van de toolportefeuille
 
 `tools.json` legt per tool vast: naam, de korte beschrijving, bestand of URL, categorie,
-status, bronrepo, het Cloudflare Access-app-id, welke jaarafhankelijke waarden erin zitten
-en wie de inhoudelijk verantwoordelijke is. Voeg je een tool toe of haal je er een weg, dan
-begin je daar. `tools.schema.json` beschrijft de toegestane velden; `check_tools.py`
-valideert daartegen zodra `jsonschema` beschikbaar is.
+icoon en labels, status, bronrepo, het Cloudflare Access-app-id, welke jaarafhankelijke
+waarden erin zitten en wie de inhoudelijk verantwoordelijke is. Voeg je een tool toe of
+haal je er een weg, dan begin je daar. `tools.schema.json` beschrijft de toegestane
+velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
 
-- `portal.html`, `beheer.html`, `access-beheer-worker.js` (APP_IDS) en `TOOLS.md` moeten
-  daarmee overeenkomen. Houd nergens een tweede lijst bij.
-- `beschrijving` is de tekst op de toolkaart in het portaal en is **verplicht**.
-  `portal.html` haalt hem sinds 03-09-2026 op met een `fetch('tools.json')` in
-  `getBeschrijvingen()`; in de `TOOLS`-lijst daar staat alleen nog wat presentatie is
-  (zichtbaarheid, indeling, icoon, tags). Mislukt het ophalen, dan verschijnt de kaart
-  zonder beschrijving in plaats van dat het portaal breekt. `tools.json` staat
-  onafgeschermd op `https://bouwman.tools/tools.json`; het bestand staat toch al in deze
-  publieke repo, maar zet er dus niets in wat niet openbaar mag zijn.
+- **`portal.html` en `beheer.html` houden sinds 04-09-2026 geen eigen toollijst meer bij.**
+  Beide halen `tools.json` op met een `fetch` en filteren op `in_portal` respectievelijk
+  `in_beheer`; naam, beschrijving, categorie, `icon` en `tags` komen daaruit, en
+  `categorievolgorde` bepaalt in beide de volgorde van de koppen. Een tool krijgt dus een
+  kaart zodra het register dat zegt. Daarvoor stond die lijst in de pagina zelf, en op
+  04-09-2026 bleek waarom dat misgaat: `herziening-btw` was geregistreerd, afgeschermd en
+  gesynct maar had geen kaart, en bestond daardoor niet voor collega's. `APP_IDS` in
+  `access-beheer-worker.js` is de enige eigen lijst die nog over is; die vergelijkt
+  `check_tools.py` regel voor regel met het register.
+- **De bèta-tag staat niet in `tags`**: `portal.html` leidt die af uit `status`, anders
+  zou de status op twee plekken in het register staan. De controle faalt op een
+  bèta-label in `tags`.
+- Faalt het ophalen van `tools.json`, dan tonen beide pagina's een melding en niets
+  anders. Een lege pagina zou niet te onderscheiden zijn van "je hebt nergens toegang
+  tot", en in `beheer.html` zou opslaan dan de rechten van een gebruiker wissen.
+- `beschrijving` is de tekst op de toolkaart in het portaal en is **verplicht**;
+  `icon` is verplicht zodra `in_portal` true is. `tools.json` staat onafgeschermd op
+  `https://bouwman.tools/tools.json`, en ook op `raw.githubusercontent.com`, want deze
+  repo is publiek. Afschermen van de URL helpt daar niet tegen. Zet er dus niets in wat
+  niet openbaar mag zijn; wat er nu in staat, staat er bewust (zie beslispunt 24).
+- `bestand_in_repo: false` betekent: de pagina staat wel op bouwman.tools, maar een eigen
+  Worker serveert haar en het bestand hoort hier bewust niet te staan omdat de
+  git-historie publiek is. Zo is `modellen-naar-tools.html` opgenomen. De controle
+  verwacht het bestand dan niet in de repo, en faalt juist als het er wel staat.
 - `beheer.html` toont geen beschrijvingen: daar staat per tool alleen de naam bij een
   aanvinkvakje. In `TOOLS.md` staan de beschrijvingen als lijst onder de tabel van elke
   categorie, niet als tiende kolom, want dan wordt die tabel onleesbaar.
@@ -62,7 +77,10 @@ valideert daartegen zodra `jsonschema` beschikbaar is.
   er is nog niets bereikbaar.
 - `python tools/check_tools.py` faalt bij drift, en draait ook in CI
   (`.github/workflows/check-tools.yml`). Een tool die gepubliceerd staat maar niet in
-  `tools.json` voorkomt, laat de controle falen.
+  `tools.json` voorkomt, laat de controle falen. Bij `portal.html` en `beheer.html`
+  toetst de controle het mechanisme in plaats van een lijst: halen zij het register op,
+  filteren zij op de juiste vlag, gebruiken zij `categorievolgorde`, en staat er geen
+  losse bestandsnaam meer in de pagina die stil kan gaan afwijken.
 - Een tool zonder `access_app_id` is **niet afgeschermd**: het bestand is voor iedereen
   met de URL bereikbaar en rechten toekennen in `beheer.html` heeft er geen effect op.
   De controle rapporteert dat apart. `tools/maak_access_apps.py` maakt de ontbrekende

@@ -191,11 +191,6 @@
   // opgeslagen rechten per gebruiker, dus hij mag niet veranderen zonder migratie.
   let TOOLS = [];
 
-  const CATEGORIEVOLGORDE = [
-    'BV & DGA', 'Auto & Mobiliteit', 'Loonheffing & WKR', 'Accountancy & Jaarrekening',
-    'BTW & Omzetbelasting', 'Belastingdienst', 'Administratie & Archief',
-    'Arbeidsrecht & Compliance', 'Kantoor', 'Overig',
-  ];
 
   async function laadTools() {
     const r = await fetch('tools.json', { cache: 'no-store' });
@@ -203,9 +198,12 @@
     const data = await r.json();
     const rijen = (data.tools || []).filter(t => t.in_beheer === true);
     if (rijen.length === 0) throw new Error('tools.json bevat geen enkele tool met in_beheer');
+    // Ook de volgorde van de categorieen komt uit het register, zodat portaal en
+    // beheer er niet elk een eigen lijst op nahouden.
+    const volgorde = data.categorievolgorde || [];
     const rang = c => {
-      const i = CATEGORIEVOLGORDE.indexOf(c);
-      return i === -1 ? CATEGORIEVOLGORDE.length : i;
+      const i = volgorde.indexOf(c);
+      return i === -1 ? volgorde.length : i;
     };
     TOOLS = rijen
       .map(t => ({ file: t.extern ? t.url : t.bestand, name: t.naam, categorie: t.categorie }))

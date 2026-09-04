@@ -51,9 +51,11 @@ Bijgewerkt: 2026-09-04
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **BTW Teruggaaf EU**: Berekent en onderbouwt een BTW-teruggaafverzoek voor kosten gemaakt in EU-landen
 - **BUA en kantineregeling**: Berekent de uitsluiting van btw-aftrek voor personeelsvoorzieningen, de kantine en relatiegeschenken, met de drempel per begunstigde
+- **Herziening btw**: Berekent de herziening van in aftrek gebrachte btw op investeringsgoederen en investeringsdiensten: onroerend over tien boekjaren, roerend en diensten over vijf, met de tienprocentsmarge per boekjaar en de gevolgen van levering binnen de termijn
 
 ## BV & DGA
 
@@ -98,8 +100,10 @@ Bijgewerkt: 2026-09-04
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| ⚪ verborgen | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
 - **Prijsafspraken**: Toont per klant de geldende tariefafspraken, werkstatus en factuurhistorie uit een Excel-export
+- **Van rekenmodel naar bouwman.tools**: Inventarisatie van de resterende rekenmodellen, de clustering naar bouwopdrachten, de roadmap in golven en de bewijsstatus per tool. Geen rekentool: een overzichtspagina voor intern overleg
 
 ## Loonheffing & WKR
 

@@ -4,7 +4,7 @@
   "title": "Toolportefeuille bouwman.tools",
   "description": "Enige bron van waarheid voor de toolportefeuille. portal.html, beheer.html, access-beheer-worker.js en TOOLS.md horen hieruit te lezen of hieruit te worden gegenereerd.",
   "type": "object",
-  "required": ["bijgewerkt", "tools"],
+  "required": ["bijgewerkt", "categorievolgorde", "tools"],
   "properties": {
     "$schema": { "type": "string" },
     "toelichting": { "type": "string" },
@@ -12,6 +12,11 @@
     "statussen": { "type": "object" },
     "afscherming": { "type": "object" },
     "eigenaarschap": { "type": "object" },
+    "categorievolgorde": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Volgorde waarin de categorieen in portal.html en beheer.html verschijnen. Een lijst voor beide paginas; elke categorie die in tools voorkomt hoort hier te staan, anders komt zij achteraan."
+    },
     "tools": {
       "type": "array",
       "items": { "$ref": "#/definitions/tool" }
@@ -61,11 +66,37 @@
           "type": "string",
           "description": "Externe locatie; alleen bij extern true."
         },
+        "bestand_in_repo": {
+          "type": "boolean",
+          "description": "Standaard true. False wanneer het bestand bewust niet in deze repo staat omdat een eigen Worker de pagina op bouwman.tools serveert; de git-historie hier is publiek. De controle verwacht het bestand dan niet in de repo."
+        },
         "extern": {
           "type": "boolean",
           "description": "Draait buiten deze repo, bijvoorbeeld op Streamlit of een eigen subdomein."
         },
         "categorie": { "type": "string" },
+        "icon": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8,
+          "description": "Emoji op de toolkaart in het portaal. Verplicht zodra in_portal true is, want portal.html bouwt de kaarten hieruit op."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Labels op de toolkaart in het portaal. De beta-tag hoort hier niet in: die leidt portal.html af uit status, zodat de status niet op twee plekken wordt bijgehouden.",
+          "items": {
+            "type": "object",
+            "required": ["label"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "soort": {
+                "enum": ["ai", "privacy-local", "privacy-ai"],
+                "description": "Kleurmerk op het label; komt overeen met de tool-tag-klassen in portal.html. Weglaten voor een gewoon onderwerpslabel."
+              }
+            }
+          }
+        },
         "status": { "enum": ["live", "beta", "verborgen", "concept"] },
         "status_reden": { "type": "string" },
         "repo": {
@@ -125,6 +156,10 @@
           "if": { "properties": { "extern": { "const": true } }, "required": ["extern"] },
           "then": { "required": ["url"] },
           "else": { "required": ["bestand"] }
+        },
+        {
+          "if": { "properties": { "in_portal": { "const": true } }, "required": ["in_portal"] },
+          "then": { "required": ["icon"] }
         },
         {
           "if": {
