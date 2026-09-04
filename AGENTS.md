@@ -255,10 +255,19 @@ repository; ze zijn los geupload.
 ## Een verdwenen Worker merk je niet aan de tool
 
 Op 04-09-2026 bleek `kvk-zoeker.html` stuk terwijl hij op `live` stond, in het portaal
-hing en netjes achter Access zat. De Worker `kvk-proxy` was van het account verdwenen,
-met zijn secret erbij. De code stond nog in `kvk-worker.js` en `wrangler.toml` beschreef
-hem al, dus `npx wrangler deploy` plus het opnieuw zetten van `KVK_API_KEY` was genoeg.
-Waarom hij weg was is niet uit de gegevens te achterhalen.
+hing en netjes achter Access zat. De Worker `kvk-proxy` stond niet op het account. De code
+stond wel in `kvk-worker.js` en `wrangler.toml` beschreef hem al, dus `npx wrangler deploy`
+plus het opnieuw zetten van `KVK_API_KEY` was genoeg.
+
+Hij was niet verwijderd maar nooit uitgerold. Dat is nagemeten en niet aangenomen: in de
+auditlog vanaf 29-06-2026 staat geen enkele `script_delete`, het herstel is geregistreerd
+als `script_create` en niet als `script_update`, en de KV-namespace van de dagteller
+bevatte alleen de sleutel van de eerste testaanroep — had de Worker ooit gedraaid, dan
+stonden daar tellers van eerdere dagen in. De code dateert van 21-08-2026 en de tool is
+daarna op `live` gezet zonder dat er ooit iets draaide.
+
+Het gat zit dus niet tussen "hij draaide" en "hij is weg", maar tussen "de code staat er"
+en "hij draait".
 
 Het probleem was dat niemand het merkte. `check_tools.py` controleert de repository en
 kan het account per definitie niet zien; de dagelijkse controle in de worker keek naar de

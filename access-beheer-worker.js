@@ -124,10 +124,17 @@ export default {
   // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
   // dan staan tot iemand in beheer.html een gebruiker opsloeg.
   //
-  // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen nog
-  // op het account staan. Die dag bleek kvk-proxy verdwenen te zijn, met zijn secret
-  // erbij, terwijl kvk-zoeker.html op live stond en gewoon in het portaal hing. De
-  // policies klopten, dus de controle van toen zag niets.
+  // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen op het
+  // account staan. Die dag bleek kvk-proxy er niet te zijn, terwijl kvk-zoeker.html op
+  // live stond en gewoon in het portaal hing. De policies klopten, dus de controle van
+  // toen zag niets.
+  //
+  // Nagemeten na het herstel: hij was niet verwijderd maar nooit uitgerold. In de
+  // auditlog vanaf 29-06-2026 staat geen script_delete, het herstel is geregistreerd als
+  // script_create en niet als update, en de KV-namespace van de dagteller bevatte alleen
+  // de sleutel van de eerste testaanroep. De code dateert van 21-08-2026; de tool ging
+  // live zonder dat er ooit iets draaide. Deze controle vangt dus niet alleen een Worker
+  // die wegvalt, maar ook een tool die live gaat zonder deploy.
   async scheduled(event, env, ctx) {
     const tijdstip = new Date().toISOString();
 
