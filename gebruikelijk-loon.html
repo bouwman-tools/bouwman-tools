@@ -112,6 +112,7 @@
       border-radius: 10px;
       padding: 16px;
     }
+    .result-card.terzijde { opacity: .72; border-style: dashed; }
     .result-card.winner {
       border-color: var(--mint);
       background: var(--mint-light);
@@ -227,7 +228,7 @@
       <div>
         <label>Huidig DGA-loon (bruto per jaar)
           <span class="sub">Wat staat er nu in de loonadministratie?</span>
-          <input type="number" id="huidigLoon" value="56000" min="0" step="1000" oninput="bereken()" />
+          <input type="number" id="huidigLoon" value="" placeholder="0" min="0" step="1000" oninput="bereken()" />
         </label>
       </div>
     </div>
@@ -280,8 +281,10 @@
           </ul>
         </div>
         <div class="afroom-info-basis">
-          <strong>Formule:</strong> Gebruikelijk loon = 70% × (omzet − overige kosten BV excl. DGA-loon)<br>
-          <strong>Juridische basis:</strong> HR 9 november 2012, ECLI:NL:HR:2012:BY2665. De afroommethode geldt als de arbeid van de DGA de bepalende factor is voor de BV-omzet. De uitkomst moet minimaal het wettelijk minimum bedragen (€ 56.000 in 2026). De methode levert géén lager gebruikelijk loon op dan het vergelijkingsloon of het loon van de hoogste werknemer.
+          <strong>Formule:</strong> opbrengsten van de BV − de daaraan toe te rekenen kosten, lasten en afschrijvingen, exclusief het DGA-loon. <em>Geen percentage:</em> de doelmatigheidsmarge is per 1 januari 2023 afgeschaft.<br>
+          <strong>Juridische basis:</strong> HR 17 september 2004, nr. 38378, ECLI:NL:HR:2004:AN8666, en HR 9 november 2012, nr. 11/03555, ECLI:NL:HR:2012:BW4167, r.o. 5.2.<br>
+          <strong>De methode is subsidiair.</strong> Is een loon van een werknemer met soortgelijke werkzaamheden beschikbaar, dan is toepassing van de afroommethode niet aan de orde (HR 24 juni 2016, nr. 15/02880, ECLI:NL:HR:2016:1269, r.o. 2.3.4). Vult u een vergelijkingsloon in, dan laat de tool de afroomuitkomst daarom buiten het maximum en toont zij die alleen ter informatie.<br>
+          <strong>Niet toepasbaar</strong> als de opbrengst van de BV een percentage is van het resultaat van een samenwerkingsverband: die opbrengst hangt dan mede af van de arbeid van de andere maten en van het personeel (HR 2012:BW4167, r.o. 5.2). De uitkomst is nooit lager dan het normbedrag van onderdeel c, omdat art. 12a lid 1 het hoogste bedrag voorschrijft.
         </div>
       </div>
     </details>
@@ -289,13 +292,13 @@
     <div class="afroom-section" id="afroomSection">
       <div class="grid2">
         <div>
-          <label>Omzet / declarabele omzet BV
+          <label>Opbrengsten van de BV
             <input type="number" id="omzet" value="0" min="0" step="5000" oninput="bereken()" />
           </label>
         </div>
         <div>
-          <label>Overige kosten BV (excl. DGA-loon)
-            <span class="sub">Huur, personeel, auto, overhead, etc.</span>
+          <label>Toerekenbare kosten, lasten en afschrijvingen
+            <span class="sub">Exclusief het DGA-loon zelf: huur, personeel, auto, overhead, afschrijvingen</span>
             <input type="number" id="overigeKosten" value="0" min="0" step="5000" oninput="bereken()" />
           </label>
         </div>
@@ -332,37 +335,215 @@
 </div><!-- .content -->
 
 <script>
-// Wettelijk minimumbedrag gebruikelijk loon - art. 12a, eerste lid, onderdeel c, Wet LB 1964.
-// Geconsolideerde tekst: wetten.overheid.nl/BWBR0002471 (per jaarversie opgevraagd).
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+// Deze kern wordt door tests/laad-kern.mjs uit dit bestand gesneden en getoetst,
+// zodat de tests exact de code toetsen die de tool uitvoert.
 //
-// 2026: EUR 58.000  Bijstellingsregeling directe belastingen 2026, art. II onderdeel B
-//                   (Stcrt. 2025, 40487): "EUR 56.000" wordt vervangen door "EUR 58.000".
-//                   Reguliere indexatie op grond van art. 12a, zevende lid; geen
-//                   beleidsmatige verhoging. Geldend vanaf 01-01-2026.
-// 2025: EUR 56.000  Ongewijzigd t.o.v. 2024. De Bijstellingsregeling directe belastingen
-//                   2025 (Stcrt. 2024, 38492) vermeldt art. 12a, eerste lid, in de tabel
-//                   "Niet vervangen bedragen ... vanwege afrondingsregel".
-// 2024: EUR 56.000  Geldend vanaf 01-01-2024.
+// Opzet van artikel 12a Wet LB 1964 (geldende tekst, gecontroleerd 04-09-2026 op
+// wetten.overheid.nl/BWBR0002471, jaarversies 2024, 2025 en 2026):
 //
-// Bronnen gecontroleerd op 28-08-2026.
-// NIEUW JAAR TOEVOEGEN: eerst het bedrag verifieren in de Bijstellingsregeling directe
-// belastingen van dat jaar (verschijnt eind december). Nooit het vorige jaar overnemen -
-// 2025 en 2026 laten zien dat een jaar zowel gelijk kan blijven als met EUR 2.000 kan
-// springen. Voeg het jaar ook toe aan de <select id="jaar">.
-const MINIMA = { 2026: 58000, 2025: 56000, 2024: 56000 };
+//   lid 1  Het loon wordt ten minste gesteld op het HOOGSTE van:
+//          a. het loon uit de meest vergelijkbare dienstbetrekking;
+//          b. het hoogste loon van de werknemers die in dienst zijn van het
+//             lichaam of van daarmee verbonden lichamen;
+//          c. het normbedrag.
+//   lid 2  Tegenbewijs: maakt de inhoudingsplichtige aannemelijk dat het hoogste
+//          bedrag uit lid 1 hoger is dan het loon uit de meest vergelijkbare
+//          dienstbetrekking, dan geldt dat laatste. Deze tool past lid 2 niet toe.
+//   lid 4  Lid 1 en 2 gelden niet als het vast te stellen loon niet hoger is dan
+//          EUR 5.000. Dat is alleen via lid 2 te bereiken: zonder lid 2 is de
+//          uitkomst altijd ten minste het normbedrag van lid 1 onderdeel c en
+//          daarmee ruim boven EUR 5.000. Lid 4 is in deze tool dus onbereikbaar
+//          en bewust niet geimplementeerd; zie de afbakening in VERGELIJKING.md.
+//
+// GEEN DOELMATIGHEIDSMARGE MEER. Tot en met 2022 luidde lid 1 onderdeel a
+// "75% van het loon uit de meest vergelijkbare dienstbetrekking" (jaarversie
+// 2022-01-01); vanaf 2023 luidt het "het loon uit de meest vergelijkbare
+// dienstbetrekking". De marge is afgeschaft met het Belastingplan 2023, toegelicht
+// in Kamerstukken II 2022/23, 36 202, nr. 3, paragraaf 1.1 "Afschaffen
+// doelmatigheidsmarge gebruikelijk loon". Elk percentage kleiner dan 100 in de
+// bepaling van onderdeel a is daarmee vanaf 2023 onjuist.
+
+// Normbedrag van art. 12a, eerste lid, onderdeel c, Wet LB 1964, per jaar.
+// Geconsolideerde tekst: wetten.overheid.nl/BWBR0002471, jaarversie per jaar.
+//
+// 2026: EUR 58.000  Jaarversie 2026-01-01 gelezen op 04-09-2026. Verhoogd bij
+//                   Bijstellingsregeling directe belastingen 2026, art. II
+//                   onderdeel B (Stcrt. 2025, 40487): "EUR 56.000" wordt
+//                   vervangen door "EUR 58.000". Reguliere indexatie op grond
+//                   van art. 12a, zevende lid; geen beleidsmatige verhoging.
+// 2025: EUR 56.000  Jaarversie 2025-01-01 gelezen op 04-09-2026. Ongewijzigd
+//                   ten opzichte van 2024: de Bijstellingsregeling directe
+//                   belastingen 2025 (Stcrt. 2024, 38492) noemt art. 12a,
+//                   eerste lid, in de tabel "Niet vervangen bedragen ... vanwege
+//                   afrondingsregel".
+// 2024: EUR 56.000  Jaarversie 2024-01-01 gelezen op 04-09-2026.
+//
+// NIEUW JAAR TOEVOEGEN: eerst het bedrag verifieren in de jaarversie van art. 12a
+// op wetten.overheid.nl en in de Bijstellingsregeling directe belastingen van dat
+// jaar (verschijnt eind december). Nooit het vorige jaar overnemen - 2025 en 2026
+// laten zien dat een jaar zowel gelijk kan blijven als met EUR 2.000 kan springen.
+// Voeg het jaar ook toe aan de <select id="jaar">.
+const NORMBEDRAGEN = { 2026: 58000, 2025: 56000, 2024: 56000 };
+
+// Toptarief box 1, art. 2.10, eerste lid, Wet IB 2001, gelezen op 04-09-2026:
+// 49,50% boven EUR 78.426 (2026) respectievelijk EUR 76.817 (2025). Uitsluitend
+// gebruikt voor de indicatie van het heffingsbelang in de conclusietekst, nooit
+// voor de bepaling van het gebruikelijk loon zelf.
+const TOPTARIEF_BOX1 = { 2026: 0.495, 2025: 0.495, 2024: 0.495 };
+
+/**
+ * Uitkomst van de afroommethode: de opbrengsten van de BV verminderd met de aan
+ * die opbrengsten toe te rekenen kosten (exclusief het loon van die werknemer),
+ * lasten en afschrijvingen.
+ *
+ * Vindplaats: HR 17 september 2004, nr. 38378, ECLI:NL:HR:2004:AN8666, BNB
+ * 2005/50, herhaald in HR 9 november 2012, nr. 11/03555,
+ * ECLI:NL:HR:2012:BW4167, r.o. 5.2. Het arrest noemt GEEN percentage: de
+ * uitkomst is de volledige resterende opbrengst. De 70% die hier tot 04-09-2026
+ * stond, was de doelmatigheidsmarge van 30% zoals die tot 2015 gold; die marge
+ * bestaat sinds 1 januari 2023 in het geheel niet meer.
+ *
+ * Ondergrens nihil: een negatief gebruikelijk loon bestaat niet. Bij verlies
+ * levert de methode geen bedrag op en valt de norm terug op onderdeel b of c.
+ */
+function afroombedrag(opbrengsten, toerekenbareKosten) {
+  return Math.max(0, opbrengsten - toerekenbareKosten);
+}
+
+/**
+ * Bepaalt het gebruikelijk loon volgens art. 12a, eerste lid, Wet LB 1964.
+ *
+ * De afroommethode is GEEN vierde maatstaf naast a, b en c, maar een manier om
+ * onderdeel a te bepalen wanneer een vergelijkingsloon ontbreekt. HR 24 juni
+ * 2016, nr. 15/02880, ECLI:NL:HR:2016:1269, r.o. 2.3.4: de wettelijke regeling
+ * is op een vergelijkingssystematiek gebaseerd, en "[i]ndien derhalve een loon
+ * beschikbaar is van een werknemer met soortgelijke werkzaamheden als die van de
+ * directeur-grootaandeelhouder, is toepassing van de 'afroommethode' niet aan de
+ * orde." De afroomuitkomst blijft daarom buiten het maximum zodra een
+ * vergelijkingsloon is ingevuld; zij wordt dan nog wel getoond, zodat zichtbaar
+ * is dat de methode is beoordeeld en waarom zij afvalt.
+ *
+ * Toepassingsvoorwaarde die deze tool niet kan toetsen: de opbrengsten van de BV
+ * moeten (nagenoeg) geheel voortvloeien uit de arbeid van de directeur. Bestaat
+ * de opbrengst uit een percentage van het resultaat van een samenwerkingsverband,
+ * dan kan de afroommethode niet worden toegepast (HR 2012:BW4167, r.o. 5.2). Dat
+ * oordeel blijft bij de gebruiker; de vink in de tool is zijn verklaring.
+ *
+ * @param {object} invoer
+ * @param {number} invoer.jaar                Kalenderjaar.
+ * @param {number} invoer.vergelijkingsloon   Loon uit de meest vergelijkbare
+ *                                            dienstbetrekking (0 = onbekend).
+ * @param {number} invoer.hoogsteWerknemer    Hoogste loon van de werknemers van
+ *                                            het lichaam of verbonden lichamen.
+ * @param {boolean} invoer.afroomAan          Verklaart de gebruiker dat de
+ *                                            afroommethode van toepassing is?
+ * @param {number} invoer.opbrengsten         Opbrengsten van de BV.
+ * @param {number} invoer.toerekenbareKosten  Toerekenbare kosten, lasten en
+ *                                            afschrijvingen, excl. DGA-loon.
+ * @returns {object|null} null als het jaar niet is vastgelegd.
+ */
+function bepaalGebruikelijkLoon(invoer) {
+  const normbedrag = NORMBEDRAGEN[invoer.jaar];
+
+  // Geen stille terugval op een ander jaar: een onbekend jaar levert geen uitkomst.
+  if (normbedrag === undefined) return null;
+
+  const vergelijkingsloon  = Math.max(0, invoer.vergelijkingsloon  || 0);
+  const hoogsteWerknemer   = Math.max(0, invoer.hoogsteWerknemer   || 0);
+  const opbrengsten        = Math.max(0, invoer.opbrengsten        || 0);
+  const toerekenbareKosten = Math.max(0, invoer.toerekenbareKosten || 0);
+
+  const afroomGevraagd = !!invoer.afroomAan && opbrengsten > 0;
+  const afroom = afroomGevraagd ? afroombedrag(opbrengsten, toerekenbareKosten) : null;
+
+  // Onderdeel a. Een ingevuld vergelijkingsloon gaat voor: dan is de
+  // afroommethode niet aan de orde (HR 2016:1269, r.o. 2.3.4).
+  let onderdeelA = null;
+  let herkomstA = 'geen';
+  let afroomTerzijde = false;
+
+  if (vergelijkingsloon > 0) {
+    onderdeelA = vergelijkingsloon;
+    herkomstA = 'vergelijkingsloon';
+    if (afroomGevraagd) afroomTerzijde = true;
+  } else if (afroomGevraagd) {
+    onderdeelA = afroom;
+    herkomstA = 'afroommethode';
+  }
+
+  const onderdeelB = hoogsteWerknemer > 0 ? hoogsteWerknemer : null;
+  const onderdeelC = normbedrag;
+
+  const maatgevend = Math.max(
+    onderdeelA === null ? 0 : onderdeelA,
+    onderdeelB === null ? 0 : onderdeelB,
+    onderdeelC
+  );
+
+  // Bij een gelijkspel wint het onderdeel dat het hoogst in lid 1 staat: dat is
+  // de maatstaf waaruit het bedrag rechtstreeks volgt.
+  let maatgevendOnderdeel = 'c';
+  if (onderdeelB !== null && onderdeelB === maatgevend) maatgevendOnderdeel = 'b';
+  if (onderdeelA !== null && onderdeelA === maatgevend) maatgevendOnderdeel = 'a';
+
+  return {
+    jaar: invoer.jaar,
+    normbedrag,
+    onderdeelA,
+    onderdeelB,
+    onderdeelC,
+    herkomstA,
+    afroom,
+    afroomTerzijde,
+    maatgevend,
+    maatgevendOnderdeel,
+  };
+}
+
+/**
+ * Toetst het feitelijke loon aan de uitkomst en geeft het heffingsbelang over het
+ * tekort, indicatief tegen het toptarief van box 1. Indicatief, omdat het
+ * werkelijke belang afhangt van het overige inkomen van de DGA en van het
+ * VPB-effect bij de vennootschap; die vallen buiten deze tool.
+ */
+function toetsLoon(uitkomst, huidigLoon) {
+  const loon = Math.max(0, huidigLoon || 0);
+  const tekort = Math.max(0, uitkomst.maatgevend - loon);
+  const overschot = Math.max(0, loon - uitkomst.maatgevend);
+  const tarief = TOPTARIEF_BOX1[uitkomst.jaar];
+  return {
+    voldoet: tekort === 0,
+    tekort,
+    overschot,
+    heffingsbelangIndicatief: tarief === undefined ? null : tekort * tarief,
+  };
+}
+// FISCALE KERN — EINDE
+
+// ── Weergave ────────────────────────────────────────────────────────────────
+// Alles hieronder is UI en raakt de fiscale kern niet aan; het roept haar aan.
 
 function fmt(n) {
-  return '€ ' + Math.round(n).toLocaleString('nl-NL');
+  const afgerond = Math.round(n);
+  const teken = afgerond < 0 ? '− ' : '';
+  return teken + '€ ' + Math.abs(afgerond).toLocaleString('nl-NL');
+}
+
+function getal(id) {
+  const v = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(v) ? v : 0;
 }
 
 function toonJaarfout(jaar) {
-  const jaren = Object.keys(MINIMA).sort().join(', ');
+  const jaren = Object.keys(NORMBEDRAGEN).sort().join(', ');
   const c = document.getElementById('conclusieCard');
   c.className = 'conclusie-card warn';
   c.innerHTML = `
     <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen normbedrag voor ${jaar}</div></div>
     <div class="c-body">
-      Voor ${jaar} is het wettelijk minimumbedrag van artikel 12a, eerste lid, onderdeel c, Wet LB 1964
+      Voor ${jaar} is het normbedrag van artikel 12a, eerste lid, onderdeel c, Wet LB 1964
       niet in deze tool vastgelegd. De tool rekent bewust <strong>niet</strong> door met het bedrag van een
       ander jaar: dat zou een onjuiste norm opleveren.<br><br>
       Beschikbare jaren: <strong>${jaren}</strong>.
@@ -379,105 +560,141 @@ function toggleAfroom() {
   bereken();
 }
 
-function bereken() {
-  const jaar         = parseInt(document.getElementById('jaar').value);
-  const huidigLoon   = parseFloat(document.getElementById('huidigLoon').value) || 0;
-  const vergelijk    = parseFloat(document.getElementById('vergelijkingsloon').value) || 0;
-  const hoogsWerk    = parseFloat(document.getElementById('hoogsteWerknemer').value) || 0;
-  const afroomAan    = document.getElementById('afroomCheck').checked;
-  const omzet        = parseFloat(document.getElementById('omzet').value) || 0;
-  const overigeKost  = parseFloat(document.getElementById('overigeKosten').value) || 0;
-  const minimum      = MINIMA[jaar];
+// Zet de uitkomst van de kern om in de rijen die de tool toont. De rij voor de
+// afroommethode staat er ook als zij afvalt: dat de methode is beoordeeld en
+// waarom zij afvalt, is voor de beoordelaar even belangrijk als de uitkomst.
+function normenrijen(u) {
+  const rijen = [];
 
-  // Geen stille terugval op een ander jaar: een onbekend jaar levert geen uitkomst.
-  if (minimum === undefined) {
+  if (u.herkomstA === 'vergelijkingsloon') {
+    rijen.push({
+      label: 'Meest vergelijkbare dienstbetrekking',
+      bedrag: u.onderdeelA,
+      toelichting: 'Art. 12a lid 1 onderdeel a — 100%, geen doelmatigheidsmarge',
+      telt: true,
+    });
+  } else if (u.herkomstA === 'afroommethode') {
+    rijen.push({
+      label: 'Afroommethode',
+      bedrag: u.onderdeelA,
+      toelichting: 'Invulling van onderdeel a: opbrengsten − toerekenbare kosten',
+      telt: true,
+    });
+  }
+
+  if (u.afroomTerzijde) {
+    rijen.push({
+      label: 'Afroommethode (telt niet mee)',
+      bedrag: u.afroom,
+      toelichting: 'Er is een vergelijkingsloon bekend; dan is de afroommethode niet aan de orde (HR 2016:1269)',
+      telt: false,
+    });
+  }
+
+  if (u.onderdeelB !== null) {
+    rijen.push({
+      label: 'Hoogste werknemer',
+      bedrag: u.onderdeelB,
+      toelichting: 'Art. 12a lid 1 onderdeel b — lichaam en verbonden lichamen',
+      telt: true,
+    });
+  }
+
+  rijen.push({
+    label: 'Normbedrag',
+    bedrag: u.onderdeelC,
+    toelichting: `Art. 12a lid 1 onderdeel c — vaste ondergrens ${u.jaar}`,
+    telt: true,
+  });
+
+  return rijen;
+}
+
+function bereken() {
+  const jaar = parseInt(document.getElementById('jaar').value, 10);
+  const huidigLoon = getal('huidigLoon');
+
+  const uitkomst = bepaalGebruikelijkLoon({
+    jaar,
+    vergelijkingsloon: getal('vergelijkingsloon'),
+    hoogsteWerknemer: getal('hoogsteWerknemer'),
+    afroomAan: document.getElementById('afroomCheck').checked,
+    opbrengsten: getal('omzet'),
+    toerekenbareKosten: getal('overigeKosten'),
+  });
+
+  if (uitkomst === null) {
     toonJaarfout(jaar);
     return;
   }
 
-  const normen = [];
-
-  // Norm 1: wettelijk minimum
-  normen.push({ label: 'Wettelijk minimum', bedrag: minimum, toelichting: `Vaste ondergrens ${jaar}`, key: 'min' });
-
-  // Norm 2: vergelijkingsloon (100% sinds 2023 — geen doelmatigheidsmarge)
-  if (vergelijk > 0) {
-    normen.push({ label: 'Vergelijkingsloon', bedrag: vergelijk, toelichting: '100% van het marktloon (geen doelmatigheidsmarge meer)', key: 'vgl' });
-  }
-
-  // Norm 3: hoogste werknemer
-  if (hoogsWerk > 0) {
-    normen.push({ label: 'Hoogste werknemer', bedrag: hoogsWerk, toelichting: 'Salaris best betaalde niet-DGA werknemer', key: 'hw' });
-  }
-
-  // Norm 4: afroommethode
-  let afroomBedrag = 0;
-  if (afroomAan && omzet > 0) {
-    afroomBedrag = Math.max(0, (omzet - overigeKost) * 0.70);
-    normen.push({ label: 'Afroommethode', bedrag: afroomBedrag, toelichting: '70% × (omzet − overige kosten)', key: 'afroom' });
-  }
-
-  // Maatgevend = hoogste norm
-  const maatgevend = Math.max(...normen.map(n => n.bedrag));
-  const winnerKey  = normen.find(n => n.bedrag === maatgevend).key;
+  const toets = toetsLoon(uitkomst, huidigLoon);
+  const rijen = normenrijen(uitkomst);
+  const maatgevend = uitkomst.maatgevend;
 
   // Normenkaarten
-  const grid = document.getElementById('normenGrid');
-  grid.innerHTML = normen.map(n => {
-    const isWinner = n.bedrag === maatgevend;
-    return `<div class="result-card ${isWinner ? 'winner' : ''}">
-      <div class="rc-label">${n.label}${isWinner ? '<span class="winner-badge">Maatgevend</span>' : ''}</div>
-      <div class="rc-amount">${fmt(n.bedrag)}</div>
-      <div class="rc-note">${n.toelichting}</div>
+  document.getElementById('normenGrid').innerHTML = rijen.map(r => {
+    const isWinner = r.telt && r.bedrag === maatgevend;
+    return `<div class="result-card ${isWinner ? 'winner' : ''}${r.telt ? '' : ' terzijde'}">
+      <div class="rc-label">${r.label}${isWinner ? '<span class="winner-badge">Maatgevend</span>' : ''}</div>
+      <div class="rc-amount">${fmt(r.bedrag)}</div>
+      <div class="rc-note">${r.toelichting}</div>
     </div>`;
   }).join('');
 
   // Normentabel
-  const tabel = document.getElementById('normenTabel');
-  tabel.innerHTML = `<tr>
-    <th>Norm</th><th>Bedrag</th><th>Jouw loon</th><th>Verschil</th><th>Status</th>
-  </tr>` + normen.map(n => {
-    const diff = huidigLoon - n.bedrag;
-    const isWinner = n.bedrag === maatgevend;
-    let statusBadge;
-    if (diff >= 0) statusBadge = `<span class="badge green">In orde</span>`;
-    else statusBadge = `<span class="badge red">Te laag</span>`;
+  document.getElementById('normenTabel').innerHTML = `<tr>
+    <th>Maatstaf</th><th>Bedrag</th><th>Huidig loon</th><th>Verschil</th><th>Status</th>
+  </tr>` + rijen.map(r => {
+    const isWinner = r.telt && r.bedrag === maatgevend;
+    const diff = huidigLoon - r.bedrag;
+    let status;
+    if (!r.telt) status = '<span class="badge yellow">Telt niet mee</span>';
+    else if (diff >= 0) status = '<span class="badge green">In orde</span>';
+    else status = '<span class="badge red">Te laag</span>';
     return `<tr class="${isWinner ? 'highlight' : ''}">
-      <td>${n.label}</td>
-      <td>${fmt(n.bedrag)}</td>
-      <td>${fmt(huidigLoon)}</td>
-      <td>${diff >= 0 ? '+' : ''}${fmt(diff)}</td>
-      <td>${statusBadge}</td>
+      <td>${r.label}</td>
+      <td>${fmt(r.bedrag)}</td>
+      <td>${r.telt ? fmt(huidigLoon) : '—'}</td>
+      <td>${r.telt ? (diff >= 0 ? '+' : '') + fmt(diff) : '—'}</td>
+      <td>${status}</td>
     </tr>`;
   }).join('');
 
   // Wetsgrondslag
+  const afroomZin = uitkomst.afroomTerzijde
+    ? ' Er is een vergelijkingsloon ingevuld, dus blijft de afroommethode buiten beschouwing: de regeling is op een vergelijkingssystematiek gebaseerd en is een loon van een werknemer met soortgelijke werkzaamheden beschikbaar, dan is de afroommethode niet aan de orde (HR 24 juni 2016, ECLI:NL:HR:2016:1269, r.o. 2.3.4).'
+    : (uitkomst.herkomstA === 'afroommethode'
+      ? ' Bij gebrek aan een vergelijkingsloon is onderdeel a ingevuld met de afroommethode: de opbrengsten van de BV verminderd met de daaraan toe te rekenen kosten, lasten en afschrijvingen, exclusief het DGA-loon (HR 17 september 2004, ECLI:NL:HR:2004:AN8666; HR 9 november 2012, ECLI:NL:HR:2012:BW4167, r.o. 5.2). Het arrest noemt geen percentage: de uitkomst is de volledige resterende opbrengst.'
+      : '');
+
   document.getElementById('wetsgrondslag').innerHTML =
-    `<strong>Wettelijke basis:</strong> Art. 12a Wet LB 1964. Het wettelijk minimum voor ${jaar} bedraagt <strong>${fmt(minimum)}</strong> (art. 12a, eerste lid, onderdeel c). Sinds 1 januari 2023 geldt geen doelmatigheidsmarge meer — het gebruikelijk loon is gelijk aan het vergelijkingsloon (100%). De afroommethode blijft van toepassing als de BV-omzet grotendeels voortkomt uit de persoonlijke arbeid van de DGA.<br><span style="font-size:11px;color:#6B7280">Normbedrag ${jaar} gecontroleerd op 28-08-2026 tegen de geconsolideerde tekst van art. 12a Wet LB 1964 (wetten.overheid.nl/BWBR0002471, jaarversie ${jaar}).</span>`;
+    `<strong>Wettelijke basis:</strong> art. 12a, eerste lid, Wet LB 1964. Het loon wordt ten minste gesteld op het hoogste van
+     (a) het loon uit de meest vergelijkbare dienstbetrekking, (b) het hoogste loon van de werknemers van het lichaam of van verbonden lichamen
+     en (c) het normbedrag, dat voor ${uitkomst.jaar} <strong>${fmt(uitkomst.normbedrag)}</strong> bedraagt.
+     Sinds 1 januari 2023 geldt geen doelmatigheidsmarge meer: onderdeel a is 100% van het vergelijkingsloon.${afroomZin}
+     <br><span style="font-size:11px;color:#6B7280">Normbedrag ${uitkomst.jaar} herleid op 04-09-2026 tot de jaarversie ${uitkomst.jaar} van art. 12a Wet LB 1964 op wetten.overheid.nl/BWBR0002471. Bewijs van gelijkwaardigheid met het vervangen rekenmodel: VERGELIJKING.md in de repository.</span>`;
 
   // Conclusie
-  const tekort    = maatgevend - huidigLoon;
   const conclusie = document.getElementById('conclusieCard');
-
-  if (huidigLoon >= maatgevend) {
-    const overschot = huidigLoon - maatgevend;
-    conclusie.outerHTML; // reset
-    document.getElementById('conclusieCard').className = 'conclusie-card ok';
-    document.getElementById('conclusieCard').innerHTML = `
+  if (toets.voldoet) {
+    conclusie.className = 'conclusie-card ok';
+    conclusie.innerHTML = `
       <div class="c-header"><div class="c-icon">✅</div><div class="c-title">DGA-loon voldoet aan de norm</div></div>
       <div class="c-body">
-        Het huidige loon van <strong>${fmt(huidigLoon)}</strong> ligt <strong>${fmt(overschot)}</strong> boven het maatgevende gebruikelijk loon van <strong>${fmt(maatgevend)}</strong>. Er is geen correctierisico.
-        ${overschot > 20000 ? '<br><br><strong>Let op:</strong> het loon ligt aanzienlijk boven de norm. Controleer of dit zakelijk te onderbouwen is.' : ''}
+        Het huidige loon van <strong>${fmt(huidigLoon)}</strong> ligt <strong>${fmt(toets.overschot)}</strong> boven het maatgevende gebruikelijk loon van <strong>${fmt(maatgevend)}</strong>. Er is geen correctierisico op grond van artikel 12a.
+        ${toets.overschot > 20000 ? '<br><br><strong>Let op:</strong> het loon ligt aanzienlijk boven de norm. Controleer of dit zakelijk te onderbouwen is.' : ''}
       </div>`;
   } else {
-    const ib = tekort * 0.495; // indicatief (hoogste schijf als benadering)
-    document.getElementById('conclusieCard').className = 'conclusie-card warn';
-    document.getElementById('conclusieCard').innerHTML = `
+    conclusie.className = 'conclusie-card warn';
+    conclusie.innerHTML = `
       <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">DGA-loon ligt onder de norm</div></div>
       <div class="c-body">
-        Het huidige loon van <strong>${fmt(huidigLoon)}</strong> is <strong>${fmt(tekort)}</strong> lager dan het maatgevende gebruikelijk loon van <strong>${fmt(maatgevend)}</strong>.<br><br>
-        <strong>Risico:</strong> de Belastingdienst kan het loon fictief corrigeren naar <strong>${fmt(maatgevend)}</strong>. Over het verschil van <strong>${fmt(tekort)}</strong> wordt dan loonheffing nageheven — indicatief ca. <strong>${fmt(ib)}</strong> extra IB/LH (op basis van het toptarief van 49,5%).<br><br>
-        <strong>Advies:</strong> verhoog het DGA-loon naar minimaal <strong>${fmt(maatgevend)}</strong> of onderbouw schriftelijk waarom een lager loon reëel is (bewijslast ligt bij de DGA).
+        Het huidige loon van <strong>${fmt(huidigLoon)}</strong> is <strong>${fmt(toets.tekort)}</strong> lager dan het maatgevende gebruikelijk loon van <strong>${fmt(maatgevend)}</strong>.<br><br>
+        <strong>Risico:</strong> de inspecteur kan het loon corrigeren naar <strong>${fmt(maatgevend)}</strong>. Over het verschil van <strong>${fmt(toets.tekort)}</strong> wordt dan loonheffing nageheven.
+        Bij het toptarief van box 1 (49,5%, art. 2.10 Wet IB 2001) gaat het om <strong>${fmt(toets.heffingsbelangIndicatief)}</strong>.
+        Dat bedrag is een <em>bovengrens en geen uitkomst</em>: valt het loon lager in het tarief, dan is het belang kleiner, en de hogere loonkosten verlagen de winst voor de vennootschapsbelasting. Die twee effecten rekent deze tool niet uit.<br><br>
+        <strong>Advies:</strong> verhoog het DGA-loon naar minimaal <strong>${fmt(maatgevend)}</strong> of maak met de tegenbewijsregeling van artikel 12a, tweede lid, aannemelijk dat het loon uit de meest vergelijkbare dienstbetrekking lager is. De bewijslast ligt dan bij de inhoudingsplichtige.
       </div>`;
   }
 
@@ -485,6 +702,7 @@ function bereken() {
 }
 
 bereken();
+
 </script>
 
 <style>
@@ -506,7 +724,7 @@ bereken();
        ophalen, dus de claim "geen data verlaat uw browser" zou onjuist zijn. -->
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw ingevulde gegevens verlaten uw browser niet</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 00:06</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 01:30</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Berekening blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
