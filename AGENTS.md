@@ -259,15 +259,51 @@ hing en netjes achter Access zat. De Worker `kvk-proxy` stond niet op het accoun
 stond wel in `kvk-worker.js` en `wrangler.toml` beschreef hem al, dus `npx wrangler deploy`
 plus het opnieuw zetten van `KVK_API_KEY` was genoeg.
 
-Hij was niet verwijderd maar nooit uitgerold. Dat is nagemeten en niet aangenomen: in de
-auditlog vanaf 29-06-2026 staat geen enkele `script_delete`, het herstel is geregistreerd
-als `script_create` en niet als `script_update`, en de KV-namespace van de dagteller
-bevatte alleen de sleutel van de eerste testaanroep — had de Worker ooit gedraaid, dan
-stonden daar tellers van eerdere dagen in. De code dateert van 21-08-2026 en de tool is
-daarna op `live` gezet zonder dat er ooit iets draaide.
+Hij is wel degelijk verwijderd. Hier stond eerst dat hij nooit was uitgerold; dat is op
+04-09-2026 weerlegd op 1144 regels audit log vanaf 01-05-2026, opgehaald met
+`GET /accounts/<acc>/audit_logs?since=<datum>&per_page=200&page=<n>&direction=desc`.
+De levensloop staat er compleet in:
 
-Het gat zit dus niet tussen "hij draaide" en "hij is weg", maar tussen "de code staat er"
-en "hij draait".
+| Wanneer (CEST) | Wat |
+|---|---|
+| 01-07-2026 14:27 | `script_create` van `kvk-proxy`, script_tag `136e48a1…`, workers.dev aangezet |
+| 01-07-2026 14:30 – 15:16 | zeven keer bijgewerkt en opnieuw uitgerold |
+| 13-07-2026 19:55 – 21:21 | elf keer bijgewerkt en opnieuw uitgerold, zelfde tag |
+| 15-07-2026 07:39 | `script_delete` van `kvk-proxy`, zelfde tag |
+| 04-09-2026 18:15 | `script_create`, **nieuwe** tag `bc05e712…` — het herstel |
+
+Die reeks van 13 juli valt samen met de zeven commits op `kvk-worker.js` van diezelfde
+avond en met de commit die `kvk-zoeker.html` toevoegde. Hij heeft dus gedraaid, en is
+daarna **51 dagen** weg geweest voordat iemand erover struikelde. Het was een losstaande
+handeling: in de uren eromheen staat verder niets in het log, dus er is niets met hem
+meegegaan.
+
+De drie argumenten voor de andere lezing lijken elk sluitend en zijn het geen van drieën.
+Ze staan hier omdat ze zich zullen herhalen:
+
+- **"Geen `script_delete` in de auditlog."** Dat endpoint pagineert. Zonder `page` krijg je
+  200 regels, en dat waren op dat moment alleen de laatste dagen. De verwijdering stond op
+  pagina vier van zes.
+- **"Het herstel is een `script_create` en geen `script_update`."** Dat is precies wat een
+  deploy ná een verwijdering oplevert, en de nieuwe `script_tag` hoort daarbij. Het bewijst
+  dat hij er die dag niet was, niet dat hij er nooit is geweest.
+- **"De KV van de dagteller bevatte alleen de sleutel van de testaanroep."** Die teller
+  schrijft met `expirationTtl: 172800` (`kvk-worker.js`), dus na twee dagen is een sleutel
+  weg. Na 51 dagen zou daar hoe dan ook niets meer staan.
+
+Wat de andere lezing wél terecht opmerkte: de controle hieronder vangt beide gevallen, een
+Worker die wegvalt en een tool die live gaat terwijl zijn Worker nooit is uitgerold. Voor
+de controle maakt het geen verschil, voor de vraag wat er op het account gebeurt wel.
+
+Twee dingen die deze ronde nog opleverde. Er is tussen mei en september **geen enkele
+Access-app en geen KV-namespace verwijderd**; de `access_delete_application_policy`-regels
+gaan over policies binnen een app en niet over de app zelf. En de opruiming van 21-06-2026
+is een ander patroon dan deze verwijdering: daar gingen twee zones, hun certificate packs,
+veel DNS-records en de Worker `syls-kledingkast` in één beweging weg.
+
+Bij een volgende "waar is dit gebleven" is het audit log dus de eerste plek, en niet de
+git-historie: die laat zien wat wij in de repo deden en niet wat er op het account
+gebeurde. Paginer hem uit, en trek geen conclusie uit de eerste pagina.
 
 Het probleem was dat niemand het merkte. `check_tools.py` controleert de repository en
 kan het account per definitie niet zien; de dagelijkse controle in de worker keek naar de
@@ -300,25 +336,6 @@ Sinds 04-09-2026 kijkt de dagelijkse controle daarom ook naar de Workers:
 - **Nu kijken kan ook:** `GET /admin/workers` op de worker draait de controle direct en
   wijzigt niets. Zonder dat zou je na een deploy tot de volgende ochtend moeten aannemen
   dat de controle werkt.
-
-**Wanneer hij verdween, en hoe je dat naleest.** Het audit log van het account geeft het
-antwoord waar de repository dat niet kan:
-`GET /accounts/<acc>/audit_logs?since=<datum>&per_page=200&page=<n>&direction=desc`.
-Nagelezen op 04-09-2026: `script_delete` van `kvk-proxy` op **15-07-2026 om 07:39 CEST**
-(05:39 UTC), een handmatige verwijdering vanaf het account. Hij was dus **51 dagen** weg
-voordat iemand erover struikelde.
-
-Het was een losstaande handeling: in de drie uur eromheen staat verder niets in het log,
-dus er is niets met hem meegegaan. Er was wel een opruiming, maar op 21-06-2026, en dat is
-een ander patroon: daar gingen twee zones, hun certificate packs, veel DNS-records en de
-Worker `syls-kledingkast` weg, alle van privéprojecten. Verder is er tussen mei en
-september **geen enkele Access-app en geen KV-namespace verwijderd**. De
-`access_delete_application_policy`-regels gaan over policies binnen een app, niet over de
-app zelf.
-
-Bij een volgende "waar is dit gebleven" is het audit log dus de eerste plek, en niet de
-git-historie: die laat zien wat wij in de repo deden en niet wat er op het account
-gebeurde.
 
 **Openstaand: `CF_API_TOKEN` mist leesrecht op Workers Scripts.** Het token op de worker
 is gemaakt voor Cloudflare Access. Gemeten op 04-09-2026 20:35 CEST, meteen na de deploy:

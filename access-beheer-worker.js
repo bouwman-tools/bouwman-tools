@@ -129,12 +129,11 @@ export default {
   // live stond en gewoon in het portaal hing. De policies klopten, dus de controle van
   // toen zag niets.
   //
-  // Nagemeten na het herstel: hij was niet verwijderd maar nooit uitgerold. In de
-  // auditlog vanaf 29-06-2026 staat geen script_delete, het herstel is geregistreerd als
-  // script_create en niet als update, en de KV-namespace van de dagteller bevatte alleen
-  // de sleutel van de eerste testaanroep. De code dateert van 21-08-2026; de tool ging
-  // live zonder dat er ooit iets draaide. Deze controle vangt dus niet alleen een Worker
-  // die wegvalt, maar ook een tool die live gaat zonder deploy.
+  // Nagemeten in het audit log van het account: hij is op 15-07-2026 om 07:39 CEST
+  // verwijderd, na twee weken draaien, en was daarna 51 dagen weg. Hier stond eerst dat
+  // hij nooit was uitgerold; dat kwam uit een auditlog-query zonder paginering. Zie
+  // AGENTS.md. Deze controle vangt overigens beide gevallen: een Worker die wegvalt en
+  // een tool die live gaat zonder dat zijn Worker ooit is uitgerold.
   async scheduled(event, env, ctx) {
     const tijdstip = new Date().toISOString();
 
