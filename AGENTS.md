@@ -223,6 +223,11 @@ repository; ze zijn los geupload.
   Draaiende versie daarna: 2cac12df, daarvóór 5aa32000. Gecontroleerd aan de kant die
   ervan afhangt: beide URL's geven nu een 302 naar de Access-login, en
   `POST /permissions` op de worker antwoordt weer normaal.
+- Later op 04-09-2026 nogmaals gedeployd, versie 790d6529, daarvoor acd2601d, voor de
+  workercontrole hieronder. De KV-binding bleef bestaan. Gemeten aan de afhankelijke
+  kant: portaal, beheer en de vier tools met een Worker geven alle een 302 naar de
+  Access-login, `POST /permissions` antwoordt normaal en `GET /admin/status` geeft 200,
+  gelijk aan de nulmeting van vlak voor de deploy.
 - **Deployen alleen is niet genoeg — maar sinds 04-09-2026 herstelt de controle het zelf.**
   `syncCFAccess` loopt bij een opslag- of verwijderactie op een gebruiker, en daarnaast
   vanuit de dagelijkse controle van 06:00 UTC zodra die een afwijking vindt. Een nieuwe
@@ -286,6 +291,15 @@ Sinds 04-09-2026 kijkt de dagelijkse controle daarom ook naar de Workers:
 - **Nu kijken kan ook:** `GET /admin/workers` op de worker draait de controle direct en
   wijzigt niets. Zonder dat zou je na een deploy tot de volgende ochtend moeten aannemen
   dat de controle werkt.
+
+**Openstaand: `CF_API_TOKEN` mist leesrecht op Workers Scripts.** Het token op de worker
+is gemaakt voor Cloudflare Access. Gemeten op 04-09-2026 20:35 CEST, meteen na de deploy:
+`GET /admin/workers` antwoordt met `scriptlijst ophalen gaf HTTP 403`. De controle draait
+dus wel, maar kan nog niet kijken, en `beheer.html` meldt precies dat. Herstel is een
+permissie erbij op het bestaande token in het Cloudflare-dashboard, **Account → Workers
+Scripts → Read**; de waarde van het secret verandert dan niet en hoeft niet opnieuw te
+worden gezet. Wordt er wel een nieuw token gemaakt, dan moet het ook `Access: Apps and
+Policies → Edit` houden, anders breekt het toekennen van rechten.
 
 `check_tools.py` toetst hier alleen het mechanisme, net als bij portaal en beheer: haalt
 de worker `tools.json` op, vergelijkt hij met de scriptlijst en gebruikt hij beide velden
