@@ -81,6 +81,9 @@ velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
   toetst de controle het mechanisme in plaats van een lijst: halen zij het register op,
   filteren zij op de juiste vlag, gebruiken zij `categorievolgorde`, en staat er geen
   losse bestandsnaam meer in de pagina die stil kan gaan afwijken.
+- **`workers` legt vast van welke Cloudflare Worker een tool afhangt** en
+  `portaalworkers` doet dat voor het portaal zelf. Daar draait de dagelijkse
+  workercontrole op; zie "Een verdwenen Worker merk je niet aan de tool".
 - Een tool zonder `access_app_id` is **niet afgeschermd**: het bestand is voor iedereen
   met de URL bereikbaar en rechten toekennen in `beheer.html` heeft er geen effect op.
   De controle rapporteert dat apart. `tools/maak_access_apps.py` maakt de ontbrekende
@@ -234,13 +237,62 @@ repository; ze zijn los geupload.
   Controleer bij twijfel de policy aan de bron:
   `GET /accounts/<acc>/access/apps/<app_id>/policies` en kijk of de verwachte adressen
   erin staan.
-- **Let op de valstrik:** `wrangler.toml` in deze repo beschrijft een worker `kvk-proxy`
-  met `main = kvk-worker.js`. Die worker bestaat niet op het account. `wrangler deploy`
-  vanuit deze map maakt dus een nieuwe, ongebruikte worker aan en werkt `access-beheer`
-  *niet* bij.
+- **Let op de valstrik:** `wrangler.toml` in deze repo beschrijft een andere worker,
+  `kvk-proxy` met `main = kvk-worker.js`. `wrangler deploy` zonder `-c` vanuit deze map
+  werkt dus `kvk-proxy` bij en `access-beheer` *niet*. Tot 04-09-2026 stond hier dat
+  `kvk-proxy` niet op het account bestond; die dag bleek waarom dat was en is hij
+  teruggezet, dus zo'n deploy overschrijft nu een draaiende worker in plaats van een
+  ongebruikte aan te maken.
 - Wijzig je `APP_IDS`, deploy de worker dan bewust (dashboard of een eigen
   wrangler-config met de juiste KV-binding en route) en controleer daarna dat
   `beheer.html` rechten kan toekennen aan de gewijzigde tools.
+
+## Een verdwenen Worker merk je niet aan de tool
+
+Op 04-09-2026 bleek `kvk-zoeker.html` stuk terwijl hij op `live` stond, in het portaal
+hing en netjes achter Access zat. De Worker `kvk-proxy` was van het account verdwenen,
+met zijn secret erbij. De code stond nog in `kvk-worker.js` en `wrangler.toml` beschreef
+hem al, dus `npx wrangler deploy` plus het opnieuw zetten van `KVK_API_KEY` was genoeg.
+Waarom hij weg was is niet uit de gegevens te achterhalen.
+
+Het probleem was dat niemand het merkte. `check_tools.py` controleert de repository en
+kan het account per definitie niet zien; de dagelijkse controle in de worker keek naar de
+Access-policies, en die klopten gewoon. Een tool kan dus volledig in orde lijken terwijl
+de Worker eronder weg is.
+
+Sinds 04-09-2026 kijkt de dagelijkse controle daarom ook naar de Workers:
+
+- **Het register is de bron.** Per tool staat in `tools.json` in `workers` van welke
+  Worker hij afhangt; `portaalworkers` noemt de Workers die bij geen enkele tool horen
+  maar wel nodig zijn, nu alleen `access-beheer`. Zonder die tweede lijst zou juist de
+  worker die het toegangsbeheer draagt als ongebruikt worden gemeld. Een eigen lijst in
+  de worker zou hetzelfde probleem geven als de vier toollijsten die het register heeft
+  vervangen.
+- **Het bewijs is de scriptlijst van het account,** `/accounts/<acc>/workers/scripts`,
+  niet of een adres antwoordt. Een 404 op workers.dev bewijst niets: `kennisgroepen-agent`
+  en `modellen-roadmap` geven daar ook 404 omdat hun workers.dev-route uitstaat en zij op
+  een route op `bouwman.tools` draaien.
+- **Mislukt het ophalen, dan komt er een reden en geen lege lijst.** Een verlopen token
+  mag nooit als "alle Workers zijn weg" worden gelezen. `beheer.html` meldt dan dat de
+  controle niet kon kijken, want een controle die stil niets doet is precies wat hier
+  misging.
+- **Er wordt niet automatisch hersteld.** Een Worker terugzetten vraagt meestal ook het
+  secret opnieuw, en dat kan alleen de eigenaar. Een lege huls neerzetten die er wel is
+  maar niets doet, is erger dan een melding.
+- **Het omgekeerde is geen fout maar wel zichtbaar:** een Worker op het account waar geen
+  enkele tool naar verwijst, komt als losse regel in beheer. Dat is ofwel een wees, ofwel
+  een tool die zijn afhankelijkheid niet in het register heeft staan, en in dat tweede
+  geval is de controle blind voor die Worker.
+- **Nu kijken kan ook:** `GET /admin/workers` op de worker draait de controle direct en
+  wijzigt niets. Zonder dat zou je na een deploy tot de volgende ochtend moeten aannemen
+  dat de controle werkt.
+
+`check_tools.py` toetst hier alleen het mechanisme, net als bij portaal en beheer: haalt
+de worker `tools.json` op, vergelijkt hij met de scriptlijst en gebruikt hij beide velden
+uit het register. Daarbovenop faalt hij als een tool-HTML een workers.dev-adres aanroept
+terwijl `workers` in het register leeg is; dan zou de dagelijkse controle die Worker niet
+kennen. Een same-origin route zoals `/kg-api/` is zo niet te zien, dus die afhankelijkheid
+blijft handwerk bij het opnemen van een tool.
 
 ## Secrets — let op: de organisatie staat op GitHub Free
 

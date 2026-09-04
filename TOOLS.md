@@ -129,6 +129,22 @@ Bijgewerkt: 2026-09-04
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
+## Workers
+
+Welke Cloudflare Worker onder welke tool hangt. Of een Worker werkelijk op het
+account staat is hier niet te zien: dat controleert de dagelijkse controle in
+`access-beheer-worker.js` en dat meldt `beheer.html`. Een 404 op een
+workers.dev-adres bewijst niets, want een Worker op een eigen route antwoordt
+daar ook met 404.
+
+| Worker | Nodig voor |
+|---|---|
+| `access-beheer` | het portaal zelf |
+| `kennisgroepen-agent` | Kennisgroepen-zoeker |
+| `kvk-proxy` | KvK Nummers Zoeken |
+| `modellen-roadmap` | Van rekenmodel naar bouwman.tools |
+| `wkr-agent` | WKR Agent |
+
 ## Vervallen
 
 | Bestand | Reden |

@@ -17,6 +17,19 @@
       "items": { "type": "string" },
       "description": "Volgorde waarin de categorieen in portal.html en beheer.html verschijnen. Een lijst voor beide paginas; elke categorie die in tools voorkomt hoort hier te staan, anders komt zij achteraan."
     },
+    "portaalworkers": {
+      "type": "array",
+      "description": "Workers waar het portaal zelf van afhangt en die dus bij geen enkele tool horen. Zonder deze lijst zou de dagelijkse controle access-beheer als ongebruikt aanmerken, terwijl juist die worker het toegangsbeheer draait.",
+      "items": {
+        "type": "object",
+        "required": ["naam", "waarvoor"],
+        "additionalProperties": false,
+        "properties": {
+          "naam": { "$ref": "#/definitions/workernaam" },
+          "waarvoor": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "tools": {
       "type": "array",
       "items": { "$ref": "#/definitions/tool" }
@@ -40,6 +53,11 @@
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
       "description": "JJJJ-MM-DD"
+    },
+    "workernaam": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Naam van een Cloudflare Worker zoals die op het account staat, niet de workers.dev-URL. Een adres bewijst niets: een worker met een uitgezette workers.dev-route antwoordt daar ook met 404. Het bewijs is of de naam in de scriptlijst van het account voorkomt."
     },
     "tool": {
       "type": "object",
@@ -103,6 +121,12 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
           "description": "Bronrepository als organisatie/repo."
+        },
+        "workers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/workernaam" },
+          "description": "Cloudflare Workers waar deze tool van afhangt. De dagelijkse controle in access-beheer-worker.js legt deze namen naast de scriptlijst van het account en meldt wat ontbreekt. Weglaten als de tool geen Worker gebruikt. Aanleiding: op 04-09-2026 was kvk-proxy van het account verdwenen terwijl kvk-zoeker.html op live stond en in het portaal, en niemand merkte het."
         },
         "uc": { "type": "string" },
         "access_app_id": {

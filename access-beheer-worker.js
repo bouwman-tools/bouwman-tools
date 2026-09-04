@@ -12,6 +12,11 @@ const CF_ACCOUNT_ID = '9f2508dc476f0183404720277152eb16';
 const STATUS_SYNC = 'sync-status';
 const STATUS_CONTROLE = 'controle-status';
 
+// Waar de controle het register leest. Dezelfde URL die portal.html en beheer.html
+// gebruiken: tools.json staat onafgeschermd op GitHub Pages. Deze worker heeft geen
+// route op bouwman.tools, dus dit verzoek komt niet bij zichzelf terug.
+const REGISTER_URL = 'https://bouwman.tools/tools.json';
+
 const APP_IDS = {
   'portal.html':                         '4f132e0b-6557-4726-8371-111024d21f39',
   'Join-jaarrekening-review.html':       '8a515a1c-6b83-4d4c-9c1d-b42a7a9b61a8',
@@ -80,6 +85,14 @@ export default {
       }, request);
     }
 
+    // Draait de workercontrole meteen, zonder op de dagelijkse controle te wachten.
+    // Leest alleen: het account wordt niet gewijzigd en de status in de opslag ook niet.
+    // Nodig om na een deploy te kunnen vaststellen dat de controle werkelijk werkt,
+    // in plaats van dat tot de volgende ochtend aan te nemen.
+    if (path === '/admin/workers' && request.method === 'GET') {
+      return ok(await controleerWorkers(env), request);
+    }
+
     if (path === '/admin/upsert' && request.method === 'POST') {
       const { email, tools } = await request.json();
       if (!email) return ok({ error: 'email verplicht' }, request, 400);
@@ -110,6 +123,11 @@ export default {
   // Vindt hij een afwijking, dan schrijft hij de policies opnieuw en meet daarna
   // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
   // dan staan tot iemand in beheer.html een gebruiker opsloeg.
+  //
+  // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen nog
+  // op het account staan. Die dag bleek kvk-proxy verdwenen te zijn, met zijn secret
+  // erbij, terwijl kvk-zoeker.html op live stond en gewoon in het portaal hing. De
+  // policies klopten, dus de controle van toen zag niets.
   async scheduled(event, env, ctx) {
     const tijdstip = new Date().toISOString();
 
@@ -119,6 +137,7 @@ export default {
       await schrijfStatus(env, STATUS_CONTROLE, {
         tijdstip, gecontroleerd: 0, overgeslagen: 0,
         afwijkingen: [{ tool: '*', reden }],
+        workers: { reden },
       });
       return;
     }
@@ -155,7 +174,25 @@ export default {
         `${uit.overgeslagen} overgeslagen`);
     }
 
-    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit, hersteld });
+    // Bestaan de Workers waar tools van afhangen nog? Bewust alleen melden: een
+    // verdwenen Worker terugzetten vraagt vaak ook een secret opnieuw, en dat kan
+    // deze worker niet. Automatisch herstel zou hier een lege huls neerzetten die
+    // er wel is maar niets doet, en dat is erger dan een melding.
+    const workers = await controleerWorkers(env);
+    if (workers.reden) {
+      console.error('workercontrole overgeslagen: ' + workers.reden);
+    } else if (workers.ontbreekt.length) {
+      console.error('workercontrole: ontbreekt op het account: ' +
+        workers.ontbreekt.map(w => `${w.naam} (voor ${w.waarvoor})`).join('; '));
+    } else {
+      console.log(`workercontrole: ${workers.verwacht} uit het register aanwezig, ` +
+        `${workers.aanwezig} op het account` +
+        (workers.ongebruikt.length
+          ? `, waar geen tool naar verwijst: ${workers.ongebruikt.join(', ')}`
+          : ''));
+    }
+
+    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit, hersteld, workers });
   }
 };
 
@@ -228,6 +265,79 @@ async function controleerPolicies(permissions, env) {
   }
 
   return { gecontroleerd, overgeslagen, afwijkingen };
+}
+
+// Welke Workers hoort het account te hebben, en waarvoor. tools.json is de bron:
+// per tool staat er in 'workers' van welke Worker hij afhangt, en 'portaalworkers'
+// noemt de Workers die bij geen enkele tool horen maar wel nodig zijn. Een tweede
+// lijst hier zou hetzelfde probleem geven als de toollijsten die het register
+// vervangen heeft: zij loopt stil uit de pas.
+function verwachteWorkers(register) {
+  const uit = new Map();
+  const noteer = (naam, waarvoor) => {
+    if (typeof naam !== 'string' || !naam) return;
+    uit.set(naam, uit.has(naam) ? `${uit.get(naam)}, ${waarvoor}` : waarvoor);
+  };
+  for (const w of register.portaalworkers || []) noteer(w.naam, 'het portaal zelf');
+  for (const tool of register.tools || []) {
+    for (const naam of tool.workers || []) noteer(naam, tool.naam || tool.id || '?');
+  }
+  return uit;
+}
+
+// Legt de Workers uit het register naast de scriptlijst van het account.
+//
+// Het bewijs is of de naam in die lijst voorkomt, niet of een adres antwoordt: een
+// Worker met een uitgezette workers.dev-route geeft daar ook 404, en zo geven
+// kennisgroepen-agent en modellen-roadmap een 404 terwijl ze draaien op een route
+// op bouwman.tools.
+//
+// Lukt het ophalen niet, dan komt er een reden terug en geen lege lijst. Een mislukt
+// verzoek mag nooit als 'alles is weg' worden gelezen: dat zou elke ochtend vals alarm
+// geven zodra het token verloopt.
+async function controleerWorkers(env) {
+  if (!env.CF_API_TOKEN) return { reden: 'CF_API_TOKEN ontbreekt op de worker' };
+
+  let verwacht;
+  try {
+    const res = await fetch(REGISTER_URL, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return { reden: `tools.json ophalen gaf HTTP ${res.status}` };
+    verwacht = verwachteWorkers(await res.json());
+  } catch (e) {
+    return { reden: `tools.json ophalen mislukt: ${e && e.message ? e.message : String(e)}` };
+  }
+
+  let aanwezig;
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts`,
+      { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+    );
+    if (!res.ok) {
+      return {
+        reden: `scriptlijst ophalen gaf HTTP ${res.status}; heeft CF_API_TOKEN ` +
+          'leesrecht op Workers Scripts?',
+      };
+    }
+    // Dit endpoint geeft de scripts van het account in een keer terug; er stonden er
+    // vijf op 04-09-2026. Groeit dat ooit tot een lijst die wordt afgekapt, dan meldt
+    // deze controle een Worker ten onrechte als ontbrekend en is paginering nodig.
+    const data = await res.json();
+    aanwezig = (data.result || []).map(s => s && s.id).filter(Boolean);
+  } catch (e) {
+    return { reden: `scriptlijst ophalen mislukt: ${e && e.message ? e.message : String(e)}` };
+  }
+
+  const ontbreekt = [...verwacht]
+    .filter(([naam]) => !aanwezig.includes(naam))
+    .map(([naam, waarvoor]) => ({ naam, waarvoor }));
+
+  // Geen fout, wel iets om te zien: een Worker die er staat terwijl geen enkele tool
+  // ernaar verwijst is ofwel een wees, ofwel een tool die zijn afhankelijkheid niet
+  // in het register heeft staan. In dat tweede geval is de controle blind voor hem.
+  const ongebruikt = aanwezig.filter(naam => !verwacht.has(naam)).sort();
+
+  return { verwacht: verwacht.size, aanwezig: aanwezig.length, ontbreekt, ongebruikt };
 }
 
 async function getPermissions(env) {

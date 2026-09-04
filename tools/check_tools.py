@@ -9,6 +9,13 @@ die twee daarom niet meer of elke tool erin voorkomt, maar of het mechanisme er 
 staat en of het register alles bevat wat de paginas nodig hebben. APP_IDS in de
 worker is wel nog een eigen lijst en wordt regel voor regel vergeleken.
 
+Van welke Cloudflare Worker een tool afhangt staat sinds 04-09-2026 ook in het
+register, in 'workers' per tool en in 'portaalworkers' voor de workers van het
+portaal zelf. Of die Workers werkelijk op het account staan kan deze controle niet
+zien: dat is het account en niet de repository. Dat doet de dagelijkse controle in
+access-beheer-worker.js. Hier wordt alleen getoetst dat het register die
+afhankelijkheid vastlegt en dat de worker haar daaruit haalt.
+
 Faalt met exitcode 1 zodra er drift is of jaarwaarden meer dan een jaar niet zijn
 gecontroleerd. Een ontbrekende eigenaar of achterstallige beoordeling blokkeert
 bewust niet: die worden gemeld, de tool blijft live. Draait lokaal en in CI
@@ -139,6 +146,33 @@ def leest_register(pagina: str, naam: str, vlag: str) -> list[str]:
     return meldingen
 
 
+def kijkt_naar_workers(worker: str) -> list[str]:
+    """Controleert dat de worker de workercontrole uit het register voedt.
+
+    Dezelfde gedachte als leest_register: niet de uitkomst toetsen, want die hangt
+    van het account af, maar het mechanisme. Een tweede lijst met workernamen in de
+    worker zou stil uit de pas gaan lopen, precies zoals de vier toollijsten deden.
+    """
+    meldingen = []
+    if "tools.json" not in worker:
+        meldingen.append(
+            "access-beheer-worker.js haalt tools.json niet op; de workercontrole hoort "
+            "haar lijst uit het register te halen."
+        )
+    if "workers/scripts" not in worker:
+        meldingen.append(
+            "access-beheer-worker.js vergelijkt niet met de scriptlijst van het account; "
+            "een verdwenen Worker blijft dan onopgemerkt."
+        )
+    for veld in ("portaalworkers", "tool.workers"):
+        if veld not in worker:
+            meldingen.append(
+                f"access-beheer-worker.js gebruikt {veld!r} uit tools.json niet; dan mist "
+                "de workercontrole een deel van wat er op het account hoort te staan."
+            )
+    return meldingen
+
+
 def valideer_schema(bron: dict) -> list[str]:
     """Valideert tools.json tegen tools.schema.json als jsonschema beschikbaar is."""
     pad = os.path.join(WORTEL, "tools.schema.json")
@@ -180,7 +214,13 @@ def main() -> int:
     eigenaar_meldingen: list[str] = []
     onbeoordeeld: list[str] = []
     beoordeling_meldingen: list[str] = []
+    # Welke Worker hangt onder welke tool. Alleen om te tonen: of hij op het account
+    # staat kan deze controle niet zien.
+    workers: dict[str, list[str]] = {}
     vandaag = datetime.date.today()
+
+    for pw in bron.get("portaalworkers", []):
+        workers.setdefault(pw["naam"], []).append("het portaal zelf")
 
     fouten += valideer_schema(bron)
 
@@ -259,6 +299,21 @@ def main() -> int:
                 "met de URL bereikbaar en rechten toekennen in beheer.html heeft geen effect."
             )
 
+        # 3b. Van welke Worker hangt de tool af?
+        # Een adres in de pagina is het enige wat hier te zien is; het bewijs of de
+        # Worker bestaat ligt op het account. Staat er wel een workers.dev-adres in de
+        # pagina maar niets in het register, dan is de dagelijkse controle blind voor
+        # die Worker. Zo stond kvk-zoeker op 04-09-2026 stuk in het portaal.
+        for naam_worker in tool.get("workers", []):
+            workers.setdefault(naam_worker, []).append(naam)
+        if not tool.get("extern") and not concept and in_repo and ref in html_in_repo:
+            if ".workers.dev" in lees(ref) and not tool.get("workers"):
+                fouten.append(
+                    f"{naam}: {ref} roept een workers.dev-adres aan maar heeft geen "
+                    "'workers' in tools.json; de dagelijkse controle merkt het dan niet "
+                    "als die Worker van het account verdwijnt."
+                )
+
         # 4. Actualiteit van de jaargebonden waarden
         soort, tekst = jaarwaarden_status(tool, vandaag)
         if soort in ("verlopen", "ongeldig"):
@@ -304,6 +359,7 @@ def main() -> int:
     # 8. Halen portaal en beheer hun lijst nog uit het register?
     fouten += leest_register(portal, "portal.html", "in_portal")
     fouten += leest_register(beheer, "beheer.html", "in_beheer")
+    fouten += kijkt_naar_workers(worker)
     for naam, pagina in (("portal.html", portal), ("beheer.html", beheer)):
         if "categorievolgorde" not in pagina:
             fouten.append(
@@ -315,6 +371,14 @@ def main() -> int:
     print(f"in_portal {sum(1 for t in tools if t.get('in_portal'))} "
           f"· APP_IDS {len(app_ids)} · HTML in repo {len(gepubliceerd)}")
     print()
+
+    if workers:
+        print(f"WORKERS IN HET REGISTER ({len(workers)}):")
+        for naam_worker, waarvoor in sorted(workers.items()):
+            print(f"  - {naam_worker}: {', '.join(sorted(waarvoor))}")
+        print("  Of ze werkelijk op het account staan controleert de dagelijkse "
+              "controle in de worker; dat is het account en niet deze repo.")
+        print()
 
     if waarschuwingen:
         print(f"NIET AFGESCHERMD ({len(waarschuwingen)}):")
@@ -444,6 +508,30 @@ def schrijf_tools_md() -> None:
             "",
         ]
         regels += [f"- {t['naam']} (`{t['bestand']}`)" for t in onbeschermd] + [""]
+
+    workers: dict[str, list[str]] = {}
+    for pw in bron.get("portaalworkers", []):
+        workers.setdefault(pw["naam"], []).append("het portaal zelf")
+    for tool in bron["tools"]:
+        for naam_worker in tool.get("workers", []):
+            workers.setdefault(naam_worker, []).append(tool["naam"])
+    if workers:
+        regels += [
+            "## Workers",
+            "",
+            "Welke Cloudflare Worker onder welke tool hangt. Of een Worker werkelijk op het",
+            "account staat is hier niet te zien: dat controleert de dagelijkse controle in",
+            "`access-beheer-worker.js` en dat meldt `beheer.html`. Een 404 op een",
+            "workers.dev-adres bewijst niets, want een Worker op een eigen route antwoordt",
+            "daar ook met 404.",
+            "",
+            "| Worker | Nodig voor |",
+            "|---|---|",
+        ]
+        regels += [
+            f"| `{naam_worker}` | {', '.join(sorted(waarvoor))} |"
+            for naam_worker, waarvoor in sorted(workers.items())
+        ] + [""]
 
     if bron.get("vervallen"):
         regels += ["## Vervallen", "", "| Bestand | Reden |", "|---|---|"]

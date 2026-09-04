@@ -342,11 +342,15 @@
       const sync = st.synchronisatie;
       const contr = st.controle;
       let fout = false;
+      // Apart van 'fout': het advies om een gebruiker op te slaan helpt alleen bij een
+      // policy die achterloopt, en niet bij een Worker die van het account weg is.
+      let policyFout = false;
 
       if (sync) {
         const fouten = sync.fouten || [];
         if (sync.mislukt || fouten.length) {
           fout = true;
+          policyFout = true;
           regels.push(`De laatste keer opslaan (${tijd(sync.tijdstip)}) heeft de toegang ` +
             `<b>niet</b> volledig bijgewerkt: ${sync.mislukt} van de tools mislukte.`);
           for (const f of fouten.slice(0, 5)) regels.push(`${f.tool}: ${f.reden}`);
@@ -361,6 +365,7 @@
         const hersteld = contr.hersteld || 0;
         if (afw.length) {
           fout = true;
+          policyFout = true;
           regels.push(`De dagelijkse controle (${tijd(contr.tijdstip)}) vond ` +
             `<b>${afw.length} afwijking(en)</b> tussen de rechten hier en wat er ` +
             `werkelijk op Cloudflare staat, en kon die niet herstellen.`);
@@ -377,7 +382,32 @@
         }
       }
 
-      if (fout) {
+      // Staan de Workers waar tools van afhangen nog op het account? Een tool kan op
+      // live staan, keurig in het portaal hangen en achter Access zitten terwijl de
+      // Worker eronder weg is; de policies kloppen dan gewoon. Zo bleef kvk-zoeker op
+      // 04-09-2026 stuk zonder dat iemand het merkte.
+      const wk = contr && contr.workers;
+      if (wk && wk.reden) {
+        fout = true;
+        regels.push('De controle kon de Workers <b>niet</b> nakijken, en merkt het dus ' +
+          'ook niet als er een verdwijnt:');
+        regels.push(wk.reden);
+      } else if (wk && (wk.ontbreekt || []).length) {
+        fout = true;
+        regels.push(`<b>${wk.ontbreekt.length} Worker(s) ontbreken op het account.</b> ` +
+          'De tools die daarvan afhangen werken niet, ook al staan ze gewoon in het ' +
+          'portaal. Terugzetten vraagt meestal ook het secret opnieuw en kan alleen de ' +
+          'eigenaar; deze controle doet dat bewust niet zelf.');
+        for (const o of wk.ontbreekt) regels.push(`${o.naam}: nodig voor ${o.waarvoor}`);
+      } else if (wk) {
+        regels.push(`Workers: alle ${wk.verwacht} uit het register staan op het account.`);
+        if ((wk.ongebruikt || []).length) {
+          regels.push('Geen tool verwijst naar: ' + wk.ongebruikt.join(', ') +
+            '. Geen fout, wel iets om te weten.');
+        }
+      }
+
+      if (policyFout) {
         regels.push('De dagelijkse controle probeert dit zelf te herstellen. Blijft het ' +
           'staan, dan lukt dat niet: sla hieronder een gebruiker op om het meteen opnieuw ' +
           'te laten schrijven, en is het token op de worker de eerste verdachte.');
