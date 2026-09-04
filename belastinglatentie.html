@@ -181,8 +181,9 @@
   <section class="tariefhulp">
     <h3>Tariefhulp</h3>
     <p class="hint" style="margin-top:0">
-      Vult een tarief in op basis van de wettekst. De hulp is bedoeld voor het gangbare geval;
-      hij vervangt geen beoordeling van de eigen situatie.
+      Rekent de belasting over een extra bedrag aan winst schijf voor schijf uit. Er wordt
+      geen algemeen marginaal toptarief ingevuld: loopt de winst over meer dan één schijf,
+      dan is het toptarief te hoog. De hulp vervangt geen beoordeling van de eigen situatie.
     </p>
     <div class="rij">
       <div class="veld">
@@ -190,8 +191,46 @@
         <input type="number" id="hulp-jaar" step="1" value="2026">
       </div>
       <div class="veld">
-        <label for="hulp-winst">Belastbaar bedrag vennootschapsbelasting</label>
-        <input type="number" id="hulp-winst" step="1000" min="0" value="200000">
+        <label for="hulp-middel">Belastingmiddel</label>
+        <select id="hulp-middel">
+          <option value="ib">Inkomstenbelasting, winst uit onderneming</option>
+          <option value="vpb">Vennootschapsbelasting</option>
+        </select>
+      </div>
+    </div>
+    <div class="rij">
+      <div class="veld">
+        <label for="hulp-inkomen"><span id="hulp-inkomen-label">Belastbaar inkomen uit werk en woning vóór de latente winst</span>
+          <span class="hint" id="hulp-inkomen-hint">Ander box-1-inkomen gebruikt ook schijfruimte; vul in wat er zonder deze winst zou staan.</span>
+        </label>
+        <input type="number" id="hulp-inkomen" step="1000" min="0" value="0">
+      </div>
+      <div class="veld">
+        <label for="hulp-winst">Bedrag van de latente winst
+          <span class="hint">De stille reserve of goodwill waarover de heffing loopt, vóór de MKB-winstvrijstelling.</span>
+        </label>
+        <input type="number" id="hulp-winst" step="1000" min="0" value="100000">
+      </div>
+    </div>
+    <div id="hulp-ib-velden">
+      <div class="rij">
+        <div class="veld">
+          <label for="hulp-groep">Positie van de belastingplichtige
+            <span class="hint">Bepaalt de premie volksverzekeringen in de eerste schijf en welke tabel geldt.</span>
+          </label>
+          <select id="hulp-groep">
+            <option value="premieplichtig">Onder de AOW-leeftijd, premieplichtig</option>
+            <option value="aow">AOW-leeftijd bereikt</option>
+            <option value="aowVoor1946">AOW-leeftijd bereikt, geboren vóór 1 januari 1946</option>
+          </select>
+        </div>
+      </div>
+      <div class="keuze">
+        <input type="checkbox" id="hulp-mkb" checked>
+        <label for="hulp-mkb">
+          MKB-winstvrijstelling van toepassing (art. 3.79a Wet IB 2001). Zet dit uit voor
+          box-1-inkomen dat geen winst uit onderneming is.
+        </label>
       </div>
     </div>
     <div id="hulp-uitkomst"></div>
@@ -226,16 +265,64 @@ const TARIEVEN_PER_JAAR = {
     // 2026-01-01. Gecontroleerd 2026-09-04.
     // https://wetten.overheid.nl/BWBR0002672/2026-01-01/0/HoofdstukV/Artikel22
     vpb: { grens: 200000, laag: 0.19, hoog: 0.258 },
-    // Art. 2.10 lid 1 en lid 2 en art. 3.79a Wet IB 2001, geldend per 2026-01-01.
-    // Het toptarief van 49,50% geldt boven de laatste schijfgrens; daar zijn geen
-    // premies volksverzekeringen meer verschuldigd, zodat het tabeltarief van
-    // art. 2.10 daar het volledige tarief is. De MKB-winstvrijstelling verlaagt de
-    // grondslag, maar werkt door de tariefaanpassing van lid 2 in de hoogste schijf
-    // maar tegen 49,50% - 11,94% = 37,56% uit.
-    // Gecontroleerd 2026-09-04.
-    // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk2/Afdeling2.3/Artikel2.10
-    // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk3/Afdeling3.2/Paragraaf3.2.5/Artikel3.79a
-    ib: { topTarief: 0.4950, tariefaanpassing: 0.1194, mkbWinstvrijstelling: 0.127 },
+    ib: {
+      // Tabel van art. 2.10 lid 1 Wet IB 2001 (BWBR0011353), geldend per 2026-01-01.
+      // Kolom I geeft de schijfgrenzen, kolom IV het belastingtarief. Let op: de 8,10%
+      // van de eerste schijf is uitsluitend het belastingdeel. De premies
+      // volksverzekeringen komen daar bovenop; zie `premiepercentages` hieronder.
+      // Gecontroleerd 2026-09-04.
+      // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk2/Afdeling2.3/Artikel2.10
+      tabellen: {
+        artikel210: [
+          { tot: 38883, tarief: 0.0810 },
+          { tot: 78426, tarief: 0.3756 },
+          { tot: Infinity, tarief: 0.4950 },
+        ],
+        // Art. 2.10a lid 1 Wet IB 2001: afwijkende tabel voor de belastingplichtige die
+        // is geboren vóór 1 januari 1946. Alleen de eerste schijfgrens verschilt.
+        // Gecontroleerd 2026-09-04.
+        // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk2/Afdeling2.3/Artikel2.10a
+        artikel210a: [
+          { tot: 41123, tarief: 0.0810 },
+          { tot: 78426, tarief: 0.3756 },
+          { tot: Infinity, tarief: 0.4950 },
+        ],
+      },
+      // Art. 2.10 lid 2 en art. 2.10a lid 2 Wet IB 2001: de belasting wordt vermeerderd
+      // met 11,94% van de in aftrek gebrachte grondslagverminderende posten, voor zover
+      // het inkomen vermeerderd met die posten de laatste schijfgrens te boven gaat.
+      // Lid 3 onderdeel b rekent de MKB-winstvrijstelling tot die posten.
+      // Gecontroleerd 2026-09-04.
+      tariefaanpassing: 0.1194,
+      // Art. 3.79a Wet IB 2001, geldend per 2026-01-01: 12,7% van de met de
+      // ondernemersaftrek verminderde winst. Gecontroleerd 2026-09-04.
+      // https://wetten.overheid.nl/BWBR0011353/2026-01-01/0/Hoofdstuk3/Afdeling3.2/Paragraaf3.2.5/Artikel3.79a
+      mkbWinstvrijstelling: 0.127,
+      premiepercentages: {
+        // Art. I en II van de Regeling tot vaststelling premiepercentages werknemers- en
+        // volksverzekeringen, maximumpremieloon werknemersverzekeringen en opslag
+        // kinderopvangtoeslag 2026 (Stcrt. 2025, 42324; BWBR0051937), krachtens art. 11
+        // lid 1 en 2 Wfsv. Gecontroleerd 2026-09-04.
+        // https://zoek.officielebekendmakingen.nl/stcrt-2025-42324.html
+        aow: 0.1790,
+        anw: 0.0010,
+        // Art. 1 Regeling vaststelling premiepercentage Wlz (BWBR0041685), krachtens
+        // art. 11 lid 3 Wfsv, geldend sinds 2019-01-01. Gecontroleerd 2026-09-04.
+        // https://wetten.overheid.nl/BWBR0041685
+        wlz: 0.0965,
+      },
+      // Welke tabel geldt en welke premies verschuldigd zijn. Art. 10 lid 2 Wfsv haalt
+      // de AOW-premie eruit vanaf de eerste dag van de maand waarin de pensioen-
+      // gerechtigde leeftijd wordt bereikt; de Anw- en Wlz-verzekering kennen geen
+      // leeftijdsgrens (art. 13 Anw, art. 2.1.1 Wlz), zodat die premies blijven lopen.
+      // Gecontroleerd 2026-09-04.
+      // https://wetten.overheid.nl/BWBR0017745/2026-01-01/0/Hoofdstuk2
+      groepen: {
+        premieplichtig: { tabel: 'artikel210', premies: ['aow', 'anw', 'wlz'] },
+        aow: { tabel: 'artikel210', premies: ['anw', 'wlz'] },
+        aowVoor1946: { tabel: 'artikel210a', premies: ['anw', 'wlz'] },
+      },
+    },
   },
 };
 
@@ -246,32 +333,125 @@ function minimaleAfschrijvingstermijn(soort) {
   return maximum === undefined ? null : 1 / maximum;
 }
 
-/** Vennootschapsbelasting over een belastbaar bedrag, met het gemiddelde en het
- *  marginale tarief. Geeft null bij een jaar dat de tabel niet kent. */
-function vpbTarief(belastbaarBedrag, jaar) {
+/** Verdeelt een bedrag dat bovenop een bestaande grondslag komt over de schijven.
+ *  Geeft per geraakte schijf het deel en het tarief van die schijf. Een schijf die
+ *  niet wordt geraakt komt er niet in voor. */
+function verdeelOverSchijven(grondslag, bedrag, schijven) {
+  const delen = [];
+  let ondergrens = 0;
+  for (const schijf of schijven) {
+    const van = Math.max(grondslag, ondergrens);
+    const tot = Math.min(grondslag + bedrag, schijf.tot);
+    if (tot > van) delen.push({ van, tot, bedrag: tot - van, tarief: schijf.tarief });
+    ondergrens = schijf.tot;
+  }
+  return delen;
+}
+
+/** Schijven van box 1 voor een groep belastingplichtigen, met het belastingtarief van
+ *  art. 2.10 of 2.10a en het premiedeel erbij opgeteld. Het premie-inkomen wordt op
+ *  grond van art. 8 lid 3 Wfsv niet hoger in aanmerking genomen dan het eerste bedrag
+ *  in kolom II van de toepasselijke tabel, zodat alleen de eerste schijf premie draagt.
+ *  Geeft null bij een onbekend jaar of een onbekende groep. */
+function ibSchijven(jaar, groep) {
   const tarieven = TARIEVEN_PER_JAAR[jaar];
   if (!tarieven) return null;
-  const { grens, laag, hoog } = tarieven.vpb;
-  if (!Number.isFinite(belastbaarBedrag) || belastbaarBedrag < 0) return null;
-  const belasting = belastbaarBedrag <= grens
-    ? belastbaarBedrag * laag
-    : grens * laag + (belastbaarBedrag - grens) * hoog;
+  const beschrijving = tarieven.ib.groepen[groep];
+  if (!beschrijving) return null;
+  const tabel = tarieven.ib.tabellen[beschrijving.tabel];
+  const premietarief = beschrijving.premies
+    .reduce((som, naam) => som + tarieven.ib.premiepercentages[naam], 0);
+  const premieMaximum = tabel[0].tot;
+  return tabel.map(schijf => {
+    const premie = schijf.tot <= premieMaximum ? premietarief : 0;
+    return {
+      tot: schijf.tot,
+      belastingtarief: schijf.tarief,
+      premietarief: premie,
+      tarief: schijf.tarief + premie,
+    };
+  });
+}
+
+/** Belasting en premie volksverzekeringen over een belastbaar inkomen uit werk en woning.
+ *  `posten` is het bedrag aan grondslagverminderende posten dat al in aftrek is gebracht;
+ *  daarover volgt de vermeerdering van art. 2.10 lid 2. Geeft null bij een onbekend jaar,
+ *  een onbekende groep of onbruikbare invoer. */
+function boxEenHeffing(belastbaarInkomen, posten, jaar, groep) {
+  const schijven = ibSchijven(jaar, groep);
+  if (schijven === null) return null;
+  if (!Number.isFinite(belastbaarInkomen) || belastbaarInkomen < 0) return null;
+  if (!Number.isFinite(posten) || posten < 0) return null;
+
+  const delen = verdeelOverSchijven(0, belastbaarInkomen, schijven);
+  const belasting = delen.reduce((som, deel) => som + deel.bedrag * deel.tarief, 0);
+
+  // Laatstvermelde bedrag in kolom I van de tabel: de ondergrens van de hoogste schijf.
+  const laatsteGrens = schijven[schijven.length - 2].tot;
+  const { tariefaanpassing } = TARIEVEN_PER_JAAR[jaar].ib;
+  const boven = Math.max(0, belastbaarInkomen + posten - laatsteGrens);
+  const vermeerdering = tariefaanpassing * Math.min(boven, posten);
+
+  return { delen, belastingEnPremie: belasting, vermeerdering, totaal: belasting + vermeerdering };
+}
+
+/** Incrementele heffing in box 1 over een extra bedrag aan winst, schijf voor schijf.
+ *  De winst wordt eerst verminderd met de MKB-winstvrijstelling; het restant komt bovenop
+ *  het bestaande inkomen en de vrijstelling telt mee voor de tariefaanpassing.
+ *  Geeft null bij een onbekend jaar, een onbekende groep of onbruikbare invoer. */
+function incrementeleHeffingBoxEen({ inkomenVoor, winst, jaar, groep, mkbOndernemer }) {
+  const schijven = ibSchijven(jaar, groep);
+  if (schijven === null) return null;
+  if (!Number.isFinite(inkomenVoor) || inkomenVoor < 0) return null;
+  if (!Number.isFinite(winst) || winst < 0) return null;
+
+  const vrijstelling = mkbOndernemer ? winst * TARIEVEN_PER_JAAR[jaar].ib.mkbWinstvrijstelling : 0;
+  const toename = winst - vrijstelling;
+  const voor = boxEenHeffing(inkomenVoor, 0, jaar, groep);
+  const na = boxEenHeffing(inkomenVoor + toename, vrijstelling, jaar, groep);
+  const heffing = na.totaal - voor.totaal;
+
   return {
-    belasting,
-    gemiddeld: belastbaarBedrag === 0 ? laag : belasting / belastbaarBedrag,
-    // De volgende euro valt boven de grens zodra het belastbare bedrag de grens heeft
-    // bereikt, dus precies op de grens is het marginale tarief al het hoge tarief.
-    marginaal: belastbaarBedrag < grens ? laag : hoog,
+    vrijstelling,
+    toename,
+    delen: verdeelOverSchijven(inkomenVoor, toename, schijven),
+    belastingEnPremie: na.belastingEnPremie - voor.belastingEnPremie,
+    tariefaanpassing: na.vermeerdering - voor.vermeerdering,
+    heffing,
+    effectiefTarief: winst > 0 ? heffing / winst : null,
   };
 }
 
-/** Marginaal tarief over winst uit onderneming in de hoogste schijf, na
- *  MKB-winstvrijstelling en tariefaanpassing. Geeft null bij een onbekend jaar. */
-function ibMarginaalTopTarief(jaar) {
+/** Marginaal tarief over winst per schijf: het gecombineerde tarief van de schijf over
+ *  het deel dat na de MKB-winstvrijstelling overblijft, in de hoogste schijf verhoogd met
+ *  de tariefaanpassing over het vrijgestelde deel. Voor 2026 en een premieplichtige onder
+ *  de AOW-leeftijd geeft dat 31,21%, 32,79% en 44,73%. Geeft null bij een onbekend jaar
+ *  of een onbekende groep. */
+function ibMarginaalPerSchijf(jaar, groep, mkbOndernemer) {
+  const schijven = ibSchijven(jaar, groep);
+  if (schijven === null) return null;
+  const { mkbWinstvrijstelling, tariefaanpassing } = TARIEVEN_PER_JAAR[jaar].ib;
+  const vrijstelling = mkbOndernemer ? mkbWinstvrijstelling : 0;
+  return schijven.map((schijf, i) => ({
+    tot: schijf.tot,
+    tarief: schijf.tarief * (1 - vrijstelling) +
+      (i === schijven.length - 1 ? vrijstelling * tariefaanpassing : 0),
+  }));
+}
+
+/** Incrementele vennootschapsbelasting over een extra bedrag aan winst, schijf voor
+ *  schijf. Geeft null bij een onbekend jaar of onbruikbare invoer. */
+function incrementeleHeffingVpb({ bedragVoor, winst, jaar }) {
   const tarieven = TARIEVEN_PER_JAAR[jaar];
   if (!tarieven) return null;
-  const { topTarief, tariefaanpassing, mkbWinstvrijstelling } = tarieven.ib;
-  return topTarief - mkbWinstvrijstelling * (topTarief - tariefaanpassing);
+  if (!Number.isFinite(bedragVoor) || bedragVoor < 0) return null;
+  if (!Number.isFinite(winst) || winst < 0) return null;
+
+  const { grens, laag, hoog } = tarieven.vpb;
+  const schijven = [{ tot: grens, tarief: laag }, { tot: Infinity, tarief: hoog }];
+  const delen = verdeelOverSchijven(bedragVoor, winst, schijven);
+  const heffing = delen.reduce((som, deel) => som + deel.bedrag * deel.tarief, 0);
+  return { delen, heffing, effectiefTarief: winst > 0 ? heffing / winst : null };
 }
 
 /** Lineaire afschrijvingsreeks: elk jaar bedrag/termijn, maar nooit meer dan wat er
@@ -546,33 +726,102 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
     '<button type="button" class="afdrukknop" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
 });
 
+const grensTekst = tot => tot === Infinity ? 'en hoger' : 't/m ' + euro.format(tot);
+
+function overnameKnoppen(tarief) {
+  return ' <button type="button" class="licht" data-tarief="' + tarief +
+    '" data-doel="tarief-afschrijving">Naar afschrijving</button>' +
+    ' <button type="button" class="licht" data-tarief="' + tarief +
+    '" data-doel="tarief-uitgesteld">Naar uitgestelde heffing</button>';
+}
+
+function schijftabel(delen, kopSchijf) {
+  const rijen = delen.map(deel =>
+    '<tr><td>' + euro.format(deel.van) + ' &ndash; ' +
+      (deel.tot === Infinity ? 'hoger' : euro.format(deel.tot)) + '</td>' +
+    '<td class="getal">' + euro.format(deel.bedrag) + '</td>' +
+    '<td class="getal">' + procent.format(deel.tarief) + '</td>' +
+    '<td class="getal">' + euro.format(deel.bedrag * deel.tarief) + '</td></tr>').join('');
+  return '<table><thead><tr><th>' + kopSchijf + '</th><th class="getal">Deel van de winst</th>' +
+    '<th class="getal">Tarief</th><th class="getal">Heffing</th></tr></thead><tbody>' +
+    rijen + '</tbody></table>';
+}
+
+function tariefhulpIb(jaar, inkomenVoor, winst) {
+  const groep = document.getElementById('hulp-groep').value;
+  const mkb = document.getElementById('hulp-mkb').checked;
+  const uitkomst = incrementeleHeffingBoxEen({ inkomenVoor, winst, jaar, groep, mkbOndernemer: mkb });
+  const marginaal = ibMarginaalPerSchijf(jaar, groep, mkb);
+  if (uitkomst === null || marginaal === null) return null;
+
+  const vrijstellingsregel = mkb
+    ? '<p class="tariefuitkomst">MKB-winstvrijstelling ' +
+        euro.format(uitkomst.vrijstelling) + '; belastbaar wordt ' +
+        euro.format(uitkomst.toename) + '.</p>'
+    : '<p class="tariefuitkomst">Zonder MKB-winstvrijstelling gerekend.</p>';
+
+  const aanpassingsregel = uitkomst.tariefaanpassing > 0
+    ? '<tr><td colspan="3">Tariefaanpassing art. 2.10 lid 2 over de vrijstelling</td>' +
+      '<td class="getal">' + euro.format(uitkomst.tariefaanpassing) + '</td></tr>'
+    : '';
+
+  const marginaalRegels = marginaal.map((schijf, i) =>
+    '<li>Schijf ' + (i + 1) + ' (' + grensTekst(schijf.tot) + '): <b>' +
+    procent.format(schijf.tarief) + '</b>' + overnameKnoppen(schijf.tarief) + '</li>').join('');
+
+  return vrijstellingsregel +
+    schijftabel(uitkomst.delen, 'Schijf belastbaar inkomen').replace('</tbody>',
+      aanpassingsregel +
+      '<tr class="som"><td colspan="3">Belasting en premie over ' + euro.format(winst) +
+      ' winst</td><td class="getal">' + euro.format(uitkomst.heffing) + '</td></tr></tbody>') +
+    '<p class="tariefuitkomst">Effectief over de hele winst: <b>' +
+      procent.format(uitkomst.effectiefTarief === null ? 0 : uitkomst.effectiefTarief) + '</b>.' +
+      (uitkomst.effectiefTarief === null ? '' : overnameKnoppen(uitkomst.effectiefTarief)) + '</p>' +
+    '<h3>Marginaal tarief per schijf</h3>' +
+    '<p class="hint">Voor een latentie waarvan het inkomensniveau bij realisatie nog niet ' +
+      'vaststaat. Het hoogste percentage geldt alleen voor winst die volledig in de ' +
+      'hoogste schijf valt.</p><ul class="tariefuitkomst">' + marginaalRegels + '</ul>';
+}
+
+function tariefhulpVpb(jaar, bedragVoor, winst) {
+  const uitkomst = incrementeleHeffingVpb({ bedragVoor, winst, jaar });
+  if (uitkomst === null) return null;
+  return schijftabel(uitkomst.delen, 'Schijf belastbaar bedrag').replace('</tbody>',
+      '<tr class="som"><td colspan="3">Belasting over ' + euro.format(winst) +
+      ' winst</td><td class="getal">' + euro.format(uitkomst.heffing) + '</td></tr></tbody>') +
+    '<p class="tariefuitkomst">Effectief over de hele winst: <b>' +
+      procent.format(uitkomst.effectiefTarief === null ? 0 : uitkomst.effectiefTarief) + '</b>.' +
+      (uitkomst.effectiefTarief === null ? '' : overnameKnoppen(uitkomst.effectiefTarief)) + '</p>';
+}
+
 function toonTariefhulp() {
   const jaar = parseInt(document.getElementById('hulp-jaar').value, 10);
+  const inkomenVoor = parseFloat(document.getElementById('hulp-inkomen').value);
   const winst = parseFloat(document.getElementById('hulp-winst').value);
+  const middel = document.getElementById('hulp-middel').value;
   const vak = document.getElementById('hulp-uitkomst');
-  const vpb = vpbTarief(winst, jaar);
-  const ib = ibMarginaalTopTarief(jaar);
 
-  if (vpb === null || ib === null) {
+  document.getElementById('hulp-ib-velden').style.display = middel === 'ib' ? '' : 'none';
+  document.getElementById('hulp-inkomen-label').textContent = middel === 'ib'
+    ? 'Belastbaar inkomen uit werk en woning vóór de latente winst'
+    : 'Belastbaar bedrag vóór de latente winst';
+  document.getElementById('hulp-inkomen-hint').textContent = middel === 'ib'
+    ? 'Ander box-1-inkomen gebruikt ook schijfruimte; vul in wat er zonder deze winst zou staan.'
+    : 'De overige winst van het jaar gebruikt ook schijfruimte.';
+
+  const inhoud = middel === 'ib'
+    ? tariefhulpIb(jaar, inkomenVoor, winst)
+    : tariefhulpVpb(jaar, inkomenVoor, winst);
+
+  if (inhoud === null) {
     vak.innerHTML = '<div class="melding fout">Voor ' +
       (Number.isFinite(jaar) ? jaar : 'dit jaar') +
-      ' zijn geen tarieven vastgelegd. De tool valt niet terug op een ander jaar; ' +
-      'vul het tarief zelf in of laat de tabel uitbreiden.</div>';
+      ' zijn geen tarieven vastgelegd, of de invoer is niet bruikbaar. De tool valt niet ' +
+      'terug op een ander jaar; vul het tarief zelf in of laat de tabel uitbreiden.</div>';
     return;
   }
 
-  vak.innerHTML =
-    '<p class="tariefuitkomst">Vennootschapsbelasting ' + jaar + ': marginaal <b>' +
-      procent.format(vpb.marginaal) + '</b>, gemiddeld over ' + euro.format(winst) + ' <b>' +
-      procent.format(vpb.gemiddeld) + '</b> (' + euro.format(vpb.belasting) + ').' +
-      ' <button type="button" class="licht" data-tarief="' + vpb.marginaal + '" data-doel="tarief-afschrijving">Naar afschrijving</button>' +
-      ' <button type="button" class="licht" data-tarief="' + vpb.marginaal + '" data-doel="tarief-uitgesteld">Naar uitgestelde heffing</button></p>' +
-    '<p class="tariefuitkomst">Inkomstenbelasting ' + jaar +
-      ', winst uit onderneming in de hoogste schijf, na MKB-winstvrijstelling en ' +
-      'tariefaanpassing: <b>' + procent.format(ib) + '</b>.' +
-      ' <button type="button" class="licht" data-tarief="' + ib + '" data-doel="tarief-afschrijving">Naar afschrijving</button>' +
-      ' <button type="button" class="licht" data-tarief="' + ib + '" data-doel="tarief-uitgesteld">Naar uitgestelde heffing</button></p>';
-
+  vak.innerHTML = inhoud;
   vak.querySelectorAll('button[data-tarief]').forEach(knop => {
     knop.addEventListener('click', () => {
       const waarde = parseFloat(knop.dataset.tarief) * 100;
@@ -581,8 +830,12 @@ function toonTariefhulp() {
   });
 }
 
-document.getElementById('hulp-jaar').addEventListener('input', toonTariefhulp);
-document.getElementById('hulp-winst').addEventListener('input', toonTariefhulp);
+['hulp-jaar', 'hulp-inkomen', 'hulp-winst', 'hulp-middel', 'hulp-groep', 'hulp-mkb']
+  .forEach(naam => {
+    const veld = document.getElementById(naam);
+    veld.addEventListener('input', toonTariefhulp);
+    veld.addEventListener('change', toonTariefhulp);
+  });
 toonTariefhulp();
 </script>
 
@@ -610,12 +863,47 @@ toonTariefhulp();
         </li>
         <li>
           <b>Tarieven 2026.</b> Vennootschapsbelasting 19% tot een belastbaar bedrag van
-          € 200.000 en 25,8% daarboven (art. 22 Wet Vpb 1969). Inkomstenbelasting: het
-          toptarief van 49,50% met de tariefaanpassing van 11,94% over grondslagverminderende
-          posten (art. 2.10 lid 1 en 2 Wet IB 2001) en een MKB-winstvrijstelling van 12,7%
-          (art. 3.79a Wet IB 2001), samen 44,73% marginaal in de hoogste schijf.
+          € 200.000 en 25,8% daarboven (art. 22 Wet Vpb 1969). Inkomstenbelasting: de tabel
+          van art. 2.10 lid 1 Wet IB 2001 met schijfgrenzen van € 38.883 en € 78.426 en
+          tarieven van 8,10%, 37,56% en 49,50%, de tariefaanpassing van 11,94% over
+          grondslagverminderende posten (lid 2 en 3) en een MKB-winstvrijstelling van 12,7%
+          (art. 3.79a Wet IB 2001).
+        </li>
+        <li>
+          <b>Premies volksverzekeringen.</b> De 8,10% van de eerste schijf is alleen het
+          belastingdeel. Daarbovenop komen AOW 17,90% en Anw 0,10% (Regeling
+          premiepercentages 2026, krachtens art. 11 lid 1 en 2 Wfsv) en Wlz 9,65% (Regeling
+          vaststelling premiepercentage Wlz, krachtens art. 11 lid 3 Wfsv), samen 27,65%.
+          Het premie-inkomen loopt tot de eerste schijfgrens (art. 8 lid 3 Wfsv). Vanaf de
+          AOW-leeftijd vervalt de AOW-premie (art. 10 lid 2 Wfsv) en blijft 9,75% over. Voor
+          wie is geboren vóór 1 januari 1946 geldt de afwijkende tabel van art. 2.10a, met
+          een eerste schijfgrens van € 41.123.
         </li>
       </ul>
+
+      <h3>Wat de tariefhulp wel en niet zegt</h3>
+      <p>
+        De hulp rekent de belasting over een extra bedrag aan winst schijf voor schijf uit.
+        Zij vult geen algemeen marginaal toptarief in: <b>44,73% is het hoogste
+        IB-latentietarief in deze vereenvoudigde, ondernemingsgebonden methode</b> en geldt
+        alleen voor winst die volledig in de hoogste schijf valt. Het is niet het marginale
+        effectieve toptarief van een IB-ondernemer.
+      </p>
+      <p>
+        Bewust buiten beschouwing blijven de heffingskortingen, de inkomensafhankelijke
+        bijdrage Zvw en de stakingsaftrek (art. 3.79 Wet IB 2001), omdat die niet
+        ondernemingsgebonden zijn of een eigen beoordeling vragen. Worden zij wél
+        meegewogen, dan valt de effectieve druk hoger uit. De hulp veronderstelt verder dat
+        de enige grondslagverminderende post over de ingevoerde winst de
+        MKB-winstvrijstelling is; ondernemersaftrek en andere posten zitten er niet in.
+      </p>
+      <p>
+        Het bestaande box-1-inkomen dat u invult is het belastbare inkomen uit werk en
+        woning zonder deze winst. De schijfgrenzen gelden voor dat inkomen als geheel, niet
+        voor de winst apart. Ook is de <b>acute</b> heffing die een overdrager voorkomt door
+        geruisloos door te schuiven iets anders dan de <b>latente</b> druk die de overnemer
+        overneemt; dat hoeven niet dezelfde percentages te zijn.
+      </p>
 
       <h3>Wat conventie is en geen wettelijke regel</h3>
       <ul>
@@ -657,6 +945,12 @@ toonTariefhulp();
         <li>
           De tariefhulp kent alleen de jaren die in de tabel staan. Een ander jaar levert een
           melding op en geen tarief.
+        </li>
+        <li>
+          Geen tijdsevenredige premieheffing in het jaar waarin de AOW-leeftijd wordt bereikt.
+          De AOW-premie vervalt vanaf de eerste dag van die maand (art. 10 lid 2 Wfsv), zodat
+          over dat jaar een samengesteld heffingspercentage geldt (art. 2.6 Regeling Wfsv).
+          De hulp rekent met een heel jaar in één positie.
         </li>
       </ul>
     </div>
