@@ -43,6 +43,7 @@ const APP_IDS = {
   'vastgoedrendement.html':              '73dde839-43d7-44d7-82ec-3a15486203b4',
   'herziening-btw.html':                 '556659b5-e5c2-454f-9c3e-699f9f21ddfa',
   'modellen-naar-tools.html':            '91e5043d-b47c-44cd-a1be-5a26bbcd2fe5',
+  'tools.json':                          'dab294e6-71d7-4c14-92b5-1d92ea7fd22a',
 };
 
 export default {
@@ -169,7 +170,11 @@ async function schrijfStatus(env, sleutel, status) {
 
 // Welke adressen horen volgens de opslag toegang te hebben tot dit bestand.
 function rechthebbenden(permissions, file) {
-  if (file === 'portal.html') return Object.keys(permissions);
+  // Het portaal en het register gelden voor iedereen in de opslag: portal.html toont de
+  // tegels en haalt daarvoor tools.json op, net als beheer.html en de roadmappagina.
+  // Krijgt het register een engere policy, dan blijft het portaal leeg voor wie er wel
+  // in mag.
+  if (file === 'portal.html' || file === 'tools.json') return Object.keys(permissions);
   return Object.entries(permissions)
     .filter(([, t]) => t === 'all' || (Array.isArray(t) && t.includes(file)))
     .map(([e]) => e);
