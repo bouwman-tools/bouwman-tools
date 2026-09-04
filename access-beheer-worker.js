@@ -42,6 +42,7 @@ const APP_IDS = {
   'belastinglatentie.html':              '751d9e97-65b6-4564-8083-9ce37cfc035b',
   'vastgoedrendement.html':              '73dde839-43d7-44d7-82ec-3a15486203b4',
   'herziening-btw.html':                 '556659b5-e5c2-454f-9c3e-699f9f21ddfa',
+  'modellen-naar-tools.html':            '91e5043d-b47c-44cd-a1be-5a26bbcd2fe5',
 };
 
 export default {
