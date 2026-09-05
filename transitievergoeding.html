@@ -186,14 +186,39 @@
       <legend>Restperiode</legend>
       <p class="hint" style="margin-top:0">
         Over de periode na de volle jaren rekent de wet met het brutoloon dat feitelijk
-        over die periode is ontvangen. De tool leidt dat af uit het maandloon en de
-        kalenderdagen. Kent u het uitbetaalde bedrag, vul het dan hier in.
+        over die periode verschuldigd was. Kent u dat bedrag uit de eindafrekening, vul
+        het dan hier in: dan volgt de berekening de wettelijke formule letterlijk en is
+        er geen verdeelsleutel meer nodig.
       </p>
-      <div class="veld" style="max-width:22rem">
-        <label for="restloon">Feitelijk brutoloon over de restperiode (€)
-          <span class="hint">Laat leeg om de afleiding van de tool te gebruiken.</span>
+      <div class="veld" style="max-width:24rem">
+        <label for="restloon">Brutoloon over de restperiode (€)
+          <span class="hint">Leidend zodra het is ingevuld. Laat leeg om de rekenhulp hieronder te gebruiken.</span>
         </label>
-        <input type="text" id="restloon" inputmode="decimal" placeholder="leeg = afgeleid">
+        <input type="text" id="restloon" inputmode="decimal" placeholder="leeg = rekenhulp">
+      </div>
+      <p class="hint">
+        <strong>Rekenhulp als het bedrag niet bekend is.</strong> Volle maanden in de
+        restperiode krijgen het loon per maand; daar is geen verdeelsleutel voor nodig.
+        Voor de dagen van een aangebroken maand rekent de tool die dagen maal de
+        overeengekomen arbeidsduur per dag maal het brutouurloon. Dat is de vorm van het
+        officiële rekenvoorbeeld bij artikel 7:673 lid 2 BW en sluit aan op artikel 2
+        lid 1 Besluit loonbegrip. Het is een rekenhulp en geen wettelijke regel: voor een
+        gedeeltelijke maand kent de bron geen uniforme kalender- of werkdagenfactor.
+        Zonder deze twee velden en zonder bedrag hierboven rekent de tool niet door.
+      </p>
+      <div class="rij">
+        <div class="veld">
+          <label for="urenperdag">Overeengekomen arbeidsduur per dag (uren)
+            <span class="hint">Bij achtendertig uur over vijf dagen is dat 7,6. Staat in de arbeidsovereenkomst.</span>
+          </label>
+          <input type="number" id="urenperdag" step="0.01" min="0" placeholder="alleen voor de rekenhulp">
+        </div>
+        <div class="veld">
+          <label for="uurloon">Brutouurloon (€)
+            <span class="hint">Het uurloon van art. 2 lid 1 Besluit loonbegrip. Staat op de loonstrook.</span>
+          </label>
+          <input type="number" id="uurloon" step="0.01" min="0" placeholder="alleen voor de rekenhulp">
+        </div>
       </div>
     </fieldset>
 
@@ -269,9 +294,15 @@
           niet over de berekening; u beantwoordt hem hierboven zelf.
         </li>
         <li>
-          <strong>De verdeling van een aangebroken maand.</strong> De wet stuurt op het
-          feitelijk ontvangen loon en wijst geen verdeelsleutel aan. De tool gebruikt
-          kalenderdagen en laat u het bedrag overschrijven.
+          <strong>De verdeling van een aangebroken maand.</strong> Bij een gedeeltelijke
+          maand bestaat geen uniforme wettelijke kalender- of werkdagenfactor; controleer
+          dit bedrag met de eindafrekening of de geldende loon- of cao-systematiek. De
+          tool rekent daarom met het brutoloon over de restperiode zelf en biedt daarnaast
+          alleen een rekenhulp uit de arbeidsduur per dag en het brutouurloon. Waarom de
+          wetgever geen dagfactor heeft voorgeschreven staat in de nota van toelichting
+          bij Stb. 2019, 298, paragraaf 2.4: een uniform aantal werkdagen per jaar
+          &ldquo;doet geen recht aan het feit dat dit in verschillende sectoren op
+          verschillende wijzen wordt berekend&rdquo;.
         </li>
       </ul>
     </div>
@@ -386,7 +417,6 @@ function duurArbeidsovereenkomst(aanvang, einde) {
     volleMaanden,
     losseDagen,
     lengteAangebrokenMaand,
-    restInMaanden: volleMaanden + losseDagen / lengteAangebrokenMaand,
     dagenTotaal: eindeNr + 1 - dagnummer(aanvang),
   };
 }
@@ -436,6 +466,8 @@ function berekenTransitievergoeding({
   einde,
   loon,
   restloonHandmatig = null,
+  urenPerDag = null,
+  uurloon = null,
   nietVerschuldigd = null,
 }) {
   const start = typeof aanvang === 'string' ? ontleedDatum(aanvang) : aanvang;
@@ -471,7 +503,7 @@ function berekenTransitievergoeding({
     return {
       verschuldigd: false, grond: uitsluiting, duur,
       loonPerMaand: loon, vergoedingVolleJaren: 0, vergoedingRest: 0,
-      restloon: 0, restloonAfgeleid: true, korterDanEenMaand: false,
+      restloon: 0, restloonBron: 'geen', loonOverLosseDagen: 0, korterDanEenMaand: false,
       bruto: 0, maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: loon * 12,
       maximum: Math.max(maximumWettelijk, loon * 12), afgetopt: false, uitkomst: 0,
     };
@@ -485,18 +517,55 @@ function berekenTransitievergoeding({
   const korterDanEenMaand = duur.volleJaren === 0 && duur.volleMaanden === 0
     && duur.losseDagen < duur.lengteAangebrokenMaand;
 
-  const restloonAfgeleid = restloonHandmatig === null || restloonHandmatig === undefined;
+  // Het brutoloon over de restperiode is leidend. Art. 7:673 lid 2 BW schrijft voor een
+  // gedeeltelijke maand geen kalenderdagen- en geen werkdagenbreuk voor, en de nota van
+  // toelichting bij Stb. 2019, 298, paragraaf 2.4, zegt uitdrukkelijk waarom niet: om
+  // een dagloon te kunnen berekenen zou een uniform aantal werkdagen per jaar moeten
+  // worden vastgesteld, en dat "doet geen recht aan het feit dat dit in verschillende
+  // sectoren op verschillende wijzen wordt berekend". De tool kiest die factor daarom
+  // niet voor de gebruiker.
+  const restloonIngevuld = restloonHandmatig !== null && restloonHandmatig !== undefined;
+  const heeftRekenhulp = Number.isFinite(urenPerDag) && urenPerDag > 0
+    && Number.isFinite(uurloon) && uurloon > 0;
 
-  if (korterDanEenMaand && restloonAfgeleid) {
+  let restloon;
+  let restloonBron;
+  let loonOverLosseDagen = 0;
+
+  if (restloonIngevuld) {
+    restloon = restloonHandmatig;
+    restloonBron = 'ingevuld';
+  } else if (duur.losseDagen === 0) {
+    // Geen aangebroken maand: over volle maanden is het loon per maand verschuldigd en
+    // is er geen verdeelsleutel nodig.
+    restloon = loon * duur.volleMaanden;
+    restloonBron = 'vollemaanden';
+  } else if (heeftRekenhulp) {
+    // Rekenhulp, geen wettelijke regel. De vorm volgt het officiële rekenvoorbeeld bij
+    // art. 7:673 lid 2 BW — vijf dagen maal acht uur maal het uurloon — en sluit aan op
+    // art. 2 lid 1 Besluit loonbegrip, dat het loon bepaalt als het brutouurloon maal de
+    // overeengekomen arbeidsduur.
+    loonOverLosseDagen = duur.losseDagen * urenPerDag * uurloon;
+    restloon = loon * duur.volleMaanden + loonOverLosseDagen;
+    restloonBron = 'rekenhulp';
+  } else if (korterDanEenMaand) {
     throw new Error(
       'De arbeidsovereenkomst duurde korter dan een maand. Artikel 4 van het Besluit ' +
       'loonbegrip stelt dan als loon het bedrag dat over die duur verschuldigd was, en ' +
-      'niet een herleid maandloon. Vul dat bedrag in bij het feitelijk brutoloon over ' +
-      'de restperiode.'
+      'niet een herleid maandloon. Vul dat bedrag in bij het brutoloon over de ' +
+      'restperiode, of vul de arbeidsduur per dag en het brutouurloon in zodat de tool ' +
+      'het als rekenhulp kan voorstellen.'
+    );
+  } else {
+    throw new Error(
+      `De arbeidsovereenkomst eindigt midden in een maand: na de volle maanden resteren ` +
+      `${duur.losseDagen} ${duur.losseDagen === 1 ? 'dag' : 'dagen'}. Over de restperiode ` +
+      `rekent de wet met het brutoloon dat feitelijk verschuldigd was, en voor een ` +
+      `gedeeltelijke maand wijst zij geen kalenderdagen- of werkdagenfactor aan. Vul het ` +
+      `brutoloon over de restperiode in, of vul de arbeidsduur per dag en het ` +
+      `brutouurloon in zodat de tool het als rekenhulp kan voorstellen.`
     );
   }
-
-  const restloon = restloonAfgeleid ? loon * duur.restInMaanden : restloonHandmatig;
 
   // Art. 7:673 lid 2 BW, eerste volzin, met de formule uit Kamerstukken II 2018/19,
   // 35 074, nr. 3, paragraaf 3.4.3.2: eerst de volle jaren, daarna het restloon
@@ -515,7 +584,8 @@ function berekenTransitievergoeding({
     vergoedingVolleJaren: afrondenCent(vergoedingVolleJaren),
     vergoedingRest: afrondenCent(vergoedingRest),
     restloon: afrondenCent(restloon),
-    restloonAfgeleid, korterDanEenMaand,
+    restloonBron, loonOverLosseDagen: afrondenCent(loonOverLosseDagen),
+    korterDanEenMaand,
     bruto: afrondenCent(bruto),
     maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: afrondenCent(maximumJaarloon),
     maximum: afrondenCent(maximum), afgetopt,
@@ -527,6 +597,15 @@ function berekenTransitievergoeding({
 const $ = (id) => document.getElementById(id);
 const euro = (n) => n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
 const getal = (n, d = 4) => n.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: d });
+
+// Waar het brutoloon over de restperiode vandaan komt. Dit hoort in de opbouwtabel en
+// dus op de afdruk: een uitdraai waarin dat niet staat is niet te herleiden.
+const HERKOMST_RESTLOON = {
+  ingevuld: ' (ingevuld)',
+  vollemaanden: ' (volle maanden maal het loon per maand)',
+  rekenhulp: ' (rekenhulp uit de arbeidsduur per dag en het brutouurloon)',
+  geen: '',
+};
 
 const GRONDEN = {
   jong: 'artikel 7:673 lid 7 onderdeel a BW: einde vóór de achttiende verjaardag bij ten hoogste twaalf uur per week',
@@ -558,7 +637,7 @@ $('formulier').addEventListener('submit', (e) => {
   const ruwRestloon = String($('restloon').value).trim();
   const restloonHandmatig = ruwRestloon === '' ? null : parseFloat(ruwRestloon.replace(',', '.'));
   if (restloonHandmatig !== null && !Number.isFinite(restloonHandmatig)) {
-    return toonFout('Het feitelijk brutoloon over de restperiode is geen bedrag. Laat het veld leeg om het te laten afleiden.');
+    return toonFout('Het brutoloon over de restperiode is geen bedrag. Laat het veld leeg om de rekenhulp te gebruiken.');
   }
 
   let r;
@@ -568,6 +647,8 @@ $('formulier').addEventListener('submit', (e) => {
       einde: $('einde').value,
       loon,
       restloonHandmatig,
+      urenPerDag: nummer('urenperdag'),
+      uurloon: nummer('uurloon'),
       nietVerschuldigd: {
         jong: $('jong').checked,
         pensioen: $('pensioen').checked,
@@ -601,10 +682,17 @@ $('formulier').addEventListener('submit', (e) => {
     meldingen.push(`<div class="melding let-op">De vergoeding is afgetopt. Berekend ${euro(r.bruto)}, maximum ${euro(r.maximum)}. Het maximum is ${r.maximumJaarloon > r.maximumWettelijk ? 'het loon over twaalf maanden' : `het wettelijke bedrag voor ${ontleedDatum($('einde').value).jaar}`}.</div>`);
   }
   if (r.korterDanEenMaand) {
-    meldingen.push('<div class="melding let-op">De arbeidsovereenkomst duurde korter dan een maand. Er is gerekend met artikel 4 van het Besluit loonbegrip: het ingevulde brutoloon over de restperiode is hier het loon over de hele arbeidsovereenkomst. Het loonveld hierboven speelt alleen nog een rol bij de toets op het loon over twaalf maanden, en die toets bindt hier niet.</div>');
+    meldingen.push('<div class="melding let-op">De arbeidsovereenkomst duurde korter dan een maand. Er is gerekend met artikel 4 van het Besluit loonbegrip: het brutoloon over de restperiode is hier het loon over de hele arbeidsovereenkomst. Het loonveld hierboven speelt alleen nog een rol bij de toets op het loon over twaalf maanden, en die toets bindt hier niet.</div>');
   }
-  if (!r.restloonAfgeleid) {
-    meldingen.push('<div class="melding vlak">Er is gerekend met het ingevulde brutoloon over de restperiode, niet met de afleiding van de tool.</div>');
+  if (r.restloonBron === 'ingevuld') {
+    meldingen.push('<div class="melding vlak">Er is gerekend met het ingevulde brutoloon over de restperiode. Dat volgt de wettelijke formule letterlijk: er komt geen verdeelsleutel aan te pas.</div>');
+  }
+  if (r.restloonBron === 'rekenhulp') {
+    const perDag = `${d.losseDagen} ${d.losseDagen === 1 ? 'dag' : 'dagen'} maal de arbeidsduur per dag maal het brutouurloon (${euro(r.loonOverLosseDagen)})`;
+    const opbouw = d.volleMaanden === 0
+      ? perDag
+      : `${d.volleMaanden} volle ${d.volleMaanden === 1 ? 'maand' : 'maanden'} maal het loon per maand, plus ${perDag}`;
+    meldingen.push(`<div class="melding let-op">Het brutoloon over de restperiode is niet ingevuld en is met de rekenhulp voorgesteld: ${opbouw}. Bij een gedeeltelijke maand bestaat geen uniforme wettelijke kalender- of werkdagenfactor; controleer dit bedrag met de eindafrekening of de geldende loon- of cao-systematiek en vul het zo nodig zelf in.</div>`);
   }
 
   $('uitkomst').innerHTML = `
@@ -616,7 +704,6 @@ $('formulier').addEventListener('submit', (e) => {
     <table>
       <tr><td>Volle jaren</td><td class="getal">${d.volleJaren}</td></tr>
       <tr><td>Restperiode</td><td class="getal">${restOmschrijving}</td></tr>
-      <tr><td>Restperiode in maanden</td><td class="getal">${getal(d.restInMaanden, 6)}</td></tr>
       <tr><td>Dagen dienstverband, einddatum meegeteld</td><td class="getal">${d.dagenTotaal}</td></tr>
     </table>
 
@@ -625,7 +712,7 @@ $('formulier').addEventListener('submit', (e) => {
       <tr><td>Loon per maand, art. 3 lid 1 Besluit loonbegrip</td><td class="getal">${euro(r.loonPerMaand)}</td></tr>
       <tr><td>Per vol jaar, een derde maandloon</td><td class="getal">${euro(afrondenCent(r.loonPerMaand / 3))}</td></tr>
       <tr><td>${d.volleJaren} volle ${d.volleJaren === 1 ? 'jaar' : 'jaren'}</td><td class="getal">${euro(r.vergoedingVolleJaren)}</td></tr>
-      <tr><td>Brutoloon over de restperiode${r.restloonAfgeleid ? ' (afgeleid)' : ' (ingevuld)'}</td><td class="getal">${euro(r.restloon)}</td></tr>
+      <tr><td>Brutoloon over de restperiode${HERKOMST_RESTLOON[r.restloonBron]}</td><td class="getal">${euro(r.restloon)}</td></tr>
       <tr><td>Restperiode, brutoloon gedeeld door 36</td><td class="getal">${euro(r.vergoedingRest)}</td></tr>
       <tr class="som"><td>Berekende vergoeding</td><td class="getal">${euro(r.bruto)}</td></tr>
     </table>
