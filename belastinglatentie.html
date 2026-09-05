@@ -109,20 +109,84 @@
   <form id="formulier">
     <fieldset>
       <legend>Tarieven en disconteringsvoet</legend>
-      <div class="rij">
-        <div class="veld">
-          <label for="tarief-afschrijving">Belastingtarief afschrijving
-            <span class="hint">Het tarief waartegen de gemiste afschrijving in aftrek zou zijn gekomen.</span>
-          </label>
-          <input type="number" id="tarief-afschrijving" step="0.01" min="0" max="100" value="25.8"> %
-        </div>
-        <div class="veld">
-          <label for="tarief-uitgesteld">Belastingtarief uitgestelde heffing
-            <span class="hint">Het tarief in het jaar waarin de heffing naar verwachting plaatsvindt.</span>
-          </label>
-          <input type="number" id="tarief-uitgesteld" step="0.01" min="0" max="100" value="25.8"> %
+      <div class="keuze">
+        <input type="radio" name="tariefmodus" id="modus-vast" value="vast" checked>
+        <label for="modus-vast">
+          <b>Eén vast tarief</b> voor de hele looptijd, hieronder in te vullen. Bedoeld voor
+          een tarief dat uit een waardering of uit onderhandeling komt.
+        </label>
+      </div>
+      <div class="keuze">
+        <input type="radio" name="tariefmodus" id="modus-perjaar" value="perJaar">
+        <label for="modus-perjaar">
+          <b>Per jaar via de schijven.</b> De gemiste afschrijving van elk jaar komt bovenop
+          het verwachte inkomen en de heffing daarover wordt per schijf berekend; hetzelfde
+          gebeurt met de niet-afschrijfbare meerwaarde in het jaar waarin die vrijvalt.
+          Zuiverder zolang de winst niet volledig in de hoogste schijf valt. De tarieven van
+          het gekozen jaar gelden dan wel voor alle jaren.
+        </label>
+      </div>
+
+      <div id="vaste-tarieven">
+        <div class="rij">
+          <div class="veld">
+            <label for="tarief-afschrijving">Belastingtarief afschrijving
+              <span class="hint">Het tarief waartegen de gemiste afschrijving in aftrek zou zijn gekomen.</span>
+            </label>
+            <input type="number" id="tarief-afschrijving" step="0.01" min="0" max="100" value="25.8"> %
+          </div>
+          <div class="veld">
+            <label for="tarief-uitgesteld">Belastingtarief uitgestelde heffing
+              <span class="hint">Het tarief in het jaar waarin de heffing naar verwachting plaatsvindt.</span>
+            </label>
+            <input type="number" id="tarief-uitgesteld" step="0.01" min="0" max="100" value="25.8"> %
+          </div>
         </div>
       </div>
+
+      <div id="modus-velden" hidden>
+        <div class="rij">
+          <div class="veld">
+            <label for="modus-jaar">Jaar van de tarieven
+              <span class="hint">Deze tarieven gelden voor de hele looptijd; de tool kent geen tariefsverloop. Een jaar dat niet in de tabel staat geeft een melding en geen uitkomst.</span>
+            </label>
+            <input type="number" id="modus-jaar" step="1" value="2026">
+          </div>
+          <div class="veld">
+            <label for="modus-middel">Belastingmiddel</label>
+            <select id="modus-middel">
+              <option value="ib">Inkomstenbelasting, winst uit onderneming</option>
+              <option value="vpb">Vennootschapsbelasting</option>
+            </select>
+          </div>
+        </div>
+        <div class="veld">
+          <label for="modus-inkomen"><span id="modus-inkomen-label">Verwacht belastbaar inkomen uit werk en woning per jaar</span>
+            <span class="hint" id="modus-inkomen-hint">Zonder de gemiste afschrijving en zonder de latente winst. Eén bedrag voor alle jaren: een bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.</span>
+          </label>
+          <input type="number" id="modus-inkomen" step="1000" min="0" value="0">
+        </div>
+        <div id="modus-ib-velden">
+          <div class="veld">
+            <label for="modus-groep">Positie van de belastingplichtige
+              <span class="hint">Bepaalt de premie volksverzekeringen in de eerste schijf en welke tabel geldt.</span>
+            </label>
+            <select id="modus-groep">
+              <option value="premieplichtig">Onder de AOW-leeftijd, premieplichtig</option>
+              <option value="aow">AOW-leeftijd bereikt</option>
+              <option value="aowVoor1946">AOW-leeftijd bereikt, geboren vóór 1 januari 1946</option>
+            </select>
+          </div>
+          <div class="keuze">
+            <input type="checkbox" id="modus-mkb" checked>
+            <label for="modus-mkb">
+              MKB-winstvrijstelling van toepassing (art. 3.79a Wet IB 2001). Zet dit uit voor
+              box-1-inkomen dat geen winst uit onderneming is.
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="veld">
         <label for="disconteringsvoet">Disconteringsvoet</label>
         <input type="number" id="disconteringsvoet" step="0.01" min="0" max="100" value="6"> %
@@ -130,8 +194,8 @@
       <div class="keuze">
         <input type="radio" name="grondslag" id="grondslag-netto" value="netto" checked>
         <label for="grondslag-netto">
-          Ingevoerd als brutovoet; de tool maakt hem netto met het tarief voor afschrijving:
-          <code>netto = bruto &times; (1 &minus; tarief)</code>.
+          <span id="grondslag-netto-tekst">Ingevoerd als brutovoet; de tool maakt hem netto met het tarief voor afschrijving:
+          <code>netto = bruto &times; (1 &minus; tarief)</code>.</span>
         </label>
       </div>
       <div class="keuze">
@@ -454,6 +518,36 @@ function incrementeleHeffingVpb({ bedragVoor, winst, jaar }) {
   return { delen, heffing, effectiefTarief: winst > 0 ? heffing / winst : null };
 }
 
+/** Het bedrag aan belasting over een extra bedrag aan winst bovenop het verwachte
+ *  inkomen, voor het gekozen middel. Bedoeld om per jaar te worden aangeroepen met de
+ *  gemiste afschrijving van dat jaar. Geeft null bij een onbekend middel, een onbekend
+ *  jaar, een onbekende groep of onbruikbare invoer; er wordt nooit stil op een ander
+ *  jaar teruggevallen. */
+function heffingOverWinst(bedrag, context) {
+  if (!context) return null;
+  if (context.middel === 'vpb') {
+    const uitkomst = incrementeleHeffingVpb({
+      bedragVoor: context.inkomenVoor, winst: bedrag, jaar: context.jaar,
+    });
+    return uitkomst === null ? null : uitkomst.heffing;
+  }
+  if (context.middel === 'ib') {
+    const uitkomst = incrementeleHeffingBoxEen({
+      inkomenVoor: context.inkomenVoor, winst: bedrag, jaar: context.jaar,
+      groep: context.groep, mkbOndernemer: context.mkbOndernemer,
+    });
+    return uitkomst === null ? null : uitkomst.heffing;
+  }
+  return null;
+}
+
+/** Welke tariefmodus geldt: 'vast' voor één tarief over de hele looptijd, 'perJaar' voor
+ *  een heffing die per jaar over de schijven wordt berekend. Zonder opgave het vaste
+ *  tarief, zodat invoer van vóór deze keuze ongewijzigd blijft rekenen. */
+function tariefmodusVan(invoer) {
+  return invoer.tariefmodus === undefined ? 'vast' : invoer.tariefmodus;
+}
+
 /** Lineaire afschrijvingsreeks: elk jaar bedrag/termijn, maar nooit meer dan wat er
  *  nog niet is afgeschreven. Die bovengrens geldt vanaf het eerste jaar, zodat een
  *  termijn korter dan een jaar niet meer dan het bedrag zelf oplevert. */
@@ -490,8 +584,24 @@ function valideerInvoer(invoer) {
     if (!Number.isFinite(waarde)) fouten.push(naam + ' is geen getal.');
     else if (waarde < 0 || waarde > 1) fouten.push(naam + ' moet tussen 0% en 100% liggen.');
   };
-  deel(invoer.tariefAfschrijving, 'Het belastingtarief afschrijving');
-  deel(invoer.tariefUitgesteld, 'Het belastingtarief uitgestelde heffing');
+  const modus = tariefmodusVan(invoer);
+  if (modus !== 'vast' && modus !== 'perJaar') {
+    fouten.push('De tariefmodus moet "vast" of "perJaar" zijn.');
+  } else if (modus === 'perJaar') {
+    // Eén proef met een winst van nul toetst het middel, het jaar, de groep en het
+    // verwachte inkomen in één keer: alleen bruikbare invoer geeft een uitkomst.
+    if (heffingOverWinst(0, invoer.tariefcontext) === null) {
+      fouten.push(
+        'De tariefgegevens zijn niet bruikbaar. Kies een belastingmiddel, een jaar dat ' +
+        'in de tarieftabel staat en een verwacht inkomen van nul of hoger; bij de ' +
+        'inkomstenbelasting ook een bekende positie ten opzichte van de AOW-leeftijd. ' +
+        'De tool valt niet terug op een ander jaar.'
+      );
+    }
+  } else {
+    deel(invoer.tariefAfschrijving, 'Het belastingtarief afschrijving');
+    deel(invoer.tariefUitgesteld, 'Het belastingtarief uitgestelde heffing');
+  }
   deel(invoer.disconteringsvoet, 'De disconteringsvoet');
 
   if (invoer.disconteringsgrondslag !== 'netto' && invoer.disconteringsgrondslag !== 'direct') {
@@ -563,34 +673,83 @@ function verzamelWaarschuwingen(invoer, voet) {
  *   disconteringsgrondslag: 'netto' | 'direct',
  *   posten: [{ bedrag, termijn, soort: 'goodwill' | 'overig' }],
  *   nietAfschrijfbaar: { bedrag, jaar },
+ *   tariefmodus: 'vast' | 'perJaar'   (zonder opgave: 'vast'),
+ *   tariefcontext: { middel: 'ib' | 'vpb', jaar, inkomenVoor, groep, mkbOndernemer },
  * }
+ *
+ * In de modus 'perJaar' worden de twee tarieven niet gebruikt. De gemiste afschrijving
+ * van elk jaar komt dan bovenop het verwachte inkomen en de heffing daarover wordt per
+ * schijf berekend; hetzelfde gebeurt met de niet-afschrijfbare meerwaarde in het jaar
+ * waarin die vrijvalt. Het verwachte inkomen is één bedrag voor de hele looptijd, en de
+ * tarieven van het gekozen jaar gelden voor alle jaren: de tool kent geen tariefsverloop.
  */
 function berekenLatentie(invoer) {
   const fouten = valideerInvoer(invoer);
   if (fouten.length) return { fouten, waarschuwingen: [] };
 
-  const voet = invoer.disconteringsgrondslag === 'direct'
-    ? invoer.disconteringsvoet
-    : nettoDisconteringsvoet(invoer.disconteringsvoet, invoer.tariefAfschrijving);
-
+  const modus = tariefmodusVan(invoer);
   const posten = (invoer.posten || []).filter(post => post.bedrag > 0);
   const reeksen = posten.map(post => afschrijvingsreeks(post.bedrag, post.termijn));
   const aantalJaren = reeksen.reduce((n, reeks) => Math.max(n, reeks.length), 0);
 
+  // Eerst de heffing per jaar en pas daarna de disconteringsvoet: in de modus 'perJaar'
+  // volgt de nettovoet uit het effectieve tarief over de gemiste afschrijving. Dat is
+  // niet circulair, want de heffing van een jaar hangt niet van de voet af.
   const jaren = [];
-  let contanteWaardeAfschrijving = 0;
+  let afschrijvingAlleJaren = 0;
+  let voordeelAlleJaren = 0;
   for (let i = 0; i < aantalJaren; i++) {
     const afschrijvingen = reeksen.map(reeks => reeks[i] || 0);
     const afschrijvingTotaal = afschrijvingen.reduce((a, b) => a + b, 0);
-    const fiscaalVoordeel = invoer.tariefAfschrijving * afschrijvingTotaal;
-    const contant = contantemaking(fiscaalVoordeel, voet, i + 1);
-    contanteWaardeAfschrijving += contant;
-    jaren.push({ jaar: i + 1, afschrijvingen, afschrijvingTotaal, fiscaalVoordeel, contant });
+    const fiscaalVoordeel = modus === 'perJaar'
+      ? heffingOverWinst(afschrijvingTotaal, invoer.tariefcontext)
+      : invoer.tariefAfschrijving * afschrijvingTotaal;
+    afschrijvingAlleJaren += afschrijvingTotaal;
+    voordeelAlleJaren += fiscaalVoordeel;
+    jaren.push({
+      jaar: i + 1,
+      afschrijvingen,
+      afschrijvingTotaal,
+      fiscaalVoordeel,
+      tarief: afschrijvingTotaal > 0 ? fiscaalVoordeel / afschrijvingTotaal : null,
+      contant: 0,
+    });
   }
 
   const niet = invoer.nietAfschrijfbaar || { bedrag: 0, jaar: 0 };
+  const heffingUitgesteld = niet.bedrag > 0
+    ? (modus === 'perJaar'
+        ? heffingOverWinst(niet.bedrag, invoer.tariefcontext)
+        : niet.bedrag * invoer.tariefUitgesteld)
+    : 0;
+
+  const effectiefTariefAfschrijving =
+    afschrijvingAlleJaren > 0 ? voordeelAlleJaren / afschrijvingAlleJaren : null;
+  const effectiefTariefUitgesteld =
+    niet.bedrag > 0 ? heffingUitgesteld / niet.bedrag : null;
+
+  // Waarderingsconventie, geen wettelijke regel: de brutovoet wordt netto gemaakt met het
+  // tarief waartegen de gemiste afschrijving in aftrek komt. In de modus 'perJaar' bestaat
+  // dat ene tarief niet en treedt het effectieve tarief over de hele gemiste afschrijving
+  // ervoor in de plaats; zonder afschrijfbare post dat over de uitgestelde heffing.
+  const tariefVoorNetten = modus === 'perJaar'
+    ? (effectiefTariefAfschrijving !== null
+        ? effectiefTariefAfschrijving
+        : (effectiefTariefUitgesteld !== null ? effectiefTariefUitgesteld : 0))
+    : invoer.tariefAfschrijving;
+
+  const voet = invoer.disconteringsgrondslag === 'direct'
+    ? invoer.disconteringsvoet
+    : nettoDisconteringsvoet(invoer.disconteringsvoet, tariefVoorNetten);
+
+  let contanteWaardeAfschrijving = 0;
+  for (const jaar of jaren) {
+    jaar.contant = contantemaking(jaar.fiscaalVoordeel, voet, jaar.jaar);
+    contanteWaardeAfschrijving += jaar.contant;
+  }
+
   const contanteWaardeUitgesteld = niet.bedrag > 0
-    ? contantemaking(niet.bedrag * invoer.tariefUitgesteld, voet, niet.jaar)
+    ? contantemaking(heffingUitgesteld, voet, niet.jaar)
     : 0;
 
   const totaal = contanteWaardeAfschrijving + contanteWaardeUitgesteld;
@@ -600,8 +759,13 @@ function berekenLatentie(invoer) {
   return {
     fouten: [],
     waarschuwingen: verzamelWaarschuwingen(invoer, voet),
+    tariefmodus: modus,
     disconteringsvoetGebruikt: voet,
+    tariefVoorNetten,
+    effectiefTariefAfschrijving,
+    effectiefTariefUitgesteld,
     jaren,
+    heffingUitgesteld,
     contanteWaardeAfschrijving,
     contanteWaardeUitgesteld,
     totaal,
@@ -653,7 +817,16 @@ function leesInvoer() {
     termijn: parseFloat(vak.querySelector('.termijn-in').value),
     soort: vak.querySelector('.soort-in').value,
   }));
+  const modus = document.querySelector('input[name=tariefmodus]:checked').value;
   return {
+    tariefmodus: modus,
+    tariefcontext: modus === 'perJaar' ? {
+      middel: document.getElementById('modus-middel').value,
+      jaar: parseInt(document.getElementById('modus-jaar').value, 10),
+      inkomenVoor: parseFloat(document.getElementById('modus-inkomen').value),
+      groep: document.getElementById('modus-groep').value,
+      mkbOndernemer: document.getElementById('modus-mkb').checked,
+    } : undefined,
     tariefAfschrijving: parseFloat(document.getElementById('tarief-afschrijving').value) / 100,
     tariefUitgesteld: parseFloat(document.getElementById('tarief-uitgesteld').value) / 100,
     disconteringsvoet: parseFloat(document.getElementById('disconteringsvoet').value) / 100,
@@ -666,6 +839,59 @@ function leesInvoer() {
   };
 }
 
+/** Toont de velden die bij de gekozen tariefmodus horen en past de toelichting bij de
+ *  disconteringsvoet daarop aan. */
+function toonTariefmodus() {
+  const perJaar = document.getElementById('modus-perjaar').checked;
+  document.getElementById('vaste-tarieven').hidden = perJaar;
+  document.getElementById('modus-velden').hidden = !perJaar;
+
+  const middel = document.getElementById('modus-middel').value;
+  document.getElementById('modus-ib-velden').hidden = middel !== 'ib';
+  document.getElementById('modus-inkomen-label').textContent = middel === 'ib'
+    ? 'Verwacht belastbaar inkomen uit werk en woning per jaar'
+    : 'Verwacht belastbaar bedrag per jaar';
+  document.getElementById('modus-inkomen-hint').textContent = middel === 'ib'
+    ? 'Zonder de gemiste afschrijving en zonder de latente winst. Eén bedrag voor alle ' +
+      'jaren: een bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel ' +
+      'niet waarmaakt.'
+    : 'De overige winst van het jaar, zonder de gemiste afschrijving. Eén bedrag voor ' +
+      'alle jaren.';
+
+  document.getElementById('grondslag-netto-tekst').innerHTML = perJaar
+    ? 'Ingevoerd als brutovoet; de tool maakt hem netto met het effectieve tarief dat hij ' +
+      'over de gemiste afschrijving berekent: <code>netto = bruto &times; (1 &minus; tarief)</code>.'
+    : 'Ingevoerd als brutovoet; de tool maakt hem netto met het tarief voor afschrijving: ' +
+      '<code>netto = bruto &times; (1 &minus; tarief)</code>.';
+}
+
+['modus-vast', 'modus-perjaar', 'modus-middel'].forEach(naam => {
+  document.getElementById(naam).addEventListener('change', toonTariefmodus);
+});
+toonTariefmodus();
+
+/** Zegt in de modus per jaar welk tarief er feitelijk uit de schijven kwam, zodat de
+ *  lezer ziet dat er niet met één marginaal toptarief is gerekend. */
+function tarieftoelichting(uitkomst, invoer) {
+  if (uitkomst.tariefmodus !== 'perJaar') return '';
+  const context = invoer.tariefcontext;
+  const regels = [];
+  if (uitkomst.effectiefTariefAfschrijving !== null) {
+    regels.push('effectief <b>' + procent.format(uitkomst.effectiefTariefAfschrijving) +
+      '</b> over de gemiste afschrijving');
+  }
+  if (uitkomst.effectiefTariefUitgesteld !== null) {
+    regels.push('effectief <b>' + procent.format(uitkomst.effectiefTariefUitgesteld) +
+      '</b> over de niet-afschrijfbare meerwaarde');
+  }
+  return '<div class="melding vlak">Het tarief is per jaar over de schijven berekend, ' +
+    'met de tarieven van ' + context.jaar + ' voor de hele looptijd en een verwacht ' +
+    (context.middel === 'ib' ? 'inkomen' : 'belastbaar bedrag') + ' van ' +
+    euro.format(context.inkomenVoor) + ' per jaar: ' + regels.join(' en ') + '. ' +
+    'Dat de tarieven van één jaar voor de hele looptijd gelden is een aanname; de tool ' +
+    'kent geen tariefsverloop.</div>';
+}
+
 function meldingen(lijst, soort, kop) {
   if (!lijst.length) return '';
   return '<div class="melding ' + soort + '"><b>' + kop + '</b><ul>' +
@@ -674,17 +900,22 @@ function meldingen(lijst, soort, kop) {
 
 function jaartabel(uitkomst, posten) {
   if (!uitkomst.jaren.length) return '';
+  const perJaar = uitkomst.tariefmodus === 'perJaar';
   const koppen = posten.map((post, i) => '<th class="getal">Afschrijving ' + (i + 1) + '</th>').join('');
   const rijen = uitkomst.jaren.map(jaar =>
     '<tr><td class="getal">' + jaar.jaar + '</td>' +
     jaar.afschrijvingen.map(bedrag => '<td class="getal">' + getal.format(bedrag) + '</td>').join('') +
+    (perJaar ? '<td class="getal">' +
+      (jaar.tarief === null ? '&ndash;' : procent.format(jaar.tarief)) + '</td>' : '') +
     '<td class="getal">' + getal.format(jaar.fiscaalVoordeel) + '</td>' +
     '<td class="getal">' + getal.format(jaar.contant) + '</td></tr>'
   ).join('');
   return '<h3>Verloop per jaar</h3><table><thead><tr><th class="getal">Jaar</th>' + koppen +
+    (perJaar ? '<th class="getal">Tarief</th>' : '') +
     '<th class="getal">Fiscaal voordeel</th><th class="getal">Contant</th></tr></thead><tbody>' +
     rijen + '<tr class="som"><td class="getal">Samen</td>' +
-    posten.map(() => '<td></td>').join('') + '<td></td><td class="getal">' +
+    posten.map(() => '<td></td>').join('') + (perJaar ? '<td></td>' : '') +
+    '<td></td><td class="getal">' +
     getal.format(uitkomst.contanteWaardeAfschrijving) + '</td></tr></tbody></table>';
 }
 
@@ -717,9 +948,13 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
       procent.format(uitkomst.disconteringsvoetGebruikt) +
       (invoer.disconteringsgrondslag === 'netto'
         ? ', afgeleid uit de brutovoet van ' + procent.format(invoer.disconteringsvoet) +
-          ' en het tarief voor afschrijving van ' + procent.format(invoer.tariefAfschrijving) + '.'
+          ' en een tarief van ' + procent.format(uitkomst.tariefVoorNetten) +
+          (uitkomst.tariefmodus === 'perJaar'
+            ? ', het effectieve tarief over de gemiste afschrijving.'
+            : ', het tarief voor afschrijving.')
         : ', rechtstreeks ingevoerd als nettovoet.') +
     '</div>' +
+    tarieftoelichting(uitkomst, invoer) +
     meldingen(uitkomst.waarschuwingen, 'let-op', 'Let op') +
     jaartabel(uitkomst, posten) +
     '<p class="dossierdatum">Berekend op ' + new Date().toLocaleDateString('nl-NL') + '.</p>' +
@@ -916,7 +1151,14 @@ toonTariefhulp();
         <li>
           <b>Bruto naar netto.</b> De omzetting <code>netto = bruto &times; (1 &minus; tarief)</code>
           gaat ervan uit dat de rente aftrekbaar is en dat het tarief voor afschrijving daarbij
-          het passende tarief is. Wie daar anders over denkt, voert de nettovoet rechtstreeks in.
+          het passende tarief is. In de modus per jaar bestaat dat ene tarief niet en treedt het
+          effectieve tarief over de hele gemiste afschrijving ervoor in de plaats. Wie daar
+          anders over denkt, voert de nettovoet rechtstreeks in.
+        </li>
+        <li>
+          <b>Eén verwacht inkomen voor alle jaren</b> in de modus per jaar. Het inkomen van de
+          ondernemer over tien tot veertig jaar is niet bekend, en een bedrag per jaar zou een
+          nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.
         </li>
         <li>
           <b>Contant maken per heel jaar aan het einde van het jaar.</b> Het bedrag van jaar t
@@ -935,8 +1177,11 @@ toonTariefhulp();
           oordeel. De tool rekent met wat wordt ingevoerd.
         </li>
         <li>
-          Geen tariefsverloop over de jaren. Er wordt met één tarief voor afschrijving en één
-          tarief voor de uitgestelde heffing gerekend, beide vast over de hele looptijd.
+          Geen tariefsverloop over de jaren. In de modus met één vast tarief geldt dat tarief
+          voor de hele looptijd; in de modus per jaar wordt de schijfpositie per jaar bepaald,
+          maar gelden de schijven en tarieven van het gekozen jaar voor alle jaren. Rekenen
+          per jaar is dus nauwkeuriger over de schijfpositie en niet over de ontwikkeling van
+          de tarieven zelf, terwijl het er wel exacter uitziet.
         </li>
         <li>
           Geen verliesverrekening, geen herinvesteringsreserve, geen renteaftrekbeperking en
