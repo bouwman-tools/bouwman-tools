@@ -79,20 +79,95 @@
   .afdrukknop:hover { background: var(--vlak); }
   .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
 
+  /* Kop en dossierbalk: het kenmerk, de datum en de drie uitgangen van de tool. */
+  header { max-width: 54rem; margin: 0 auto; display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  header h1 { margin: 0; }
+  header .versie { font-size: .82rem; color: var(--gedempt); }
+  .dossierbalk {
+    max-width: 54rem; margin: .9rem auto 1.6rem; display: flex; flex-wrap: wrap;
+    align-items: flex-end; gap: .7rem; padding: .85rem .95rem;
+    background: var(--vlak); border: 1px solid var(--lijn); border-radius: 6px;
+  }
+  .dossier-veld { display: flex; flex-direction: column; gap: .25rem; }
+  .dossier-veld label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--gedempt); margin: 0; }
+  .dossier-veld input { width: 17rem; max-width: 100%; }
+  .dossier-veld .vast { font-size: .95rem; padding: .5rem 0; }
+  .dossierbalk button { padding: .5rem 1rem; font-size: .9rem; background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  .dossierbalk button:hover { background: #fff; border-color: #0f3d61; color: #0f3d61; }
+  .dossier-melding { flex: 1 1 16rem; font-size: .82rem; color: var(--gedempt); line-height: 1.5; }
+  .dossier-melding.fout { color: var(--fout); }
+  .dossier-melding.goed { color: #1c6b3a; }
+  .knoppen { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: 1.25rem; }
+  .knoppen button { padding: .55rem 1.1rem; font-size: .92rem; background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  .knoppen button:hover { background: var(--vlak); }
+  .exportstatus { font-size: .82rem; color: var(--gedempt); }
+  [hidden] { display: none !important; }
+
+  /* Afdruk. Er is geen tweede opbouw van de gegevens: het dossierstuk toont
+     dezelfde elementen als het scherm, met de invoervelden vlak getekend en met
+     alles verborgen wat knop of bediening is. Zo staat elke invoerwaarde op de
+     afdruk zonder dat er een tweede plek ontstaat waar hetzelfde getal staat. */
   @media print {
-    body { padding: 0; font-size: 10.5pt; }
-    form, p.intro, .afdrukknop { display: none; }
+    body { padding: 0; font-size: 10.5pt; background: #fff; color: #000; }
+    .noprint, button { display: none !important; }
+    p.intro { display: none; }
+    /* De kop blijft juist wel staan: daar hangt de versiestempel aan, en zonder
+       stempel is een dossierstuk niet te herleiden tot een versie van de tool. */
+    header { max-width: none; border-bottom: 1px solid #666; padding: 0 0 6px; }
+    header h1 { font-size: 1.35rem; }
+    header .versie { color: #444; }
+    .dossierbalk { max-width: none; margin: .5rem 0 .8rem; padding: 0; background: none; border: 0; gap: 2rem; }
+    .dossier-veld input { border: 0; padding: 0; background: none; width: auto; color: #000; font-weight: 600; }
+    /* Een niet ingevuld kenmerk hoort leeg te blijven; de suggestie in het vak
+       is bediening en geen inhoud. */
+    .dossier-veld input::placeholder { color: transparent; }
     main { max-width: none; }
-    #uitkomst { margin-top: 0; }
+    #uitkomst { margin-top: 1rem; }
     h1 { font-size: 1.35rem; }
     h2, h3 { page-break-after: avoid; }
+    fieldset { border-color: #999; break-inside: avoid; page-break-inside: avoid; }
+    /* De hint blijft staan: hij zegt in welke eenheid de waarde is ingevuld, en
+       zonder dat leest "Rente financiering 5" op een dossierstuk als niets. */
+    .hint { color: #444; font-size: 9pt; }
+    .veld input:not([type=checkbox]):not([type=radio]), .veld select {
+      border: 0; background: none; padding: 0; color: #000; font-weight: 600;
+      -webkit-appearance: none; appearance: none;
+    }
+    .keuze input { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .melding { border-left: 3px solid #666; background: none; color: #000; }
     table, .melding { page-break-inside: avoid; }
     details { page-break-inside: avoid; }
+    @page { size: A4 portrait; margin: 14mm 12mm; }
   }
 </style>
 
-<main>
+<header>
   <h1>Rendementsstructuur vastgoed</h1>
+  <span class="versie" id="versie"></span>
+</header>
+
+<div class="dossierbalk">
+  <div class="dossier-veld">
+    <label for="kenmerk">Kenmerk of klantnaam</label>
+    <input type="text" id="kenmerk" maxlength="80" autocomplete="off"
+           placeholder="bijv. dossiernummer">
+  </div>
+  <div class="dossier-veld">
+    <label for="afdrukdatum">Datum</label>
+    <span class="vast" id="afdrukdatum"></span>
+  </div>
+  <button type="button" class="noprint" id="afdrukken">Afdrukken</button>
+  <button type="button" class="noprint" id="dossier-opslaan">Opslaan als bestand</button>
+  <button type="button" class="noprint" id="dossier-openen">Bestand openen</button>
+  <input type="file" id="dossier-bestand" accept="application/json,.json"
+         aria-label="Dossierbestand kiezen" class="noprint" hidden>
+  <span class="dossier-melding noprint" id="dossier-melding" role="status">Het kenmerk komt
+    op de afdruk, in het werkblad en in de bestandsnaam. Bewaar de ingevulde gegevens als
+    bestand in de klantmap en open ze later weer; de tool bewaart zelf niets en verstuurt
+    niets.</span>
+</div>
+
+<main>
   <p class="intro">
     Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met
     vreemd vermogen met dat rendement doet. Bedoeld als scan vooraf en niet als fiscale
@@ -273,31 +348,10 @@
       </ul>
 
       <h3>Aannames die de tool maakt</h3>
-      <ul>
-        <li>De scan geldt voor <strong>één exploitatiejaar</strong>. Huur, kosten en rente zijn
-          bedragen voor dat jaar en de waardestijging is een verwachting per jaar. De uitkomst is
-          dus geen meerjarig rendement en houdt geen rekening met indexatie of met een rente die na
-          een rentevastperiode verandert.</li>
-        <li>De waardestijging is <strong>nominaal</strong>: er wordt niet contant gemaakt en er
-          wordt geen inflatie afgetrokken.</li>
-        <li>Er wordt gerekend <strong>vóór belasting over het rendement zelf</strong>. Box 3,
-          vennootschapsbelasting, terbeschikkingstelling en de aftrekbaarheid van de rente blijven
-          buiten beschouwing.</li>
-        <li>Bij leegstand loopt alleen de huur weg. Extra <strong>mutatiekosten</strong> zoals
-          makelaarskosten bij een nieuwe huurder zitten er niet in; die kun je in de kosten
-          opnemen.</li>
-        <li>Er wordt geen rekening gehouden met <strong>verkoopkosten</strong> aan het einde van de
-          bezitsduur, en evenmin met groot onderhoud dat ineens komt.</li>
-      </ul>
+      <ul id="aannames"></ul>
 
       <h3>Wat deze tool niet doet</h3>
-      <p>
-        Dit is een <strong>rendementsscan</strong> en geen fiscale keuzetool. Hij zegt niets over de
-        vraag of een pand beter in privé of in een bv kan worden gehouden, wat de gevolgen zijn in
-        box 3, hoe een terbeschikkingstelling uitwerkt of hoe een pand het beste kan worden
-        ingebracht. Ook rekent hij geen doorverkoop binnen zes maanden door en geen herziening van
-        btw. Daarvoor bestaan of komen andere tools in de portefeuille.
-      </p>
+      <p id="afbakening"></p>
     </div>
   </details>
 </main>
@@ -471,39 +525,132 @@ function rendementsscan(invoer) {
   };
 }
 // FISCALE KERN — EINDE
-
 // ---------------------------------------------------------------- UI
 
-var euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-var procent = new Intl.NumberFormat('nl-NL', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/* De versiestempel van de tool. Hij staat in de kop van de pagina, gaat daarmee
+   mee op elke afdruk, en staat in het werkblad en in het dossierbestand.
+   Verhoog hem bij elke publicatie die het gedrag raakt; anders staat er een
+   datum op het dossierstuk die niets zegt. */
+const VERSIE = '2026-09-05';
+
+const euro = n => (n === null || n === undefined || !isFinite(n))
+  ? '—' : n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const procent = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
+  ? '—' : (n * 100).toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d }) + '%';
 
 function veld(id) { return document.getElementById(id); }
 function getal(id) {
-  var rauw = veld(id).value.trim();
+  const rauw = String(veld(id).value).trim();
   return rauw === '' ? NaN : Number(rauw);
 }
 
+/* ============================================================
+   De velden van de pagina, met het label zoals het op het scherm staat. Dit is
+   de enige plek waar de invoervelden worden opgesomd: de sectie Invoer van het
+   werkblad, het dossierbestand en de vormtoetsing bij het openen lezen er alle
+   drie uit. Een veld dat hier ontbreekt valt stil uit alle drie de uitgangen.
+
+   De waarde van een veld is de waarde zoals zij in het invoervak staat, dus een
+   percentage als 5 en niet als 0,05. Daardoor is een dossierbestand met het oog
+   te lezen en gaat het langs dezelfde weg terug het vak in.
+   ============================================================ */
+
+const ovbSleutels = jaar => (ovbTarieven(jaar) || []).map(t => t.sleutel).concat('eigen');
+
+function ovbOptieTekst(jaar, sleutel) {
+  if (sleutel === 'eigen') return 'Eigen tarief invullen';
+  const t = (ovbTarieven(jaar) || []).filter(x => x.sleutel === sleutel)[0];
+  return t ? t.omschrijving + ' (' + procent(t.tarief) + ')' : String(sleutel);
+}
+
+const gekozenWijze = () =>
+  document.querySelector('input[name=verkrijgingswijze]:checked').value;
+
+const VELDEN = [
+  { k: 'jaar', l: 'Jaar van verkrijging', t: 'keuze',
+    opties: () => OVB_JAREN.map(String) },
+  { k: 'waarde', l: 'Kostprijs of waarde', t: 'euro' },
+  { k: 'financiering', l: 'Financiering', t: 'euro' },
+  { k: 'rente', l: 'Rente financiering', t: 'procent' },
+  { k: 'aflossing', l: 'Aflossing per jaar', t: 'euro' },
+  { k: 'huur', l: 'Huur', t: 'euro' },
+  { k: 'kosten', l: 'Kosten', t: 'euro' },
+  { k: 'waardestijging', l: 'Verwachte waardestijging per jaar', t: 'procent' },
+  { k: 'leegstandMaanden', l: 'Leegstand in maanden', t: 'geheel' },
+  { k: 'leegstandPeriode', l: 'Eens per hoeveel jaar', t: 'geheel' },
+  { k: 'ovbKeuze', l: 'Overdrachtsbelasting', t: 'keuze',
+    opties: jaar => ovbSleutels(jaar), weergave: (w, jaar) => ovbOptieTekst(jaar, w) },
+  { k: 'ovbEigen', l: 'Eigen tarief overdrachtsbelasting', t: 'procent',
+    actief: () => veld('ovbKeuze').value === 'eigen' },
+  { k: 'overigeKosten', l: 'Overige kosten koper', t: 'procent' },
+  { k: 'verkrijgingswijze', l: 'Verwerking kosten van verkrijging', t: 'keuze',
+    opties: () => ['investering', 'jaarlast'],
+    weergave: w => w === 'jaarlast' ? 'Als jaarlast, uitgesmeerd over de bezitsduur'
+                                    : 'Als investering, bij aanvang uit eigen middelen',
+    lees: gekozenWijze,
+    schrijf: w => {
+      const knop = document.querySelector('input[name=verkrijgingswijze][value="' + w + '"]');
+      if (knop) knop.checked = true;
+    } },
+  { k: 'bezitsduur', l: 'Bezitsduur in jaren', t: 'geheel',
+    actief: () => gekozenWijze() === 'jaarlast' }
+];
+
+const veldWaarde = v => v.lees ? v.lees() : (v.t === 'keuze' ? veld(v.k).value : getal(v.k));
+
+function zetVeldWaarde(v, w) {
+  if (v.schrijf) { v.schrijf(w); return; }
+  veld(v.k).value = String(w);
+}
+
+/* De aannames en de afbakening staan hier als tekst en niet in de HTML, zodat
+   de pagina en het werkblad dezelfde tekst tonen. Het scherm vult er de
+   verantwoording mee; de export zet ze in de sectie Toelichting. */
+const AANNAMES = [
+  'De scan geldt voor één exploitatiejaar. Huur, kosten en rente zijn bedragen voor dat ' +
+    'jaar en de waardestijging is een verwachting per jaar. De uitkomst is dus geen ' +
+    'meerjarig rendement en houdt geen rekening met indexatie of met een rente die na een ' +
+    'rentevastperiode verandert.',
+  'De waardestijging is nominaal: er wordt niet contant gemaakt en er wordt geen inflatie ' +
+    'afgetrokken.',
+  'Er wordt gerekend vóór belasting over het rendement zelf. Box 3, ' +
+    'vennootschapsbelasting, terbeschikkingstelling en de aftrekbaarheid van de rente ' +
+    'blijven buiten beschouwing.',
+  'Bij leegstand loopt alleen de huur weg. Extra mutatiekosten zoals makelaarskosten bij ' +
+    'een nieuwe huurder zitten er niet in; die kun je in de kosten opnemen.',
+  'Er wordt geen rekening gehouden met verkoopkosten aan het einde van de bezitsduur, en ' +
+    'evenmin met groot onderhoud dat ineens komt.'
+];
+
+const AFBAKENING = 'Dit is een rendementsscan en geen fiscale keuzetool. Hij zegt niets ' +
+  'over de vraag of een pand beter in privé of in een bv kan worden gehouden, wat de ' +
+  'gevolgen zijn in box 3, hoe een terbeschikkingstelling uitwerkt of hoe een pand het ' +
+  'beste kan worden ingebracht. Ook rekent hij geen doorverkoop binnen zes maanden door ' +
+  'en geen herziening van btw. Daarvoor bestaan of komen andere tools in de portefeuille.';
+
+function vulVerantwoording() {
+  const lijst = veld('aannames');
+  if (lijst) lijst.innerHTML = AANNAMES.map(a => '<li>' + a + '</li>').join('');
+  const af = veld('afbakening');
+  if (af) af.textContent = AFBAKENING;
+}
+
+/* ---------------------------------------------------------------- formulier */
+
 function vulJaren() {
-  veld('jaar').innerHTML = OVB_JAREN.map(function (j) { return '<option value="' + j + '">' + j + '</option>'; }).join('');
+  veld('jaar').innerHTML = OVB_JAREN.map(j => '<option value="' + j + '">' + j + '</option>').join('');
   veld('jaar').value = String(OVB_JAREN[OVB_JAREN.length - 1]);
 }
 
 function vulTarieven() {
-  var jaar = Number(veld('jaar').value);
-  var tarieven = ovbTarieven(jaar) || [];
-  var vorige = veld('ovbKeuze').value;
-  var opties = tarieven.map(function (t) {
-    return '<option value="' + t.sleutel + '">' + t.omschrijving + ' (' + procent.format(t.tarief) + ')</option>';
-  });
-  opties.push('<option value="eigen">Eigen tarief invullen</option>');
-  veld('ovbKeuze').innerHTML = opties.join('');
+  const jaar = Number(veld('jaar').value);
+  const sleutels = ovbSleutels(jaar);
+  const vorige = veld('ovbKeuze').value;
+  veld('ovbKeuze').innerHTML = sleutels
+    .map(s => '<option value="' + s + '">' + ovbOptieTekst(jaar, s) + '</option>').join('');
 
-  var bestaat = vorige === 'eigen' || tarieven.some(function (t) { return t.sleutel === vorige; });
-  if (bestaat) {
-    veld('ovbKeuze').value = vorige;
-  } else if (tarieven.some(function (t) { return t.sleutel === 'woning'; })) {
-    veld('ovbKeuze').value = 'woning';
-  }
+  if (sleutels.indexOf(vorige) !== -1) veld('ovbKeuze').value = vorige;
+  else if (sleutels.indexOf('woning') !== -1) veld('ovbKeuze').value = 'woning';
   toonEigenTarief();
 }
 
@@ -512,120 +659,23 @@ function toonEigenTarief() {
 }
 
 function toonBezitsduur() {
-  var gekozen = document.querySelector('input[name=verkrijgingswijze]:checked').value;
-  veld('bezitsduurVeld').hidden = gekozen !== 'jaarlast';
+  veld('bezitsduurVeld').hidden = gekozenWijze() !== 'jaarlast';
 }
 
 function gekozenTarief(jaar) {
-  var sleutel = veld('ovbKeuze').value;
+  const sleutel = veld('ovbKeuze').value;
   if (sleutel === 'eigen') {
     return { tarief: getal('ovbEigen') / 100, omschrijving: 'Eigen tarief', grondslag: null };
   }
-  var gevonden = (ovbTarieven(jaar) || []).filter(function (t) { return t.sleutel === sleutel; })[0];
+  const gevonden = (ovbTarieven(jaar) || []).filter(t => t.sleutel === sleutel)[0];
   return gevonden || { tarief: NaN, omschrijving: '', grondslag: null };
 }
 
-function regel(naam, bedrag, toelichting, klasse) {
-  return '<tr' + (klasse ? ' class="' + klasse + '"' : '') + '>' +
-    '<td>' + naam + (toelichting ? '<br><span class="toelichting">' + toelichting + '</span>' : '') + '</td>' +
-    '<td class="getal">' + euro.format(bedrag) + '</td></tr>';
-}
-
-function procentregel(naam, waarde, toelichting, klasse) {
-  return '<tr' + (klasse ? ' class="' + klasse + '"' : '') + '>' +
-    '<td>' + naam + (toelichting ? '<br><span class="toelichting">' + toelichting + '</span>' : '') + '</td>' +
-    '<td class="getal">' + procent.format(waarde) + '</td></tr>';
-}
-
-function toon(uit, invoer, tarief) {
-  var doel = veld('uitkomst');
-
-  if (uit.fout) {
-    doel.innerHTML = '<div class="melding fout">' + uit.fout + '</div>';
-    return;
-  }
-
-  var alsJaarlast = invoer.verkrijgingswijze === 'jaarlast';
-  var vandaag = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
-
-  var meldingen = uit.signalen.map(function (s) { return '<div class="melding let-op">' + s + '</div>'; }).join('');
-  var eigenTariefMelding = tarief.grondslag ? '' :
-    '<div class="melding let-op">Er is een eigen tarief overdrachtsbelasting ingevuld. Dat wijkt af van de tarieven van artikel 14 Wet BRV en vraagt om een eigen onderbouwing.</div>';
-
-  doel.innerHTML =
-    '<h2>Uitkomst</h2>' +
-    '<p class="bedrag">' + procent.format(uit.totaalRendement) +
-      '<small>totaalrendement op eigen vermogen, bij ' + euro.format(uit.eigenVermogen) + ' eigen vermogen</small></p>' +
-    '<p class="dossierdatum">Berekend op ' + vandaag + '. Verkrijging in ' + invoer.jaar + '.</p>' +
-    eigenTariefMelding + meldingen +
-
-    '<h3>Kosten van verkrijging</h3><table>' +
-    '<tr><th>Post</th><th class="getal">Bedrag</th></tr>' +
-    regel('Overdrachtsbelasting', uit.overdrachtsbelasting,
-      procent.format(tarief.tarief) + ' over ' + euro.format(invoer.waarde) +
-      (tarief.grondslag ? ' volgens ' + tarief.grondslag : '')) +
-    regel('Overige kosten koper', uit.overigeKosten,
-      procent.format(invoer.overigeKostenPct) + ' over ' + euro.format(invoer.waarde) + ', eigen schatting') +
-    regel('Totaal', uit.verkrijgingskosten, '', 'som') +
-    '</table>' +
-
-    '<h3>Geïnvesteerd eigen vermogen</h3><table>' +
-    regel('Kostprijs of waarde', invoer.waarde) +
-    regel('Af: financiering', -invoer.financiering) +
-    (alsJaarlast
-      ? regel('Kosten van verkrijging', 0, 'Als jaarlast verwerkt, dus niet in het eigen vermogen')
-      : regel('Bij: kosten van verkrijging', uit.verkrijgingskosten, 'Bij aanvang uit eigen middelen betaald')) +
-    regel('Eigen vermogen', uit.eigenVermogen, '', 'som') +
-    '</table>' +
-
-    '<h3>Exploitatie per jaar</h3><table>' +
-    regel('Huur bij volledige verhuur', invoer.huur) +
-    regel('Af: leegstandsderving', -uit.leegstandsderving,
-      invoer.leegstandMaanden + ' maand(en) per ' + invoer.leegstandPeriode + ' jaar, op jaarbasis herrekend') +
-    regel('Af: kosten', -invoer.kosten) +
-    regel('Af: rente', -uit.rentelast,
-      procent.format(invoer.rente) + ' over ' + euro.format(invoer.financiering)) +
-    regel('Exploitatiesaldo', uit.exploitatiesaldo, '', 'som') +
-    (invoer.aflossing > 0
-      ? regel('Af: aflossing', -uit.aflossing,
-          'Geen kostenpost maar een verschuiving van vermogen; staat daarom buiten het rendement') +
-        regel('Kasstroom na aflossing', uit.kasstroomNaAflossing, '', 'tussen')
-      : '') +
-    '</table>' +
-
-    '<h3>Rendement</h3><table>' +
-    regel('Exploitatiesaldo', uit.exploitatiesaldo) +
-    (alsJaarlast
-      ? regel('Af: kosten van verkrijging op jaarbasis', -uit.verkrijgingskostenPerJaar,
-          euro.format(uit.verkrijgingskosten) + ' over ' + invoer.bezitsduur + ' jaar')
-      : '') +
-    regel('Uitkeerbaar rendement', uit.uitkeerbaar, '', 'tussen') +
-    procentregel('Direct rendement', uit.directRendement, 'Uitkeerbaar rendement gedeeld door eigen vermogen') +
-    regel('Verwachte waardestijging', uit.waardestijgingBedrag,
-      procent.format(invoer.waardestijging) + ' over ' + euro.format(invoer.waarde)) +
-    procentregel('Indirect rendement', uit.indirectRendement, 'Waardestijging gedeeld door eigen vermogen') +
-    procentregel('Totaalrendement', uit.totaalRendement, '', 'som') +
-    '</table>' +
-
-    '<h3>Wat de financiering doet</h3><table>' +
-    procentregel('Rendement op het object zelf', uit.rendementObject,
-      'Huur na leegstand en kosten, plus waardestijging, gedeeld door de waarde. Zonder financiering en zonder kosten van verkrijging.') +
-    procentregel('Totaalrendement op eigen vermogen', uit.totaalRendement) +
-    procentregel('Effect van de financiering', uit.hefboomeffect,
-      uit.hefboomeffect >= 0
-        ? 'De financiering verhoogt het rendement: het object brengt meer op dan de rente kost.'
-        : 'De financiering verlaagt het rendement: de rente kost meer dan het object opbrengt.',
-      'som') +
-    '</table>' +
-
-    '<button type="button" class="afdrukknop" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
-}
-
-veld('formulier').addEventListener('submit', function (e) {
-  e.preventDefault();
-  var jaar = Number(veld('jaar').value);
-  var tarief = gekozenTarief(jaar);
-  var invoer = {
+/* De invoer voor de rekenkern, samengesteld uit de vakken. Eén plek, zodat het
+   scherm, het werkblad en het dossierstuk niet uiteen kunnen lopen. */
+function huidigeInvoer() {
+  const jaar = Number(veld('jaar').value);
+  return {
     jaar: jaar,
     waarde: getal('waarde'),
     financiering: getal('financiering'),
@@ -636,12 +686,885 @@ veld('formulier').addEventListener('submit', function (e) {
     waardestijging: getal('waardestijging') / 100,
     leegstandMaanden: getal('leegstandMaanden'),
     leegstandPeriode: getal('leegstandPeriode'),
-    ovbTarief: tarief.tarief,
+    ovbTarief: gekozenTarief(jaar).tarief,
     overigeKostenPct: getal('overigeKosten') / 100,
-    verkrijgingswijze: document.querySelector('input[name=verkrijgingswijze]:checked').value,
+    verkrijgingswijze: gekozenWijze(),
     bezitsduur: getal('bezitsduur')
   };
-  toon(rendementsscan(invoer), invoer, tarief);
+}
+
+/* ---------------------------------------------------------------- uitkomst */
+
+/* De uitkomst als model: secties met regels. Het scherm rendert dit naar
+   tabellen en de export naar cellen. Zo staan de labels van de tussenstappen op
+   één plek en toont het werkblad exact wat de gebruiker heeft gezien. */
+function uitkomstModel(uit, inv, tarief) {
+  const jaarlast = inv.verkrijgingswijze === 'jaarlast';
+  const r = (l, w, t, toe, k) => ({ l: l, w: w, t: t, toe: toe || '', k: k || '' });
+
+  const exploitatie = [
+    r('Huur bij volledige verhuur', inv.huur, 'euro'),
+    r('Af: leegstandsderving', -uit.leegstandsderving, 'euro',
+      inv.leegstandMaanden + ' maand(en) per ' + inv.leegstandPeriode + ' jaar, op jaarbasis herrekend'),
+    r('Af: kosten', -inv.kosten, 'euro'),
+    r('Af: rente', -uit.rentelast, 'euro',
+      procent(inv.rente) + ' over ' + euro(inv.financiering)),
+    r('Exploitatiesaldo', uit.exploitatiesaldo, 'euro', '', 'som')
+  ];
+  if (inv.aflossing > 0) {
+    exploitatie.push(r('Af: aflossing', -uit.aflossing, 'euro',
+      'Geen kostenpost maar een verschuiving van vermogen; staat daarom buiten het rendement'));
+    exploitatie.push(r('Kasstroom na aflossing', uit.kasstroomNaAflossing, 'euro', '', 'tussen'));
+  }
+
+  const rendement = [r('Exploitatiesaldo', uit.exploitatiesaldo, 'euro')];
+  if (jaarlast) {
+    rendement.push(r('Af: kosten van verkrijging op jaarbasis', -uit.verkrijgingskostenPerJaar, 'euro',
+      euro(uit.verkrijgingskosten) + ' over ' + inv.bezitsduur + ' jaar'));
+  }
+  rendement.push(
+    r('Uitkeerbaar rendement', uit.uitkeerbaar, 'euro', '', 'tussen'),
+    r('Direct rendement', uit.directRendement, 'procent',
+      'Uitkeerbaar rendement gedeeld door eigen vermogen'),
+    r('Verwachte waardestijging', uit.waardestijgingBedrag, 'euro',
+      procent(inv.waardestijging) + ' over ' + euro(inv.waarde)),
+    r('Indirect rendement', uit.indirectRendement, 'procent',
+      'Waardestijging gedeeld door eigen vermogen'),
+    r('Totaalrendement', uit.totaalRendement, 'procent', '', 'som')
+  );
+
+  return [
+    { titel: 'Kosten van verkrijging', koppen: ['Post', 'Bedrag'], regels: [
+      r('Overdrachtsbelasting', uit.overdrachtsbelasting, 'euro',
+        procent(tarief.tarief) + ' over ' + euro(inv.waarde) +
+        (tarief.grondslag ? ' volgens ' + tarief.grondslag : '')),
+      r('Overige kosten koper', uit.overigeKosten, 'euro',
+        procent(inv.overigeKostenPct) + ' over ' + euro(inv.waarde) + ', eigen schatting'),
+      r('Totaal', uit.verkrijgingskosten, 'euro', '', 'som')
+    ] },
+    { titel: 'Geïnvesteerd eigen vermogen', regels: [
+      r('Kostprijs of waarde', inv.waarde, 'euro'),
+      r('Af: financiering', -inv.financiering, 'euro'),
+      jaarlast
+        ? r('Kosten van verkrijging', 0, 'euro', 'Als jaarlast verwerkt, dus niet in het eigen vermogen')
+        : r('Bij: kosten van verkrijging', uit.verkrijgingskosten, 'euro', 'Bij aanvang uit eigen middelen betaald'),
+      r('Eigen vermogen', uit.eigenVermogen, 'euro', '', 'som')
+    ] },
+    { titel: 'Exploitatie per jaar', regels: exploitatie },
+    { titel: 'Rendement', regels: rendement },
+    { titel: 'Wat de financiering doet', regels: [
+      r('Rendement op het object zelf', uit.rendementObject, 'procent',
+        'Huur na leegstand en kosten, plus waardestijging, gedeeld door de waarde. ' +
+        'Zonder financiering en zonder kosten van verkrijging.'),
+      r('Totaalrendement op eigen vermogen', uit.totaalRendement, 'procent'),
+      r('Effect van de financiering', uit.hefboomeffect, 'procent',
+        uit.hefboomeffect >= 0
+          ? 'De financiering verhoogt het rendement: het object brengt meer op dan de rente kost.'
+          : 'De financiering verlaagt het rendement: de rente kost meer dan het object opbrengt.',
+        'som')
+    ] }
+  ];
+}
+
+const regelTekst = r => r.t === 'procent' ? procent(r.w) : euro(r.w);
+
+/* De meldingen van de kern, plus de melding bij een eigen tarief. Ook die staan
+   op één plek: het scherm toont ze en het werkblad neemt ze over. */
+function meldingen(uit, tarief) {
+  const eigen = tarief.grondslag ? [] : ['Er is een eigen tarief overdrachtsbelasting ' +
+    'ingevuld. Dat wijkt af van de tarieven van artikel 14 Wet BRV en vraagt om een eigen ' +
+    'onderbouwing.'];
+  return eigen.concat(uit.signalen || []);
+}
+
+let laatste = null;
+
+function toon(uit, inv, tarief) {
+  const doel = veld('uitkomst');
+  laatste = null;
+
+  if (uit.fout) {
+    doel.innerHTML = '<div class="melding fout">' + uit.fout + '</div>';
+    return;
+  }
+  laatste = { uit: uit, inv: inv, tarief: tarief };
+
+  const model = uitkomstModel(uit, inv, tarief);
+  const vandaag = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const tabellen = model.map(sectie =>
+    '<h3>' + sectie.titel + '</h3><table>' +
+    (sectie.koppen ? '<tr><th>' + sectie.koppen[0] + '</th><th class="getal">' + sectie.koppen[1] + '</th></tr>' : '') +
+    sectie.regels.map(r =>
+      '<tr' + (r.k ? ' class="' + r.k + '"' : '') + '><td>' + r.l +
+      (r.toe ? '<br><span class="toelichting">' + r.toe + '</span>' : '') +
+      '</td><td class="getal">' + regelTekst(r) + '</td></tr>').join('') +
+    '</table>').join('');
+
+  doel.innerHTML =
+    '<h2>Uitkomst</h2>' +
+    '<p class="bedrag">' + procent(uit.totaalRendement) +
+      '<small>totaalrendement op eigen vermogen, bij ' + euro(uit.eigenVermogen) + ' eigen vermogen</small></p>' +
+    '<p class="dossierdatum">Berekend op ' + vandaag + '. Verkrijging in ' + inv.jaar + '.</p>' +
+    meldingen(uit, tarief).map(m => '<div class="melding let-op">' + m + '</div>').join('') +
+    tabellen;
+
+  doel.appendChild(exportKnoppen(uit, inv, tarief));
+}
+
+function bereken() {
+  const inv = huidigeInvoer();
+  toon(rendementsscan(inv), inv, gekozenTarief(inv.jaar));
+}
+
+/* ============================================================
+   Werkbladschrijver. Bouwt een xlsx-bestand op zonder bibliotheek en zonder
+   CDN, zodat de pagina zelfstandig blijft en offline werkt.
+
+   DIT BLOK IS GEDEELDE CODE. Het weet niets van de onderwerpen van deze tool en
+   is bedoeld om ongewijzigd in een volgende tool te worden overgenomen. Wat een
+   volgende tool wél zelf schrijft, staat hieronder in het blok EXPORT: de
+   vertaling van zijn eigen velden en uitkomsten naar bladen.
+
+   Een blad is { naam, breedtes, rijen }, waarin rijen een lijst van rijen is en
+   elke rij een lijst van cellen. Een cel maak je met celTekst() of celGetal(),
+   of laat je maken door uitWeergave() uit de tekst die het scherm toont. Een
+   lege plek in een rij mag null zijn.
+
+   Wat een volgende tool aanpast:
+   - de vier vaste secties van zijn eerste blad (kop, invoer, uitkomst,
+     toelichting en vindplaatsen) - zie exportBladen hieronder als voorbeeld;
+   - de tool-identificatie die hij aan uitgangBestandsnaam() meegeeft;
+   - niets in dit blok zelf. Moet er hier toch iets bij, dan hoort het bij elke
+     tool te passen, want anders loopt de gedeelde code alsnog uiteen.
+   ============================================================ */
+// WERKBLADSCHRIJVER — BEGIN
+
+/* Een xlsx is een zipbestand met XML erin. De leden gaan er ongecomprimeerd in
+   ("stored"), want dan is er geen deflate nodig; de bestanden blijven klein
+   genoeg om dat te kunnen missen. */
+const CRC_TABEL = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [];
+  const centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);        // benodigde versie
+    kv.setUint16(6, 0x0800, true);    // bestandsnaam in UTF-8
+    kv.setUint16(8, 0, true);         // opgeslagen, niet gecomprimeerd
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce((s, c) => s + c.length, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = [...stukken, ...centraal, slot];
+  const uit = new Uint8Array(alles.reduce((s, d) => s + d.length, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+/* --- Cellen --- */
+
+const FMT_EURO = '"€ "#,##0.00;"€ "-#,##0.00';
+const FMT_GETAL = '#,##0.00';
+
+const xmlTekst = s => String(s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const celTekst = (tekst, vet = false) => ({ tekst: tekst ?? '', vet });
+
+/* weergave is de tekst zoals de pagina die toont. Die gaat naar het klembord,
+   terwijl het xlsx-bestand het getal met een eigen getalformaat krijgt. Geef
+   haar altijd mee: hoe een bedrag eruitziet hoort bij de tool, niet hier. */
+const celGetal = (waarde, formaat, vet = false, weergave = null) =>
+  ({ getal: waarde, formaat, vet, weergave: weergave === null ? String(waarde) : weergave });
+
+const celNaarTekst = c => !c ? ''
+  : (c.weergave !== undefined && c.weergave !== null ? String(c.weergave) : String(c.tekst ?? ''));
+
+const NL_GETAL = /^-?(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?$/;
+
+/* De onderwerpen leveren hun uitkomst als opgemaakte tekst op, want dat is wat
+   de pagina toont. Voor Excel wordt die tekst hier terug gelezen naar een getal
+   met een bijpassend getalformaat, zodat er in het werkblad mee te rekenen
+   valt. Lukt dat niet, dan gaat de tekst ongewijzigd mee. */
+function uitWeergave(tekst, vet = false) {
+  const oorspronkelijk = String(tekst ?? '').replace(/ /g, ' ').trim();
+  let s = oorspronkelijk;
+  if (s === '' || s === '—') return celTekst('', vet);
+
+  let formaat = null, deler = 1;
+  if (s.indexOf('€') !== -1) { s = s.replace('€', '').trim(); formaat = FMT_EURO; }
+  else if (s.endsWith('%')) { s = s.slice(0, -1).trim(); formaat = 'procent'; deler = 100; }
+
+  let teken = 1;
+  if (s.startsWith('-')) { teken = -1; s = s.slice(1).trim(); }
+
+  const m = s.match(NL_GETAL);
+  if (!m) return celTekst(oorspronkelijk, vet);
+  const decimalen = m[1] ? m[1].length : 0;
+  /* Stond er geen scheidingsteken in de tekst, dan komt het er ook in
+     Excel niet bij: een termijnnummer of een jaartal blijft zo leesbaar. */
+  const geheel = s.indexOf('.') === -1 ? '0' : '#,##0';
+  const waarde = teken * Number(s.replace(/\./g, '').replace(',', '.')) / deler;
+  if (!isFinite(waarde)) return celTekst(oorspronkelijk, vet);
+
+  if (formaat === 'procent') {
+    formaat = geheel + (decimalen ? '.' + '0'.repeat(decimalen) : '') + '%';
+  } else if (formaat === null) {
+    formaat = geheel + (decimalen ? '.' + '0'.repeat(decimalen) : '');
+  }
+  return celGetal(waarde, formaat, vet, oorspronkelijk);
+}
+
+/* --- Stijlen, bladen en het xlsx-bestand --- */
+
+/* Een getalformaat wordt pas aangemaakt wanneer een cel erom vraagt, zodat een
+   percentage met vier decimalen er ook vier houdt. */
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor(formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml() {
+      const nf = [...formaten.entries()]
+        .map(([code, id]) => '<numFmt numFmtId="' + id + '" formatCode="' +
+          xmlTekst(code) + '"/>').join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(x => '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+          ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>').join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach((b, i) => d.push('<col min="' + (i + 1) + '" max="' + (i + 1) +
+      '" width="' + b + '" customWidth="1"/>'));
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach((rij, ri) => {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach((cel, ki) => {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(b => bladXml(b, stijlen));
+  const rid = i => 'rId' + (i + 1);
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map((b, i) => '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+          '.xml" ContentType="' + SS + '.worksheet+xml"/>').join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map((b, i) => '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+          '" r:id="' + rid(i) + '"/>').join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map((b, i) => '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+          '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>').join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach((x, i) => leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x }));
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+/* Voor het klembord dezelfde inhoud, met tabs tussen de kolommen. Zo plakt het
+   rechtstreeks in een openstaand werkblad. */
+function bladenNaarTekst(bladen) {
+  const uit = [];
+  bladen.forEach((b, i) => {
+    if (i > 0) uit.push('', b.naam);
+    for (const rij of b.rijen) uit.push(rij.map(celNaarTekst).join('\t').replace(/\t+$/, ''));
+  });
+  return uit.join('\r\n');
+}
+
+/* --- Bestandsnamen, opslaan en klembord --- */
+
+const isoDatum = (d = new Date()) => {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+};
+
+/* Het kenmerk komt van de gebruiker en gaat in een bestandsnaam. Alles wat een
+   pad kan breken gaat eruit; een leeg kenmerk valt terug op "dossier". */
+function slugKenmerk(ruw) {
+  const schoon = String(ruw ?? '')
+    .replace(/[^\wÀ-ɏ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  return schoon ? schoon.replace(/ /g, '-') : 'dossier';
+}
+
+const uitgangBestandsnaam = (toolId, kenmerk, extensie) =>
+  toolId + '-' + slugKenmerk(kenmerk) + '-' + isoDatum() + '.' + extensie;
+
+const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const MIME_JSON = 'application/json';
+
+function bewaarBestand(inhoud, naam, type) {
+  const blob = new Blob([inhoud], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* Het klembord van de browser is niet in elke omgeving toegankelijk; dan volgt
+   de oude weg via een verborgen tekstvak. */
+function naarKlembord(tekst) {
+  const terugval = () => {
+    const ta = document.createElement('textarea');
+    ta.value = tekst; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, tekst.length);
+    const gelukt = document.execCommand('copy');
+    ta.remove();
+    return gelukt ? Promise.resolve()
+      : Promise.reject(new Error('het klembord is niet toegankelijk'));
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(tekst).catch(terugval);
+  }
+  return terugval();
+}
+
+// WERKBLADSCHRIJVER — EINDE
+
+/* ============================================================
+   Export naar Excel en naar het klembord. Deze laag rekent niet: ze schrijft op
+   wat de kern al heeft opgeleverd en zet dat om in de bladen die de
+   werkbladschrijver hierboven verwacht. Dit is het stuk dat elke tool voor zijn
+   eigen velden en uitkomsten zelf schrijft.
+   ============================================================ */
+// EXPORT — BEGIN
+
+const TOOLNAAM = 'Rendementsstructuur vastgoed';
+const TOOL_ID = 'vastgoedrendement';
+
+/* Het scherm toont bedragen in hele euro's. Het gedeelde blok kent een
+   euroformaat met twee decimalen; dat zou in het werkblad meer nauwkeurigheid
+   suggereren dan de tool laat zien. Het getalformaat is een parameter van
+   celGetal, dus de tool geeft hier zijn eigen formaat mee in plaats van in de
+   gedeelde code te snijden. */
+const FMT_EURO0 = '"€ "#,##0;"€ "-#,##0';
+const FMT_PROCENT = '0.00%';
+
+const BRONREGEL = 'Het volledige overzicht van elke waarde met vindplaats, status en ' +
+  'controledatum staat in BRONNEN.md bij deze tool, en in het commentaar bij de waarde ' +
+  'in de rekenkern van dit bestand.';
+
+/* Het kenmerk van de gebruiker. Het staat op één plek in de pagina en wordt
+   daar gelezen, zodat de afdruk, het werkblad en het dossierbestand hetzelfde
+   kenmerk dragen. */
+function huidigKenmerk() {
+  const vak = veld('kenmerk');
+  return vak && vak.value ? String(vak.value).trim() : '';
+}
+
+/* Een invoerveld naar een cel. De weergave is precies wat het scherm toont,
+   zodat het klembord en de pagina gelijk blijven; het getal gaat er los naast
+   in, zodat er in Excel mee te rekenen valt. */
+function celInvoer(v, w, jaar) {
+  if (v.t === 'keuze') {
+    return celTekst(v.weergave ? v.weergave(w, jaar) : String(w === undefined || w === null ? '' : w));
+  }
+  if (w === null || w === undefined || !isFinite(w)) return celTekst('');
+  if (v.t === 'procent') return celGetal(w / 100, FMT_PROCENT, false, procent(w / 100));
+  if (v.t === 'geheel') return celGetal(w, '0', false, String(w));
+  return celGetal(w, FMT_EURO0, false, euro(w));
+}
+
+const celRegel = r => r.t === 'procent'
+  ? celGetal(r.w, FMT_PROCENT, r.k === 'som', procent(r.w))
+  : celGetal(r.w, FMT_EURO0, r.k === 'som', euro(r.w));
+
+/* De vindplaatsen van de gebruikte waarden. De grondslag van het tarief komt
+   uit de rekenkern zelf, dus uit dezelfde plek waar de tool ermee rekent. */
+function vindplaatsen(inv, tarief) {
+  const uit = [];
+  uit.push(tarief.grondslag
+    ? 'Overdrachtsbelasting ' + procent(tarief.tarief) + ' — ' + tarief.omschrijving +
+      '. Grondslag: ' + tarief.grondslag + '. Gecontroleerd op 4 september 2026 in de ' +
+      'Wet op belastingen van rechtsverkeer, versie geldend per 1 januari 2026 ' +
+      '(wetten.overheid.nl/BWBR0002740/2026-01-01).'
+    : 'Overdrachtsbelasting ' + procent(tarief.tarief) + ' — eigen tarief. Dit is geen ' +
+      'tarief van artikel 14 Wet BRV en vraagt om een eigen onderbouwing.');
+  uit.push('De overdrachtsbelasting wordt berekend over de waarde van de onroerende zaak, ' +
+    'en ten minste over de tegenprestatie (artikel 9 lid 1 Wet BRV).');
+  uit.push('Overige kosten koper ' + procent(inv.overigeKostenPct) + ' — geen fiscale ' +
+    'waarde maar een eigen schatting van notaris, makelaar, taxatie en advies.');
+  uit.push('Voor 2027 is een verlaging van 8% naar 7% aangekondigd. Die is op 4 september ' +
+    '2026 niet in een officiële bron terug te vinden en dus geen geldend recht; de tool ' +
+    'kent daarom geen jaar 2027. Controlemoment: Prinsjesdag 15 september 2026 en de ' +
+    'behandeling van het pakket Belastingplan 2027.');
+  uit.push(BRONREGEL);
+  return uit;
+}
+
+/* De vier vaste secties van het blad: kop, invoer, uitkomst, toelichting en
+   vindplaatsen. Dit is de indeling die elke tool aanhoudt. De derde kolom draagt
+   de toelichting die op het scherm onder de regel staat, zodat de vindplaats bij
+   de tussenstap blijft hangen in plaats van los onderaan te vallen. */
+function exportBladen(uit, inv, tarief) {
+  const rijen = [];
+  const leeg = () => rijen.push([]);
+
+  /* 1. Kop */
+  rijen.push([celTekst(TOOLNAAM, true)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(huidigKenmerk())]);
+  rijen.push([celTekst('Geëxporteerd op'),
+    celTekst(new Date().toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' }))]);
+  rijen.push([celTekst('Versie van de tool'), celTekst(VERSIE)]);
+  leeg();
+
+  /* 2. Invoer. Ook de velden die op hun standaardwaarde stonden: juist die
+     verklaren later een verschil. */
+  rijen.push([celTekst('Invoer', true)]);
+  for (const v of VELDEN) {
+    /* Een veld dat bij de gemaakte keuze niet in beeld staat gaat wel mee, want
+       zijn stand verklaart later een verschil, maar met de aantekening dat er
+       niet mee is gerekend. */
+    const meegedaan = v.actief ? v.actief() : true;
+    rijen.push([celTekst(v.l), celInvoer(v, veldWaarde(v), inv.jaar),
+      celTekst(meegedaan ? '' : 'Niet in beeld bij deze keuze; er is niet mee gerekend.')]);
+  }
+  leeg();
+
+  /* 3. Uitkomst met de tussenstappen die het oordeel dragen. */
+  rijen.push([celTekst('Uitkomst', true)]);
+  rijen.push([celTekst('Totaalrendement op eigen vermogen', true),
+    celGetal(uit.totaalRendement, FMT_PROCENT, true, procent(uit.totaalRendement))]);
+  rijen.push([celTekst('Geïnvesteerd eigen vermogen'),
+    celGetal(uit.eigenVermogen, FMT_EURO0, false, euro(uit.eigenVermogen))]);
+
+  for (const sectie of uitkomstModel(uit, inv, tarief)) {
+    leeg();
+    rijen.push([celTekst(sectie.titel, true)]);
+    for (const r of sectie.regels) {
+      rijen.push([celTekst(r.l, r.k === 'som'), celRegel(r), celTekst(r.toe)]);
+    }
+  }
+
+  const lijst = meldingen(uit, tarief);
+  if (lijst.length) {
+    leeg();
+    rijen.push([celTekst('Meldingen', true)]);
+    for (const m of lijst) rijen.push([celTekst(m)]);
+  }
+
+  /* 4. Toelichting en vindplaatsen, met de afbakening en de aannames die in
+     beeld stonden. Die reizen mee met het bestand naar de ontvanger. */
+  leeg();
+  rijen.push([celTekst('Toelichting en vindplaatsen', true)]);
+  for (const bron of vindplaatsen(inv, tarief)) rijen.push([celTekst(bron)]);
+  leeg();
+  rijen.push([celTekst('Aannames die de tool maakt', true)]);
+  for (const a of AANNAMES) rijen.push([celTekst(a)]);
+  leeg();
+  rijen.push([celTekst('Afbakening', true)]);
+  rijen.push([celTekst(AFBAKENING)]);
+
+  return [{ naam: 'Rendementsscan', breedtes: [42, 18, 70], rijen: rijen }];
+}
+
+function exportKnoppen(uit, inv, tarief) {
+  const kn = document.createElement('div');
+  kn.className = 'knoppen noprint';
+  const status = document.createElement('span');
+  status.className = 'exportstatus';
+  status.setAttribute('aria-live', 'polite');
+
+  const bExcel = document.createElement('button');
+  bExcel.type = 'button';
+  bExcel.textContent = 'Exporteer naar Excel';
+  bExcel.addEventListener('click', () => {
+    try {
+      bewaarBestand(xlsxBytes(exportBladen(uit, inv, tarief)),
+        uitgangBestandsnaam(TOOL_ID, huidigKenmerk(), 'xlsx'), MIME_XLSX);
+      status.textContent = 'Het bestand is aangemaakt.';
+    } catch (e) {
+      status.textContent = 'De export is niet gelukt: ' + e.message;
+    }
+  });
+
+  const bKlem = document.createElement('button');
+  bKlem.type = 'button';
+  bKlem.textContent = 'Kopieer naar klembord';
+  bKlem.addEventListener('click', () => {
+    let tekst;
+    try { tekst = bladenNaarTekst(exportBladen(uit, inv, tarief)); }
+    catch (e) { status.textContent = 'De export is niet gelukt: ' + e.message; return; }
+    naarKlembord(tekst).then(
+      () => { status.textContent = 'Gekopieerd. Plakken kan nu in een werkblad.'; },
+      e => { status.textContent = 'Kopiëren is niet gelukt: ' + e.message; }
+    );
+  });
+
+  kn.appendChild(bExcel); kn.appendChild(bKlem); kn.appendChild(status);
+  return kn;
+}
+
+// EXPORT — EINDE
+
+/* ============================================================
+   Dossierbestand. Zodat een casus in de klantmap kan staan en later weer geopend
+   kan worden. De tool bewaart zelf niets: opslaan is een handeling van de
+   gebruiker naar een plek die hij kiest, en er gaat niets naar buiten. Ook geen
+   localStorage - dat zit vast aan één browser op één apparaat en is voor een
+   collega onvindbaar.
+
+   In het bestand staat alleen invoer, nooit een uitkomst: die wordt bij het
+   openen opnieuw berekend, met de dan geldende tool.
+
+   Een dossier wordt gelezen als GEGEVEN, nooit als opdracht. Alleen bekende
+   velden worden gebruikt, elke waarde wordt op vorm getoetst, en een bestand van
+   een andere tool of van een nieuwere formaatversie wordt geweigerd met een
+   melding in plaats van half ingelezen. Een ontbrekende waarde valt terug op de
+   standaardwaarde van de tool en wordt genoemd, want een oud dossier dat stil met
+   een ander uitgangspunt opent is erger dan een dossier dat niet opent.
+
+   De vorm en de leesregels zijn overdraagbaar naar een volgende tool; de
+   veldenlijst is dat niet, want die is VELDEN van deze tool.
+   ============================================================ */
+// DOSSIERBESTAND — BEGIN
+
+const DOSSIER_FORMAATVERSIE = 1;
+const DOSSIER_MAX_KENMERK = 80;
+
+/* De waarde zoals zij in het invoervak staat, dus een percentage als 5 en niet
+   als 0,05. Daardoor is het bestand met het oog te lezen en loopt het langs
+   dezelfde weg terug naar dezelfde stand. */
+function dossierStand() {
+  const velden = {};
+  for (const v of VELDEN) {
+    const w = veldWaarde(v);
+    velden[v.k] = (typeof w === 'number' && !isFinite(w)) ? null : w;
+  }
+  return {
+    tool: TOOL_ID,
+    formaatversie: DOSSIER_FORMAATVERSIE,
+    toolversie: VERSIE,
+    opgeslagen: isoDatum(),
+    kenmerk: huidigKenmerk().slice(0, DOSSIER_MAX_KENMERK),
+    velden: velden
+  };
+}
+
+const maakDossierTekst = () => JSON.stringify(dossierStand(), null, 2);
+
+/* Toetst één waarde op de vorm die het veld verlangt. Geeft undefined terug
+   zodra de waarde niet deugt; de lezer behandelt dat als ontbrekend en meldt
+   het, in plaats van iets aan te nemen. Een keuzeveld waarvan de opties van het
+   jaar afhangen wordt getoetst tegen het jaar uit hetzelfde dossier. */
+function dossierWaarde(v, ruw, jaar) {
+  if (ruw === undefined || ruw === null) return undefined;
+  if (v.t === 'keuze') {
+    return v.opties(jaar).map(String).indexOf(String(ruw)) !== -1 ? String(ruw) : undefined;
+  }
+  if (typeof ruw !== 'number' || !isFinite(ruw)) return undefined;
+  if (v.t === 'geheel' && !Number.isInteger(ruw)) return undefined;
+  return ruw;
+}
+
+/**
+ * Leest de tekst van een dossierbestand.
+ * @returns {ok:false, fouten:[...]} of {ok:true, dossier:<stand>, ontbrekend:[...]}
+ */
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(tekst); }
+  catch (e) {
+    return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fouten: ['Dit dossier hoort niet bij de tool ' + TOOLNAAM + '.'] };
+  }
+  if (typeof rauw.formaatversie !== 'number' || !isFinite(rauw.formaatversie)) {
+    return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+  }
+  if (rauw.formaatversie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fouten: ['Dit dossier is gemaakt met een nieuwere versie van de tool ' +
+      '(formaat ' + rauw.formaatversie + ', deze tool kent ' + DOSSIER_FORMAATVERSIE + ').'] };
+  }
+  const bron = (rauw.velden && typeof rauw.velden === 'object' && !Array.isArray(rauw.velden))
+    ? rauw.velden : {};
+
+  /* Het jaar eerst, want de toegestane tarieven hangen ervan af. Deugt het niet,
+     dan blijft het jaar staan dat nu in de tool is gekozen; het veld telt dan als
+     ontbrekend en wordt gemeld. */
+  const jaarVeld = VELDEN.filter(v => v.k === 'jaar')[0];
+  const gelezenJaar = dossierWaarde(jaarVeld, bron.jaar, null);
+  const jaar = gelezenJaar === undefined ? Number(veld('jaar').value) : Number(gelezenJaar);
+
+  const ontbrekend = [];
+  const velden = {};
+  for (const v of VELDEN) {
+    const w = dossierWaarde(v, bron[v.k], jaar);
+    if (w === undefined) ontbrekend.push(v.l);
+    else velden[v.k] = w;
+  }
+
+  return {
+    ok: true,
+    ontbrekend: ontbrekend,
+    dossier: {
+      kenmerk: typeof rauw.kenmerk === 'string' ? rauw.kenmerk.slice(0, DOSSIER_MAX_KENMERK) : '',
+      velden: velden
+    }
+  };
+}
+
+/* Zet de gelezen stand in de tool. Wat in het dossier ontbrak blijft op de
+   standaardwaarde staan; de lezer heeft dat al gemeld. Het jaar gaat voorop,
+   want de keuzelijst van de overdrachtsbelasting wordt eruit opgebouwd. */
+function zetDossier(d) {
+  const heeft = k => Object.prototype.hasOwnProperty.call(d.velden, k);
+  if (heeft('jaar')) veld('jaar').value = String(d.velden.jaar);
+  vulTarieven();
+  for (const v of VELDEN) {
+    if (v.k === 'jaar') continue;
+    if (heeft(v.k)) zetVeldWaarde(v, d.velden[v.k]);
+  }
+  toonEigenTarief();
+  toonBezitsduur();
+  const vak = veld('kenmerk');
+  if (vak) vak.value = d.kenmerk;
+}
+
+// DOSSIERBESTAND — EINDE
+
+/* ============================================================
+   De dossierbalk: kenmerk, datum, afdrukken en het dossierbestand.
+   ============================================================ */
+
+function dossierMelding(tekst, soort) {
+  const m = veld('dossier-melding');
+  if (!m) return;
+  m.textContent = tekst;
+  m.className = 'dossier-melding noprint' + (soort ? ' ' + soort : '');
+}
+
+/* De datum op de afdruk is de dag waarop wordt afgedrukt, niet de dag waarop de
+   pagina toevallig is geopend. Daarom ook vlak voor het afdrukken opnieuw. */
+function zetAfdrukdatum() {
+  const vak = veld('afdrukdatum');
+  if (vak) vak.textContent = new Date().toLocaleDateString('nl-NL', { dateStyle: 'long' });
+}
+
+/* De verantwoording staat in een dichtgeklapte details; dicht drukt zij niet af,
+   en dan mist het dossierstuk zijn vindplaatsen en zijn afbakening. */
+function openVerantwoording() {
+  const alle = document.querySelectorAll('details');
+  Array.prototype.forEach.call(alle, d => { d.open = true; });
+}
+
+function dossierOpslaan() {
+  const naam = uitgangBestandsnaam(TOOL_ID, huidigKenmerk(), 'json');
+  bewaarBestand(maakDossierTekst(), naam, MIME_JSON);
+  dossierMelding('Opgeslagen als ' + naam + '. Zet het bestand in de klantmap, dan gaat ' +
+    'het mee in de back-up en kan een collega het openen.', 'goed');
+}
+
+function dossierGelezen(tekst) {
+  const uit = leesDossier(tekst);
+  if (!uit.ok) { dossierMelding(uit.fouten.join(' '), 'fout'); return false; }
+  zetDossier(uit.dossier);
+  bereken();
+  zetAfdrukdatum();
+  if (uit.ontbrekend.length) {
+    const eerste = uit.ontbrekend.slice(0, 5).join('; ');
+    const rest = uit.ontbrekend.length > 5
+      ? ' en ' + (uit.ontbrekend.length - 5) + ' andere' : '';
+    dossierMelding('Dossier geopend, maar er ontbraken ' + uit.ontbrekend.length +
+      ' waarden: ' + eerste + rest + '. Die staan nu op de standaardwaarde van deze ' +
+      'versie van de tool; controleer ze voordat u de uitkomst gebruikt.', 'fout');
+  } else {
+    dossierMelding('Dossier geopend' + (uit.dossier.kenmerk ? ' (' + uit.dossier.kenmerk + ')' : '') +
+      '. De uitkomst is opnieuw berekend met de nu geldende tool.', 'goed');
+  }
+  return true;
+}
+
+function dossierOpenen(bestand) {
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onerror = () => dossierMelding('Het bestand kon niet worden gelezen.', 'fout');
+  lezer.onload = () => dossierGelezen(String(lezer.result));
+  lezer.readAsText(bestand);
+}
+
+function bouwDossierbalk() {
+  const knop = (id, doen) => {
+    const b = veld(id);
+    if (b) b.addEventListener('click', doen);
+  };
+  knop('afdrukken', () => { openVerantwoording(); zetAfdrukdatum(); window.print(); });
+  knop('dossier-opslaan', dossierOpslaan);
+  knop('dossier-openen', () => {
+    const kiezer = veld('dossier-bestand');
+    if (kiezer) kiezer.click();
+  });
+  const kiezer = veld('dossier-bestand');
+  if (kiezer) {
+    kiezer.addEventListener('change', ev => {
+      const bestanden = ev && ev.target && ev.target.files;
+      if (bestanden && bestanden[0]) dossierOpenen(bestanden[0]);
+      /* Leeggooien, anders opent hetzelfde bestand een tweede keer niet. */
+      ev.target.value = '';
+    });
+  }
+  /* Ook bij Ctrl+P, want dan komt er geen klik op de afdrukknop. */
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('beforeprint', () => { openVerantwoording(); zetAfdrukdatum(); });
+  }
+  zetAfdrukdatum();
+}
+
+/* ---------------------------------------------------------------- start */
+
+veld('formulier').addEventListener('submit', function (e) {
+  e.preventDefault();
+  bereken();
 });
 
 veld('jaar').addEventListener('change', vulTarieven);
@@ -650,7 +1573,11 @@ Array.prototype.forEach.call(document.querySelectorAll('input[name=verkrijgingsw
   r.addEventListener('change', toonBezitsduur);
 });
 
+veld('versie').textContent = 'Versie ' + VERSIE;
 vulJaren();
 vulTarieven();
 toonBezitsduur();
+vulVerantwoording();
+bouwDossierbalk();
+
 </script>
