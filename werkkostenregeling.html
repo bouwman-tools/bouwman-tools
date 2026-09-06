@@ -80,11 +80,39 @@
   details ul { margin: .6rem 0 .2rem; padding-left: 1.2rem; }
   details li { margin-bottom: .35rem; }
   .bron { font-size: .78rem; color: var(--zacht); }
+  .knoppen { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: 1rem; }
+  button.actie {
+    font: inherit;
+    padding: .45rem .9rem;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  button.actie:hover { background: #12395e; }
+  .uitvoerstatus { font-size: .85rem; color: var(--zacht); }
+  .veld input[type=text], .veld input[type=date] { width: 16rem; text-align: left; }
+  .vindplaatsen th, .vindplaatsen td {
+    padding: .3rem .5rem;
+    text-align: left;
+    vertical-align: top;
+    font-size: .82rem;
+    border-bottom: 1px solid var(--lijn);
+  }
+  .vindplaatsen th { color: var(--zacht); font-weight: 600; }
+  .vindplaatsen td.waarde { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   footer { max-width: 1080px; margin: 2.5rem auto 0; padding: 1rem 1.5rem 0; border-top: 1px solid var(--lijn); font-size: .8rem; color: var(--zacht); }
   @media print {
     header { background: #fff; color: #000; border-bottom: 2px solid #000; }
     details { break-inside: avoid; }
     .posten tbody tr:nth-child(odd) { background: #fff; }
+    .noprint { display: none !important; }
+    body { font-size: 10.5pt; }
+    main { max-width: none; padding: 0; }
+    section { break-inside: avoid; margin-top: 1.2rem; }
+    input, select { border: none !important; padding: 0 !important; background: transparent !important; }
+    .uitkomst { background: #fff; }
   }
 </style>
 </head>
@@ -94,6 +122,33 @@
   <p>Berekent de vrije ruimte en de eindheffing van 80% per inhoudingsplichtige, voor de jaren 2024 tot en met 2026.</p>
 </header>
 <main>
+  <section>
+    <h2>Dossiergegevens</h2>
+    <div class="invoerrij">
+      <div class="veld">
+        <label for="kenmerk">Klantnaam of kenmerk</label>
+        <input type="text" id="kenmerk" placeholder="bijvoorbeeld Voorbeeld BV, loonjaar 2026">
+      </div>
+      <div class="veld">
+        <label for="datum">Datum</label>
+        <input type="date" id="datum">
+      </div>
+    </div>
+    <div class="knoppen noprint">
+      <button type="button" class="actie" id="knopAfdruk">Afdrukken of opslaan als pdf</button>
+      <button type="button" class="actie" id="knopExcel">Exporteer naar Excel</button>
+      <button type="button" class="actie" id="knopOpslaan">Dossier opslaan als bestand</button>
+      <button type="button" class="actie" id="knopOpenen">Dossierbestand openen</button>
+      <input type="file" id="bestandKiezer" accept="application/json,.json" hidden>
+      <span class="uitvoerstatus" id="uitvoerstatus" aria-live="polite"></span>
+    </div>
+    <p class="toelichting noprint">
+      De tool bewaart niets en verstuurt niets. Opslaan zet een klein JSON-bestand met alleen uw invoer op
+      de plek die u zelf kiest. Bij het openen wordt de uitkomst opnieuw berekend met de tool zoals die op
+      dat moment is; een veld dat in het bestand ontbreekt blijft leeg en wordt gemeld.
+    </p>
+  </section>
+
   <section>
     <h2>1. Loonsom en jaar</h2>
     <div class="invoerrij">
@@ -126,7 +181,10 @@
       Het totale fiscale loon is het gezamenlijke bedrag van kolom 14 van de loonstaat over het hele jaar.
       Heeft u meerdere subnummers onder hetzelfde loonheffingennummer, dan telt u die bij elkaar op.
       Wordt u in de loop van het jaar werkgever, dan mag u het loon niet herrekenen naar een vol jaar.
-      <span class="bron">Handboek Loonheffingen 2026, paragraaf 10.1.4.</span>
+      Is het loon uit vroegere dienstbetrekking ten hoogste 10% van het totale fiscale loon, dan telt het mee
+      voor de vrije ruimte; is het meer, dan telt alleen het loon uit tegenwoordige dienstbetrekking mee. Die
+      10%-grens is beleid en staat niet als zodanig in de wettekst.
+      <span class="bron">Handboek Loonheffingen 2026, paragraaf 10.1.4 (beleid, geen wettekst).</span>
     </p>
   </section>
 
@@ -164,7 +222,7 @@
     <div id="notities"></div>
   </section>
 
-  <section>
+  <section class="noprint">
     <h2>4. Wat niet ten koste gaat van de vrije ruimte</h2>
     <p class="toelichting">Naslag bij het invullen. Deze posten telt de tool niet mee.</p>
     <div id="naslag"></div>
@@ -173,6 +231,16 @@
   <section>
     <h2>5. Wat deze tool niet doet</h2>
     <div id="afbakening"></div>
+  </section>
+
+  <section>
+    <h2>6. Vindplaatsen van de gebruikte waarden</h2>
+    <table class="vindplaatsen">
+      <thead>
+        <tr><th>Waarde</th><th>Bedrag of percentage</th><th>Vindplaats</th></tr>
+      </thead>
+      <tbody id="vindplaatsenLijst"></tbody>
+    </table>
   </section>
 </main>
 <footer>
@@ -230,7 +298,9 @@ const NORMEN_PER_JAAR = {
     maaltijdWerkplek: 3.90,          // art. 3.8 onderdeel a Uitv.reg. LB 2011 (BWBR0028236), versie 2024-01-01
     huisvestingPerDag: 6.70,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2024-01-01
     fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2024-01-01
-    attentieGeenLoon: 25             // Handboek Loonheffingen 2024, par. 4.12.1
+    // Geen zelfstandig wettelijk normbedrag maar de kleine-attentieregel uit het
+    // Handboek, met cumulatieve voorwaarden. Zie NASLAG voor die voorwaarden.
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2024, par. 4.12.1 (beleid, geen wettekst)
   },
   2025: {
     kilometervergoeding: 0.23,       // art. 31a lid 2 onderdeel a onder 3 en lid 6, versie 2025-01-01
@@ -242,15 +312,25 @@ const NORMEN_PER_JAAR = {
     maaltijdWerkplek: 3.95,          // art. 3.8 onderdeel a Uitv.reg. LB 2011, versie 2025-01-01
     huisvestingPerDag: 6.80,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2025-01-01
     fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2025-01-01
-    attentieGeenLoon: 25             // Handboek Loonheffingen 2025, par. 4.12.1
+    // Geen zelfstandig wettelijk normbedrag maar de kleine-attentieregel uit het
+    // Handboek, met cumulatieve voorwaarden. Zie NASLAG voor die voorwaarden.
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2025, par. 4.12.1 (beleid, geen wettekst)
   },
   2026: {
     // De wet noemt in 2026 nog 0,23 per kilometer. Het beleidsbesluit hieronder keurt
-    // 0,25 goed met terugwerkende kracht tot en met 1 januari 2026, ook voor de
-    // salderingsbepalingen van art. 13a lid 4 onderdeel e en art. 31a lid 6 Wet LB 1964.
+    // 0,25 goed, structureel en met terugwerkende kracht tot en met 1 januari 2026, ook
+    // voor de salderingsbepalingen van art. 13a lid 4 onderdeel e en art. 31a lid 6
+    // Wet LB 1964.
     // Bron: besluit van de Staatssecretaris van Financien van 17 mei 2026,
     // Stcrt. 2026, 18302, onderdeel 2.1 (Beleidsbesluit fiscale maatregelen naar
-    // aanleiding van de energieschok). Het besluit vervalt met ingang van 1 januari 2027.
+    // aanleiding van de energieschok), gelezen op 6 september 2026.
+    // Onderdeel 3 van dat besluit bevat een horizonbepaling: "Dit besluit vervalt met
+    // ingang van 1 januari 2027." De toelichting bij het besluit zegt onder Codificatie
+    // waarom: de goedkeuringen worden inclusief terugwerkende kracht opgenomen in het
+    // Belastingplan 2027, en de horizonbepaling begrenst de afwijking van de wet in de
+    // tijd. Die vervaldatum zegt dus niets over de hoogte van de vergoeding in 2027.
+    // Wat er per 2027 geldt volgt uit dat wetsvoorstel en is nog niet gecontroleerd;
+    // neem 2027 pas op als dat wel zo is.
     kilometervergoeding: 0.25,
     kilometerBron: 'besluit',
     thuiswerkvergoeding: 2.45,       // art. 31a lid 2 onderdeel k Wet LB 1964, versie 2026-02-21
@@ -260,7 +340,9 @@ const NORMEN_PER_JAAR = {
     maaltijdWerkplek: 4.05,          // art. 3.8 onderdeel a Uitv.reg. LB 2011, versie 2026-01-01
     huisvestingPerDag: 7.00,         // art. 3.8 onderdeel b Uitv.reg. LB 2011, versie 2026-01-01
     fietsDeel: 0.07,                 // art. 13ter lid 1 Wet LB 1964, versie 2026-02-21
-    attentieGeenLoon: 25             // Handboek Loonheffingen 2026, par. 4.12.1
+    // Geen zelfstandig wettelijk normbedrag maar de kleine-attentieregel uit het
+    // Handboek, met cumulatieve voorwaarden. Zie NASLAG voor die voorwaarden.
+    attentieGeenLoon: 25             // Handboek Loonheffingen 2026, par. 4.12.1 (beleid, geen wettekst)
   }
 };
 
@@ -407,11 +489,62 @@ function berekenWkr(invoer) {
     benutting: ruimte.totaal > 0 ? totaalAangewezen / ruimte.totaal : null
   };
 }
+
+// Vindplaats bij elke waarde die de tool gebruikt of toont. Staat in de kern zodat het
+// dossierstuk en de Excel-export dezelfde bronnen meenemen als het scherm, en zodat een
+// test kan afdwingen dat er geen waarde zonder vindplaats in de uitvoer komt. Het zijn
+// dezelfde bronnen als in het commentaar bij de waarden hierboven.
+function vindplaatsen(jaar) {
+  const w = jaarwaarden(jaar);
+  const n = normen(jaar);
+  const wet = 'Wet LB 1964 (BWBR0002471), versie geldend in ' + jaar;
+  const uitv = 'Uitvoeringsregeling LB 2011 (BWBR0028236), versie geldend in ' + jaar;
+  const handboek = 'Handboek Loonheffingen ' + jaar;
+  const rijen = [
+    ['Lage percentage vrije ruimte', w.lagePercentage, 'procent2', 'Art. 31a lid 3 onderdeel a ' + wet],
+    ['Hoge percentage vrije ruimte', w.hogePercentage, 'procent2', 'Art. 31a lid 3 onderdeel b ' + wet],
+    ['Loongrens tussen de schijven', w.loongrens, 'euro', 'Art. 31a lid 3 ' + wet],
+    ['Eindheffingstarief', w.eindheffingstarief, 'procent2', 'Art. 31a lid 2 ' + wet],
+    ['Doelmatigheidsgrens bij de gebruikelijkheidseis', w.doelmatigheidsgrens, 'euro',
+      handboek + ', par. 4.2 en kennisgroepstandpunt KG:204:2025:11. Beleid voor '
+      + 'risicogerichte handhaving, geen wettelijke grens'],
+    ['Aandeel loon uit vroegere dienstbetrekking', DREMPEL_LOON_VROEGERE_DIENSTBETREKKING, 'procent2',
+      handboek + ', par. 10.1.4. Beleid, geen wettekst'],
+    ['Kilometervergoeding', n.kilometervergoeding, 'euro', n.kilometerBron === 'besluit'
+      ? 'Besluit van de Staatssecretaris van Financien van 17 mei 2026, Stcrt. 2026, 18302, '
+        + 'onderdeel 2.1: goedkeuring vooruitlopend op wetgeving, structureel en met '
+        + 'terugwerkende kracht tot en met 1 januari 2026. De wettekst van art. 31a lid 2 '
+        + 'onderdeel a onder 3 Wet LB 1964 noemt nog 0,23'
+      : 'Art. 31a lid 2 onderdeel a onder 3 en lid 6 ' + wet],
+    ['Thuiswerkvergoeding per thuiswerkdag', n.thuiswerkvergoeding, 'euro', 'Art. 31a lid 2 onderdeel k ' + wet],
+    ['Verhuisforfait', n.verhuisforfait, 'euro', 'Art. 31a lid 2 onderdeel f ' + wet],
+    ['Producten eigen bedrijf, deel van de waarde', n.productenEigenBedrijfDeel, 'procent2', 'Art. 31a lid 2 onderdeel i ' + wet],
+    ['Producten eigen bedrijf, maximum per werknemer', n.productenEigenBedrijfMax, 'euro', 'Art. 31a lid 2 onderdeel i ' + wet],
+    ['Maaltijd op de werkplek', n.maaltijdWerkplek, 'euro', 'Art. 3.8 onderdeel a ' + uitv],
+    ['Huisvesting op de werkplek per dag', n.huisvestingPerDag, 'euro', 'Art. 3.8 onderdeel b ' + uitv],
+    ['Privegebruik ter beschikking gestelde fiets', n.fietsDeel, 'procent2', 'Art. 13ter lid 1 ' + wet],
+    ['Kleine persoonlijke attentie', n.attentieGeenLoon, 'euro',
+      handboek + ', par. 4.12.1. Beleid, geen wettelijk normbedrag; de voorwaarden gelden cumulatief']
+  ];
+  return rijen.map(function (rij) {
+    return { naam: rij[0], waarde: rij[1], soort: rij[2], bron: rij[3] };
+  });
+}
 // FISCALE KERN — EINDE
 
 // ---------------------------------------------------------------------------
 // Weergave. Vanaf hier geen rekenregels meer: alles komt uit de kern hierboven.
 // ---------------------------------------------------------------------------
+
+// UITVOER — BEGIN
+// De weergaveregels en de drie uitgangen: het afdrukbare dossierstuk, de Excel-export
+// en het dossierbestand. Geen document, window of DOM in dit blok, zodat de tests
+// precies de code draaien die de browser ook draait, en zodat het scherm en de export
+// hun getallen uit dezelfde functie halen.
+
+const TOOLNAAM = 'werkkostenregeling';
+const TOOLVERSIE = '2026-09-07';
+const DOSSIER_VERSIE = 1;
 
 const euro = function (bedrag, decimalen) {
   return new Intl.NumberFormat('nl-NL', {
@@ -430,13 +563,568 @@ const procent = function (deel, decimalen) {
   }).format(deel);
 };
 
+// ---------------------------------------------------------------------------
+// De regels van de uitkomst en de meldingen. Het scherm, de afdruk en het
+// werkblad lezen alle drie hieruit; er is geen tweede plek waar hetzelfde
+// getal wordt opgebouwd.
+// ---------------------------------------------------------------------------
+
+function weergave(regel) {
+  if (regel.soort === 'procent') return procent(regel.waarde, 1);
+  if (regel.soort === 'procent2') return procent(regel.waarde, 2);
+  if (regel.soort === 'geheel') return String(regel.waarde);
+  return euro(regel.waarde);
+}
+
+function uitkomstRegels(u) {
+  const r = u.ruimte;
+  const regels = [
+    { label: 'Grondslag vrije ruimte', waarde: u.grondslag, soort: 'euro' },
+    {
+      label: 'Eerste schijf: ' + procent(r.lagePercentage) + ' van ' + euro(r.schijf1Grondslag),
+      waarde: r.schijf1, soort: 'euro'
+    },
+    {
+      label: 'Tweede schijf: ' + procent(r.hogePercentage) + ' van ' + euro(r.schijf2Grondslag),
+      waarde: r.schijf2, soort: 'euro'
+    },
+    { label: 'Vrije ruimte ' + u.jaar, waarde: u.vrijeRuimte, soort: 'euro', klasse: 'hoofd' },
+    { label: 'Aangewezen eindheffingsbestanddelen', waarde: u.totaalAangewezen, soort: 'euro' }
+  ];
+  if (u.benutting !== null) {
+    regels.push({ label: 'Benutting van de vrije ruimte', waarde: u.benutting, soort: 'procent' });
+  }
+  if (u.overschrijding > 0) {
+    regels.push({ label: 'Overschrijding vrije ruimte', waarde: u.overschrijding, soort: 'euro', klasse: 'hoofd' });
+    regels.push({
+      label: 'Eindheffing ' + procent(u.eindheffingstarief, 0) + ' over de overschrijding',
+      waarde: u.eindheffing, soort: 'euro', klasse: 'slot'
+    });
+  } else {
+    regels.push({ label: 'Onbenutte vrije ruimte', waarde: u.onbenutteRuimte, soort: 'euro', klasse: 'hoofd' });
+    regels.push({ label: 'Eindheffing werkkostenregeling', waarde: 0, soort: 'euro', klasse: 'slot' });
+  }
+  return regels;
+}
+
+// Meldingen bij de uitkomst. Soort is leeg, 'goed' of 'fout'; dat bepaalt alleen de kleur.
+function meldingRegels(u, signaal) {
+  const meldingen = [];
+  const jaar = u.jaar;
+
+  if (u.overschrijding > 0) {
+    meldingen.push({
+      soort: '',
+      tekst: 'U komt boven de vrije ruimte uit. Geef de eindheffing aan en betaal die uiterlijk met de '
+        + 'aangifte loonheffingen over het tweede tijdvak van ' + (jaar + 1) + '. Handboek Loonheffingen, '
+        + 'par. 10.1.6.'
+    });
+  } else if (u.vrijeRuimte > 0) {
+    meldingen.push({
+      soort: 'goed',
+      tekst: 'U blijft binnen de vrije ruimte, dus u hoeft geen eindheffing werkkostenregeling aan te geven '
+        + 'of te betalen. Handboek Loonheffingen, par. 10.1.5.'
+    });
+  }
+
+  if (signaal && signaal.boven) {
+    meldingen.push({
+      soort: '',
+      tekst: 'Gemiddeld ' + euro(signaal.gemiddeldePerWerknemer) + ' aangewezen per werknemer, boven de '
+        + 'doelmatigheidsgrens van ' + euro(signaal.grens, 0) + '. Dat is geen overschrijding van een '
+        + 'wettelijke grens: tot dat bedrag onderneemt de Belastingdienst bij risicogerichte handhaving '
+        + 'geen actie. Daarboven volgt geen conclusie — u beoordeelt zelf per post of de aanwijzing '
+        + 'gebruikelijk is, gemeten aan wat in vergelijkbare gevallen gebruikelijk is '
+        + '(art. 31 lid 1 onderdeel f Wet LB 1964; KG:204:2025:11).'
+    });
+  }
+
+  if (u.gageAfgetrokken) {
+    meldingen.push({
+      soort: '',
+      tekst: 'De gage van artiesten en beroepssporters staat wel in kolom 14, maar telt niet mee voor de '
+        + 'vrije ruimte. Die is van de grondslag afgehaald. Handboek Loonheffingen, par. 10.1.4.'
+    });
+  }
+
+  if (u.vroegereUitgesloten) {
+    meldingen.push({
+      soort: '',
+      tekst: 'Loon uit vroegere dienstbetrekking is ' + procent(u.aandeelVroeger, 1) + ' van het fiscale loon, '
+        + 'dus meer dan 10%. De vrije ruimte is daarom berekend over het loon uit tegenwoordige '
+        + 'dienstbetrekking. Die 10%-grens staat niet als zodanig in art. 31a Wet LB 1964: het is beleid uit '
+        + 'het Handboek Loonheffingen, par. 10.1.4.'
+    });
+  }
+
+  return meldingen;
+}
+
+// Vaste toelichting die niet van de uitkomst afhangt.
+function notitieRegels(jaar, n) {
+  const notities = [];
+  if (n.kilometerBron === 'besluit') {
+    notities.push(
+      euro(n.kilometervergoeding) + '/km — goedkeuring beleidsbesluit, met terugwerkende kracht vanaf '
+      + '1 januari ' + jaar + '. De wettekst van art. 31a lid 2 onderdeel a onder 3 Wet LB 1964 noemt nog '
+      + euro(0.23) + ' per kilometer. De goedkeuring is structureel en geldt ook voor de saldering binnen '
+      + 'het kalenderjaar; over al verstreken tijdvakken mag u correctieberichten indienen. Besluit van de '
+      + 'Staatssecretaris van Financien van 17 mei 2026, Stcrt. 2026, 18302, onderdeel 2.1.'
+    );
+  }
+  notities.push(
+    'De concernregeling zit niet in deze tool. Past u die toe, dan berekent u de vrije ruimte over het '
+    + 'totale fiscale loon van het concern en mag u de eerste schijf niet per onderdeel toepassen. '
+    + 'Art. 32 Wet LB 1964; Handboek Loonheffingen, par. 10.2.'
+  );
+  return notities;
+}
+
+// ---------------------------------------------------------------------------
+// De xlsx-schrijver. Gedeelde code: dezelfde opzet staat in Berekeningen en in
+// vastgoedrendement. Een xlsx is een zip met XML erin; de leden gaan er
+// ongecomprimeerd in, zodat er geen deflate nodig is en een test het bestand
+// zonder library kan teruglezen.
+// ---------------------------------------------------------------------------
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [];
+  const centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);        // benodigde versie
+    kv.setUint16(6, 0x0800, true);    // bestandsnaam in UTF-8
+    kv.setUint16(8, 0, true);         // opgeslagen, niet gecomprimeerd
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const FMT_EURO = '"€ "#,##0.00;"€ "-#,##0.00';
+const FMT_PROCENT = '0.0%';
+const FMT_PROCENT2 = '0.00%';
+const FMT_GEHEEL = '0';
+
+function xmlTekst(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function celTekst(tekst, vet) {
+  return { tekst: tekst === undefined || tekst === null ? '' : String(tekst), vet: !!vet };
+}
+
+function celGetal(waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat, vet: !!vet };
+}
+
+function celUitRegel(regel, vet) {
+  if (regel.soort === 'procent') return celGetal(regel.waarde, FMT_PROCENT, vet);
+  if (regel.soort === 'procent2') return celGetal(regel.waarde, FMT_PROCENT2, vet);
+  if (regel.soort === 'geheel') return celGetal(regel.waarde, FMT_GEHEEL, vet);
+  return celGetal(regel.waarde, FMT_EURO, vet);
+}
+
+// Een getalformaat wordt pas aangemaakt wanneer een cel erom vraagt.
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries())
+        .map(function (paar) {
+          return '<numFmt numFmtId="' + paar[1] + '" formatCode="' + xmlTekst(paar[0]) + '"/>';
+        }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    {
+      naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>'
+    },
+    {
+      naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>'
+    },
+    {
+      naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) + '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>'
+    },
+    {
+      naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>'
+    }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ---------------------------------------------------------------------------
+// De dossiertoestand: alles wat op de afdruk, in het werkblad en in het
+// dossierbestand terechtkomt, uit een en dezelfde bron.
+// ---------------------------------------------------------------------------
+
+// Elk invoerveld met het label zoals het op het scherm staat, ook de velden die
+// op hun standaardwaarde stonden: juist die verklaren later een verschil.
+function invoerRegels(d) {
+  const regels = [
+    { label: 'Kalenderjaar', waarde: d.jaar, soort: 'geheel' },
+    { label: 'Totaal fiscaal loon (kolom 14 loonstaat)', waarde: d.fiscaalLoon, soort: 'euro' },
+    { label: 'Waarvan loon uit vroegere dienstbetrekking', waarde: d.loonVroeger, soort: 'euro' },
+    { label: 'Waarvan gage artiest of beroepssporter', waarde: d.gage, soort: 'euro' },
+    { label: 'Aantal werknemers (optioneel)', waarde: d.aantalWerknemers, soort: 'geheel' }
+  ];
+  d.posten.forEach(function (post) {
+    regels.push({ label: post.label, waarde: post.bedrag, soort: 'euro' });
+  });
+  regels.push({ label: 'Totaal aangewezen', waarde: d.uitkomst.totaalAangewezen, soort: 'euro' });
+  return regels;
+}
+
+function dossierBladen(d) {
+  const rijen = [];
+  rijen.push([celTekst('Werkkostenregeling: vrije ruimte en eindheffing', true)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(d.kenmerk || '')]);
+  rijen.push([celTekst('Datum'), celTekst(d.datum || '')]);
+  rijen.push([celTekst('Versie van de tool'), celTekst(TOOLVERSIE)]);
+  rijen.push([celTekst('Geexporteerd op'), celTekst(d.geexporteerd || '')]);
+  rijen.push([]);
+
+  rijen.push([celTekst('Invoer', true)]);
+  invoerRegels(d).forEach(function (regel) {
+    rijen.push([celTekst(regel.label), celUitRegel(regel, false)]);
+  });
+  rijen.push([]);
+
+  rijen.push([celTekst('Uitkomst', true)]);
+  uitkomstRegels(d.uitkomst).forEach(function (regel) {
+    const vet = regel.klasse === 'hoofd' || regel.klasse === 'slot';
+    rijen.push([celTekst(regel.label, vet), celUitRegel(regel, vet)]);
+  });
+  rijen.push([]);
+
+  const meldingen = meldingRegels(d.uitkomst, d.signaal).map(function (m) { return m.tekst; })
+    .concat(notitieRegels(d.jaar, d.normen));
+  if (meldingen.length) {
+    rijen.push([celTekst('Meldingen en toelichting', true)]);
+    meldingen.forEach(function (tekst) { rijen.push([celTekst(tekst)]); });
+    rijen.push([]);
+  }
+
+  rijen.push([celTekst('Vindplaatsen van de gebruikte waarden', true)]);
+  d.vindplaatsen.forEach(function (v) {
+    rijen.push([celTekst(v.naam), celUitRegel(v, false), celTekst(v.bron)]);
+  });
+  rijen.push([]);
+
+  rijen.push([celTekst('Wat deze tool niet doet', true)]);
+  d.afbakening.forEach(function (regel) { rijen.push([celTekst(regel)]); });
+
+  return [{ naam: 'Dossier', breedtes: [58, 22, 90], rijen: rijen }];
+}
+
+function slug(tekst) {
+  const s = String(tekst === undefined || tekst === null ? '' : tekst)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return s === '' ? 'dossier' : s;
+}
+
+function bestandsnaam(kenmerk, datum, extensie) {
+  return TOOLNAAM + '-' + slug(kenmerk) + '-' + datum + '.' + extensie;
+}
+
+// ---------------------------------------------------------------------------
+// Het dossierbestand. Alleen invoer, geen afgeleide uitkomsten: die wordt bij
+// het openen opnieuw berekend, met de dan geldende tool.
+// ---------------------------------------------------------------------------
+
+const DOSSIERVELDEN = ['jaar', 'fiscaalLoon', 'loonVroeger', 'gage', 'aantalWerknemers'];
+
+function dossierNaarJson(d) {
+  return JSON.stringify({
+    tool: TOOLNAAM,
+    versie: DOSSIER_VERSIE,
+    toolversie: TOOLVERSIE,
+    opgeslagen: d.datum,
+    kenmerk: d.kenmerk,
+    invoer: {
+      jaar: d.jaar,
+      fiscaalLoon: d.fiscaalLoon,
+      loonVroeger: d.loonVroeger,
+      gage: d.gage,
+      aantalWerknemers: d.aantalWerknemers,
+      posten: d.posten.map(function (post) { return post.bedrag; })
+    }
+  }, null, 2);
+}
+
+// Een onbekend veld wordt genegeerd. Een ontbrekend veld geeft een zichtbare
+// melding en blijft leeg; er komt nooit stilzwijgend een standaardwaarde in.
+function jsonNaarDossier(tekst, aantalPosten) {
+  let doc;
+  try {
+    doc = JSON.parse(tekst);
+  } catch (fout) {
+    throw new Error('Dit bestand is geen leesbaar dossierbestand: ' + fout.message);
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+    throw new Error('Dit bestand is geen leesbaar dossierbestand.');
+  }
+  if (doc.tool !== TOOLNAAM) {
+    throw new Error('Dit dossierbestand hoort bij een andere tool: ' + (doc.tool || 'geen tool vermeld') + '.');
+  }
+
+  const meldingen = [];
+  if (doc.versie !== DOSSIER_VERSIE) {
+    meldingen.push(
+      'Het bestand is opgeslagen met versie ' + (doc.versie === undefined ? 'onbekend' : doc.versie)
+      + ' van het dossierbestand; deze tool gebruikt versie ' + DOSSIER_VERSIE + '. Loop de invoer na.'
+    );
+  }
+  if (doc.toolversie && doc.toolversie !== TOOLVERSIE) {
+    meldingen.push(
+      'Het bestand is opgeslagen met versie ' + doc.toolversie + ' van de tool; deze tool is versie '
+      + TOOLVERSIE + '. De uitkomst is opnieuw berekend en kan daardoor afwijken van toen.'
+    );
+  }
+
+  const bron = doc.invoer && typeof doc.invoer === 'object' ? doc.invoer : null;
+  if (!bron) {
+    throw new Error('Het dossierbestand bevat geen invoer.');
+  }
+
+  const invoer = {};
+  DOSSIERVELDEN.forEach(function (veld) {
+    const waarde = bron[veld];
+    if (waarde === null || waarde === undefined || waarde === '' || !Number.isFinite(Number(waarde))) {
+      invoer[veld] = null;
+      meldingen.push('Het veld "' + veld + '" ontbreekt in het bestand of is geen getal. '
+        + 'Het is leeg gelaten; vul het zelf in.');
+    } else {
+      invoer[veld] = Number(waarde);
+    }
+  });
+
+  let posten;
+  if (!Array.isArray(bron.posten)) {
+    posten = [];
+    for (let i = 0; i < aantalPosten; i++) posten.push(null);
+    meldingen.push('De aangewezen bedragen ontbreken in het bestand. Geen enkele post is ingevuld.');
+  } else {
+    posten = [];
+    for (let i = 0; i < aantalPosten; i++) {
+      const waarde = bron.posten[i];
+      if (waarde === null || waarde === undefined || waarde === '' || !Number.isFinite(Number(waarde))) {
+        posten.push(null);
+        if (i < bron.posten.length) {
+          meldingen.push('Post ' + (i + 1) + ' in het bestand is geen bedrag en is leeg gelaten.');
+        }
+      } else {
+        posten.push(Number(waarde));
+      }
+    }
+    if (bron.posten.length !== aantalPosten) {
+      meldingen.push('Het bestand bevat ' + bron.posten.length + ' posten en deze tool kent er '
+        + aantalPosten + '. Loop de bedragen na; er is niets stilzwijgend aangevuld.');
+    }
+  }
+
+  return {
+    kenmerk: typeof doc.kenmerk === 'string' ? doc.kenmerk : '',
+    datum: typeof doc.opgeslagen === 'string' ? doc.opgeslagen : '',
+    invoer: invoer,
+    posten: posten,
+    meldingen: meldingen
+  };
+}
+// UITVOER — EINDE
+
 // Posten die u kunt aanwijzen als eindheffingsloon. De indeling volgt de wet:
 // eerst het bovenmatige deel van de gerichte vrijstellingen, daarna het loon
 // in natura en de vergoedingen waarvoor geen vrijstelling bestaat.
 const POSTEN = [
   {
     label: function (n) { return 'Bovenmatig deel reiskostenvergoeding eigen vervoer (boven ' + euro(n.kilometervergoeding) + ' per km)'; },
-    grond: 'Art. 31a lid 2 onderdeel a onder 3 en lid 6 Wet LB 1964'
+    grond: function (n) {
+      return 'Art. 31a lid 2 onderdeel a onder 3 en lid 6 Wet LB 1964'
+        + (n.kilometerBron === 'besluit'
+          ? '; het bedrag komt uit de goedkeuring in Stcrt. 2026, 18302, onderdeel 2.1, niet uit de wettekst'
+          : '');
+    }
   },
   {
     label: function (n) { return 'Bovenmatig deel thuiswerkvergoeding (boven ' + euro(n.thuiswerkvergoeding) + ' per thuiswerkdag)'; },
@@ -483,8 +1171,8 @@ const POSTEN = [
     grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964 (geen vrijstelling of nihilwaardering)'
   },
   {
-    label: function (n) { return 'Kerstpakketten en andere geschenken die niet persoonlijk zijn of meer waard zijn dan ' + euro(n.attentieGeenLoon, 0); },
-    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964; Handboek Loonheffingen, par. 4.12.1'
+    label: function (n) { return 'Kerstpakketten en andere geschenken die niet aan alle voorwaarden van de kleine attentie voldoen, waaronder een factuurwaarde inclusief btw boven ' + euro(n.attentieGeenLoon, 0); },
+    grond: 'Art. 31 lid 1 onderdeel f Wet LB 1964; de kleine-attentieregel staat in Handboek Loonheffingen, par. 4.12.1 (beleid, geen wettelijk normbedrag)'
   },
   {
     label: function (n) { return 'Privegebruik ter beschikking gestelde fiets, ' + procent(n.fietsDeel, 0) + ' van de waarde minus eigen bijdrage'; },
@@ -540,7 +1228,8 @@ const NASLAG = [
     kop: 'Geen loon, dus buiten de werkkostenregeling',
     bron: 'Handboek Loonheffingen 2026, par. 4.12; art. 10 Wet LB 1964',
     items: [
-      function (n) { return 'Voordelen buiten de dienstbetrekking, waaronder een persoonlijke attentie van maximaal ' + euro(n.attentieGeenLoon, 0) + ' die geen geld of waardebon is (par. 4.12.1)'; },
+      function () { return 'Voordelen buiten de dienstbetrekking (par. 4.12.1)'; },
+      function (n) { return 'Kleine persoonlijke attentie: maximaal ' + euro(n.attentieGeenLoon, 0) + ' inclusief btw, mits aan de overige voorwaarden is voldaan. Die voorwaarden gelden cumulatief: het gaat om een persoonlijke gelegenheid waarbij ook anderen dan de werkgever een attentie plegen te geven, de attentie is geen geld en geen geldswaarde zoals een waardebon, en de factuurwaarde inclusief btw is niet hoger dan ' + euro(n.attentieGeenLoon, 0) + '. Dit is de kleine-attentieregel uit het Handboek en geen zelfstandige wettelijke vrijstelling (par. 4.12.1, beleid)'; },
       function () { return 'Vergoeding van intermediaire kosten die de werknemer voor de werkgever voorschiet (par. 4.12.2)'; },
       function () { return 'Eenmalige uitkering bij 25 of 40 dienstjaren, tot maximaal het loon over een maand (art. 11 lid 1 onderdeel o Wet LB 1964)'; },
       function () { return 'Verstrekkingen voor zover de werknemer de factuurwaarde als eigen bijdrage betaalt (par. 4.12.4)'; },
@@ -551,7 +1240,7 @@ const NASLAG = [
     kop: 'Gericht vrijgesteld, mits binnen de norm en aangewezen',
     bron: 'Art. 31a lid 2 Wet LB 1964',
     items: [
-      function (n) { return 'Vervoer in het kader van de dienstbetrekking, inclusief woon-werkverkeer, tot ' + euro(n.kilometervergoeding) + ' per km, of tot de werkelijke kosten bij taxi, vliegtuig, schip en vervoer vanwege de werkgever (onderdeel a)'; },
+      function (n) { return 'Vervoer in het kader van de dienstbetrekking, inclusief woon-werkverkeer, tot ' + euro(n.kilometervergoeding) + ' per km, of tot de werkelijke kosten bij taxi, vliegtuig, schip en vervoer vanwege de werkgever (onderdeel a)' + (n.kilometerBron === 'besluit' ? '. Dat bedrag berust op de goedkeuring in Stcrt. 2026, 18302, onderdeel 2.1; de wettekst noemt nog ' + euro(0.23) + ' per km' : ''); },
       function () { return 'Tijdelijk verblijf in het kader van de dienstbetrekking en maaltijden met een meer dan bijkomstig zakelijk karakter (onderdeel b)'; },
       function () { return 'Onderhoud en verbetering van kennis en vaardigheden, inschrijving beroepsregister en outplacement (onderdeel c)'; },
       function () { return 'Opleiding of studie met het oog op inkomen uit werk en woning, behalve werkruimte en bovenmatige binnenlandse reizen (onderdeel d)'; },
@@ -596,13 +1285,22 @@ const AFBAKENING = [
   'De gebruikelijkheidseis wordt niet doorgerekend. De tool geeft alleen een signaal zodra het gemiddelde aangewezen bedrag per werknemer boven de doelmatigheidsgrens komt. De afwijking van 30% ten opzichte van vergelijkbare gevallen beoordeelt u zelf (art. 31 lid 1 onderdeel f Wet LB 1964; par. 4.2).',
   'Negatief eindheffingsloon door terugbetaling van een eerder aangewezen vergoeding is niet ingebouwd. Dat verhoogt de vrije ruimte van het jaar van terugbetaling (Handboek Loonheffingen 2026, par. 4.6). Verwerk dat zelf in het bedrag van de betreffende post.',
   'De tool doet geen aangifte en verdeelt de eindheffing niet over tijdvakken. U geeft de eindheffing aan en betaalt die uiterlijk met de aangifte over het tweede tijdvak van het volgende kalenderjaar; eindigt de inhoudingsplicht eerder, dan uiterlijk in het tijdvak waarin die eindigt (par. 10.1.6).',
-  'De jaren voor 2024 en na 2026 zijn niet opgenomen. Voor een jaar zonder gecontroleerde waarden geeft de tool geen uitkomst. Voor 2027 legt de wet nu al vast dat het lage percentage van de vrije ruimte van 2,00% naar 2,16% gaat (art. 31a lid 3 onderdeel a Wet LB 1964, versie per 1 januari 2027), en het besluit achter de kilometergrens van 0,25 euro per kilometer vervalt op diezelfde datum. Het jaar komt erbij zodra elke waarde aan de bron is nagelopen.',
+  'De jaren voor 2024 en na 2026 zijn niet opgenomen. Voor een jaar zonder gecontroleerde waarden geeft de tool geen uitkomst. Voor 2027 legt de wet nu al vast dat het lage percentage van de vrije ruimte van 2,00% naar 2,16% gaat (art. 31a lid 3 onderdeel a Wet LB 1964, versie per 1 januari 2027). Het beleidsbesluit achter de kilometergrens van 0,25 euro bevat een horizonbepaling en vervalt per 1 januari 2027; volgens de toelichting bij dat besluit worden de goedkeuringen opgenomen in het Belastingplan 2027, zodat die vervaldatum op zichzelf niets zegt over het bedrag dat in 2027 geldt. Het jaar komt erbij zodra elke waarde aan de bron is nagelopen.',
   'De tool bewaart niets en verstuurt niets. Alles blijft in uw browser.'
 ];
 
 // ---------------------------------------------------------------------------
 
 const els = {
+  kenmerk: document.getElementById('kenmerk'),
+  datum: document.getElementById('datum'),
+  knopAfdruk: document.getElementById('knopAfdruk'),
+  knopExcel: document.getElementById('knopExcel'),
+  knopOpslaan: document.getElementById('knopOpslaan'),
+  knopOpenen: document.getElementById('knopOpenen'),
+  bestandKiezer: document.getElementById('bestandKiezer'),
+  uitvoerstatus: document.getElementById('uitvoerstatus'),
+  vindplaatsenLijst: document.getElementById('vindplaatsenLijst'),
   jaar: document.getElementById('jaar'),
   fiscaalLoon: document.getElementById('fiscaalLoon'),
   loonVroeger: document.getElementById('loonVroeger'),
@@ -646,7 +1344,7 @@ function bouwPosten() {
 
     const tdGrond = document.createElement('td');
     tdGrond.className = 'grond';
-    tdGrond.textContent = post.grond;
+    tdGrond.textContent = typeof post.grond === 'function' ? post.grond(n) : post.grond;
 
     tr.appendChild(tdLabel);
     tr.appendChild(tdBedrag);
@@ -725,11 +1423,39 @@ function notitie(tekst) {
   els.notities.appendChild(div);
 }
 
+// De laatst berekende toestand. De export leest hieruit, zodat het werkblad en het
+// dossierbestand dezelfde getallen bevatten als het scherm liet zien.
+let huidigeToestand = null;
+
+function vulVindplaatsen(jaar) {
+  els.vindplaatsenLijst.innerHTML = '';
+  if (jaar === null) return;
+  vindplaatsen(jaar).forEach(function (v) {
+    const tr = document.createElement('tr');
+    const tdNaam = document.createElement('td');
+    tdNaam.textContent = v.naam;
+    const tdWaarde = document.createElement('td');
+    tdWaarde.className = 'waarde';
+    tdWaarde.textContent = weergave(v);
+    const tdBron = document.createElement('td');
+    tdBron.textContent = v.bron;
+    tr.appendChild(tdNaam);
+    tr.appendChild(tdWaarde);
+    tr.appendChild(tdBron);
+    els.vindplaatsenLijst.appendChild(tr);
+  });
+}
+
+function zetUitgangen(aan) {
+  [els.knopExcel, els.knopOpslaan].forEach(function (knop) { knop.disabled = !aan; });
+}
+
 function bereken() {
   const jaar = huidigJaar();
   els.meldingen.innerHTML = '';
   els.notities.innerHTML = '';
   els.uitkomstRegels.innerHTML = '';
+  huidigeToestand = null;
 
   let n;
   try {
@@ -737,9 +1463,12 @@ function bereken() {
   } catch (fout) {
     els.totaalAangewezen.textContent = '-';
     melding(fout.message, 'fout');
+    vulVindplaatsen(null);
+    zetUitgangen(false);
     return;
   }
-  vulNotities(jaar, n);
+  notitieRegels(jaar, n).forEach(function (tekst) { notitie(tekst); });
+  vulVindplaatsen(jaar);
 
   const bedragen = postBedragen().map(function (waarde) {
     return waarde === '' ? 0 : Number(waarde);
@@ -757,104 +1486,46 @@ function bereken() {
   } catch (fout) {
     els.totaalAangewezen.textContent = '-';
     melding(fout.message, 'fout');
+    zetUitgangen(false);
     return;
   }
 
-  const r = uitkomst.ruimte;
   els.totaalAangewezen.textContent = euro(uitkomst.totaalAangewezen);
-
-  els.uitkomstRegels.appendChild(regel('Grondslag vrije ruimte', euro(uitkomst.grondslag)));
-  els.uitkomstRegels.appendChild(regel(
-    'Eerste schijf: ' + procent(r.lagePercentage) + ' van ' + euro(r.schijf1Grondslag),
-    euro(r.schijf1)
-  ));
-  els.uitkomstRegels.appendChild(regel(
-    'Tweede schijf: ' + procent(r.hogePercentage) + ' van ' + euro(r.schijf2Grondslag),
-    euro(r.schijf2)
-  ));
-  els.uitkomstRegels.appendChild(regel('Vrije ruimte ' + jaar, euro(uitkomst.vrijeRuimte), 'hoofd'));
-  els.uitkomstRegels.appendChild(regel('Aangewezen eindheffingsbestanddelen', euro(uitkomst.totaalAangewezen)));
-  if (uitkomst.benutting !== null) {
-    els.uitkomstRegels.appendChild(regel('Benutting van de vrije ruimte', procent(uitkomst.benutting, 1)));
-  }
-
-  if (uitkomst.overschrijding > 0) {
-    els.uitkomstRegels.appendChild(regel('Overschrijding vrije ruimte', euro(uitkomst.overschrijding), 'hoofd'));
-    els.uitkomstRegels.appendChild(regel(
-      'Eindheffing ' + procent(uitkomst.eindheffingstarief, 0) + ' over de overschrijding',
-      euro(uitkomst.eindheffing),
-      'slot'
-    ));
-  } else {
-    els.uitkomstRegels.appendChild(regel('Onbenutte vrije ruimte', euro(uitkomst.onbenutteRuimte), 'hoofd'));
-    els.uitkomstRegels.appendChild(regel('Eindheffing werkkostenregeling', euro(0), 'slot'));
-  }
-
-
-  if (uitkomst.overschrijding > 0) {
-    melding(
-      'U komt boven de vrije ruimte uit. Geef de eindheffing aan en betaal die uiterlijk met de aangifte '
-      + 'loonheffingen over het tweede tijdvak van ' + (jaar + 1) + '. Handboek Loonheffingen, par. 10.1.6.'
-    );
-  } else if (uitkomst.vrijeRuimte > 0) {
-    melding(
-      'U blijft binnen de vrije ruimte, dus u hoeft geen eindheffing werkkostenregeling aan te geven of te betalen. '
-      + 'Handboek Loonheffingen, par. 10.1.5.',
-      'goed'
-    );
-  }
+  uitkomstRegels(uitkomst).forEach(function (r) {
+    els.uitkomstRegels.appendChild(regel(r.label, weergave(r), r.klasse));
+  });
 
   const signaal = gebruikelijkheidssignaal({
     jaar: jaar,
     totaalAangewezen: uitkomst.totaalAangewezen,
     aantalWerknemers: els.aantalWerknemers.value === '' ? 0 : Number(els.aantalWerknemers.value)
   });
-  if (signaal && signaal.boven) {
-    melding(
-      'Gemiddeld ' + euro(signaal.gemiddeldePerWerknemer) + ' aangewezen per werknemer. Boven '
-      + euro(signaal.grens, 0) + ' per werknemer per jaar toetst de Belastingdienst of de aanwijzing '
-      + 'gebruikelijk is. Beoordeel dat per post. Art. 31 lid 1 onderdeel f Wet LB 1964; par. 4.2.'
-    );
-  }
 
-  if (uitkomst.gageAfgetrokken) {
-    melding(
-      'De gage van artiesten en beroepssporters staat wel in kolom 14, maar telt niet mee voor de vrije ruimte. '
-      + 'Die is van de grondslag afgehaald. Handboek Loonheffingen, par. 10.1.4.'
-    );
-  }
+  meldingRegels(uitkomst, signaal).forEach(function (m) { melding(m.tekst, m.soort); });
 
-  if (uitkomst.vroegereUitgesloten) {
-    melding(
-      'Loon uit vroegere dienstbetrekking is ' + procent(uitkomst.aandeelVroeger, 1) + ' van het fiscale loon, '
-      + 'dus meer dan 10%. De vrije ruimte is daarom berekend over het loon uit tegenwoordige dienstbetrekking. '
-      + 'Handboek Loonheffingen, par. 10.1.4.'
-    );
-  }
-
-}
-
-function vulNotities(jaar, n) {
-  if (n.kilometerBron === 'besluit') {
-    notitie(
-      'De kilometergrens van ' + euro(n.kilometervergoeding) + ' in ' + jaar + ' volgt uit een goedkeuring '
-      + 'vooruitlopend op wetgeving, met terugwerkende kracht tot 1 januari ' + jaar + '. De wettekst noemt nog '
-      + euro(0.23) + '. Besluit van 17 mei 2026, Stcrt. 2026, 18302, onderdeel 2.1; het besluit vervalt per '
-      + '1 januari 2027.'
-    );
-  }
-
-  notitie(
-    'De concernregeling zit niet in deze tool. Past u die toe, dan berekent u de vrije ruimte over het totale '
-    + 'fiscale loon van het concern en mag u de eerste schijf niet per onderdeel toepassen. Art. 32 Wet LB 1964; '
-    + 'Handboek Loonheffingen, par. 10.2.'
-  );
+  huidigeToestand = {
+    jaar: jaar,
+    fiscaalLoon: els.fiscaalLoon.value === '' ? 0 : Number(els.fiscaalLoon.value),
+    loonVroeger: els.loonVroeger.value === '' ? 0 : Number(els.loonVroeger.value),
+    gage: els.gage.value === '' ? 0 : Number(els.gage.value),
+    aantalWerknemers: els.aantalWerknemers.value === '' ? 0 : Number(els.aantalWerknemers.value),
+    posten: POSTEN.map(function (post, i) {
+      return { label: post.label(n), bedrag: bedragen[i] };
+    }),
+    uitkomst: uitkomst,
+    signaal: signaal,
+    normen: n,
+    vindplaatsen: vindplaatsen(jaar),
+    afbakening: AFBAKENING
+  };
+  zetUitgangen(true);
 }
 
 function vulVoetnoot() {
   const jaren = Object.keys(WKR_PER_JAAR).join(', ');
   els.voetnoot.textContent =
-    'Rekent per inhoudingsplichtige voor de jaren ' + jaren + '. Waarden gecontroleerd op 2 september 2026 aan '
+    'Werkkostenregeling, versie ' + TOOLVERSIE + '. '
+    + 'Rekent per inhoudingsplichtige voor de jaren ' + jaren + '. Waarden gecontroleerd op 2 september 2026 aan '
     + 'Wet LB 1964 en de Uitvoeringsregeling LB 2011 op wetten.overheid.nl, aan het Handboek Loonheffingen van het '
     + 'betreffende jaar en aan Stcrt. 2026, 18302. Controleer de waarden opnieuw bij een nieuw belastingjaar of een '
     + 'nieuw beleidsbesluit.';
@@ -866,11 +1537,136 @@ function herbouw() {
   bereken();
 }
 
+// ---------------------------------------------------------------------------
+// De drie uitgangen. De afdruk is de pagina zelf; de andere twee lezen uit
+// huidigeToestand, aangevuld met het kenmerk en de datum van dit moment.
+// ---------------------------------------------------------------------------
+
+function status(tekst) {
+  els.uitvoerstatus.textContent = tekst;
+}
+
+function vandaag() {
+  const d = new Date();
+  const p = function (getal) { return String(getal).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+function toestandNu() {
+  if (!huidigeToestand) return null;
+  return Object.assign({}, huidigeToestand, {
+    kenmerk: els.kenmerk.value.trim(),
+    datum: els.datum.value || vandaag(),
+    geexporteerd: new Date().toLocaleString('nl-NL', { dateStyle: 'short', timeStyle: 'short' })
+  });
+}
+
+function bewaarBestand(inhoud, naam, type) {
+  const blob = new Blob([inhoud], { type: type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+}
+
+els.knopAfdruk.addEventListener('click', function () {
+  status('');
+  window.print();
+});
+
+els.knopExcel.addEventListener('click', function () {
+  const d = toestandNu();
+  if (!d) { status('Er is nog geen uitkomst om te exporteren.'); return; }
+  try {
+    bewaarBestand(
+      xlsxBytes(dossierBladen(d)),
+      bestandsnaam(d.kenmerk, d.datum, 'xlsx'),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    status('Het werkblad is aangemaakt.');
+  } catch (fout) {
+    status('De export is niet gelukt: ' + fout.message);
+  }
+});
+
+els.knopOpslaan.addEventListener('click', function () {
+  const d = toestandNu();
+  if (!d) { status('Er is nog geen invoer om op te slaan.'); return; }
+  try {
+    bewaarBestand(dossierNaarJson(d), bestandsnaam(d.kenmerk, d.datum, 'json'), 'application/json');
+    status('Het dossierbestand is aangemaakt. Bewaar het in de klantmap.');
+  } catch (fout) {
+    status('Opslaan is niet gelukt: ' + fout.message);
+  }
+});
+
+els.knopOpenen.addEventListener('click', function () {
+  els.bestandKiezer.value = '';
+  els.bestandKiezer.click();
+});
+
+els.bestandKiezer.addEventListener('change', function () {
+  const bestand = els.bestandKiezer.files && els.bestandKiezer.files[0];
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onerror = function () { status('Het bestand kon niet worden gelezen.'); };
+  lezer.onload = function () {
+    let dossier;
+    try {
+      dossier = jsonNaarDossier(String(lezer.result), POSTEN.length);
+    } catch (fout) {
+      status(fout.message);
+      return;
+    }
+    zetDossier(dossier);
+  };
+  lezer.readAsText(bestand);
+});
+
+// Een ontbrekend veld blijft leeg en wordt gemeld; er wordt niets stilzwijgend
+// aangevuld. De uitkomst wordt daarna opnieuw berekend.
+function zetDossier(dossier) {
+  els.kenmerk.value = dossier.kenmerk;
+  if (dossier.datum) els.datum.value = dossier.datum;
+
+  const jaar = dossier.invoer.jaar;
+  if (jaar !== null && WKR_PER_JAAR[jaar]) {
+    els.jaar.value = String(jaar);
+  } else if (jaar !== null) {
+    dossier.meldingen.push('Het bestand noemt jaar ' + jaar + '. Dat jaar zit niet in deze tool; '
+      + 'het jaar op het scherm is niet gewijzigd.');
+  }
+
+  els.fiscaalLoon.value = dossier.invoer.fiscaalLoon === null ? '' : String(dossier.invoer.fiscaalLoon);
+  els.loonVroeger.value = dossier.invoer.loonVroeger === null ? '' : String(dossier.invoer.loonVroeger);
+  els.gage.value = dossier.invoer.gage === null ? '' : String(dossier.invoer.gage);
+  els.aantalWerknemers.value =
+    dossier.invoer.aantalWerknemers === null ? '' : String(dossier.invoer.aantalWerknemers);
+
+  bouwPosten();
+  bouwNaslag();
+  const velden = els.postenLijst.querySelectorAll('input.bedrag');
+  velden.forEach(function (veld, i) {
+    veld.value = dossier.posten[i] === null || dossier.posten[i] === undefined ? '' : String(dossier.posten[i]);
+  });
+
+  bereken();
+  dossier.meldingen.forEach(function (tekst) { melding(tekst, 'fout'); });
+  status(dossier.meldingen.length
+    ? 'Het dossier is geopend, met ' + dossier.meldingen.length + ' melding(en) bij de uitkomst.'
+    : 'Het dossier is geopend en opnieuw doorgerekend.');
+}
+
 els.jaar.addEventListener('change', herbouw);
 [els.fiscaalLoon, els.loonVroeger, els.gage, els.aantalWerknemers].forEach(function (veld) {
   veld.addEventListener('input', bereken);
 });
 
+els.datum.value = vandaag();
 bouwAfbakening();
 vulVoetnoot();
 herbouw();
