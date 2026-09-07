@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-04
+Bijgewerkt: 2026-09-07
 
 ## Accountancy & Jaarrekening
 
@@ -40,7 +40,7 @@ Bijgewerkt: 2026-09-04
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Auto Fiscaal 2027**: Brengt de grote autowijzigingen per 1 januari 2027 samen: eindheffing, youngtimer-bijtelling en RDW-kentekenlookup
 - **Auto van de Zaak**: Rekent door of een auto op de zaak of privé fiscaal gunstiger uitpakt
@@ -95,6 +95,18 @@ Bijgewerkt: 2026-09-04
 - **Belastingtool JoinDK**: Bundelt zes tools in één app: betalingskenmerk decoderen, belastingrente IB en VpB, BTW-correctie en bijtelling auto, VIES en KvK/SBI
 - **Kennisgroepen-zoeker**: Zoekt en analyseert kennisgroepstandpunten van de Belastingdienst met AI
 
+## Financiële planning
+
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🔵 concept | Hypotheek annuïtair | nog niet gepubliceerd | bouwman-tools/hypotheek-annuitair | n.v.t. | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Hypotheek in BV | nog niet gepubliceerd | bouwman-tools/hypotheek-in-bv | n.v.t. | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Tijdplan | nog niet gepubliceerd | bouwman-tools/tijdplan | n.v.t. | **ontbreekt** | Sylvain Bouwman | belastingplan | **nooit** |
+
+- **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
+- **Hypotheek in BV**: Zet de bankhypotheek doorlopen, oversluiten naar de eigen BV en aflossen over een jaar naast elkaar, met box 1, box 2 en box 3, de toets op excessief lenen en de kwalificatie als eigenwoningschuld
+- **Tijdplan**: Zet leeftijden en mutatiemomenten van een gezin op een tijdlijn en rekent uit in welk jaar een leeftijd valt
+
 ## Kantoor
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
@@ -111,7 +123,7 @@ Bijgewerkt: 2026-09-04
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-07 |
 
 - **WKR Agent**: AI-assistent voor vragen over de werkkostenregeling
 - **Werkgeversverklaring NHG**: Vult een NHG-werkgeversverklaring stap voor stap in via een wizard
