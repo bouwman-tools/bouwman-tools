@@ -140,3 +140,18 @@ handlers met synthetische KV, geldige/ongeldige upserts, behoud en verwijdering
 van oude keys, en de echte lijst-/knop-/API-functies met DOM- en fetch-stubs.
 Dit is geen live browser- of toegangstest. Authenticatie en de publieke
 `/permissions`-functie zijn voor deze vervolgfix niet gewijzigd.
+
+## Previewroutes uitschakelen — 8 september 2026
+
+De deployconfiguratie zet `preview_urls` expliciet op `false`. Hiermee worden
+volgens [Cloudflare](https://developers.cloudflare.com/workers/versions-and-deployments/preview-urls/#toggle-preview-urls-enable-or-disable)
+zowel versie- als aliaspreviewroutes uitgeschakeld, ook als de gewone workers.dev-route
+actief blijft. Oude Worker-versies mogen de huidige authenticatie niet omzeilen.
+De gewone beheer-/portaalroutes, Worker-code, cron en bindings wijzigen niet.
+Er zijn geen rechten of secrets gelezen of gewijzigd en geen oude beheerhandlers
+aangeroepen. Het aantal kwetsbare oude versies is niet onafhankelijk vastgesteld.
+
+Validatie: diff beperkt tot configuratie/documentatie, Wrangler dry-run en na
+uitrol de bestaande achttien anonieme buitencontroles. Een geslaagde reguliere
+buitencontrole bewijst op zichzelf niet de remote previewinstelling; daarvoor
+wordt een afzonderlijke metadata-eindcontrole gevraagd.
