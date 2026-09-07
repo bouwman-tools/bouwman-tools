@@ -1,6 +1,6 @@
 # Portaalrechten via de aangemelde identiteit
 
-Lokale definitieve kandidaat; deze notitie is geen bewijs van deployment of werkende live-login.
+Uitgerold op 7 september 2026, avond CEST. De live-login met een echte gebruiker is nog niet getest.
 De wijziging raakt geen fiscale waarden, Access-policies of opgeslagen rechten.
 
 `portal.html` vraagt zijn identiteit en rechten samen op via
@@ -85,3 +85,24 @@ expliciete config: 54,55 KiB, gzip 15,54 KiB. Er is niets geüpload. Geen live K
 credentials of aangemelde browsers gebruikt voor deze controles. De bestaande
 Node-waarschuwing over moduledetectie blijft ongewijzigd; de bundel is een ES-module.
 De definitieve versie slaagt voor dezelfde bundelcontrole: 52,56 KiB, gzip 15,09 KiB.
+
+## Uitrolbewijs, 7 september 2026
+
+Overgang9ddc43c6 uitgerold als Worker1057f09b-21da-41b2-85dc-d199e5ce42f1.
+Venster: 23:34:07.005 tot uiterlijk00:04:07.005 CEST (UTC21:34:07.005–22:04:07.005).
+De pagina uit die commit is gepubliceerd: Pages34163659288 en CI34163660333 geslaagd.
+De definitieve portal.html is bytegelijk aan die overgangspagina.
+
+Daarna de finale Worker uitgerold:44c595dc-b82a-4e8b-af74-02ed66e11207, bron7f7cc7d.
+De legacyhandler is daarmee al vóór de vaste eindtijd verwijderd. Overgebleven venstervariabelen
+kunnen in deze code niets heropenen. Bestaande bindings/secrets, beide API-routes en cron behouden.
+De reviewbranch en publieke master staan op7f7cc7d vóór deze documentatiecommit.
+
+Onafhankelijk live uitgevoerd:18 anonieme buitenproeven,0 afwijkingen. Oude adminroutes404,
+nieuwe adminroutes302 naar vaste Access-login, oude permissionsPOST{} en OPTIONS410,
+nieuwe permissionsGET302 naar vaste Access-login; telkens met en zonder Origin.
+Geen cookies, tokens, echte adressen of responsebody's gelezen. De blijvende CI-controle
+bevat alle18 proeven;10 lokale mocktests slagen, inclusief200-afwijzing en foute redirects.
+
+Dit bewijst de gesloten oude routes en de Access-poort. Een echte ingelogde portaal-/beheerproef
+blijft open voor de eigenaar; geen echte rechtenopslag gelezen of gewijzigd tijdens deze uitrol.
