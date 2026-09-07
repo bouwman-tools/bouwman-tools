@@ -68,6 +68,14 @@ velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
   categorie, niet als tiende kolom, want dan wordt die tabel onleesbaar.
 - `TOOLS.md` wordt **gegenereerd**: `python tools/check_tools.py --schrijf-tools-md`.
   Bewerk dat bestand niet met de hand.
+- `grondslagen` is optioneel en bevat alleen gecontroleerde wettelijke identificaties
+  met regeling, artikel, versie en officiële HTTPS-vindplaats. De identificatie is
+  geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
+  Bij ontbrekend bewijs niets invullen; controleer de bronnen bij inhoudelijk onderhoud.
+- Test schema en grondslagenweergave met
+  `python -B -m unittest discover -s tools -p "test_*.py"`, na installatie van
+  `jsonschema` (`python -m pip install jsonschema`). De tests gebruiken synthetische
+  registergegevens; de generator leest geen andere repositories.
 - Een tool met status `concept` is nog niet gepubliceerd: het bestand staat alleen in
   de bronrepo. Zo staat werk in uitvoering toch in `tools.json` en in `TOOLS.md`, zonder
   dat de controle struikelt op een bestand dat hier ontbreekt. `bestand` blijft verplicht
@@ -124,6 +132,11 @@ die nodig, en `eigenaar`, `status_reden`, `laatst_beoordeeld`, `jaarwaarden_geco
 en `uitgangen` naar die privérepo verhuizen, met een controle die de id's van beide helften
 naast elkaar legt. Het register volledig verhuizen kan niet: dan kan de CI van deze
 publieke repo de drift niet meer controleren.
+
+Modelherkomst, modelidentificaties, toelichtingen op modelverschillen en bijbehorende
+bewijsindexen blijven in de private helft. Deze informatie hoort niet in het publieke
+register, de gegenereerde overzichten of hun Git-historie. De publieke generator
+bevat daarom alleen de wettelijke verwijzingen; er wordt geen interne index meegeleverd.
 
 ## Nieuwe tools gaan direct het portaal in
 

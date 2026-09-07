@@ -26,15 +26,50 @@ bewust niet: die worden gemeld, de tool blijft live. Draait lokaal en in CI
 from __future__ import annotations
 
 import datetime
+import html
 import json
 import os
 import re
 import sys
+from urllib.parse import quote, urlsplit
 
 WORTEL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Bestanden van het portaal zelf; die horen niet in tools.json.
 INFRA = {"portal.html", "beheer.html", "index.html", "bouwman-tools-snippet.html"}
+
+# Dezelfde expliciete hosts als definitions/grondslag in tools.schema.json.
+OFFICIELE_BRONHOSTS = {
+    "wetten.overheid.nl", "officielebekendmakingen.nl", "zoek.officielebekendmakingen.nl",
+    "belastingdienst.nl", "www.belastingdienst.nl", "kennisgroepen.belastingdienst.nl",
+    "uitspraken.rechtspraak.nl", "eur-lex.europa.eu", "curia.europa.eu",
+}
+
+
+def markdown_tekst(tekst: str) -> str:
+    """Eén regel tekst; steeds na een vaste prefix gebruiken, nooit als losse regel."""
+    tekst = html.escape(" ".join(str(tekst).split()), quote=False)
+    return re.sub(r"([\\`*_{}\[\]()!|])", r"\\\1", tekst)
+
+
+def grondslag_link(grondslag: dict) -> str:
+    """Maak alleen links naar expliciete officiële HTTPS-hosts; geen bronaanvraag."""
+    url = grondslag["url"]
+    delen = urlsplit(url)
+    if (delen.scheme != "https" or delen.netloc not in OFFICIELE_BRONHOSTS or
+            re.search(r"[\s\x00-\x1f\x7f<>]", url)):
+        raise ValueError("Een grondslag moet naar een toegestane officiële HTTPS-bron verwijzen.")
+    label = markdown_tekst(f"{grondslag['regeling']}, {grondslag['artikel']}")
+    return f"[{label}]({quote(url, safe=':/?&=#%+,-._~')})"
+
+
+def grondslag_regels(tool: dict) -> list[str]:
+    grondslagen = tool.get("grondslagen", [])
+    if not grondslagen:
+        return []
+    return [f"### Wettelijke verwijzingen: {markdown_tekst(tool['naam'])}", ""] + [
+        f"- {grondslag_link(grondslag)}" for grondslag in grondslagen
+    ] + [""]
 
 
 def lees(naam: str) -> str:
@@ -428,11 +463,8 @@ def main() -> int:
     return 0
 
 
-def schrijf_tools_md() -> None:
-    """Genereert TOOLS.md uit tools.json, zodat dat overzicht geen aparte bron is."""
-    with open(os.path.join(WORTEL, "tools.json"), encoding="utf-8") as fh:
-        bron = json.load(fh)
-
+def render_tools_md(bron: dict) -> str:
+    """Render uitsluitend registergegevens; geen andere repositories of netwerk nodig."""
     ICOON = {"live": "🟢", "beta": "🟡", "verborgen": "⚪", "concept": "🔵"}
     regels = [
         "# Tools — bouwman.tools",
@@ -443,6 +475,13 @@ def schrijf_tools_md() -> None:
         f"Bijgewerkt: {bron.get('bijgewerkt', '?')}",
         "",
     ]
+    if any(tool.get("grondslagen") for tool in bron["tools"]):
+        regels += [
+            "Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.",
+            "Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.",
+            "Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.",
+            "",
+        ]
 
     per_categorie: dict[str, list] = {}
     for tool in bron["tools"]:
@@ -494,6 +533,8 @@ def schrijf_tools_md() -> None:
         if beschrijvingen:
             regels += [""] + beschrijvingen
         regels.append("")
+        for tool in in_categorie:
+            regels += grondslag_regels(tool)
 
     onbeschermd = [
         t for t in bron["tools"]
@@ -537,8 +578,19 @@ def schrijf_tools_md() -> None:
         regels += ["## Vervallen", "", "| Bestand | Reden |", "|---|---|"]
         regels += [f"| `{v['bestand']}` | {v['reden']} |" for v in bron["vervallen"]] + [""]
 
+    return "\n".join(regels)
+
+
+def schrijf_tools_md() -> None:
+    """Valideer vóór schrijven; de uitvoer blijft lokaal en in CI reproduceerbaar."""
+    with open(os.path.join(WORTEL, "tools.json"), encoding="utf-8") as fh:
+        bron = json.load(fh)
+    fouten = valideer_schema(bron)
+    if fouten:
+        raise ValueError("\n".join(fouten))
+    tekst = render_tools_md(bron)
     with open(os.path.join(WORTEL, "TOOLS.md"), "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("\n".join(regels))
+        fh.write(tekst)
     print("TOOLS.md gegenereerd uit tools.json")
 
 

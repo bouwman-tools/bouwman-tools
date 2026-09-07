@@ -5,6 +5,10 @@
 
 Bijgewerkt: 2026-09-07
 
+Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
+Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
+Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
+
 ## Accountancy & Jaarrekening
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
@@ -53,7 +57,7 @@ Bijgewerkt: 2026-09-07
 | 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
-- **BTW Teruggaaf EU**: Berekent en onderbouwt een BTW-teruggaafverzoek voor kosten gemaakt in EU-landen
+- **BTW Teruggaaf EU**: Toont per EU-land de voorwaarden voor een btw-teruggaafverzoek, waaronder factuurvereisten, minimumbedragen, talen en indienen via een derde
 - **BUA en kantineregeling**: Berekent de uitsluiting van btw-aftrek voor personeelsvoorzieningen, de kantine en relatiegeschenken, met de drempel per begunstigde
 - **Herziening btw**: Berekent de herziening van in aftrek gebrachte btw op investeringsgoederen en investeringsdiensten: onroerend over tien boekjaren, roerend en diensten over vijf, met de tienprocentsmarge per boekjaar en de gevolgen van levering binnen de termijn
 
@@ -137,9 +141,16 @@ Bijgewerkt: 2026-09-07
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
-- **Berekeningen**: Rekent zestien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente en doorverkoop overdrachtsbelasting
+- **Berekeningen**: Rekent zeventien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
+
+### Wettelijke verwijzingen: Berekeningen
+
+- [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 17a, leden 1-6 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel17a)
+- [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 17b \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel17b)
+- [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 18, leden 1-2 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel18)
+- [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 19, leden 1-8 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel19)
 
 ## Workers
 
