@@ -2550,14 +2550,51 @@ function leesVeld(veld, ruw) {
   if (veld.t === 'datum') return ruw || '';
   if (ruw === '' || ruw === null || ruw === undefined) return null;
   const n = Number(String(ruw).replace(',', '.'));
-  if (!isFinite(n)) return null;
+  // Niet-lege ongeldige invoer blijft onderscheiden van een werkelijk leeg veld.
+  if (!isFinite(n)) return String(ruw);
   return veld.t === 'procent' ? n / 100 : n;
+}
+
+const numeriekVeld = veld => !['vinkje', 'keuze', 'datum'].includes(veld.t);
+const ongeldigGetal = w => w !== null && w !== undefined && w !== '' &&
+  !(typeof w === 'number' && Number.isFinite(w));
+const getalMelding = label => label + ': vul een geldig, eindig getal in of maak het veld leeg.';
+
+/* Een number-input kan bij ongeldige invoer een lege value geven. badInput
+   bewaart dat onderscheid; min/max/step en de bestaande getalnotatie blijven intact. */
+function leesInvoerelement(veld, element) {
+  const ruw = veld.t === 'vinkje' ? element.checked
+    : (numeriekVeld(veld) && element.validity && element.validity.badInput
+      ? 'ongeldige numerieke invoer' : element.value);
+  const waarde = leesVeld(veld, ruw);
+  if (numeriekVeld(veld)) element.setAttribute('aria-invalid', String(ongeldigGetal(waarde)));
+  return waarde;
+}
+
+/* Toets vóór rekenen en vóór elke uitvoer, ook als een veld in de kern optioneel is. */
+function invoerFout(o) {
+  for (const v of o.velden) {
+    if (numeriekVeld(v) && ongeldigGetal(invoer[o.id][v.k])) {
+      return getalMelding(o.naam + ': ' + v.l);
+    }
+  }
+  if (o.reeks) {
+    for (let n = 0; n < reeksen[o.id].length; n++) {
+      const cel = reeksen[o.id][n];
+      for (const k of o.reeks.kolommen) {
+        const w = o.reeks.kolommen.length === 1 ? cel : (cel ? cel[k] : null);
+        if (ongeldigGetal(w)) return getalMelding(o.naam + ': reeksregel ' + (n + 1) + ', ' + k);
+      }
+    }
+  }
+  return null;
 }
 
 function schrijfVeld(veld, waarde) {
   if (veld.t === 'vinkje') return !!waarde;
   if (veld.t === 'keuze' || veld.t === 'datum') return waarde ?? '';
   if (waarde === null || waarde === undefined) return '';
+  if (typeof waarde === 'string') return waarde;
   return veld.t === 'procent' ? +(waarde * 100).toFixed(6) : waarde;
 }
 
@@ -2960,6 +2997,8 @@ function celInvoer(veld, waarde) {
    en vindplaatsen. Een reeksinvoer en een uitwerking krijgen elk een eigen blad.
    Dit is de indeling die elke tool aanhoudt. */
 function exportBladen(o, r) {
+  const fout = invoerFout(o);
+  if (fout) throw new Error(fout);
   const bladen = [];
   const rijen = [];
 
@@ -3094,6 +3133,8 @@ const DOSSIER_MAX_KENMERK = 80;
 function dossierStand() {
   const onderwerpen = {};
   for (const o of ONDERWERPEN) {
+    const fout = invoerFout(o);
+    if (fout) throw new Error(fout);
     const post = { velden: {} };
     for (const v of o.velden) post.velden[v.k] = schrijfVeld(v, invoer[o.id][v.k]);
     if (o.reeks) {
@@ -3179,6 +3220,9 @@ function leesDossier(tekst) {
     const bronVelden = (post && post.velden && typeof post.velden === 'object') ? post.velden : {};
     velden[o.id] = {};
     for (const v of o.velden) {
+      if (numeriekVeld(v) && ongeldigGetal(bronVelden[v.k])) {
+        return { ok: false, fouten: [getalMelding(o.naam + ': ' + v.l)] };
+      }
       const w = dossierWaarde(v, bronVelden[v.k]);
       if (w === undefined) ontbrekend.push(o.naam + ': ' + v.l);
       else velden[o.id][v.k] = w;
@@ -3191,11 +3235,17 @@ function leesDossier(tekst) {
         if (!Number.isInteger(n) || n < 0 || n >= o.reeks.aantal) continue;
         const cel = bronReeks[sleutel];
         if (o.reeks.kolommen.length === 1) {
+          if (ongeldigGetal(cel)) {
+            return { ok: false, fouten: [getalMelding(o.naam + ': reeksregel ' + (n + 1))] };
+          }
           if (typeof cel === 'number' && isFinite(cel)) nieuweReeksen[o.id][n] = cel;
           continue;
         }
         if (!cel || typeof cel !== 'object') continue;
         for (const k of o.reeks.kolommen) {
+          if (ongeldigGetal(cel[k])) {
+            return { ok: false, fouten: [getalMelding(o.naam + ': reeksregel ' + (n + 1) + ', ' + k)] };
+          }
           if (typeof cel[k] === 'number' && isFinite(cel[k])) nieuweReeksen[o.id][n][k] = cel[k];
         }
       }
@@ -3272,12 +3322,13 @@ function toon() {
       inv.id = o.id + '-' + v.k;
       const waarde = schrijfVeld(v, invoer[o.id][v.k]);
       if (v.t === 'vinkje') inv.checked = waarde; else inv.value = waarde;
+      if (numeriekVeld(v)) inv.setAttribute('aria-invalid', String(ongeldigGetal(invoer[o.id][v.k])));
       inv.addEventListener('input', () => {
-        invoer[o.id][v.k] = leesVeld(v, v.t === 'vinkje' ? inv.checked : inv.value);
+        invoer[o.id][v.k] = leesInvoerelement(v, inv);
         rekenEnToon(o);
       });
       inv.addEventListener('change', () => {
-        invoer[o.id][v.k] = leesVeld(v, v.t === 'vinkje' ? inv.checked : inv.value);
+        invoer[o.id][v.k] = leesInvoerelement(v, inv);
         rekenEnToon(o);
       });
 
@@ -3308,7 +3359,7 @@ function toon() {
     const merkLeeg = (tr, n) => {
       const cel = reeksen[o.id][n];
       const waarden = o.reeks.kolommen.length === 1 ? [cel] : o.reeks.kolommen.map(k => cel ? cel[k] : null);
-      tr.className = waarden.some(w => typeof w === 'number' && isFinite(w)) ? '' : 'leeg';
+      tr.className = waarden.some(w => w !== null && w !== undefined && w !== '') ? '' : 'leeg';
     };
     for (let n = 0; n < o.reeks.aantal; n++) {
       const tr = document.createElement('tr');
@@ -3323,8 +3374,9 @@ function toon() {
         const cel = reeksen[o.id][n];
         const huidigeWaarde = o.reeks.kolommen.length === 1 ? cel : (cel ? cel[k] : null);
         inp.value = huidigeWaarde ?? '';
+        inp.setAttribute('aria-invalid', String(ongeldigGetal(huidigeWaarde)));
         inp.addEventListener('input', () => {
-          const w = inp.value === '' ? null : Number(inp.value);
+          const w = leesInvoerelement({ t: 'euro' }, inp);
           if (o.reeks.kolommen.length === 1) reeksen[o.id][n] = w;
           else {
             if (!reeksen[o.id][n]) reeksen[o.id][n] = {};
@@ -3369,7 +3421,10 @@ function rekenEnToon(o) {
   }
 
   let r;
-  try { r = o.reken(i); }
+  try {
+    const fout = invoerFout(o);
+    r = fout ? { fout } : o.reken(i);
+  }
   catch (e) { r = { fout: 'De berekening kon niet worden uitgevoerd: ' + e.message }; }
 
   const fs = document.createElement('fieldset');
@@ -3470,7 +3525,8 @@ function zetAfdrukdatum() {
 
 function dossierOpslaan() {
   const naam = uitgangBestandsnaam(TOOL_ID, huidigKenmerk(), 'json');
-  bewaarBestand(maakDossierTekst(), naam, MIME_JSON);
+  try { bewaarBestand(maakDossierTekst(), naam, MIME_JSON); }
+  catch (e) { dossierMelding('Het dossier is niet opgeslagen: ' + e.message, 'fout'); return; }
   dossierMelding('Opgeslagen als ' + naam + '. Zet het bestand in de klantmap, dan gaat ' +
     'het mee in de back-up en kan een collega het openen.', 'goed');
 }
