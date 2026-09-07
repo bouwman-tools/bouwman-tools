@@ -1349,7 +1349,22 @@ function afrondOmlaagOpEuro(bedrag) {
    jaar van afkoop mag erbij: over dat jaar loopt geen rente, omdat het tijdvak
    dan pas na de einddatum zou beginnen.
 
-   Hoofdregel: 20 percent van de afkoopwaarde (art. 30i lid 2 AWR).
+   Hoofdregel: 20 percent van het bedrag dat als negatieve uitgaven voor
+   inkomensvoorzieningen in aanmerking wordt genomen. Art. 30i lid 2, tweede
+   volzin, AWR wijst voor de gevallen van art. 3.133 Wet IB 2001 - en de afkoop
+   van een lijfrente is zo'n geval - uitdrukkelijk dat bedrag aan als grondslag,
+   en niet de waarde in het economische verkeer van de eerste volzin.
+
+   Art. 3.137 lid 1 Wet IB 2001 stelt die negatieve uitgaven op de waarde in het
+   economische verkeer van de aanspraak. Lid 2 brengt daarop bij afkoop in
+   mindering de premies waarvan de belastingplichtige aannemelijk maakt dat zij
+   niet in aftrek zijn gebracht. Zonder zulke premies vallen de twee grondslagen
+   samen; zijn ze er, dan is de grondslag lager en zou rekenen met de waarde in
+   het economische verkeer te veel revisierente opleveren.
+
+   De vermindering van lid 2 kent een maximum: het bedrag van art. 3.107a lid 2.
+   Dat maximum past deze kern niet toe; zie de melding en open punt 7 in
+   BRONNEN.md.
    Tegenbewijs op verzoek (lid 3): per premiejaar de belastingrente over
    50 percent van de premie, met als tijdvak 1 juli van het jaar na het
    premiejaar tot en met 31 december van het jaar van afkoop.
@@ -1357,9 +1372,21 @@ function afrondOmlaagOpEuro(bedrag) {
    Over de afronding zwijgen art. 30i en art. 30fc. Deze kern rekent daarom
    onafgerond en rondt alleen het eindbedrag per route naar beneden af op hele
    euro's; zie open punt 5 in BRONNEN.md. */
-function revisierenteAfkoopLijfrente({ jaarAfkoop, afkoopwaarde, jaarBedongen, premies = [] }) {
+function revisierenteAfkoopLijfrente({
+  jaarAfkoop, waardeEconomischVerkeer, nietAfgetrokkenPremies = 0, jaarBedongen, premies = []
+}) {
   if (!Number.isInteger(jaarAfkoop)) return { fout: 'Geef het jaar van afkoop op.' };
-  if (!(afkoopwaarde >= 0)) return { fout: 'Geef de afkoopwaarde op; die kan niet negatief zijn.' };
+  if (!(waardeEconomischVerkeer >= 0)) {
+    return { fout: 'Geef de waarde in het economische verkeer op; die kan niet negatief zijn.' };
+  }
+  if (!(nietAfgetrokkenPremies >= 0)) {
+    return { fout: 'De niet in aftrek gebrachte premies kunnen niet negatief zijn.' };
+  }
+  if (nietAfgetrokkenPremies > waardeEconomischVerkeer) {
+    return { fout: 'De niet in aftrek gebrachte premies zijn hoger dan de waarde in het ' +
+                   'economische verkeer. Dan blijven er geen negatieve uitgaven over en is ' +
+                   'de invoer niet sluitend.' };
+  }
   if (!Number.isInteger(jaarBedongen)) {
     return { fout: 'Geef het jaar op waarin de aanspraak is bedongen. Daarvan hangt af ' +
                    'of de tegenbewijsregeling openstaat.' };
@@ -1369,7 +1396,16 @@ function revisierenteAfkoopLijfrente({ jaarAfkoop, afkoopwaarde, jaarBedongen, p
   }
 
   const meldingen = [];
-  const hoofdregel = afkoopwaarde * REVISIERENTE_PERCENTAGE;
+  // Art. 3.137 lid 1 en 2 Wet IB 2001.
+  const negatieveUitgaven = waardeEconomischVerkeer - nietAfgetrokkenPremies;
+  const hoofdregel = negatieveUitgaven * REVISIERENTE_PERCENTAGE;
+  if (nietAfgetrokkenPremies > 0) {
+    meldingen.push({ soort: 'let', tekst:
+      'De vermindering met de niet in aftrek gebrachte premies geldt tot het maximum van ' +
+      'art. 3.107a lid 2 Wet IB 2001 (art. 3.137 lid 2). Dat maximum past de tool niet toe: ' +
+      'toets zelf of de vermindering daarbinnen blijft. De belastingplichtige moet bovendien ' +
+      'aannemelijk maken dat die premies niet in aftrek zijn gebracht.' });
+  }
 
   const tegenbewijsOpen = jaarBedongen > jaarAfkoop - REVISIERENTE_TEGENBEWIJS_JAREN;
   if (!tegenbewijsOpen) {
@@ -1381,7 +1417,7 @@ function revisierenteAfkoopLijfrente({ jaarAfkoop, afkoopwaarde, jaarBedongen, p
       hoofdregelExact: hoofdregel, hoofdregelBedrag: afrondOmlaagOpEuro(hoofdregel),
       tegenbewijsOpen: false, tegenbewijsExact: null, tegenbewijsBedrag: null,
       revisierenteExact: hoofdregel, revisierente: afrondOmlaagOpEuro(hoofdregel),
-      route: 'hoofdregel', deelVanAfkoopwaarde: REVISIERENTE_PERCENTAGE,
+      route: 'hoofdregel', negatieveUitgaven, deelVanGrondslag: REVISIERENTE_PERCENTAGE,
       regels: [], meldingen
     };
   }
@@ -1446,7 +1482,8 @@ function revisierenteAfkoopLijfrente({ jaarAfkoop, afkoopwaarde, jaarBedongen, p
     hoofdregelExact: hoofdregel, hoofdregelBedrag: afrondOmlaagOpEuro(hoofdregel),
     tegenbewijsOpen: true, tegenbewijsExact: somExact, tegenbewijsBedrag: afrondOmlaagOpEuro(somExact),
     revisierenteExact: laagste, revisierente: afrondOmlaagOpEuro(laagste),
-    route, deelVanAfkoopwaarde: afkoopwaarde > 0 ? laagste / afkoopwaarde : 0,
+    route, negatieveUitgaven,
+    deelVanGrondslag: negatieveUitgaven > 0 ? laagste / negatieveUitgaven : 0,
     regels, meldingen
   };
 }
@@ -2134,8 +2171,14 @@ const ONDERWERPEN = [
     'Art. 30i lid 1 onderdeel b AWR: revisierente is verschuldigd zodra premies voor een ' +
       'aanspraak op periodieke uitkeringen als negatieve uitgaven voor ' +
       'inkomensvoorzieningen in aanmerking worden genomen.',
-    'Art. 30i lid 2 AWR: de hoofdregel is 20 percent van de waarde in het economische ' +
-      'verkeer van de aanspraak, dan wel van het bedrag aan negatieve uitgaven.',
+    'Art. 30i lid 2 AWR: de hoofdregel is 20 percent. Bij afkoop van een lijfrente wijst de ' +
+      'tweede volzin de grondslag aan: het bedrag dat ingevolge art. 3.133 Wet IB 2001 als ' +
+      'negatieve uitgaven voor inkomensvoorzieningen in aanmerking wordt genomen, en niet de ' +
+      'waarde in het economische verkeer van de eerste volzin.',
+    'Art. 3.137 lid 1 en 2 Wet IB 2001: die negatieve uitgaven worden gesteld op de waarde in ' +
+      'het economische verkeer van de aanspraak, bij afkoop verminderd met de premies waarvan ' +
+      'de belastingplichtige aannemelijk maakt dat zij niet in aftrek zijn gebracht, tot het ' +
+      'maximum van art. 3.107a lid 2.',
     'Art. 30i lid 3 AWR: het tegenbewijs geldt op verzoek en alleen als de aanspraak is ' +
       'bedongen minder dan tien jaren voor het jaar van de negatieve uitgaven. De bedragen ' +
       'van de veronderstelde navorderingsaanslagen worden gesteld op 50 percent van de ' +
@@ -2156,11 +2199,14 @@ const ONDERWERPEN = [
     'vanaf 2012; daarbuiten volgt een melding en geen uitkomst. Terugwenteling van premies ' +
     'naar het voorafgaande jaar (art. 3.130 lid 2 Wet IB 2001) wordt niet herkend: vul de ' +
     'premie in bij het jaar van aftrek. De tool toetst niet of er een oneigenlijke ' +
-    'handeling is en berekent de negatieve uitgaven niet zelf; de afkoopwaarde is invoer. ' +
+    'handeling is. De waarde in het economische verkeer en de niet in aftrek gebrachte ' +
+    'premies zijn invoer; het maximum van art. 3.107a lid 2 op die vermindering wordt niet ' +
+    'toegepast. ' +
     'De tool rekent de revisierente en niet de belasting.',
   id: 'revisierente', groep: 'Lijfrente', naam: 'Revisierente bij afkoop',
   titel: 'Revisierente bij afkoop van een lijfrente',
-  grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van de afkoopwaarde. ' +
+  grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van het bedrag aan ' +
+             'negatieve uitgaven voor inkomensvoorzieningen. ' +
              'Op verzoek stelt lid 3 de revisierente in plaats daarvan op de ' +
              'belastingrente die in rekening zou zijn gebracht als de premieaftrek per ' +
              'jaar was teruggenomen, met de bedragen van die navorderingsaanslagen op ' +
@@ -2172,7 +2218,8 @@ const ONDERWERPEN = [
       { w: 2023, l: '2023' }, { w: 2024, l: '2024' }, { w: 2025, l: '2025' },
       { w: 2026, l: '2026' }
     ] },
-    { k: 'afkoopwaarde', l: 'Afkoopwaarde', h: 'De waarde in het economische verkeer, of het bedrag aan negatieve uitgaven', t: 'euro', v: 100000 },
+    { k: 'waardeEconomischVerkeer', l: 'Waarde in het economische verkeer van de aanspraak', h: 'Op het tijdstip onmiddellijk voor de afkoop (art. 3.137 lid 1)', t: 'euro', v: 100000 },
+    { k: 'nietAfgetrokkenPremies', l: 'Premies die niet in aftrek zijn gebracht', h: 'Aannemelijk te maken; verlaagt de grondslag (art. 3.137 lid 2). Laat nul staan als alle premies zijn afgetrokken', t: 'euro', v: 0 },
     { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'Tien jaar of langer voor het jaar van afkoop sluit de tegenbewijsregeling af', t: 'geheel', v: 2019 },
     { k: 'premie0', l: 'Premie in het jaar van afkoop', h: 'In aftrek gebracht; over dit jaar loopt geen rente', t: 'euro', v: 3000 },
     { k: 'premie1', l: 'Premie 1 jaar eerder', t: 'euro', v: 7200 },
@@ -2192,17 +2239,19 @@ const ONDERWERPEN = [
       if (premie > 0) premies.push({ jaar: i.jaarAfkoop - t, premie });
     }
     return revisierenteAfkoopLijfrente({
-      jaarAfkoop: i.jaarAfkoop, afkoopwaarde: i.afkoopwaarde,
+      jaarAfkoop: i.jaarAfkoop, waardeEconomischVerkeer: i.waardeEconomischVerkeer,
+      nietAfgetrokkenPremies: i.nietAfgetrokkenPremies,
       jaarBedongen: i.jaarBedongen, premies
     });
   },
   uit: r => [
-    ['Hoofdregel, 20 percent van de afkoopwaarde', euro(r.hoofdregelBedrag)],
+    ['Negatieve uitgaven, grondslag van de hoofdregel', euro(r.negatieveUitgaven)],
+    ['Hoofdregel, 20 percent van die grondslag', euro(r.hoofdregelBedrag)],
     ['Tegenbewijsregeling staat open', r.tegenbewijsOpen ? 'Ja' : 'Nee'],
     ['Tegenbewijs, belastingrente over 50 percent van de premies', euro(r.tegenbewijsBedrag)],
     ['Laagste van de twee', r.route === 'tegenbewijs' ? 'Tegenbewijs (lid 3)' : 'Hoofdregel (lid 2)'],
     ['Revisierente', euro(r.revisierente), true],
-    ['Revisierente als deel van de afkoopwaarde', procent(r.deelVanAfkoopwaarde, 3)]
+    ['Revisierente als deel van de grondslag', procent(r.deelVanGrondslag, 3)]
   ],
   meldingen: r => r.meldingen || [],
   schema: r => r.regels && r.regels.length ? {
