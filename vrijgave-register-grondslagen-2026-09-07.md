@@ -51,3 +51,17 @@ onderhoudsvoorstel in de bronvrijgavenotitie van 6 september beschrijft. Dit slu
 aan op het daar vastgelegde onderhoud aan de jaarconfiguratie zodra de nieuwe
 bijstellingsregeling bekend is. Dit is geen nieuwe fiscale waardentoets; de
 controledatum blijft leeg en de bestaande publicatiestatus en accordering blijven staan.
+
+## Aanvulling 8 september: bestaande Excel-uitgangen
+
+Prijsafspraken importeert Excel maar biedt geen XLSX-uitvoer; het onjuiste Excel-vinkje
+is verwijderd. De bron en gepubliceerde HTML zijn bytegelijk. Auditfile Analyzer heeft
+wel een download via `pagina_export` en `build_excel_export`; dat vinkje is aangezet.
+Een onafhankelijke proef met uitsluitend verzonnen auditfiles leverde een heropenbaar
+werkboek met 40 werkbladen en numerieke mutatiecellen. De exportcode is gecontroleerd
+in de actuele bron; de draaiende externe Streamlit-revisie is niet vastgesteld.
+
+Dossierstuk en dossierbestand blijven bij beide tools op nee. Het memorandum van
+Auditfile Analyzer bevat nog geen volledige actuele invoersnapshot en de lokale
+serveropslag is geen dossierdownload met opnieuw openen door de gebruiker. Status,
+accordering, fiscale controledatums en toegang veranderen niet.
