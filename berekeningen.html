@@ -1488,6 +1488,54 @@ function revisierenteAfkoopLijfrente({
   };
 }
 
+
+/* Tarief van box 1 per jaar, alleen het percentage per schijf.
+
+   Art. 2.10 lid 1 Wet IB 2001, tabel geldend per 1 januari 2026, gecontroleerd
+   op 7 september 2026. De tool rekent geen aanslag: zij gebruikt het tarief
+   alleen om de belasting over de negatieve uitgaven te schatten, en welk
+   percentage marginaal is hangt af van het overige inkomen.
+
+   De verhoging van art. 2.10 lid 2 met 11,94 procentpunt geldt voor
+   grondslagverminderende posten en blijft hier buiten beschouwing; art. 2.10a
+   voor belastingplichtigen geboren voor 1 januari 1946 heeft eigen schijfgrenzen
+   maar dezelfde percentages. */
+const BOX1_TARIEVEN_PER_JAAR = {
+  2026: [
+    { tarief: 0.0810, totEnMet: 38883, omschrijving: 'Eerste schijf, 8,10 percent' },
+    { tarief: 0.3756, totEnMet: 78426, omschrijving: 'Tweede schijf, 37,56 percent' },
+    { tarief: 0.4950, totEnMet: Infinity, omschrijving: 'Derde schijf, 49,50 percent' }
+  ]
+};
+
+function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
+
+/* Samenloop van de heffing over de afkoop en de revisierente.
+
+   De negatieve uitgaven voor inkomensvoorzieningen zijn zelf inkomen uit werk en
+   woning (art. 3.133 jo. afdeling 3.7 Wet IB 2001) en worden belast tegen het
+   tarief van art. 2.10. De revisierente komt daar bovenop en is geen belasting
+   maar rente; zij is niet aftrekbaar.
+
+   Welk percentage marginaal is volgt niet uit deze berekening, want dat hangt af
+   van het overige inkomen van de belastingplichtige. Het tarief is daarom invoer,
+   zoals de marktrente bij de boeterente. De tool rekent geen heffingskortingen en
+   geen premies volksverzekeringen mee; dit is een schatting van de last en geen
+   aanslag. */
+function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, negatieveUitgaven, revisierente, marginaalTarief }) {
+  if (!(marginaalTarief >= 0 && marginaalTarief <= 1)) {
+    return { fout: 'Geef een marginaal tarief tussen nul en honderd procent op.' };
+  }
+  const belastingBox1 = negatieveUitgaven * marginaalTarief;
+  const totaleLast = belastingBox1 + revisierente;
+  return {
+    belastingBox1,
+    totaleLast,
+    nettoUitAfkoop: waardeEconomischVerkeer - totaleLast,
+    deelVanWaarde: waardeEconomischVerkeer > 0 ? totaleLast / waardeEconomischVerkeer : 0
+  };
+}
+
 // FISCALE KERN — EINDE
 
 /* ============================================================
@@ -2189,6 +2237,9 @@ const ONDERWERPEN = [
       'is de ECB-herfinancieringsrente van voor 1 november van het voorafgaande jaar plus ' +
       '3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten minste ' +
       '4,5 en met een wijziging van maximaal 2 procentpunt.',
+    'Art. 2.10 lid 1 Wet IB 2001: het tarief van box 1, tabel per 1 januari 2026, waarmee ' +
+      'de belasting over de negatieve uitgaven wordt geschat. Welke schijf marginaal is hangt ' +
+      'af van het overige inkomen en is daarom invoer.',
     'Verzamelspoedwet COVID-19, Stb. 2020, 200: de verlaging naar 0,01 percent geldt voor ' +
       'de inkomstenbelasting vanaf 1 juli 2020 en niet vanaf 1 juni 2020 zoals voor de ' +
       'overige belastingen. Juni 2020 valt dus nog onder vier percent.'
@@ -2201,8 +2252,9 @@ const ONDERWERPEN = [
     'premie in bij het jaar van aftrek. De tool toetst niet of er een oneigenlijke ' +
     'handeling is. De waarde in het economische verkeer en de niet in aftrek gebrachte ' +
     'premies zijn invoer; het maximum van art. 3.107a lid 2 op die vermindering wordt niet ' +
-    'toegepast. ' +
-    'De tool rekent de revisierente en niet de belasting.',
+    'toegepast. De samenloop met de heffing over de afkoop is een schatting: één marginaal ' +
+    'tarief, zonder heffingskortingen, zonder premies volksverzekeringen en zonder het overige ' +
+    'inkomen, en het schijventarief staat alleen voor 2026 in de tool.',
   id: 'revisierente', groep: 'Lijfrente', naam: 'Revisierente bij afkoop',
   titel: 'Revisierente bij afkoop van een lijfrente',
   grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van het bedrag aan ' +
@@ -2220,6 +2272,14 @@ const ONDERWERPEN = [
     ] },
     { k: 'waardeEconomischVerkeer', l: 'Waarde in het economische verkeer van de aanspraak', h: 'Op het tijdstip onmiddellijk voor de afkoop (art. 3.137 lid 1)', t: 'euro', v: 100000 },
     { k: 'nietAfgetrokkenPremies', l: 'Premies die niet in aftrek zijn gebracht', h: 'Aannemelijk te maken; verlaagt de grondslag (art. 3.137 lid 2). Laat nul staan als alle premies zijn afgetrokken', t: 'euro', v: 0 },
+    { k: 'tariefSleutelBox1', l: 'Marginaal tarief box 1 over de afkoop', h: 'Welke schijf marginaal is hangt af van het overige inkomen; kies of geef zelf een tarief', t: 'keuze', v: 'derde', opties: [
+      { w: 'derde', l: 'Derde schijf, 49,50 percent (2026)' },
+      { w: 'tweede', l: 'Tweede schijf, 37,56 percent (2026)' },
+      { w: 'eerste', l: 'Eerste schijf, 8,10 percent (2026)' },
+      { w: 'geen', l: 'De samenloop niet uitrekenen' },
+      { w: 'eigen', l: 'Zelf een tarief opgeven' }
+    ] },
+    { k: 'eigenTariefBox1', l: 'Eigen marginaal tarief', h: 'Alleen als hierboven een eigen tarief is gekozen', t: 'procent', v: 49.5 },
     { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'Tien jaar of langer voor het jaar van afkoop sluit de tegenbewijsregeling af', t: 'geheel', v: 2019 },
     { k: 'premie0', l: 'Premie in het jaar van afkoop', h: 'In aftrek gebracht; over dit jaar loopt geen rente', t: 'euro', v: 3000 },
     { k: 'premie1', l: 'Premie 1 jaar eerder', t: 'euro', v: 7200 },
@@ -2238,11 +2298,44 @@ const ONDERWERPEN = [
       const premie = i['premie' + t];
       if (premie > 0) premies.push({ jaar: i.jaarAfkoop - t, premie });
     }
-    return revisierenteAfkoopLijfrente({
+    const r = revisierenteAfkoopLijfrente({
       jaarAfkoop: i.jaarAfkoop, waardeEconomischVerkeer: i.waardeEconomischVerkeer,
       nietAfgetrokkenPremies: i.nietAfgetrokkenPremies,
       jaarBedongen: i.jaarBedongen, premies
     });
+    if (r.fout) return r;
+    if (i.tariefSleutelBox1 === 'geen') return r;
+
+    // Het tarief per schijf staat alleen voor 2026 in de kern. Wordt een ander
+    // afkoopjaar gekozen, dan is een schijfkeuze niet gecontroleerd en moet de
+    // gebruiker het tarief van dat jaar zelf opgeven.
+    const meldingen = [];
+    let tarief;
+    if (i.tariefSleutelBox1 === 'eigen') {
+      tarief = i.eigenTariefBox1;
+    } else {
+      const tarieven = box1Tarieven(2026);
+      const index = { eerste: 0, tweede: 1, derde: 2 }[i.tariefSleutelBox1];
+      tarief = tarieven[index].tarief;
+      if (i.jaarAfkoop !== 2026) {
+        meldingen.push({ soort: 'let', tekst:
+          'De gekozen schijf is die van 2026 (art. 2.10 Wet IB 2001). Voor een afkoop in ' +
+          i.jaarAfkoop + ' is het tarief van dat jaar niet in de tool gecontroleerd: geef het ' +
+          'zelf op, of laat de samenloop buiten beschouwing.' });
+      }
+    }
+    const samenloop = samenloopAfkoopLijfrente({
+      waardeEconomischVerkeer: i.waardeEconomischVerkeer,
+      negatieveUitgaven: r.negatieveUitgaven,
+      revisierente: r.revisierenteExact, marginaalTarief: tarief
+    });
+    if (samenloop.fout) return samenloop;
+    meldingen.push({ soort: 'info', tekst:
+      'De samenloop is een schatting van de last en geen aanslag: zij rekent met één marginaal ' +
+      'tarief en laat heffingskortingen, de premies volksverzekeringen en het overige inkomen ' +
+      'buiten beschouwing. De revisierente is geen belasting en niet aftrekbaar.' });
+    return { ...r, tariefBox1: tarief, samenloop,
+             meldingen: [...(r.meldingen || []), ...meldingen] };
   },
   uit: r => [
     ['Negatieve uitgaven, grondslag van de hoofdregel', euro(r.negatieveUitgaven)],
@@ -2251,7 +2344,12 @@ const ONDERWERPEN = [
     ['Tegenbewijs, belastingrente over 50 percent van de premies', euro(r.tegenbewijsBedrag)],
     ['Laagste van de twee', r.route === 'tegenbewijs' ? 'Tegenbewijs (lid 3)' : 'Hoofdregel (lid 2)'],
     ['Revisierente', euro(r.revisierente), true],
-    ['Revisierente als deel van de grondslag', procent(r.deelVanGrondslag, 3)]
+    ['Revisierente als deel van de grondslag', procent(r.deelVanGrondslag, 3)],
+    ['Marginaal tarief box 1', r.samenloop ? procent(r.tariefBox1, 2) : '—'],
+    ['Belasting box 1 over de negatieve uitgaven', r.samenloop ? euro(r.samenloop.belastingBox1) : '—'],
+    ['Totale last, belasting plus revisierente', r.samenloop ? euro(r.samenloop.totaleLast) : '—', true],
+    ['Netto over uit de afkoop', r.samenloop ? euro(r.samenloop.nettoUitAfkoop) : '—'],
+    ['Totale last als deel van de waarde', r.samenloop ? procent(r.samenloop.deelVanWaarde, 3) : '—']
   ],
   meldingen: r => r.meldingen || [],
   schema: r => r.regels && r.regels.length ? {
