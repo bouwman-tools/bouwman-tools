@@ -1,6 +1,6 @@
 # Portaalrechten via de aangemelde identiteit
 
-Lokale kandidaat; deze notitie is geen bewijs van deployment of werkende live-login.
+Lokale definitieve kandidaat; deze notitie is geen bewijs van deployment of werkende live-login.
 De wijziging raakt geen fiscale waarden, Access-policies of opgeslagen rechten.
 
 `portal.html` vraagt zijn identiteit en rechten samen op via
@@ -28,15 +28,18 @@ geplande controle blijven behouden.
 
 ## Twee expliciete uitrolstappen
 
-Deze eerste commit bevat een tijdelijk compatibiliteitsvenster voor de oude
+De afzonderlijke overgangscommit `9ddc43c6a4779012e26b99fb5113ecc6317879e7`
+bevat een tijdelijk compatibiliteitsvenster voor de oude
 `POST /permissions` op workers.dev. Zonder beide publieke deployvariabelen
 `LEGACY_PERMISSIONS_FROM` en `LEGACY_PERMISSIONS_UNTIL` blijft dat endpoint dicht
 (410, geen KV-read). Beide tijden moeten exacte UTC-ISO-tijden met milliseconden zijn;
 het venster is maximaal 30 minuten, inclusief start en exclusief einde. Ongeldige,
 ontbrekende of verlopen configuratie faalt gesloten, ook voor preflight.
 Er zijn bewust geen echte uitroltijden vooraf in broncode of config ingevuld.
+De huidige definitieve versie verwijdert die handler en tijdinterpretatie volledig:
+oude `/permissions`-aanroepen krijgen altijd 410, ook met achtergebleven tijdvars.
 
-1. Kies beide tijden pas bij de daadwerkelijke uitrol van deze overgangscommit en
+1. Kies beide tijden pas bij de daadwerkelijke uitrol van de genoemde overgangscommit en
    leg het gekozen venster en de uitgerolde commit vast. Gebruik de expliciete
    `wrangler.access-beheer.jsonc`, behoud bestaande bindings/secrets en beide routes.
    De waarden kunnen als publieke `--var`-opties mee; kies de start bij de uitrol en
@@ -72,11 +75,13 @@ RSA-sleutels, synthetische identiteiten en vervangende KV/netwerkfuncties. De te
 dekken beide audiences, identiteitsmanipulatie, opslagfouten, legacy-default-deny en
 de grenzen van het tijdelijke venster. De echte portal- en beheerfuncties worden
 uitgevoerd met een kleine DOM/fetch-adapter. Dit is geen echte-browserproef.
-De definitieve commit vervangt de venstertests door bewijs dat ook oude venstervars
-niets meer openen. De bestaande synthetische beheertests blijven deel van `npm test`.
+De definitieve commit heeft 94 geslaagde tests en vervangt de venstertests door bewijs
+dat ook oude venstervars niets meer openen. De bestaande synthetische beheertests
+blijven deel van `npm test`.
 
 `python tools/check_tools.py` meldt geen drift en `git diff --check` slaagt.
 De overgangsversie bundelt lokaal met Wrangler 4.129.1, `deploy --dry-run` en deze
 expliciete config: 54,55 KiB, gzip 15,54 KiB. Er is niets geüpload. Geen live KV,
 credentials of aangemelde browsers gebruikt voor deze controles. De bestaande
 Node-waarschuwing over moduledetectie blijft ongewijzigd; de bundel is een ES-module.
+De definitieve versie slaagt voor dezelfde bundelcontrole: 52,56 KiB, gzip 15,09 KiB.

@@ -50,21 +50,6 @@ async function eigenRechten(email, env) {
   return access;
 }
 
-function legacyVensterOpen(env) {
-  // Alleen voor de eerste migratiedeploy. De uitvoerder kiest deze publieke tijden
-  // pas bij uitrol. Geen waarden, ongeldige tijden of een verlopen venster = dicht.
-  const isoUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-  const parse = value => {
-    if (typeof value !== 'string' || !isoUtc.test(value)) return NaN;
-    const time = Date.parse(value);
-    return Number.isFinite(time) && new Date(time).toISOString() === value ? time : NaN;
-  };
-  const from = parse(env.LEGACY_PERMISSIONS_FROM);
-  const until = parse(env.LEGACY_PERMISSIONS_UNTIL);
-  const now = Date.now();
-  return until > from && until - from <= 30 * 60 * 1000 && now >= from && now < until;
-}
-
 function adminAntwoord(data, status = 200) {
   return new Response(data === null ? null : JSON.stringify(data), {
     status,
@@ -123,20 +108,9 @@ export default {
     const url = new URL(request.url);
     let path = url.pathname || '/';
 
-    // Tijdelijke compatibiliteit voor de oude pagina, uitsluitend in het expliciete
-    // migratievenster. De volgende commit verwijdert dit endpoint definitief.
+    // Definitief gesloten: achtergebleven migratievariabelen kunnen dit niet openen.
     if (path === '/permissions') {
-      if (url.origin !== 'https://access-beheer.s-bouwman.workers.dev' || !legacyVensterOpen(env)) {
-        return adminAntwoord({ error: 'Deze route is gesloten.' }, 410);
-      }
-      if (request.headers.get('Origin') !== ADMIN_ORIGIN) return adminAntwoord({ error: 'Ongeldige herkomst.' }, 403);
-      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
-      if (request.method !== 'POST') return adminAntwoord({ error: 'Methode niet toegestaan.' }, 405);
-      let data;
-      try { data = await request.json(); } catch { return ok({ error: 'Ongeldige JSON.' }, request, 400); }
-      if (!geldigPortaalEmail(data?.email)) return ok({ error: 'E-mailadres vereist.' }, request, 400);
-      try { return ok({ access: await eigenRechten(data.email, env) }, request); }
-      catch { return ok({ error: 'Toegang kon niet worden geladen.' }, request, 503); }
+      return adminAntwoord({ error: 'Deze route is gesloten.' }, 410);
     }
 
     if (path === PORTAL_PATH && url.origin === ADMIN_ORIGIN) {
@@ -466,21 +440,6 @@ async function controleerWorkers(env) {
 
 async function getPermissions(env) {
   return JSON.parse(await env.PERMISSIONS.get('data') || '{}');
-}
-
-function cors(request) {
-  return {
-    'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://bouwman.tools',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Token',
-  };
-}
-
-function ok(data, request, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...cors(request), 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
-  });
 }
 
 // Let op: deze functie wordt met ctx.waitUntil losgelaten, dus het opslaan in
