@@ -42,3 +42,12 @@ Het register noemde de vervallen constante `MINIMA`. De bron en publieke HTML
 bevatten identiek `NORMBEDRAGEN`, `TOPTARIEF_BOX1` en `TOPTARIEFGRENS`; het register
 noemt nu die drie bestaande tabellen. Alleen de metadata-identificatie is gecontroleerd,
 niet opnieuw de fiscale inhoud. Controledatum, accordering en status zijn behouden.
+
+## Aanvulling 8 september: Rekeningcourant + Dividend
+
+Het register noemt nu de bestaande jaartabel `TAX_CONFIG`. Bron en publieke HTML
+zijn identiek. Het onderhoudsritme wordt `belastingplan`, zoals het expliciete
+onderhoudsvoorstel in de bronvrijgavenotitie van 6 september beschrijft. Dit sluit
+aan op het daar vastgelegde onderhoud aan de jaarconfiguratie zodra de nieuwe
+bijstellingsregeling bekend is. Dit is geen nieuwe fiscale waardentoets; de
+controledatum blijft leeg en de bestaande publicatiestatus en accordering blijven staan.
