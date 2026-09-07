@@ -1208,13 +1208,256 @@ function ovbVoordeelBeding({ grondslagVerkrijging1, koopsomVerkrijging2, tarief 
   };
 }
 
+
+/* ============================================================
+   Revisierente bij afkoop van een lijfrente
+   Art. 30i AWR. De tegenbewijsregeling van lid 3 rekent met de
+   belastingrente van art. 30fc AWR; het percentage daarvan staat
+   in art. 30hb AWR en in het Besluit belasting- en invorderingsrente.
+   ============================================================ */
+
+// Art. 30i lid 2 AWR: hoofdregel, 20 percent van de waarde in het economische
+// verkeer van de aanspraak, dan wel van het bedrag dat als negatieve uitgaven
+// voor inkomensvoorzieningen in aanmerking wordt genomen.
+const REVISIERENTE_PERCENTAGE = 0.20;
+
+// Art. 30i lid 3 AWR, derde volzin: de bedragen van de veronderstelde
+// navorderingsaanslagen worden gesteld op 50 percent van de premies. Dat is een
+// wettelijk forfait en geen aanname over het marginale tarief.
+const REVISIERENTE_NAVORDERING_DEEL = 0.50;
+
+// Art. 30i lid 3 AWR, eerste volzin: de regeling staat alleen open als de
+// aanspraak is bedongen minder dan tien jaren voor het jaar waarin de negatieve
+// uitgaven worden genoten. Bedongen in jaarAfkoop - 10 is precies tien jaar en
+// valt er dus buiten.
+const REVISIERENTE_TEGENBEWIJS_JAREN = 10;
+
+// Art. 30fc lid 1 AWR: het tijdvak vangt aan zes maanden te rekenen vanaf het
+// einde van het tijdvak waarover de belasting wordt geheven, dus op 1 juli van
+// het jaar na het premiejaar.
+const BELASTINGRENTE_STARTMAANDEN = 6;
+
+// Eerste premiejaar waarvoor dat aanvangsmoment hier is gecontroleerd. De
+// belastingrente van art. 30fc AWR verving de heffingsrente per 1 januari 2013
+// en geldt voor tijdvakken die op of na 1 januari 2012 aanvangen. Onder de
+// heffingsrente ving de renteberekening op een ander moment aan, en dat moment
+// is in de loop der jaren verschoven. Die momenten zijn hier niet
+// gecontroleerd, dus een ouder premiejaar levert een melding op en geen
+// uitkomst; anders zou het tijdvak zes maanden te laat beginnen en de
+// revisierente te laag uitvallen.
+const BELASTINGRENTE_EERSTE_PREMIEJAAR = 2012;
+
+/* Percentage van de belastingrente voor de inkomstenbelasting per periode, met
+   `vanaf` en `totEnMet` als {jaar, maand}. De rente is enkelvoudig
+   (art. 30fc lid 2 AWR).
+
+   Grondslag: art. 30hb AWR, uitgewerkt in art. 1 lid 1 Besluit belasting- en
+   invorderingsrente: de ECB-herfinancieringsrente van voor 1 november van het
+   voorafgaande jaar plus 3 procentpunt, per 1 januari aangepast, afgerond op
+   halve procentpunten, ten minste 4,5 en met een wijziging van maximaal
+   2 procentpunt per keer. De reeks zelf komt uit het overzicht percentages
+   belastingrente van de Belastingdienst, gecontroleerd op 7 september 2026.
+
+   De verlaging naar 0,01 percent tijdens de coronacrisis geldt voor de
+   inkomstenbelasting vanaf 1 juli 2020, en niet vanaf 1 juni 2020 zoals voor de
+   overige belastingen (Verzamelspoedwet COVID-19, Stb. 2020, 200).
+
+   De reeks is bewust eindig. Het percentage wordt jaarlijks per 1 januari
+   vastgesteld, dus voor een maand na december 2026 is het nog onbekend; een
+   tijdvak dat daarin valt levert een melding op en geen uitkomst. Ook voor de
+   maanden voor januari 2012 staat hier niets: daarvoor gold de heffingsrente
+   met een eigen aanvangsmoment, en die is niet gecontroleerd. */
+const BELASTINGRENTE_IB_PERIODES = [
+  { vanaf: { jaar: 2012, maand:  1 }, totEnMet: { jaar: 2012, maand:  3 }, percentage: 0.0285 },
+  { vanaf: { jaar: 2012, maand:  4 }, totEnMet: { jaar: 2012, maand:  6 }, percentage: 0.0230 },
+  { vanaf: { jaar: 2012, maand:  7 }, totEnMet: { jaar: 2012, maand:  9 }, percentage: 0.0250 },
+  { vanaf: { jaar: 2012, maand: 10 }, totEnMet: { jaar: 2012, maand: 12 }, percentage: 0.0225 },
+  { vanaf: { jaar: 2013, maand:  1 }, totEnMet: { jaar: 2014, maand:  3 }, percentage: 0.0300 },
+  { vanaf: { jaar: 2014, maand:  4 }, totEnMet: { jaar: 2020, maand:  6 }, percentage: 0.0400 },
+  { vanaf: { jaar: 2020, maand:  7 }, totEnMet: { jaar: 2020, maand:  9 }, percentage: 0.0001 },
+  { vanaf: { jaar: 2020, maand: 10 }, totEnMet: { jaar: 2023, maand:  6 }, percentage: 0.0400 },
+  { vanaf: { jaar: 2023, maand:  7 }, totEnMet: { jaar: 2023, maand: 12 }, percentage: 0.0600 },
+  { vanaf: { jaar: 2024, maand:  1 }, totEnMet: { jaar: 2024, maand: 12 }, percentage: 0.0750 },
+  { vanaf: { jaar: 2025, maand:  1 }, totEnMet: { jaar: 2025, maand: 12 }, percentage: 0.0650 },
+  { vanaf: { jaar: 2026, maand:  1 }, totEnMet: { jaar: 2026, maand: 12 }, percentage: 0.0500 }
+];
+
+// Maandnummer, zodat perioden zonder datumrekenwerk te vergelijken zijn.
+function maandNummer(jaar, maand) { return jaar * 12 + (maand - 1); }
+
+// Percentage van de belastingrente voor een kalendermaand, of null als die
+// maand niet in de gecontroleerde reeks zit.
+function belastingrenteIbPercentage(jaar, maand) {
+  const n = maandNummer(jaar, maand);
+  for (const p of BELASTINGRENTE_IB_PERIODES) {
+    if (n >= maandNummer(p.vanaf.jaar, p.vanaf.maand) &&
+        n <= maandNummer(p.totEnMet.jaar, p.totEnMet.maand)) return p.percentage;
+  }
+  return null;
+}
+
+/* Enkelvoudige belastingrente over een tijdvak van hele maanden
+   (art. 30fc lid 2 AWR). Het percentage over het tijdvak is de som van de
+   jaarpercentages per maand gedeeld door twaalf. Het percentage wijzigt alleen
+   op een maandgrens, dus hele maanden zijn hier exact en geen benadering.
+
+   Een maand buiten de gecontroleerde reeks levert een fout op, nooit een stille
+   terugval op een ander percentage. Een tijdvak dat eindigt voor het begint
+   levert nul maanden op: dat is het jaar van afkoop zelf. */
+function belastingrenteOverTijdvak({ grondslag, vanaf, totEnMet }) {
+  const eerste = maandNummer(vanaf.jaar, vanaf.maand);
+  const laatste = maandNummer(totEnMet.jaar, totEnMet.maand);
+  if (laatste < eerste) return { maanden: 0, percentage: 0, rente: 0, deelperioden: [] };
+
+  const deelperioden = [];
+  let som = 0;
+  for (let n = eerste; n <= laatste; n++) {
+    const jaar = Math.floor(n / 12), maand = (n % 12) + 1;
+    const p = belastingrenteIbPercentage(jaar, maand);
+    if (p === null) {
+      return {
+        fout: 'Voor ' + maand + '-' + jaar + ' is geen gecontroleerd percentage ' +
+              'belastingrente opgenomen. De reeks loopt van januari 2012 tot en met ' +
+              'december 2026; het percentage wordt jaarlijks per 1 januari vastgesteld.'
+      };
+    }
+    som += p;
+    const vorige = deelperioden[deelperioden.length - 1];
+    if (vorige && vorige.percentage === p) {
+      vorige.totEnMet = { jaar, maand };
+      vorige.maanden += 1;
+    } else {
+      deelperioden.push({ vanaf: { jaar, maand }, totEnMet: { jaar, maand }, maanden: 1, percentage: p });
+    }
+  }
+  const percentage = som / 12;
+  return { maanden: laatste - eerste + 1, percentage, rente: grondslag * percentage, deelperioden };
+}
+
+// Afronding van een eindbedrag naar beneden op hele euro's. De binaire
+// rekenruis wordt er eerst uitgehaald: zonder die stap zou 124,99999999999999
+// als 124 eindigen terwijl het bedrag 125 is, en dan bepaalt de rekenruis de
+// uitkomst in plaats van de rekenregel.
+function afrondOmlaagOpEuro(bedrag) {
+  if (bedrag === null || bedrag === undefined || !isFinite(bedrag)) return bedrag;
+  return Math.floor(Number(bedrag.toFixed(6)));
+}
+
+/* Revisierente bij afkoop van een lijfrente.
+
+   `premies` is een lijst {jaar, premie} met de in aftrek gebrachte premies. Het
+   jaar van afkoop mag erbij: over dat jaar loopt geen rente, omdat het tijdvak
+   dan pas na de einddatum zou beginnen.
+
+   Hoofdregel: 20 percent van de afkoopwaarde (art. 30i lid 2 AWR).
+   Tegenbewijs op verzoek (lid 3): per premiejaar de belastingrente over
+   50 percent van de premie, met als tijdvak 1 juli van het jaar na het
+   premiejaar tot en met 31 december van het jaar van afkoop.
+
+   Over de afronding zwijgen art. 30i en art. 30fc. Deze kern rekent daarom
+   onafgerond en rondt alleen het eindbedrag per route naar beneden af op hele
+   euro's; zie open punt 5 in BRONNEN.md. */
+function revisierenteAfkoopLijfrente({ jaarAfkoop, afkoopwaarde, jaarBedongen, premies = [] }) {
+  if (!Number.isInteger(jaarAfkoop)) return { fout: 'Geef het jaar van afkoop op.' };
+  if (!(afkoopwaarde >= 0)) return { fout: 'Geef de afkoopwaarde op; die kan niet negatief zijn.' };
+  if (!Number.isInteger(jaarBedongen)) {
+    return { fout: 'Geef het jaar op waarin de aanspraak is bedongen. Daarvan hangt af ' +
+                   'of de tegenbewijsregeling openstaat.' };
+  }
+  if (jaarBedongen > jaarAfkoop) {
+    return { fout: 'De aanspraak kan niet zijn bedongen na het jaar van afkoop.' };
+  }
+
+  const meldingen = [];
+  const hoofdregel = afkoopwaarde * REVISIERENTE_PERCENTAGE;
+
+  const tegenbewijsOpen = jaarBedongen > jaarAfkoop - REVISIERENTE_TEGENBEWIJS_JAREN;
+  if (!tegenbewijsOpen) {
+    meldingen.push({ soort: 'let', tekst:
+      'De aanspraak is bedongen in ' + jaarBedongen + ', tien jaar of langer voor ' +
+      jaarAfkoop + '. De tegenbewijsregeling van art. 30i lid 3 AWR staat dan niet open ' +
+      'en de revisierente is de hoofdregel van lid 2.' });
+    return {
+      hoofdregelExact: hoofdregel, hoofdregelBedrag: afrondOmlaagOpEuro(hoofdregel),
+      tegenbewijsOpen: false, tegenbewijsExact: null, tegenbewijsBedrag: null,
+      revisierenteExact: hoofdregel, revisierente: afrondOmlaagOpEuro(hoofdregel),
+      route: 'hoofdregel', deelVanAfkoopwaarde: REVISIERENTE_PERCENTAGE,
+      regels: [], meldingen
+    };
+  }
+
+  const gebruikt = premies
+    .filter(p => p && Number.isInteger(p.jaar) && p.premie > 0)
+    .sort((a, b) => b.jaar - a.jaar);
+
+  for (const p of gebruikt) {
+    if (p.jaar < jaarBedongen) {
+      return { fout: 'In ' + p.jaar + ' staat een premie, maar de aanspraak is pas in ' +
+                     jaarBedongen + ' bedongen.' };
+    }
+    if (p.jaar > jaarAfkoop) {
+      return { fout: 'In ' + p.jaar + ' staat een premie, na het jaar van afkoop ' +
+                     jaarAfkoop + '.' };
+    }
+    if (p.jaar < BELASTINGRENTE_EERSTE_PREMIEJAAR) {
+      return { fout: 'In ' + p.jaar + ' staat een premie. Voor premiejaren voor ' +
+                     BELASTINGRENTE_EERSTE_PREMIEJAAR + ' gold de heffingsrente met een ' +
+                     'ander aanvangsmoment; dat is hier niet gecontroleerd en wordt niet ' +
+                     'benaderd met de regel van art. 30fc AWR.' };
+    }
+  }
+
+  const regels = [];
+  let somExact = 0;
+  for (const p of gebruikt) {
+    const grondslag = p.premie * REVISIERENTE_NAVORDERING_DEEL;
+    const vanaf = { jaar: p.jaar + 1, maand: BELASTINGRENTE_STARTMAANDEN + 1 };
+    const totEnMet = { jaar: jaarAfkoop, maand: 12 };
+    const r = belastingrenteOverTijdvak({ grondslag, vanaf, totEnMet });
+    if (r.fout) return { fout: r.fout };
+    regels.push({
+      jaar: p.jaar, premie: p.premie, grondslag,
+      vanaf: r.maanden ? vanaf : null,
+      totEnMet: r.maanden ? totEnMet : null,
+      maanden: r.maanden, percentage: r.percentage, rente: r.rente
+    });
+    somExact += r.rente;
+  }
+
+  if (!regels.length) {
+    meldingen.push({ soort: 'let', tekst:
+      'Er is geen in aftrek gebrachte premie ingevuld. Zonder premies is er geen ' +
+      'bedrag waarop de tegenbewijsregeling kan worden gebaseerd.' });
+  }
+
+  const route = somExact < hoofdregel ? 'tegenbewijs' : 'hoofdregel';
+  const laagste = Math.min(hoofdregel, somExact);
+  if (route === 'hoofdregel' && regels.length) {
+    meldingen.push({ soort: 'let', tekst:
+      'Het tegenbewijs komt hoger uit dan de 20 percent van de hoofdregel. Een verzoek ' +
+      'op grond van art. 30i lid 3 AWR is dan niet in het belang van de belastingplichtige; ' +
+      'de revisierente blijft de hoofdregel.' });
+  }
+  meldingen.push({ soort: 'info', tekst:
+    'Het tegenbewijs werkt niet van rechtswege. De belastingplichtige moet erom verzoeken ' +
+    'en het lagere bedrag aannemelijk maken (art. 30i lid 3 AWR).' });
+
+  return {
+    hoofdregelExact: hoofdregel, hoofdregelBedrag: afrondOmlaagOpEuro(hoofdregel),
+    tegenbewijsOpen: true, tegenbewijsExact: somExact, tegenbewijsBedrag: afrondOmlaagOpEuro(somExact),
+    revisierenteExact: laagste, revisierente: afrondOmlaagOpEuro(laagste),
+    route, deelVanAfkoopwaarde: afkoopwaarde > 0 ? laagste / afkoopwaarde : 0,
+    regels, meldingen
+  };
+}
+
 // FISCALE KERN — EINDE
 
 /* ============================================================
    Weergave. Roept de kern aan en raakt geen rekenlogica.
    ============================================================ */
 
-const VERSIE = '2026-09-04';
+const VERSIE = '2026-09-07';
 document.getElementById('versie').textContent = 'versie ' + VERSIE;
 
 const euro = n => (n === null || n === undefined || !isFinite(n))
@@ -1885,6 +2128,91 @@ const ONDERWERPEN = [
       'De tool toetst die termijn niet; beoordeel dat zelf.' });
     return m;
   }
+},
+{
+  vindplaatsen: [
+    'Art. 30i lid 1 onderdeel b AWR: revisierente is verschuldigd zodra premies voor een ' +
+      'aanspraak op periodieke uitkeringen als negatieve uitgaven voor ' +
+      'inkomensvoorzieningen in aanmerking worden genomen.',
+    'Art. 30i lid 2 AWR: de hoofdregel is 20 percent van de waarde in het economische ' +
+      'verkeer van de aanspraak, dan wel van het bedrag aan negatieve uitgaven.',
+    'Art. 30i lid 3 AWR: het tegenbewijs geldt op verzoek en alleen als de aanspraak is ' +
+      'bedongen minder dan tien jaren voor het jaar van de negatieve uitgaven. De bedragen ' +
+      'van de veronderstelde navorderingsaanslagen worden gesteld op 50 percent van de ' +
+      'premies, en het tijdvak eindigt op 31 december van dat jaar.',
+    'Art. 30fc lid 1 en 2 AWR: het rentetijdvak vangt aan zes maanden na het einde van het ' +
+      'premiejaar, dus op 1 juli daarna, en de rente is enkelvoudig.',
+    'Art. 30hb AWR met art. 1 lid 1 Besluit belasting- en invorderingsrente: het percentage ' +
+      'is de ECB-herfinancieringsrente van voor 1 november van het voorafgaande jaar plus ' +
+      '3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten minste ' +
+      '4,5 en met een wijziging van maximaal 2 procentpunt.',
+    'Verzamelspoedwet COVID-19, Stb. 2020, 200: de verlaging naar 0,01 percent geldt voor ' +
+      'de inkomstenbelasting vanaf 1 juli 2020 en niet vanaf 1 juni 2020 zoals voor de ' +
+      'overige belastingen. Juni 2020 valt dus nog onder vier percent.'
+  ],
+  afbakening: 'Alleen de afkoop van een lijfrente, dus art. 30i lid 1 onderdeel b. ' +
+    'Pensioenaanspraken en de vermenigvuldiging bij gedeeltelijke afkoop van art. 3.133 ' +
+    'lid 9 Wet IB 2001 zitten er niet in. Afkoopjaren 2020 tot en met 2026 en premiejaren ' +
+    'vanaf 2012; daarbuiten volgt een melding en geen uitkomst. Terugwenteling van premies ' +
+    'naar het voorafgaande jaar (art. 3.130 lid 2 Wet IB 2001) wordt niet herkend: vul de ' +
+    'premie in bij het jaar van aftrek. De tool toetst niet of er een oneigenlijke ' +
+    'handeling is en berekent de negatieve uitgaven niet zelf; de afkoopwaarde is invoer. ' +
+    'De tool rekent de revisierente en niet de belasting.',
+  id: 'revisierente', groep: 'Lijfrente', naam: 'Revisierente bij afkoop',
+  titel: 'Revisierente bij afkoop van een lijfrente',
+  grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van de afkoopwaarde. ' +
+             'Op verzoek stelt lid 3 de revisierente in plaats daarvan op de ' +
+             'belastingrente die in rekening zou zijn gebracht als de premieaftrek per ' +
+             'jaar was teruggenomen, met de bedragen van die navorderingsaanslagen op ' +
+             '50 percent van de premies. Dat verzoek staat alleen open als de aanspraak ' +
+             'is bedongen minder dan tien jaren voor het jaar van afkoop.',
+  velden: [
+    { k: 'jaarAfkoop', l: 'Jaar van afkoop', t: 'keuze', v: 2026, opties: [
+      { w: 2020, l: '2020' }, { w: 2021, l: '2021' }, { w: 2022, l: '2022' },
+      { w: 2023, l: '2023' }, { w: 2024, l: '2024' }, { w: 2025, l: '2025' },
+      { w: 2026, l: '2026' }
+    ] },
+    { k: 'afkoopwaarde', l: 'Afkoopwaarde', h: 'De waarde in het economische verkeer, of het bedrag aan negatieve uitgaven', t: 'euro', v: 100000 },
+    { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'Tien jaar of langer voor het jaar van afkoop sluit de tegenbewijsregeling af', t: 'geheel', v: 2019 },
+    { k: 'premie0', l: 'Premie in het jaar van afkoop', h: 'In aftrek gebracht; over dit jaar loopt geen rente', t: 'euro', v: 3000 },
+    { k: 'premie1', l: 'Premie 1 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie2', l: 'Premie 2 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie3', l: 'Premie 3 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie4', l: 'Premie 4 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie5', l: 'Premie 5 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie6', l: 'Premie 6 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie7', l: 'Premie 7 jaar eerder', t: 'euro', v: 7200 },
+    { k: 'premie8', l: 'Premie 8 jaar eerder', t: 'euro', v: 0 },
+    { k: 'premie9', l: 'Premie 9 jaar eerder', t: 'euro', v: 0 }
+  ],
+  reken: i => {
+    const premies = [];
+    for (let t = 0; t <= 9; t++) {
+      const premie = i['premie' + t];
+      if (premie > 0) premies.push({ jaar: i.jaarAfkoop - t, premie });
+    }
+    return revisierenteAfkoopLijfrente({
+      jaarAfkoop: i.jaarAfkoop, afkoopwaarde: i.afkoopwaarde,
+      jaarBedongen: i.jaarBedongen, premies
+    });
+  },
+  uit: r => [
+    ['Hoofdregel, 20 percent van de afkoopwaarde', euro(r.hoofdregelBedrag)],
+    ['Tegenbewijsregeling staat open', r.tegenbewijsOpen ? 'Ja' : 'Nee'],
+    ['Tegenbewijs, belastingrente over 50 percent van de premies', euro(r.tegenbewijsBedrag)],
+    ['Laagste van de twee', r.route === 'tegenbewijs' ? 'Tegenbewijs (lid 3)' : 'Hoofdregel (lid 2)'],
+    ['Revisierente', euro(r.revisierente), true],
+    ['Revisierente als deel van de afkoopwaarde', procent(r.deelVanAfkoopwaarde, 3)]
+  ],
+  meldingen: r => r.meldingen || [],
+  schema: r => r.regels && r.regels.length ? {
+    koppen: ['Premiejaar', 'Premie', 'Grondslag, 50 percent', 'Tijdvak', 'Maanden', 'Percentage', 'Belastingrente'],
+    rijen: r.regels.map(x => [
+      x.jaar, euro(x.premie), euro(x.grondslag),
+      x.vanaf ? '1-' + x.vanaf.maand + '-' + x.vanaf.jaar + ' t/m 31-12-' + x.totEnMet.jaar : 'geen tijdvak',
+      x.maanden, procent(x.percentage, 4), euro(x.rente)
+    ])
+  } : null
 }
 ];
 
