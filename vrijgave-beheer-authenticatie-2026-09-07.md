@@ -77,3 +77,43 @@ testcommando; de bestaande CI-workflow is in deze afgebakende ronde niet gewijzi
 De afzonderlijke CommonJS-proef met `require('./kg-widget.js')` slaagt.
 Node meldt door de bewuste syntaxdetectie een `MODULE_TYPELESS_PACKAGE_JSON`-
 waarschuwing; de 33 tests slagen en de productie-bundel gebruikt Wrangler.
+
+## Permanente buitencontrole — vervolg op 7 september 2026
+
+`python -B tools/check_admin_routes.py` doet twaalf onaangemelde proeven vanuit
+een afzonderlijk proces buiten de Worker. Beide ingangen worden getest met en
+zonder `Origin: https://bouwman.tools`: het oude workers.dev `/admin`-pad en het
+nieuwe `/beheer.html/api/admin`-pad op bouwman.tools. Per variant gebruikt de
+controle uitsluitend `GET /admin/status` en POST naar `upsert` en `delete` met
+exact `{}`. Er worden geen gebruikerslijsten of responsebody's gelezen, geen
+redirects gevolgd en geen cookies, JWT's of andere credentials meegestuurd.
+De lege JSON bevat geen e-mailadres en valt ook in de oude handler vóór opslag
+uit; een HTTP 400 betekent daarbij juist dat de authenticatiepoort is gepasseerd.
+
+De oude ingang mag alleen 404, 401 of 403 antwoorden. De nieuwe ingang mag 401,
+403 of een 302 naar exact de HTTPS-loginhost
+`bouwman-tools.cloudflareaccess.com` en het pad
+`/cdn-cgi/access/login/bouwman.tools` geven. Querywaarden worden niet gelogd.
+Een andere host, een andere redirectstatus, 400, 5xx of een netwerk-/TLS-fout maakt
+de controle rood. Een geaccepteerde weigering bewijst op zichzelf niet dat een
+toegestane beheerder kan inloggen; daarvoor blijft de afzonderlijke toegangsproef
+nodig.
+
+`POST /permissions` op workers.dev is de expliciete publieke uitzondering voor
+`portal.html`, vastgelegd in `PUBLIEKE_ROUTES` in het controlescript. Dit pad wordt
+hier niet live met e-mailadressen getest. Deze uitzondering schrapt geen enkele
+adminproef en maakt de buitencontrole geen volledige inventarisatie van alle
+mogelijk bestaande routes.
+
+De bestaande workflow heeft afzonderlijke jobs voor de synthetische tests en de
+live buitencontrole. De live job draait alleen op `master` bij push, het bestaande
+maandelijkse schema en handmatige dispatch. Pull requests en andere branches
+krijgen uitsluitend de mocktests, omdat voorbereidende code nog niet uitgerold
+hoeft te zijn. De jobs hangen niet af van de registercontrole. Uitrollen blijft
+een afzonderlijke handeling; deze job verandert niets aan Cloudflare.
+
+De zeven stdlib-mocktests draaien met
+`python -B -m unittest discover -s tests -p 'test_admin_routes.py' -v` en bewijzen
+onder meer dat 400 rood is, redirect-host en loginpad strikt zijn, alle twaalf
+verzoeken minimale inhoud hebben, fouten geen details lekken en responsebody's
+niet worden gelezen. Worker en beheerpagina zijn voor dit vervolg ongewijzigd.

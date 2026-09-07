@@ -17,6 +17,30 @@ on:
     - cron: '0 6 1 * *'
 
 jobs:
+  test-admin-buitencontrole:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetische regressies van de buitencontrole
+        run: python -B -m unittest discover -s tests -p 'test_admin_routes.py' -v
+
+  admin-buitencontrole:
+    # Test productie alleen vanaf master. Een PR/voorbereidingsbranch kan code
+    # bevatten die nog niet is uitgerold; die krijgt uitsluitend de mocktests.
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Onaangemelde adminroutes van buiten controleren
+        run: python -B tools/check_admin_routes.py
+
   controleer:
     runs-on: ubuntu-latest
     steps:
