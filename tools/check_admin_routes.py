@@ -16,8 +16,13 @@ INGANGEN = (
 ROUTES = (("status", "GET"), ("upsert", "POST"), ("delete", "POST"))
 ORIGINS = (("zonder Origin", None), ("met Origin", "https://bouwman.tools"))
 
-# Deze controle toetst twaalf adminverzoeken. De oude /permissions-route is
-# gesloten; de eigen portaalrechten hebben een afzonderlijke authenticatietestset.
+# De twaalf bestaande adminverzoeken blijven behouden. Per extra portaalproef:
+# label, exacte URL, methode, Access verwacht, permanent gesloten legacyroute.
+PORTAAL_PROEVEN = (
+    ("workers.dev POST /permissions", "https://access-beheer.s-bouwman.workers.dev/permissions", "POST", False, True),
+    ("workers.dev OPTIONS /permissions", "https://access-beheer.s-bouwman.workers.dev/permissions", "OPTIONS", False, True),
+    ("bouwman.tools GET /portal.html/api/permissions", "https://bouwman.tools/portal.html/api/permissions", "GET", True, False),
+)
 
 
 class GeenRedirect(HTTPRedirectHandler):
@@ -37,11 +42,11 @@ def is_access_login(location):
         return False
 
 
-def toegestane_weigering(status, location, nieuwe_ingang):
+def toegestane_weigering(status, location, nieuwe_ingang, gesloten_legacy=False):
     if status in (401, 403):
         return True
     if not nieuwe_ingang:
-        return status == 404
+        return status == 404 or (gesloten_legacy and status == 410)
     return status == 302 and is_access_login(location)
 
 
@@ -67,21 +72,27 @@ def controleer(opener=None, output=None):
     opener = opener if opener is not None else build_opener(GeenRedirect())
     output = output if output is not None else sys.stdout
     fouten = 0
+    proeven = []
     for naam, basis, nieuw in INGANGEN:
         for route, method in ROUTES:
-            for variant, origin in ORIGINS:
-                label = f"{naam} {method} /admin/{route} ({variant})"
-                try:
-                    status, location = meet(opener, f"{basis}/{route}", method, origin)
-                    goed = toegestane_weigering(status, location, nieuw)
-                    resultaat = f"HTTP {status}"
-                except (URLError, OSError, ValueError, HTTPException):
-                    goed = False
-                    resultaat = "netwerk-, TLS- of protocolfout"
-                # Geen exceptiontekst, responsebody of Location/query in uitvoer.
-                print(f"{'OK' if goed else 'FOUT'} {label}: {resultaat}", file=output)
-                fouten += not goed
-    print(f"12 adminproeven, {fouten} afwijkingen.", file=output)
+            proeven.append((f"{naam} {method} /admin/{route}", f"{basis}/{route}", method, nieuw, False))
+    aantal_admin = len(proeven) * len(ORIGINS)
+    proeven.extend(PORTAAL_PROEVEN)
+    for naam, url, method, nieuw, legacy in proeven:
+        for variant, origin in ORIGINS:
+            label = f"{naam} ({variant})"
+            try:
+                status, location = meet(opener, url, method, origin)
+                goed = toegestane_weigering(status, location, nieuw, legacy)
+                resultaat = f"HTTP {status}"
+            except (URLError, OSError, ValueError, HTTPException):
+                goed = False
+                resultaat = "netwerk-, TLS- of protocolfout"
+            # Geen exceptiontekst, responsebody of Location/query in uitvoer.
+            print(f"{'OK' if goed else 'FOUT'} {label}: {resultaat}", file=output)
+            fouten += not goed
+    totaal = len(proeven) * len(ORIGINS)
+    print(f"{totaal} buitenproeven ({aantal_admin} admin, {totaal - aantal_admin} portaal), {fouten} afwijkingen.", file=output)
     return 1 if fouten else 0
 
 
