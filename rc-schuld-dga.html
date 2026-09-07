@@ -1367,6 +1367,68 @@
   <div class="scroll-hint">Tabel is horizontaal te scrollen.</div>
 </div>
 
+<!-- == AFREKENEN EXCESSIEF LENEN OVER MEERDERE JAREN (model 01-29) == -->
+<div class="section-head">
+  <h2>Afrekenen over excessief lenen</h2>
+  <p>Meerdere kalenderjaren achter elkaar: de schuld, het fictieve reguliere voordeel, de
+     verliesverrekening en de heffing per jaar. Deze berekening staat los van de
+     routevergelijking hierboven en gebruikt alleen de velden in deze kaart.</p>
+</div>
+
+<div class="card" id="cardAfrekening">
+  <div class="card-title">Invoer</div>
+  <div class="input-grid">
+    <div>
+      <label for="afStartjaar">Eerste kalenderjaar van de reeks</label>
+      <select id="afStartjaar"></select>
+      <div class="field-hint">Het eerste jaar rekent zelf mee: de schuld hieronder is de stand
+        aan het einde van dat jaar minus de mutatie die u er voor dat jaar bij zet.</div>
+    </div>
+    <div>
+      <label for="afSchuld">Werkelijke schuld aan het begin van de reeks</label>
+      <input id="afSchuld" type="number" value="1000000" step="0.01" min="0" />
+      <div class="field-hint">De som van de relevante schulden aan de eigen vennootschap naar
+        nominale waarde (art. 4.14a lid 4 Wet IB 2001). Exclusief een eigenwoningschuld waarvoor
+        een recht van hypotheek aan de vennootschap is verstrekt (lid 6).</div>
+    </div>
+    <div>
+      <label for="afEerder">Eerder in de heffing betrokken bedrag</label>
+      <input id="afEerder" type="number" value="0" step="0.01" min="0" />
+      <div class="field-hint">Verhoogt het maximumbedrag (art. 4.14a lid 2) en bepaalt hoeveel
+        een aflossing hoogstens kan teruggeven (lid 1 onderdeel b).</div>
+    </div>
+    <div>
+      <label for="afPartner">Fiscaal partner</label>
+      <select id="afPartner">
+        <option value="false" selected>Nee</option>
+        <option value="true">Ja — eerste box 2-schijf twee keer benutbaar</option>
+      </select>
+      <div class="field-hint">Het maximumbedrag van art. 4.14a geldt gezamenlijk en verandert
+        hier dus niet mee; de eerste schijf van box 2 geldt per persoon en verdubbelt wel.</div>
+    </div>
+  </div>
+
+  <div class="input-group-title">Per jaar</div>
+  <div class="table-scroll">
+    <table id="afInvoerTabel">
+      <thead><tr id="afInvoerKop"></tr></thead>
+      <tbody>
+        <tr id="afRijMutatie"></tr>
+        <tr id="afRijDividend"></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="field-hint">Mutatie van de schuld: een toename is positief, een aflossing negatief.
+    Het dividend is exclusief de afrekening zelf.</div>
+
+  <div style="margin-top:14px;">
+    <button type="button" class="pill-btn" onclick="berekenAfrekening()">Reeks doorrekenen</button>
+    <button type="button" class="pill-btn" onclick="afrekeningVoorbeeld()">Voorbeeld invullen</button>
+  </div>
+
+  <div id="afUitkomst" style="margin-top:16px;"></div>
+</div>
+
 <!-- ═══════════════════════ 3. DETAILS ═══════════════════════ -->
 <div class="section-head" id="secDetails" style="display:none;">
   <h2>3 · Details</h2>
@@ -1475,6 +1537,21 @@ var SETTLE = 0.5;         // een restschuld onder dit bedrag geldt als afgelost;
    gepresenteerd. Bronnen: zie de kaart "Gebruikte aannames en tarieven".
    ─────────────────────────────────────────────────────────────────────────── */
 var TAX_CONFIG = {
+  2023: {
+    label: '2023 · historisch',
+    status: 'historisch',
+    box2FlatRate: 0.269,
+    box2LowRate: 0.269,
+    box2HighRate: 0.269,
+    box2LowBracket: null,
+    dividendTaxRate: 0.15,
+    excessiveLoanMaxAmount: 700000,
+    note: 'Box 2 kende in 2023 een vlak tarief van 26,9% (art. 2.12 Wet IB 2001, tekst 1-1-2023); ' +
+          'de schijvenstructuur begint pas in 2024. Het maximumbedrag van de Wet excessief lenen ' +
+          'bedroeg in 2023 nog € 700.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2023). ' +
+          'Dit jaar staat alleen in de tabel voor de meerjarige afrekening over excessief lenen; ' +
+          'de routevergelijking begint bij 2024.'
+  },
   2024: {
     label: '2024',
     status: 'vastgesteld',
@@ -1623,6 +1700,195 @@ function excessiveLoanStep(cumulativePrior, relevantDebtAtYearEnd, baseMaxAmount
     cumulativeAfter: Math.max(0, cum + fictief)
   };
 }
+
+/* == FISCALE KERN ============================================================
+   3b. AFREKENEN OVER EXCESSIEF LENEN OVER MEERDERE JAREN
+
+   Waar excessiveLoanStep() een enkel jaar doet, rekent dit blok een reeks
+   kalenderjaren achter elkaar door. Dat is nodig omdat de regeling drie dingen
+   over de jaargrens heen meeneemt:
+
+     1. het maximumbedrag groeit met wat eerder in de heffing is betrokken
+        (art. 4.14a lid 2 Wet IB 2001);
+     2. een aflossing levert een negatief fictief regulier voordeel op, maar
+        nooit meer dan wat eerder als positief bedrag in aanmerking is genomen
+        en waarover nog niet eerder een negatief bedrag is genomen
+        (art. 4.14a lid 1 onderdeel b);
+     3. dat negatieve voordeel maakt het inkomen uit aanmerkelijk belang van
+        dat jaar meestal negatief, en zulk verlies wordt verrekend met het
+        inkomen van het voorafgaande kalenderjaar en de zes volgende
+        (art. 4.49 lid 1).
+
+   Zonder die drie samen is de heffing over een schuld die eerst oploopt en
+   daarna wordt afgelost niet te bepalen: het bedrag dat in het ene jaar wordt
+   belast bepaalt de teruggaaf in het andere.
+
+   Peildatum is het einde van het kalenderjaar, naar nominale waarde
+   (art. 4.14a lid 4). Het maximumbedrag geldt voor de belastingplichtige en
+   zijn partner gezamenlijk (lid 3); de eerste schijf van box 2 geldt per
+   persoon en is bij fiscaal partnerschap dus twee keer benutbaar
+   (art. 2.17 lid 5 juncto art. 2.12 Wet IB 2001).
+
+   Vindplaatsen bij de waarden staan in TAX_CONFIG; dit blok bevat geen tarief.
+   -------------------------------------------------------------------------- */
+
+/** Voortwentelingstermijn van een verlies uit aanmerkelijk belang, in jaren. */
+var LOSS_CARRY_FORWARD_YEARS = 6;   // art. 4.49 lid 1 Wet IB 2001
+/** Terugwentelingstermijn van datzelfde verlies, in jaren. */
+var LOSS_CARRY_BACK_YEARS = 1;      // art. 4.49 lid 1 Wet IB 2001
+
+/**
+ * Beschikbare eerste schijf box 2 voor de afrekening, per jaar.
+ *
+ * Een jaar met een vlak tarief (2023) kent geen schijfgrens; dan is de hele
+ * grondslag eerste schijf en zijn laag en hoog tarief gelijk. Zo hoeft de
+ * heffingsfunctie geen apart geval voor 2023 te kennen.
+ */
+function excessiveLowBracket(cfg, hasPartner) {
+  if (cfg.box2FlatRate) return Infinity;
+  return cfg.box2LowBracket * (hasPartner ? 2 : 1);
+}
+
+/**
+ * Verrekent verliezen uit aanmerkelijk belang binnen een reeks jaren.
+ *
+ * `incomes[i]` is het inkomen uit aanmerkelijk belang van jaar i voor
+ * verliesverrekening; negatief betekent een verlies uit aanmerkelijk belang
+ * (art. 4.47 Wet IB 2001).
+ *
+ * De volgorde volgt art. 4.49 lid 3: de verliezen in de volgorde waarin zij
+ * zijn ontstaan, en de inkomens in de volgorde waarin zij zijn genoten. Voor
+ * een verlies betekent dat eerst het voorafgaande kalenderjaar en daarna de
+ * zes volgende - het voorafgaande jaar is chronologisch immers het eerste
+ * inkomen dat in aanmerking komt.
+ *
+ * Wat na de reeks nog niet is verrekend blijft staan in `unsettled`. Dat is
+ * geen verloren verlies: het is een verlies waarvan de termijn nog loopt maar
+ * waarvan de verrekening buiten het venster van deze berekening valt.
+ */
+function settleBox2Losses(incomes) {
+  var n = incomes.length;
+  var remaining = incomes.slice();
+  var settlements = [];
+  var unsettled = [];
+  var i;
+  for (i = 0; i < n; i++) unsettled.push(0);
+
+  for (var L = 0; L < n; L++) {
+    if (!(incomes[L] < 0)) continue;
+    var loss = -incomes[L];
+    remaining[L] = 0;   // het verliesjaar zelf houdt nihil box 2-inkomen over
+
+    var targets = [];
+    for (i = LOSS_CARRY_BACK_YEARS; i >= 1; i--) if (L - i >= 0) targets.push(L - i);
+    for (i = 1; i <= LOSS_CARRY_FORWARD_YEARS; i++) if (L + i < n) targets.push(L + i);
+
+    for (var t = 0; t < targets.length && loss > EPS; t++) {
+      var y = targets[t];
+      if (!(remaining[y] > 0)) continue;
+      var use = Math.min(loss, remaining[y]);
+      remaining[y] -= use;
+      loss -= use;
+      settlements.push({ lossYear: L, incomeYear: y, amount: use });
+    }
+    unsettled[L] = loss;
+  }
+
+  var taxable = [];
+  for (i = 0; i < n; i++) taxable.push(Math.max(0, remaining[i]));
+  return { taxable: taxable, settlements: settlements, unsettled: unsettled };
+}
+
+/**
+ * Rekent een reeks kalenderjaren door: schuld, fictief voordeel, verrekening
+ * en heffing.
+ *
+ *   input.startYear        eerste kalenderjaar van de reeks
+ *   input.debtAtStart      werkelijke schuld aan het einde van het jaar voor
+ *                          de reeks; het eerste jaar telt dus zelf mee
+ *   input.debtChanges[]    mutatie van de schuld per jaar van de reeks,
+ *                          toename positief en afname negatief
+ *   input.dividends[]      dividend per jaar, exclusief de afrekening zelf
+ *   input.settledPrior     bedrag dat voor de reeks al in de heffing is
+ *                          betrokken (art. 4.14a lid 2)
+ *   input.hasPartner       fiscaal partner, voor de eerste schijf van box 2
+ *
+ * `rates` is de tarieventabel; standaard TAX_CONFIG. De vergelijkingstoets
+ * geeft hier een tabel met de aannames van het bronmodel in, zodat het
+ * mechanisme los van de tarieven kan worden vergeleken.
+ */
+function settleExcessiveLoanRun(input, rates) {
+  var table = rates || TAX_CONFIG;
+  var n = Math.max(input.debtChanges.length, input.dividends.length);
+  if (!(n > 0)) throw new Error('De reeks heeft geen enkel jaar.');
+
+  var years = [];
+  var i;
+  for (i = 0; i < n; i++) {
+    var y = Number(input.startYear) + i;
+    var cfg = table[y];
+    if (!cfg) {
+      throw new Error('Belastingjaar ' + y + ' zit niet in de tarieventabel; ' +
+                      'kort de reeks in of vul het jaar aan (' +
+                      Object.keys(table).sort().join(', ') + ').');
+    }
+    years.push({ year: y, cfg: cfg });
+  }
+
+  // 1. Schuld, maximumbedrag en fictief regulier voordeel per jaar.
+  var debtStart = Number(input.debtAtStart) || 0;
+  var cum = Math.max(0, Number(input.settledPrior) || 0);
+  var incomesBefore = [];
+  for (i = 0; i < n; i++) {
+    var r = years[i];
+    r.debtBegin = debtStart;
+    r.debtEnd = debtStart + (Number(input.debtChanges[i]) || 0);
+    r.settledBegin = cum;
+    r.maxAmount = r.cfg.excessiveLoanMaxAmount + cum;
+    r.excess = r.debtEnd - r.maxAmount;
+    r.fictief = r.excess > 0 ? r.excess : Math.max(r.excess, -cum);
+    r.settledEnd = cum + r.fictief;
+    r.dividend = Number(input.dividends[i]) || 0;
+    r.box2Before = r.dividend + r.fictief;
+    incomesBefore.push(r.box2Before);
+    debtStart = r.debtEnd;
+    cum = r.settledEnd;
+  }
+
+  // 2. Verliesverrekening over de reeks (art. 4.49).
+  var loss = settleBox2Losses(incomesBefore);
+
+  // 3. Heffing per jaar over het inkomen na verrekening.
+  var totalIncome = 0, totalTax = 0;
+  for (i = 0; i < n; i++) {
+    var q = years[i];
+    q.box2Income = loss.taxable[i];
+    q.unsettledLoss = loss.unsettled[i];
+    // Het inkomen uit aanmerkelijk belang na verrekening, waarbij een verlies
+    // dat binnen dit venster niet is verrekend als negatief bedrag blijft
+    // staan. Over een negatief bedrag is geen heffing verschuldigd; het is de
+    // stand van het verlies dat nog openstaat en waarvan de termijn nog loopt.
+    q.box2Net = q.box2Income - q.unsettledLoss;
+    var t = box2TaxOnIncome(q.box2Income, excessiveLowBracket(q.cfg, input.hasPartner),
+                            q.cfg.box2LowRate, q.cfg.box2HighRate);
+    q.box2LowPart = t.lowPart;
+    q.box2HighPart = t.highPart;
+    q.box2Tax = t.total;
+    q.effectiveRate = q.box2Income > 0 ? q.box2Tax / q.box2Income : 0;
+    totalIncome += q.box2Income;
+    totalTax += q.box2Tax;
+  }
+
+  return {
+    years: years,
+    settlements: loss.settlements,
+    totalIncome: totalIncome,
+    totalTax: totalTax,
+    averageRate: totalIncome > 0 ? totalTax / totalIncome : 0,
+    unsettledLossTotal: loss.unsettled.reduce(function (a, b) { return a + b; }, 0)
+  };
+}
+/* == EINDE FISCALE KERN 3b =================================================== */
 
 /* ──────────────── 4. KASSTROOMMODEL PER JAAR (pure evaluatie) ──────────────
    Rekent één jaar door voor gegeven beslissingen. Kiest zelf niets; dat doet
@@ -2692,11 +2958,161 @@ function barHtml(trackLabel, segments) {
 // ─── invoer lezen en schrijven ──────────────────────────────────────────────
 function el(id) { return document.getElementById(id); }
 function val(id) { var e = el(id); return e ? e.value : ''; }
+/* == Afrekenen over excessief lenen over meerdere jaren =====================
+   Presentatielaag. Alle fiscale beslissingen zitten in settleExcessiveLoanRun();
+   hieronder staat geen tarief en geen rekenregel.
+   -------------------------------------------------------------------------- */
+
+/** Aantal jaren dat de reeks toont. Vijf sluit aan op de bouw van het bronmodel. */
+var AF_JAREN = 5;
+
+function afJaarKoppen() {
+  var start = Number(val('afStartjaar'));
+  var jaren = [];
+  for (var i = 0; i < AF_JAREN; i++) jaren.push(start + i);
+  return jaren;
+}
+
+/** Bouwt de keuzelijst met startjaren en de invoerrijen per jaar op. */
+function vulAfrekeningInvoer() {
+  var sel = el('afStartjaar');
+  if (!sel) return;
+  if (!sel.options.length) {
+    var mogelijk = Object.keys(TAX_CONFIG).map(Number).sort(function (a, b) { return a - b; });
+    var html = '';
+    for (var i = 0; i < mogelijk.length; i++) {
+      // Een startjaar waarbij de reeks buiten de tarieventabel zou lopen wordt
+      // niet aangeboden: de kern weigert zo'n jaar en dat hoort niet als fout
+      // op het scherm te belanden.
+      if (mogelijk.indexOf(mogelijk[i] + AF_JAREN - 1) < 0) continue;
+      html += '<option value="' + mogelijk[i] + '"' +
+              (mogelijk[i] === mogelijk[0] ? ' selected' : '') + '>' +
+              mogelijk[i] + ' t/m ' + (mogelijk[i] + AF_JAREN - 1) + '</option>';
+    }
+    sel.innerHTML = html;
+    sel.onchange = vulAfrekeningInvoer;
+  }
+
+  var jaren = afJaarKoppen();
+  var kop = '<th>Jaar</th>', mut = '<th>Mutatie schuld</th>', div = '<th>Dividend</th>';
+  for (var j = 0; j < jaren.length; j++) {
+    kop += '<th>' + jaren[j] + '</th>';
+    var bestaandeM = el('afMut' + j) ? el('afMut' + j).value : '0';
+    var bestaandeD = el('afDiv' + j) ? el('afDiv' + j).value : '0';
+    mut += '<td><input id="afMut' + j + '" type="number" step="0.01" value="' + bestaandeM + '" /></td>';
+    div += '<td><input id="afDiv' + j + '" type="number" step="0.01" min="0" value="' + bestaandeD + '" /></td>';
+  }
+  el('afInvoerKop').innerHTML = kop;
+  el('afRijMutatie').innerHTML = mut;
+  el('afRijDividend').innerHTML = div;
+}
+
+function afrekeningVoorbeeld() {
+  el('afSchuld').value = 1000000;
+  el('afEerder').value = 0;
+  el('afPartner').value = 'false';
+  for (var j = 0; j < AF_JAREN; j++) {
+    if (el('afMut' + j)) el('afMut' + j).value = (j === 1 ? -300000 : 0);
+    if (el('afDiv' + j)) el('afDiv' + j).value = (j === 1 ? 234000 : 0);
+  }
+  berekenAfrekening();
+}
+
+function berekenAfrekening() {
+  var doel = el('afUitkomst');
+  var mutaties = [], dividenden = [];
+  for (var j = 0; j < AF_JAREN; j++) {
+    mutaties.push(numVal('afMut' + j));
+    dividenden.push(numVal('afDiv' + j));
+  }
+
+  var res;
+  try {
+    res = settleExcessiveLoanRun({
+      startYear: Number(val('afStartjaar')),
+      debtAtStart: numVal('afSchuld'),
+      debtChanges: mutaties,
+      dividends: dividenden,
+      settledPrior: numVal('afEerder'),
+      hasPartner: val('afPartner') === 'true'
+    });
+  } catch (e) {
+    doel.innerHTML = '<div class="signal warn"><strong>De reeks kan niet worden ' +
+                     'doorgerekend.</strong> ' + e.message + '</div>';
+    return;
+  }
+
+  var rijen = [
+    ['Werkelijke schuld begin van het jaar', function (r) { return r.debtBegin; }],
+    ['Werkelijke schuld einde van het jaar', function (r) { return r.debtEnd; }],
+    ['Maximumbedrag (art. 4.14a lid 2)', function (r) { return r.maxAmount; }],
+    ['Bovenmatig deel van de schulden', function (r) { return r.excess; }],
+    ['Fictief regulier voordeel dit jaar', function (r) { return r.fictief; }],
+    ['Cumulatief in de heffing betrokken', function (r) { return r.settledEnd; }],
+    ['Dividend', function (r) { return r.dividend; }],
+    ['Inkomen box 2 v\u00f3\u00f3r verliesverrekening', function (r) { return r.box2Before; }],
+    ['Inkomen box 2 n\u00e1 verliesverrekening', function (r) { return r.box2Net; }],
+    ['Grondslag waarover wordt geheven', function (r) { return r.box2Income; }],
+    ['Box 2-heffing', function (r) { return r.box2Tax; }]
+  ];
+
+  var html = '<div class="table-scroll"><table><thead><tr><th></th>';
+  for (var i = 0; i < res.years.length; i++) html += '<th>' + res.years[i].year + '</th>';
+  html += '</tr></thead><tbody>';
+  for (var k = 0; k < rijen.length; k++) {
+    html += '<tr><td>' + rijen[k][0] + '</td>';
+    for (i = 0; i < res.years.length; i++) {
+      html += '<td>' + euroSigned(rijen[k][1](res.years[i])) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '<tr><td>Gemiddeld tarief in het jaar</td>';
+  for (i = 0; i < res.years.length; i++) {
+    html += '<td>' + (res.years[i].effectiveRate * 100).toFixed(2).replace('.', ',') + '%</td>';
+  }
+  html += '</tr></tbody></table></div>';
+
+  html += '<div class="blok-intro" style="margin-top:12px;">Over de hele reeks: ' +
+          euro(res.totalIncome) + ' grondslag en ' + euro(res.totalTax) +
+          ' box 2-heffing, gemiddeld ' +
+          (res.averageRate * 100).toFixed(2).replace('.', ',') + '%.</div>';
+
+  if (res.unsettledLossTotal > EPS) {
+    html += '<div class="signal warn" style="margin-top:10px;"><strong>Er blijft ' +
+            euro(res.unsettledLossTotal) + ' verlies uit aanmerkelijk belang onverrekend ' +
+            'binnen deze reeks.</strong> Dat verlies is niet verlopen: de termijn loopt tot zes ' +
+            'kalenderjaren na het verliesjaar (art. 4.49 lid 1 Wet IB 2001) en kan buiten dit ' +
+            'venster nog worden verrekend. Verleng de reeks of neem het verlies mee in de ' +
+            'aangifte van een later jaar.</div>';
+  }
+
+  if (res.settlements.length) {
+    var lijst = [];
+    for (i = 0; i < res.settlements.length; i++) {
+      var v = res.settlements[i];
+      lijst.push(euro(v.amount) + ' van het verlies van ' + res.years[v.lossYear].year +
+                 ' met het inkomen van ' + res.years[v.incomeYear].year);
+    }
+    html += '<div class="blok-intro" style="margin-top:10px;">Verliesverrekening: ' +
+            lijst.join('; ') + '. De volgorde is die van art. 4.49 lid 3 Wet IB 2001: de ' +
+            'verliezen in de volgorde waarin zij zijn ontstaan, de inkomens in de volgorde ' +
+            'waarin zij zijn genoten.</div>';
+  }
+
+  doel.innerHTML = html;
+}
+
+
 function numVal(id) { var v = val(id); return v === '' ? 0 : Number(v); }
 
 function populateTaxYears() {
   var sel = el('taxYear');
-  var years = Object.keys(TAX_CONFIG).sort();
+  // Een historisch jaar staat wel in de tarieventabel (de meerjarige afrekening
+  // over excessief lenen begint in 2023) maar niet in deze keuzelijst: een
+  // aflosroute plannen in een jaar dat al voorbij is heeft geen betekenis.
+  var years = Object.keys(TAX_CONFIG).sort().filter(function (y) {
+    return TAX_CONFIG[y].status !== 'historisch';
+  });
   var html = '';
   for (var i = 0; i < years.length; i++) {
     html += '<option value="' + years[i] + '"' + (Number(years[i]) === DEFAULT_TAX_YEAR ? ' selected' : '') + '>' +
@@ -3415,6 +3831,7 @@ function toggleDebug() {
 (function init() {
   populateTaxYears();
   applyTaxYear();
+  vulAfrekeningInvoer();
   el('taxYear').addEventListener('change', function () { applyTaxYear(); calculate(); });
   var watch = ['fiscalPartner', 'otherBox2Self', 'otherBox2Partner', 'lowBracket', 'lowRate'];
   for (var i = 0; i < watch.length; i++) {
@@ -3427,6 +3844,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 6 sep 2026, 11:30</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 7 sep 2026, 11:11</div>
 </body>
 </html>
