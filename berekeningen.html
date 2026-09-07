@@ -1440,6 +1440,12 @@ function revisierenteAfkoopLijfrente({
   if (jaarBedongen > jaarAfkoop) {
     return { fout: 'De aanspraak kan niet zijn bedongen na het jaar van afkoop.' };
   }
+  // Toets alle ingevulde premies voordat een route een uitkomst kan geven.
+  // Nul en lege velden tellen zoals voorheen niet mee.
+  if (premies.some(p => p && p.premie != null && p.premie !== '' &&
+      (!Number.isFinite(p.premie) || p.premie < 0))) {
+    return { fout: 'Een premie moet een geldig, eindig bedrag van nul of hoger zijn.' };
+  }
 
   const meldingen = [];
 
@@ -2419,7 +2425,8 @@ const ONDERWERPEN = [
     const premies = [];
     for (let t = 0; t <= 9; t++) {
       const premie = i['premie' + t];
-      if (premie > 0) premies.push({ jaar: i.jaarAfkoop - t, premie });
+      // Laat ook ongeldige bedragen door de kern toetsen; filter ze niet weg.
+      premies.push({ jaar: i.jaarAfkoop - t, premie });
     }
     const r = revisierenteAfkoopLijfrente({
       jaarAfkoop: i.jaarAfkoop, waardeEconomischVerkeer: i.waardeEconomischVerkeer,
