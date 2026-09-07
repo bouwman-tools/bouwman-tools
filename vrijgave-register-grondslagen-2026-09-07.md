@@ -65,3 +65,12 @@ Dossierstuk en dossierbestand blijven bij beide tools op nee. Het memorandum van
 Auditfile Analyzer bevat nog geen volledige actuele invoersnapshot en de lokale
 serveropslag is geen dossierdownload met opnieuw openen door de gebruiker. Status,
 accordering, fiscale controledatums en toegang veranderen niet.
+
+## Aanvulling 8 september: bereik Bewaarplicht Checker
+
+De kaartbeschrijving omvat nu ook personeel en accountantsdossiers, zoals de bron
+en gepubliceerde HTML die al behandelen. De vorige beschrijving beperkte de tool
+ten onrechte tot artikel52AWR. Bron21638cc en publieke kopie hebben dezelfde HTML.
+Dit is uitsluitend een beschrijvingscorrectie, geen controle van de bewaartermijnen.
+Jaargebonden tekstblokken en hun onderhoudsregistratie vragen nog afzonderlijke
+beoordeling. Status, controledatums, accordering en rechten blijven gelijk.
