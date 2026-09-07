@@ -230,7 +230,10 @@
     }
     let data;
     try { data = await r.json(); } catch { throw new Error('Ongeldig beheerantwoord.'); }
-    if (!data || typeof data !== 'object' || data.error || (method === 'POST' && data.ok !== true)) {
+    // GET /admin/users is de gebruikersmap: 'error' kan een bestaande sleutel zijn.
+    // Alleen mutaties geven een bevestigings-/foutenvelop terug.
+    if (!data || typeof data !== 'object' || Array.isArray(data) ||
+        (method === 'POST' && (data.error || data.ok !== true))) {
       throw new Error('Het beheerverzoek is niet bevestigd.');
     }
     return data;
@@ -251,14 +254,29 @@
       list.innerHTML = '<div class="loading">Nog geen gebruikers.</div>';
       return;
     }
-    list.innerHTML = entries.map(([email, tools]) => `
-      <div class="user-row">
-        <div class="user-email">${email}</div>
-        <div class="user-access">${accessLabel(tools)}</div>
-        <button class="btn-edit" onclick="editUser('${email}')">Bewerken</button>
-        <button class="btn-del" onclick="deleteUser('${email}')">Verwijderen</button>
-      </div>
-    `).join('');
+    list.replaceChildren();
+    for (const [email, tools] of entries) {
+      const row = document.createElement('div');
+      row.className = 'user-row';
+      // Bestaande sleutels zijn tekst, ook als ze quotes/HTML bevatten. De knop
+      // bewaart de exacte sleutel zonder deze in inline JavaScript te interpoleren.
+      const address = document.createElement('div');
+      address.className = 'user-email';
+      address.textContent = email;
+      const access = document.createElement('div');
+      access.className = 'user-access';
+      access.textContent = accessLabel(tools);
+      const edit = document.createElement('button');
+      edit.className = 'btn-edit';
+      edit.textContent = 'Bewerken';
+      edit.onclick = () => editUser(email);
+      const remove = document.createElement('button');
+      remove.className = 'btn-del';
+      remove.textContent = 'Verwijderen';
+      remove.onclick = () => deleteUser(email);
+      row.append(address, access, edit, remove);
+      list.append(row);
+    }
   }
 
   function buildToolsGrid(selected) {

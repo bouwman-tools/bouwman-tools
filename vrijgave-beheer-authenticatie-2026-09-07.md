@@ -117,3 +117,26 @@ De zeven stdlib-mocktests draaien met
 onder meer dat 400 rood is, redirect-host en loginpad strikt zijn, alle twaalf
 verzoeken minimale inhoud hebben, fouten geen details lekken en responsebody's
 niet worden gelezen. Worker en beheerpagina zijn voor dit vervolg ongewijzigd.
+
+## Gebruikersmap en adrescontrole — vervolg op 7 september 2026
+
+De gebruikerslijst is een map, geen API-envelop. Een historische sleutel `error`
+wordt daarom bij GET weer als gewone gebruiker weergegeven. Alleen POST-antwoorden
+worden op een foutenvelop en `ok: true` gecontroleerd. Upsert vereist een string
+met precies één `@`, tekst aan beide zijden en geen witruimte. Dit is minimale
+syntaxiscontrole, geen verificatie dat een mailbox bestaat. Ook `__proto__`,
+`constructor` en vergelijkbare objectsleutels worden hiermee vóór KV of Cloudflare
+geweigerd; een niet-opgeslagen `__proto__` krijgt dus geen onterecht succesantwoord.
+
+Delete blijft iedere exacte stringkey kunnen opruimen, inclusief historische
+ongeldige adressen. Ontbrekende/niet-string sleutels worden afgewezen. Er zijn geen
+bestaande records gelezen of gemigreerd. De gebruikerslijst zet sleutels met
+`textContent` in de DOM en koppelt knoppen aan functies; quotes of HTML in een
+oude sleutel worden niet meer als HTML of inline JavaScript geïnterpreteerd.
+Daardoor blijft zo'n record ook via de verwijderknop bereikbaar.
+
+`npm test`: 38/38 groen. De vijf aanvullende regressies toetsen echte Worker-
+handlers met synthetische KV, geldige/ongeldige upserts, behoud en verwijdering
+van oude keys, en de echte lijst-/knop-/API-functies met DOM- en fetch-stubs.
+Dit is geen live browser- of toegangstest. Authenticatie en de publieke
+`/permissions`-functie zijn voor deze vervolgfix niet gewijzigd.

@@ -38,9 +38,9 @@ async function token(overrides = {}, { key, header = {} } = {}) {
   for (const k of Object.keys(payload)) if (payload[k] === undefined) delete payload[k];
   return new SignJWT(payload).setProtectedHeader({ alg: 'RS256', kid: 'synthetic', ...header }).sign(key || privateKey);
 }
-function fixture() {
+function fixture(initial = { 'synthetic@example.invalid': [] }) {
   calls = { reads: [], writes: [], external: [], jwks: 0, scheduled: [] };
-  const data = { 'synthetic@example.invalid': [] };
+  const data = JSON.parse(JSON.stringify(initial));
   return {
     env: { CF_API_TOKEN: 'synthetic-not-a-credential', PERMISSIONS: {
       async get(key) { calls.reads.push(key); return key === 'data' ? JSON.stringify(data) : null; },
@@ -50,8 +50,8 @@ function fixture() {
   };
 }
 async function run({ jwt, path = 'users', method = 'GET', origin, contentType = 'application/json', body,
-  url = PREFIX + path, handler = worker } = {}) {
-  const { env, ctx } = fixture();
+  url = PREFIX + path, handler = worker, permissions } = {}) {
+  const { env, ctx } = fixture(permissions);
   const headers = { 'Content-Type': contentType };
   if (jwt !== undefined) headers['Cf-Access-Jwt-Assertion'] = jwt;
   if (origin !== undefined) headers.Origin = origin;
@@ -180,4 +180,41 @@ test('publiek /permissions en zijn bestaande preflight blijven werken', async ()
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { access: [] });
   assert.deepEqual(calls.reads, ['data']);
+});
+
+test('upsert weigert ongeldige adressen/prototypesleutels vóór KV of Cloudflare', async () => {
+  const jwt = await token();
+  for (const email of [undefined, null, 123, {}, [], '', ' ', 'error', '__proto__', 'constructor', 'prototype',
+    'toString', '@example.invalid', 'synthetic@', 'a@@example.invalid', ' a@example.invalid',
+    'a@example.invalid ', 'a b@example.invalid', 'a\n@example.invalid']) {
+    const response = await run({ jwt, path: 'upsert', method: 'POST', origin: ORIGIN,
+      body: JSON.stringify({ email, tools: [] }) });
+    assert.equal(response.status, 400, JSON.stringify(email));
+    noData();
+  }
+});
+test('geldige synthetische adressen worden als eigen sleutel opgeslagen', async () => {
+  const jwt = await token();
+  for (const email of ['error@example.invalid', 'synthetic+test@example.invalid']) {
+    const response = await run({ jwt, path: 'upsert', method: 'POST', origin: ORIGIN,
+      body: JSON.stringify({ email, tools: [] }) });
+    assert.equal(response.status, 200);
+    const saved = calls.writes.find(([key]) => key === 'data')[1];
+    assert.equal(Object.hasOwn(saved, email), true);
+  }
+});
+test('historische ongeldige sleutels blijven exact leesbaar en verwijderbaar', async () => {
+  const jwt = await token();
+  for (const email of ['error', '__proto__', 'constructor', ' ', '', "synthetic'<b>"]) {
+    const permissions = { 'synthetic@example.invalid': [], [email]: [] };
+    const read = await run({ jwt, permissions });
+    assert.equal(read.status, 200);
+    assert.equal(Object.hasOwn(await read.json(), email), true);
+    const response = await run({ jwt, permissions, path: 'delete', method: 'POST', origin: ORIGIN,
+      body: JSON.stringify({ email }) });
+    assert.equal(response.status, 200);
+    const saved = calls.writes.find(([key]) => key === 'data')[1];
+    assert.equal(Object.hasOwn(saved, email), false);
+    assert.equal(Object.hasOwn(saved, 'synthetic@example.invalid'), true);
+  }
 });

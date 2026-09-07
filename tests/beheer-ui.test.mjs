@@ -9,14 +9,17 @@ const html = readFileSync(new URL('../beheer.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 function page(fetchImpl) {
   const nodes = new Map();
+  const element = () => ({ value: '', checked: false, disabled: false, style: {},
+    textContent: '', innerHTML: '', classList: { add() {}, remove() {} }, scrollIntoView() {},
+    children: [], append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; } });
   const node = id => {
-    if (!nodes.has(id)) nodes.set(id, { value: '', checked: false, disabled: false, style: {},
-      textContent: '', innerHTML: '', classList: { add() {}, remove() {} }, scrollIntoView() {} });
+    if (!nodes.has(id)) nodes.set(id, element());
     return nodes.get(id);
   };
   const requests = [];
   const context = vm.createContext({
-    document: { getElementById: node, querySelector: node,
+    document: { getElementById: node, querySelector: node, createElement: element,
       querySelectorAll: () => [{ value: 'synthetic-tool.html' }] },
     fetch: async (...args) => { requests.push(args); return fetchImpl(...args); },
     console, setTimeout() {}, confirm: () => true, btoa: s => Buffer.from(s).toString('base64'),
@@ -82,4 +85,33 @@ test('fout bij gebruikerslijst komt door en statusfout blijft zichtbaar', async 
   await context.laadStatus();
   assert.equal(node('statusbalk').hidden, false);
   assert.match(node('statusbalk').textContent, /401/);
+});
+
+test('gebruikersmap met error/prototype/quotes blijft zichtbaar en via echte knop verwijderbaar', async () => {
+  for (const email of ['error', '__proto__', 'constructor', ' ', '', "synthetic'<b>"]) {
+    const permissions = { [email]: [] };
+    const { context, node, requests } = page((url, options) => {
+      if (url.endsWith('/delete')) {
+        assert.equal(JSON.parse(options.body).email, email);
+        delete permissions[email];
+        return Response.json({ ok: true });
+      }
+      return Response.json(permissions);
+    });
+    await context.loadUsers();
+    const row = node('users-list').children[0];
+    assert.equal(row.children[0].textContent, email);
+    assert.equal(row.children[0].innerHTML, '');
+    assert.equal(row.children[3].textContent, 'Verwijderen');
+    await row.children[3].onclick();
+    assert.match(node('toast').textContent, /verwijderd/);
+    assert.equal(requests.length, 3);
+    assert.equal(Object.hasOwn(permissions, email), false);
+  }
+});
+test('POST-foutenvelop blijft een fout en geldige map met error is geen envelop', async () => {
+  const { context } = page(() => Response.json({ error: [], ok: true }));
+  const users = await context.api('/admin/users');
+  assert.equal(Object.hasOwn(users, 'error'), true);
+  await assert.rejects(context.api('/admin/upsert', 'POST', {}), /niet bevestigd/);
 });

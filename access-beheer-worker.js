@@ -146,7 +146,12 @@ export default {
       let data;
       try { data = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
       const { email, tools } = data || {};
-      if (typeof email !== 'string' || !email.trim()) return adminAntwoord({ error: 'email verplicht' }, 400);
+      // Minimale adrescontrole, geen mailboxverificatie. Sluit ook objectsleutels
+      // als __proto__/constructor uit. Bestaande ongeldige sleutels blijven via
+      // delete opruimbaar; daar geldt bewust niet deze nieuwe-adrescontrole.
+      if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(email)) {
+        return adminAntwoord({ error: 'E-mailadres met één @ en zonder witruimte verplicht.' }, 400);
+      }
       if (tools !== 'all' && !(Array.isArray(tools) && tools.every(t => typeof t === 'string'))) {
         return adminAntwoord({ error: 'Ongeldige toollijst.' }, 400);
       }
@@ -161,7 +166,9 @@ export default {
       let data;
       try { data = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
       const { email } = data || {};
-      if (typeof email !== 'string' || !email.trim()) return adminAntwoord({ error: 'email verplicht' }, 400);
+      // Exacte bestaande sleutel kunnen verwijderen, ook bij historische ongeldige
+      // adressen. Een ontbrekende of niet-string sleutel blijft een invoerfout.
+      if (typeof email !== 'string') return adminAntwoord({ error: 'email verplicht' }, 400);
       const permissions = await getPermissions(env);
       delete permissions[email];
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
