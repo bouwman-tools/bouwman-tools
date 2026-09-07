@@ -16,12 +16,8 @@ INGANGEN = (
 ROUTES = (("status", "GET"), ("upsert", "POST"), ("delete", "POST"))
 ORIGINS = (("zonder Origin", None), ("met Origin", "https://bouwman.tools"))
 
-# Bewuste uitzondering, geen live proef met echte e-mailadressen. Dit is geen
-# generieke skipregel: de twaalf adminproeven hieronder blijven altijd verplicht.
-PUBLIEKE_ROUTES = {
-    "POST https://access-beheer.s-bouwman.workers.dev/permissions":
-        "Bestaande publieke rechtenfunctie voor portal.html; buiten deze admincontrole.",
-}
+# Deze controle toetst twaalf adminverzoeken. De oude /permissions-route is
+# gesloten; de eigen portaalrechten hebben een afzonderlijke authenticatietestset.
 
 
 class GeenRedirect(HTTPRedirectHandler):
