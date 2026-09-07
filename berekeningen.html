@@ -1618,9 +1618,13 @@ function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
 
 /* Samenloop van de heffing over de afkoop en de revisierente.
 
-   De negatieve uitgaven voor inkomensvoorzieningen zijn zelf inkomen uit werk en
-   woning (art. 3.133 jo. afdeling 3.7 Wet IB 2001) en worden belast tegen het
-   tarief van art. 2.10. De revisierente komt daar bovenop en is geen belasting
+   `grondslagBox1` is het bedrag dat in box 1 wordt belast. Normaal zijn dat de
+   negatieve uitgaven voor inkomensvoorzieningen, die zelf inkomen uit werk en
+   woning zijn (art. 3.133 jo. afdeling 3.7 Wet IB 2001) en worden belast tegen
+   het tarief van art. 2.10. Blijft de afkoop op grond van art. 3.133 lid 2
+   onderdeel d buiten de negatieve uitgaven, dan is de uitkering een termijn van
+   lijfrente en is de hele waarde belast; dan is dit dus niet hetzelfde bedrag.
+   De aanroeper bepaalt welk van de twee het is, want die kent de voorwaarden. De revisierente komt daar bovenop en is geen belasting
    maar rente; zij is niet aftrekbaar.
 
    Welk percentage marginaal is volgt niet uit deze berekening, want dat hangt af
@@ -1628,11 +1632,11 @@ function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
    zoals de marktrente bij de boeterente. De tool rekent geen heffingskortingen en
    geen premies volksverzekeringen mee; dit is een schatting van de last en geen
    aanslag. */
-function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, negatieveUitgaven, revisierente, marginaalTarief }) {
+function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revisierente, marginaalTarief }) {
   if (!(marginaalTarief >= 0 && marginaalTarief <= 1)) {
     return { fout: 'Geef een marginaal tarief tussen nul en honderd procent op.' };
   }
-  const belastingBox1 = negatieveUitgaven * marginaalTarief;
+  const belastingBox1 = grondslagBox1 * marginaalTarief;
   const totaleLast = belastingBox1 + revisierente;
   return {
     belastingBox1,
@@ -2447,11 +2451,7 @@ const ONDERWERPEN = [
     }
     const samenloop = samenloopAfkoopLijfrente({
       waardeEconomischVerkeer: i.waardeEconomischVerkeer,
-      // Normaal zijn dat de negatieve uitgaven. Blijft de afkoop op grond van
-      // art. 3.133 lid 2 onderdeel d buiten de negatieve uitgaven, dan is de
-      // uitkering een termijn van lijfrente en is de hele waarde belast; de kern
-      // geeft die grondslag daarom apart terug.
-      negatieveUitgaven: r.grondslagBox1,
+      grondslagBox1: r.grondslagBox1,
       // Het afgeronde bedrag, niet het onafgeronde: de samenloop hoort op te tellen
       // met de revisierente die er boven staat, anders sluit de uitkomst niet op
       // zichzelf aan.
