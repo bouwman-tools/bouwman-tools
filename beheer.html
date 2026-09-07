@@ -181,7 +181,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const WORKER = 'https://access-beheer.s-bouwman.workers.dev';
+  const WORKER = '/beheer.html/api';
 
   // De toollijst komt uit tools.json, het register. Stond die lijst hier ook, dan zou een
   // nieuwe tool wel een Access-app kunnen hebben en toch buiten het toegangsbeheer vallen:
@@ -213,12 +213,27 @@
 
   let editingEmail = null;
 
-  function api(path, method = 'GET', body) {
-    return fetch(WORKER + path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined,
-    }).then(r => r.json());
+  async function api(path, method = 'GET', body) {
+    let r;
+    try {
+      r = await fetch(WORKER + path, {
+        method, credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      throw new Error('Beheer niet bereikbaar. Open beheer opnieuw en probeer het nogmaals.');
+    }
+    if (!r.ok) throw new Error(`Beheerverzoek mislukt (HTTP ${r.status}). Open beheer opnieuw bij een verlopen sessie.`);
+    if (!r.headers.get('Content-Type')?.toLowerCase().includes('application/json')) {
+      throw new Error('Onverwacht beheerantwoord. Open beheer opnieuw.');
+    }
+    let data;
+    try { data = await r.json(); } catch { throw new Error('Ongeldig beheerantwoord.'); }
+    if (!data || typeof data !== 'object' || data.error || (method === 'POST' && data.ok !== true)) {
+      throw new Error('Het beheerverzoek is niet bevestigd.');
+    }
+    return data;
   }
 
   function accessLabel(tools) {
@@ -278,15 +293,15 @@
     return [...document.querySelectorAll('#tools-grid input:checked')].map(cb => cb.value);
   }
 
-  function editUser(email) {
+  async function editUser(email) {
+    let permissions;
+    try { permissions = await api('/admin/users'); }
+    catch (e) { showToast(e.message); return; }
     editingEmail = email;
     document.getElementById('form-title').textContent = 'Gebruiker bewerken';
     document.getElementById('email-input').value = email;
     document.getElementById('email-input').disabled = true;
-    // Fetch current permissions to prefill
-    api('/admin/users').then(permissions => {
-      buildToolsGrid(permissions[email] ?? 'all');
-    });
+    buildToolsGrid(permissions[email] ?? []);
     document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -305,20 +320,27 @@
     const btn = document.querySelector('.btn-save');
     btn.textContent = 'Opslaan…';
     btn.disabled = true;
-    await api('/admin/upsert', 'POST', { email, tools });
-    btn.textContent = 'Opslaan';
-    btn.disabled = false;
-    resetForm();
-    await loadUsers();
-    document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
-    showToast(`${email} opgeslagen.`);
+    try {
+      await api('/admin/upsert', 'POST', { email, tools });
+      await loadUsers();
+      resetForm();
+      document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
+      showToast(`${email} opgeslagen.`);
+    } catch (e) {
+      showToast(e.message);
+    } finally {
+      btn.textContent = 'Opslaan';
+      btn.disabled = false;
+    }
   }
 
   async function deleteUser(email) {
     if (!confirm(`${email} verwijderen?`)) return;
-    await api('/admin/delete', 'POST', { email });
-    showToast(`${email} verwijderd.`);
-    loadUsers();
+    try {
+      await api('/admin/delete', 'POST', { email });
+      await loadUsers();
+      showToast(`${email} verwijderd.`);
+    } catch (e) { showToast(e.message); }
   }
 
   function showToast(msg) {
@@ -331,7 +353,7 @@
   // Toont of het bijwerken van de Access-policies werkelijk is gelukt. De
   // synchronisatie wordt losgelaten met waitUntil, dus het opslaan zelf kan
   // niets over de uitkomst zeggen; die staat in de KV-opslag. Faalt dit
-  // ophalen, dan blijft de balk weg: het is een melding, geen blokkade.
+  // ophalen, dan toont de balk een fout: afwezigheid van status is geen succes.
   async function laadStatus() {
     const balk = document.getElementById('statusbalk');
     try {
@@ -419,7 +441,9 @@
         : regels[0];
       balk.hidden = false;
     } catch (e) {
-      console.error('status ophalen mislukt:', e);
+      balk.className = 'statusbalk fout';
+      balk.textContent = 'Beheerstatus kon niet worden geladen. ' + e.message;
+      balk.hidden = false;
     }
   }
 
@@ -446,7 +470,10 @@
     }
     document.getElementById('app').style.display = '';
     buildToolsGrid([]);
-    loadUsers();
+    loadUsers().catch(e => {
+      document.getElementById('users-list').textContent = e.message;
+      showToast(e.message);
+    });
     laadStatus();
   })();
 </script>

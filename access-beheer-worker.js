@@ -1,7 +1,40 @@
 // Cloudflare Worker — gebruikersbeheer bouwman.tools
 // KV binding: PERMISSIONS
-// Secrets: ADMIN_TOKEN, CF_API_TOKEN
-// Route: bouwman.tools/api/*
+// Secret: CF_API_TOKEN (bestaande ADMIN_TOKEN wordt niet gebruikt)
+// Beheerroute: https://bouwman.tools/beheer.html/api/admin/*
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const ADMIN_ORIGIN = 'https://bouwman.tools';
+const ADMIN_PREFIX = '/beheer.html/api';
+const ACCESS_ISSUER = 'https://bouwman-tools.cloudflareaccess.com';
+const ADMIN_AUD = 'af8ac2b405ebe46b6574d003ef84f2c25c9e737d961c6871216727ad2d7790c8';
+// Alleen de vaste team-JWKS; nooit een URL uit een aangeleverd token volgen.
+const ACCESS_KEYS = createRemoteJWKSet(new URL(`${ACCESS_ISSUER}/cdn-cgi/access/certs`));
+const ADMIN_ROUTES = new Map([
+  ['/admin/users', 'GET'], ['/admin/status', 'GET'], ['/admin/workers', 'GET'],
+  ['/admin/upsert', 'POST'], ['/admin/delete', 'POST'],
+]);
+
+async function geldigBeheerToken(request) {
+  const token = request.headers.get('Cf-Access-Jwt-Assertion');
+  if (!token) return false;
+  try {
+    const { payload } = await jwtVerify(token, ACCESS_KEYS, {
+      issuer: ACCESS_ISSUER, audience: ADMIN_AUD, algorithms: ['RS256'],
+      requiredClaims: ['iss', 'aud', 'exp', 'sub'],
+    });
+    return payload.type === 'app' && typeof payload.sub === 'string' && payload.sub.length > 0;
+  } catch {
+    return false; // Ook bij onbereikbare JWKS: geen toegang en geen tokendetails loggen.
+  }
+}
+
+function adminAntwoord(data, status = 200) {
+  return new Response(data === null ? null : JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
+  });
+}
 
 const CF_ACCOUNT_ID = '9f2508dc476f0183404720277152eb16';
 
@@ -13,8 +46,7 @@ const STATUS_SYNC = 'sync-status';
 const STATUS_CONTROLE = 'controle-status';
 
 // Waar de controle het register leest. Dezelfde URL die portal.html en beheer.html
-// gebruiken: tools.json staat onafgeschermd op GitHub Pages. Deze worker heeft geen
-// route op bouwman.tools, dus dit verzoek komt niet bij zichzelf terug.
+// gebruiken: tools.json staat onafgeschermd op GitHub Pages, buiten de beheerroute.
 const REGISTER_URL = 'https://bouwman.tools/tools.json';
 
 const APP_IDS = {
@@ -53,9 +85,9 @@ const APP_IDS = {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const path = url.pathname || '/';
+    let path = url.pathname || '/';
 
-    if (request.method === 'OPTIONS') {
+    if (path === '/permissions' && request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors(request) });
     }
 
@@ -67,22 +99,39 @@ export default {
       return ok({ access }, request);
     }
 
-    // Admin-endpoints — alleen bereikbaar via bouwman.tools (CF Access beschermt beheer.html)
-    const origin = request.headers.get('Origin') || '';
-    if (!origin.includes('bouwman.tools') && !origin.includes('workers.dev')) {
-      return new Response('Unauthorized', { status: 401 });
+    // Alleen het kindpad van de bestaande beheer-Access-app. workers.dev en oude
+    // /admin-paden blijven dicht, ook met een geldig token. Zie de vrijgavenotitie.
+    if (url.origin !== ADMIN_ORIGIN || !path.startsWith(ADMIN_PREFIX + '/admin/')) {
+      return adminAntwoord({ error: 'Niet gevonden.' }, 404);
+    }
+    path = path.slice(ADMIN_PREFIX.length);
+    const method = ADMIN_ROUTES.get(path);
+    if (!method) return adminAntwoord({ error: 'Niet gevonden.' }, 404);
+    // Preflight bevat geen data, CORS-toestemming of verzoeken naar KV/Cloudflare.
+    if (request.method === 'OPTIONS') return adminAntwoord(null, 204);
+    if (request.method !== method) return adminAntwoord({ error: 'Methode niet toegestaan.' }, 405);
+    if (!await geldigBeheerToken(request)) {
+      return adminAntwoord({ error: 'Beheertoegang ontbreekt of is verlopen. Open beheer opnieuw.' }, 401);
+    }
+    if (method === 'POST') {
+      if (request.headers.get('Origin') !== ADMIN_ORIGIN) {
+        return adminAntwoord({ error: 'Ongeldige herkomst van het beheerverzoek.' }, 403);
+      }
+      if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
+        return adminAntwoord({ error: 'JSON vereist.' }, 415);
+      }
     }
 
     if (path === '/admin/users' && request.method === 'GET') {
-      return ok(await getPermissions(env), request);
+      return adminAntwoord(await getPermissions(env));
     }
 
     // Uitkomst van de laatste synchronisatie en van de laatste controle.
     if (path === '/admin/status' && request.method === 'GET') {
-      return ok({
+      return adminAntwoord({
         synchronisatie: JSON.parse(await env.PERMISSIONS.get(STATUS_SYNC) || 'null'),
         controle: JSON.parse(await env.PERMISSIONS.get(STATUS_CONTROLE) || 'null'),
-      }, request);
+      });
     }
 
     // Draait de workercontrole meteen, zonder op de dagelijkse controle te wachten.
@@ -90,27 +139,34 @@ export default {
     // Nodig om na een deploy te kunnen vaststellen dat de controle werkelijk werkt,
     // in plaats van dat tot de volgende ochtend aan te nemen.
     if (path === '/admin/workers' && request.method === 'GET') {
-      return ok(await controleerWorkers(env), request);
+      return adminAntwoord(await controleerWorkers(env));
     }
 
     if (path === '/admin/upsert' && request.method === 'POST') {
-      const { email, tools } = await request.json();
-      if (!email) return ok({ error: 'email verplicht' }, request, 400);
+      let data;
+      try { data = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
+      const { email, tools } = data || {};
+      if (typeof email !== 'string' || !email.trim()) return adminAntwoord({ error: 'email verplicht' }, 400);
+      if (tools !== 'all' && !(Array.isArray(tools) && tools.every(t => typeof t === 'string'))) {
+        return adminAntwoord({ error: 'Ongeldige toollijst.' }, 400);
+      }
       const permissions = await getPermissions(env);
       permissions[email] = tools;
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
       ctx.waitUntil(syncCFAccess(permissions, env));
-      return ok({ ok: true }, request);
+      return adminAntwoord({ ok: true });
     }
 
     if (path === '/admin/delete' && request.method === 'POST') {
-      const { email } = await request.json();
-      if (!email) return ok({ error: 'email verplicht' }, request, 400);
+      let data;
+      try { data = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
+      const { email } = data || {};
+      if (typeof email !== 'string' || !email.trim()) return adminAntwoord({ error: 'email verplicht' }, 400);
       const permissions = await getPermissions(env);
       delete permissions[email];
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
       ctx.waitUntil(syncCFAccess(permissions, env));
-      return ok({ ok: true }, request);
+      return adminAntwoord({ ok: true });
     }
 
     return new Response('Not found', { status: 404 });
