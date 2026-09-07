@@ -79,7 +79,7 @@
     label { font-size: 13px; font-weight: 600; color: var(--navy); display: block; margin-bottom: 6px; }
     label .sub { font-weight: 400; color: var(--muted); font-size: 12px; display: block; margin-top: 1px; }
 
-    input[type=number], select {
+    input[type=number], input[type=text], select {
       width: 100%; padding: 10px 12px;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -189,6 +189,58 @@
     .hidden { display: none; }
 
     #resultSection { display: none; }
+
+    /* Knoppen van de uitgangen */
+    .knoppen { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      font-family: var(--sans); font-size: 13px; font-weight: 700;
+      padding: 10px 16px; border-radius: 8px; cursor: pointer;
+      border: 1.5px solid var(--border); background: #fff; color: var(--navy);
+      transition: border-color .15s, background .15s;
+    }
+    button:hover { border-color: var(--mint); background: var(--mint-light); }
+    button.primair { background: var(--navy); border-color: var(--navy); color: #fff; }
+    button.primair:hover { background: var(--navy-deep); border-color: var(--navy-deep); }
+
+    .uitgang-melding { font-size: 12px; line-height: 1.6; margin-top: 14px; padding: 10px 14px; border-radius: 8px; }
+    .uitgang-melding:empty { display: none; }
+    .uitgang-melding.goed { background: var(--ok-light); border: 1px solid #86efac; color: #14532d; }
+    .uitgang-melding.fout { background: var(--warn-light); border: 1px solid #fca5a5; color: #7f1d1d; }
+
+    /* Het dossierstuk: alleen op papier, gevoed uit dezelfde toestand als het scherm */
+    .printonly { display: none; }
+    .dossier-tabel { margin-bottom: 6px; }
+    .dossier-tabel td { padding: 5px 10px; font-size: 12px; }
+    .dossier-tabel td.waarde { text-align: right; white-space: nowrap; font-weight: 700; width: 22%; }
+    .dossier-tabel .bron-noot { display: block; font-size: 10px; font-weight: 400; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+    .dossier-lijst { padding-left: 18px; font-size: 11.5px; line-height: 1.55; }
+    .dossier-lijst li { margin-bottom: 5px; }
+    .dossier-noot { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.55; }
+
+    @media print {
+      @page { margin: 14mm; }
+      body { background: #fff; padding: 0; }
+      .noprint, .bt-nav-back, .bt-logout-btn, .bt-privacy-pill,
+      [data-kg-query] { display: none !important; }
+      .printonly { display: block; }
+      header { background: #fff; border-bottom: 2px solid var(--navy); min-height: 0; }
+      .header-inner { padding: 0 0 8px; }
+      .header-logo { display: none; }
+      .header-title, .header-sub { color: var(--navy); }
+      .content { max-width: none; padding: 12px 0 0; }
+      .card, .conclusie-card, .result-card { border: 1px solid #b9c0d0; box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+      .card { padding: 12px; margin-bottom: 12px; }
+      .conclusie-card { padding: 12px; margin-bottom: 12px; }
+      .conclusie-card.ok, .conclusie-card.warn, .conclusie-card.info { background: #fff; }
+      .result-card.winner, .result-card.terzijde { background: #fff; opacity: 1; }
+      .result-card.winner { border-width: 2px; }
+      tr.highlight td { background: #f1f3f7; }
+      #resultSection { display: block !important; }
+      table { font-size: 11px; }
+      .info-box { background: #fff; }
+      .bt-page-footer { background: #fff; border-top: 1px solid #b9c0d0; }
+    }
+
   </style>
 </head>
 <body>
@@ -205,7 +257,7 @@
       </div>
       <div>
         <div class="header-title">Gebruikelijk loon</div>
-        <div class="header-sub">DGA-loon toetsen aan de norm</div>
+        <div class="header-sub">DGA-loon toetsen aan de norm — <span id="versieStempel"></span></div>
       </div>
     </div>
   </div>
@@ -213,8 +265,38 @@
 
 <div class="content">
 
+  <!-- Kop van het dossierstuk. Staat alleen op de afdruk en wordt gevuld uit
+       dezelfde toestand als het scherm. -->
+  <div class="card printonly" id="dossierKop"></div>
+
+  <!-- Dossier: kenmerk, opsteller en datum. Deze velden rekenen niet mee; zij
+       maken van een afdruk, een export en een opgeslagen bestand een dossierstuk. -->
+  <div class="card noprint">
+    <h2>Dossier</h2>
+    <div class="grid2">
+      <div>
+        <label for="kenmerk">Klantnaam of kenmerk
+          <span class="sub">Komt op de afdruk, in de export en in de bestandsnaam</span>
+          <input type="text" id="kenmerk" placeholder="bijv. dossier 2026-014" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label for="opsteller">Opgesteld door
+          <span class="sub">Wie de berekening heeft gemaakt</span>
+          <input type="text" id="opsteller" oninput="bereken()" />
+        </label>
+      </div>
+      <div>
+        <label for="peildatum">Datum
+          <span class="sub">Datum van opstelling</span>
+          <input type="text" id="peildatum" oninput="bereken()" />
+        </label>
+      </div>
+    </div>
+  </div>
+
   <!-- Invoer -->
-  <div class="card">
+  <div class="card noprint">
     <h2>Invoer</h2>
     <div class="grid2">
       <div>
@@ -236,7 +318,7 @@
   </div>
 
   <!-- Normen -->
-  <div class="card">
+  <div class="card noprint">
     <h2>Normen</h2>
     <div class="grid2">
       <div>
@@ -315,7 +397,7 @@
   </div>
 
   <!-- Persoonlijke holding: meer dan een eigen lichaam -->
-  <div class="card">
+  <div class="card noprint">
     <h2>Persoonlijke holding</h2>
 
     <label class="toggle-row" for="concernCheck">
@@ -354,7 +436,7 @@
   </div>
 
   <!-- Tweede schijf volmaken -->
-  <div class="card">
+  <div class="card noprint">
     <h2>Tweede schijf volmaken</h2>
 
     <label class="toggle-row" for="schijfCheck">
@@ -398,6 +480,9 @@
     </div>
   </div>
 
+  <!-- Invoer van het dossierstuk: alleen op de afdruk. -->
+  <div class="card printonly" id="dossierInvoer"></div>
+
   <!-- Resultaat -->
   <div id="resultSection">
 
@@ -416,6 +501,32 @@
     <div id="schijfCard"></div>
 
   </div>
+
+  <!-- De drie uitgangen. Alle drie lezen dezelfde berekende toestand, dus wat
+       er wordt afgedrukt, geëxporteerd en opgeslagen is wat op het scherm staat. -->
+  <div class="card noprint">
+    <h2>Vastleggen en meenemen</h2>
+    <div class="knoppen">
+      <button type="button" class="primair" id="btnPrint">Afdrukken of opslaan als pdf</button>
+      <button type="button" id="btnExcel">Exporteren naar Excel</button>
+      <button type="button" id="btnOpslaan">Opslaan als dossierbestand</button>
+      <button type="button" id="btnOpenen">Dossierbestand openen</button>
+      <input type="file" id="bestandInvoer" accept="application/json,.json" style="display:none" />
+    </div>
+    <div class="uitgang-melding" id="uitgangMelding"></div>
+    <div class="info-box">
+      De afdruk is het dossierstuk: kenmerk, datum, versie, alle actieve invoer, de
+      uitkomst met de tussenstappen, de vindplaatsen, de waarschuwingen en de afbakening.
+      De Excel-export is een <strong>bevroren</strong> werkblad zonder formules — de tool
+      rekent, het werkblad legt vast. Het dossierbestand bevat <strong>alleen uw
+      invoer</strong>, zodat de uitkomst bij het openen opnieuw wordt berekend met de dan
+      geldende tool. Opslaan gaat naar een plek die u zelf kiest; er gaat niets naar een
+      server, en de tool bewaart zelf niets.
+    </div>
+  </div>
+
+  <!-- Vindplaatsen, waarschuwingen en afbakening: alleen op de afdruk. -->
+  <div class="card printonly" id="dossierBronnen"></div>
 
   <!-- Kennisgroepstandpunten van de Belastingdienst.
        Gevoed door kg-widget.js uit de repo kennisgroepen-zoeker; haalt pas op na
@@ -787,59 +898,550 @@ function volmakenSchijf(invoer) {
 
 // FISCALE KERN — EINDE
 
-// ── Weergave ────────────────────────────────────────────────────────────────
-// Alles hieronder is UI en raakt de fiscale kern niet aan; het roept haar aan.
+// ── TOESTAND, OPSTELLING EN DOSSIER — BEGIN ────────────────────────────────
+// Pure code, net als de kern erboven: geen DOM, geen netwerk, geen opslag.
+//
+// Deze laag zet de invoer om in EEN toestand, en die toestand is de enige bron
+// voor alle vier de uitgangen: het scherm, de afdruk, de Excel-export en het
+// dossierbestand. Er wordt hier niets opnieuw uitgerekend; alles komt uit de kern.
 
-function fmt(n) {
-  const afgerond = Math.round(n);
-  const teken = afgerond < 0 ? '− ' : '';
-  return teken + '€ ' + Math.abs(afgerond).toLocaleString('nl-NL');
+const TOOL_ID = 'gebruikelijk-loon';
+const TOOL_VERSIE = '1.1.0';
+const DOSSIER_VERSIE = 1;
+
+// De jaren die de tool kent, in de vorm waarin de keuzelijst ze gebruikt.
+const JAREN = Object.keys(NORMBEDRAGEN).sort();
+
+// Alle invoervelden van de tool, in de volgorde waarin zij op het scherm staan.
+// Dit is de enige plek waar die lijst staat: zij bepaalt wat er in het
+// dossierbestand gaat, wat er bij het openen wordt gevalideerd, en wat er op de
+// afdruk en in de export als invoer verschijnt. Een veld toevoegen aan de tool
+// is dus een regel hier, en niet vier keer hetzelfde onderhoud.
+//
+// soort   'jaar'   keuzejaar; moet een jaar zijn dat de tool kent
+//         'bedrag' bedrag in euro, nooit negatief
+//         'aantal' geheel getal van ten minste 1
+//         'vink'   aan of uit
+//         'tekst'  vrije tekst; dossiergegeven dat niet meerekent
+// sectie  de vink die dit veld actief maakt; leeg is altijd actief
+// dom     het id in de pagina, als dat afwijkt van het id in de toestand
+const INVOERVELDEN = [
+  { id: 'kenmerk',   soort: 'tekst', sectie: '', label: 'Klantnaam of kenmerk' },
+  { id: 'opsteller', soort: 'tekst', sectie: '', label: 'Opgesteld door' },
+  { id: 'peildatum', soort: 'tekst', sectie: '', label: 'Datum' },
+  { id: 'jaar',      soort: 'jaar',  sectie: '', label: 'Belastingjaar' },
+  { id: 'huidigLoon', soort: 'bedrag', sectie: '',
+    label: 'Huidig DGA-loon (bruto per jaar)' },
+  { id: 'vergelijkingsloon', soort: 'bedrag', sectie: '',
+    label: 'Vergelijkingsloon (meest vergelijkbare dienstbetrekking)' },
+  { id: 'hoogsteWerknemer', soort: 'bedrag', sectie: '',
+    label: 'Hoogste werknemer van dit lichaam' },
+  { id: 'hoogsteWerknemerVerbonden', soort: 'bedrag', sectie: '',
+    label: 'Hoogste werknemer van een verbonden lichaam' },
+  { id: 'afroomAan', soort: 'vink', sectie: '', dom: 'afroomCheck',
+    label: 'Afroommethode van toepassing' },
+  { id: 'omzet', soort: 'bedrag', sectie: 'afroomAan',
+    label: 'Opbrengsten van de BV' },
+  { id: 'overigeKosten', soort: 'bedrag', sectie: 'afroomAan',
+    label: 'Toerekenbare kosten, lasten en afschrijvingen (excl. DGA-loon)' },
+  { id: 'concernAan', soort: 'vink', sectie: '', dom: 'concernCheck',
+    label: 'De DGA werkt voor meer dan een eigen lichaam' },
+  { id: 'aantalLichamen', soort: 'aantal', sectie: 'concernAan',
+    label: 'Aantal eigen lichamen waarvoor arbeid wordt verricht' },
+  { id: 'doorbetaaldLoon', soort: 'vink', sectie: 'concernAan', dom: 'doorbetaaldCheck',
+    label: 'Doorbetaaldloonregeling toegepast (art. 32d Wet LB 1964)' },
+  { id: 'schijfAan', soort: 'vink', sectie: '', dom: 'schijfCheck',
+    label: 'Tweede schijf volmaken doorrekenen' },
+  { id: 'overigeInkomsten', soort: 'bedrag', sectie: 'schijfAan',
+    label: 'Overige box 1-inkomsten' },
+  { id: 'aftrekposten', soort: 'bedrag', sectie: 'schijfAan',
+    label: 'Box 1-aftrekposten' },
+  { id: 'bijtellingAuto', soort: 'bedrag', sectie: 'schijfAan',
+    label: 'Bijtelling privegebruik auto (na eigen bijdrage)' },
+];
+
+/** Is dit veld in de huidige invoer actief, of hangt het onder een uitgezette vink? */
+function veldActief(inv, veld) {
+  return veld.sectie === '' || !!inv[veld.sectie];
 }
 
-function getal(id) {
-  const v = parseFloat(document.getElementById(id).value);
-  return Number.isFinite(v) ? v : 0;
+/**
+ * Brengt ruwe invoer in de vorm waarin de kern haar krijgt: bedragen niet
+ * negatief, aantallen geheel, vinkjes booleaans, tekst zonder witruimte eromheen.
+ *
+ * Dit gebeurt op EEN plek, voor het rekenen en voor het opslaan. Daarmee is wat
+ * er in een dossierbestand staat per definitie wat er is doorgerekend, en kan
+ * een bestand dat de tool zelf heeft geschreven bij het openen niet afketsen op
+ * zijn eigen validatie.
+ */
+function normaliseerInvoer(ruw) {
+  const inv = {};
+  INVOERVELDEN.forEach(function (v) {
+    const w = ruw[v.id];
+    if (v.soort === 'vink') {
+      inv[v.id] = !!w;
+    } else if (v.soort === 'tekst') {
+      inv[v.id] = String(w === undefined || w === null ? '' : w).trim();
+    } else if (v.soort === 'jaar') {
+      const j = Number(w);
+      inv[v.id] = Number.isFinite(j) ? Math.round(j) : NaN;
+    } else if (v.soort === 'aantal') {
+      inv[v.id] = Math.max(1, Math.floor(Number(w) || 0));
+    } else {
+      inv[v.id] = Math.max(0, Number(w) || 0);
+    }
+  });
+  return inv;
 }
 
-function toonJaarfout(jaar) {
-  const jaren = Object.keys(NORMBEDRAGEN).sort().join(', ');
-  const c = document.getElementById('conclusieCard');
-  c.className = 'conclusie-card warn';
-  c.innerHTML = `
-    <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen normbedrag voor ${jaar}</div></div>
-    <div class="c-body">
-      Voor ${jaar} is het normbedrag van artikel 12a, eerste lid, onderdeel c, Wet LB 1964
-      niet in deze tool vastgelegd. De tool rekent bewust <strong>niet</strong> door met het bedrag van een
-      ander jaar: dat zou een onjuiste norm opleveren.<br><br>
-      Beschikbare jaren: <strong>${jaren}</strong>.
-    </div>`;
-  document.getElementById('normenGrid').innerHTML = '';
-  document.getElementById('normenTabel').innerHTML = '';
-  document.getElementById('wetsgrondslag').innerHTML = '';
-  document.getElementById('concernCard').innerHTML = '';
-  document.getElementById('concernCard').className = '';
-  document.getElementById('schijfCard').innerHTML = '';
-  document.getElementById('schijfCard').className = '';
-  document.getElementById('resultSection').style.display = 'block';
+/**
+ * De volledige toestand van een berekening: invoer, uitkomst, toets, de rijen
+ * van de normentabel, het volmaken van de schijf en de meldingen.
+ *
+ * @param {object} inv      Genormaliseerde invoer.
+ * @param {string} vandaag  Datum van vandaag als jjjj-mm-dd; komt van buiten,
+ *                          zodat deze functie zuiver blijft en toetsbaar is.
+ */
+function bouwToestand(inv, vandaag) {
+  const uitkomst = bepaalGebruikelijkLoon({
+    jaar: inv.jaar,
+    vergelijkingsloon: inv.vergelijkingsloon,
+    hoogsteWerknemer: inv.hoogsteWerknemer,
+    hoogsteWerknemerVerbonden: inv.hoogsteWerknemerVerbonden,
+    afroomAan: inv.afroomAan,
+    opbrengsten: inv.omzet,
+    toerekenbareKosten: inv.overigeKosten,
+    concernAan: inv.concernAan,
+    doorbetaaldLoon: inv.doorbetaaldLoon,
+    aantalLichamen: inv.aantalLichamen,
+  });
+
+  // Een jaar zonder normbedrag levert geen uitkomst en geen stille terugval.
+  if (uitkomst === null) {
+    return {
+      ok: false,
+      invoer: inv,
+      jaar: inv.jaar,
+      vandaag: vandaag,
+      uitkomst: null,
+      toets: null,
+      rijen: [],
+      schijf: null,
+      meldingen: ['Voor ' + inv.jaar + ' is het normbedrag van art. 12a lid 1 ' +
+        'onderdeel c Wet LB 1964 niet in deze tool vastgelegd. Er is niet ' +
+        'doorgerekend met het bedrag van een ander jaar. Beschikbare jaren: ' +
+        JAREN.join(', ') + '.'],
+    };
+  }
+
+  const toets = toetsLoon(uitkomst, inv.huidigLoon);
+  const rijen = normenrijen(uitkomst);
+  const schijf = inv.schijfAan
+    ? volmakenSchijf({
+        jaar: inv.jaar,
+        overigeInkomsten: inv.overigeInkomsten,
+        aftrekposten: inv.aftrekposten,
+        bijtellingAuto: inv.bijtellingAuto,
+        norm: uitkomst.maatgevend,
+      })
+    : null;
+
+  const meldingen = [];
+
+  if (!toets.voldoet) {
+    meldingen.push('Het huidige loon ligt onder de norm: de inspecteur kan het loon ' +
+      'corrigeren naar het maatgevende gebruikelijk loon. Het genoemde heffingsbelang ' +
+      'is een bovengrens tegen het toptarief van box 1 en geen uitkomst.');
+  } else if (toets.overschot > 20000) {
+    meldingen.push('Het loon ligt aanzienlijk boven de norm. Controleer of dat ' +
+      'zakelijk te onderbouwen is.');
+  }
+
+  if (uitkomst.afroomTerzijde) {
+    meldingen.push('De afroommethode is beoordeeld en valt af: er is een ' +
+      'vergelijkingsloon bekend, en dan is de afroommethode niet aan de orde ' +
+      '(HR 24 juni 2016, ECLI:NL:HR:2016:1269, r.o. 2.3.4). De uitkomst staat er ' +
+      'wel, maar telt niet mee in het maximum.');
+  }
+
+  if (uitkomst.herkomstA === 'afroommethode') {
+    meldingen.push('De toepassingsvoorwaarde van de afroommethode toetst de tool niet. ' +
+      'Of de opbrengsten (nagenoeg) geheel uit de arbeid van de DGA voortvloeien, en of ' +
+      'er geen aandeel in het resultaat van een samenwerkingsverband is (HR 9 november ' +
+      '2012, ECLI:NL:HR:2012:BW4167, r.o. 5.2), blijft een oordeel van de gebruiker.');
+  }
+
+  if (uitkomst.concernAan && uitkomst.aantalLichamen < 2) {
+    meldingen.push('Aangevinkt is dat de DGA voor meer dan een eigen lichaam werkt, ' +
+      'maar het aantal staat op een. De norm hierboven is die van dat ene lichaam.');
+  }
+
+  if (uitkomst.concernAan && uitkomst.doorbetaaldLoon && uitkomst.aantalLichamen > 1) {
+    meldingen.push('De doorbetaaldloonregeling is toegepast, dus geldt de norm voor alle ' +
+      uitkomst.aantalLichamen + ' lichamen samen en niet per lichaam. Het ' +
+      'vergelijkingsloon en de opbrengsten horen dan te gaan over alles wat de DGA ' +
+      'voor het concern doet.');
+  }
+
+  if (uitkomst.perLichaam) {
+    meldingen.push('Zonder doorbetaaldloonregeling geldt art. 12a per lichaam. De ' +
+      'ondergrens over alle dienstbetrekkingen samen is een ondergrens en geen ' +
+      'uitkomst: bij de andere lichamen kan de norm hoger liggen, en de ' +
+      'tegenbewijsregeling van art. 12a lid 2 past deze tool niet toe.');
+  }
+
+  if (inv.schijfAan && schijf === null) {
+    meldingen.push('Voor ' + inv.jaar + ' is de tarieftabel van art. 2.10 Wet IB 2001 ' +
+      'niet in deze tool vastgelegd. Het volmaken van de tweede schijf is daarom niet ' +
+      'doorgerekend, en niet met de tabel van een ander jaar benaderd.');
+  }
+
+  if (schijf !== null) {
+    meldingen.push('Het volmaken van de tweede schijf is tariefplanning en geen toets ' +
+      'aan art. 12a. Art. 2.10 Wet IB 2001 bepaalt het tarief en schrijft geen ' +
+      'loonhoogte voor; de norm van art. 12a is een ondergrens en gaat voor.');
+    if (!schijf.haalbaar) {
+      meldingen.push('De schijf is niet vol te maken: de norm is hoger dan het doelloon, ' +
+        'dus valt een deel van het box 1-inkomen onvermijdelijk in het toptarief.');
+    }
+  }
+
+  return {
+    ok: true,
+    invoer: inv,
+    jaar: uitkomst.jaar,
+    vandaag: vandaag,
+    uitkomst: uitkomst,
+    toets: toets,
+    rijen: rijen,
+    schijf: schijf,
+    meldingen: meldingen,
+  };
 }
 
-function toggleAfroom() {
-  const s = document.getElementById('afroomSection');
-  s.classList.toggle('active', document.getElementById('afroomCheck').checked);
-  bereken();
+// ── De opstelling: een rij per gegeven, met label, waarde en vindplaats ─────
+// Afdruk en export lezen dezelfde rijen. Een rij heeft altijd een label en
+// daarnaast OF een getal met een Excel-getalformaat, OF tekst. Waar een
+// fiscale waarde in het spel is, staat de vindplaats in dezelfde rij.
+
+function bedragRegel(label, getal) {
+  return { label: label, getal: getal, formaat: '#,##0.00' };
 }
 
-function toggleConcern() {
-  const s = document.getElementById('concernSection');
-  s.classList.toggle('active', document.getElementById('concernCheck').checked);
-  bereken();
+/** Alle actieve invoer, ook de velden die op hun standaardwaarde staan. */
+function invoerregels(inv) {
+  const uit = [];
+  INVOERVELDEN.forEach(function (v) {
+    if (v.soort === 'tekst') return;            // die staan in de kop
+    if (!veldActief(inv, v)) return;
+    if (v.soort === 'vink') {
+      uit.push({ label: v.label, tekst: inv[v.id] ? 'Ja' : 'Nee' });
+    } else if (v.soort === 'jaar' || v.soort === 'aantal') {
+      uit.push({ label: v.label, getal: inv[v.id], formaat: '0' });
+    } else {
+      uit.push(bedragRegel(v.label, inv[v.id]));
+    }
+  });
+  return uit;
 }
 
-function toggleSchijf() {
-  const s = document.getElementById('schijfSection');
-  s.classList.toggle('active', document.getElementById('schijfCheck').checked);
-  bereken();
+/** De uitkomst met de tussenstappen die het oordeel dragen. */
+function uitkomstregels(t) {
+  if (!t.ok) return [];
+  const u = t.uitkomst;
+  const uit = [];
+
+  t.rijen.forEach(function (r) {
+    uit.push({ label: r.label, getal: r.bedrag, formaat: '#,##0.00',
+      bron: r.toelichting + (r.telt ? '' : ' — telt niet mee in het maximum') });
+  });
+
+  uit.push(bedragRegel('Maatgevend gebruikelijk loon', u.maatgevend));
+  uit.push({ label: 'Maatgevende maatstaf',
+    tekst: 'art. 12a lid 1 onderdeel ' + u.maatgevendOnderdeel });
+  uit.push(bedragRegel('Huidig DGA-loon', t.invoer.huidigLoon));
+
+  if (t.toets.voldoet) {
+    uit.push(bedragRegel('Overschot boven de norm', t.toets.overschot));
+  } else {
+    uit.push(bedragRegel('Tekort ten opzichte van de norm', t.toets.tekort));
+    if (t.toets.heffingsbelangIndicatief !== null) {
+      uit.push(bedragRegel('Heffingsbelang over het tekort, bovengrens tegen het ' +
+        'toptarief van box 1', t.toets.heffingsbelangIndicatief));
+    }
+  }
+
+  if (u.concernAan) {
+    uit.push({ label: 'Aantal eigen lichamen', getal: u.aantalLichamen, formaat: '0' });
+    uit.push({ label: 'Een norm voor alle werkzaamheden samen',
+      tekst: u.doorbetaaldLoon ? 'Ja, doorbetaaldloonregeling toegepast'
+                               : 'Nee, een norm per lichaam' });
+    if (u.perLichaam) {
+      uit.push(bedragRegel('Ondergrens over alle dienstbetrekkingen samen',
+        u.ondergrensSamen));
+    }
+  }
+
+  const v = t.schijf;
+  if (v !== null) {
+    uit.push(bedragRegel('Grens van het toptarief ' + v.jaar, v.grens));
+    uit.push(bedragRegel('Overige box 1-inkomsten minus aftrekposten', v.saldoOverig));
+    uit.push(bedragRegel('Doelloon: hiermee is de tweede schijf precies vol', v.doelloon));
+    uit.push(bedragRegel('Bijtelling privegebruik auto', v.bijtellingAuto));
+    uit.push(bedragRegel('Salaris in geld', v.salarisInGeld));
+    uit.push({ label: 'Is de schijf vol te maken?',
+      tekst: v.haalbaar ? 'Ja' : 'Nee, de norm gaat over het doelloon heen' });
+    uit.push(bedragRegel(v.haalbaar ? 'Ruimte tussen norm en doelloon'
+      : 'Deel van het box 1-inkomen in het toptarief',
+      v.haalbaar ? v.ruimte : v.inToptarief));
+  }
+
+  return uit;
 }
+
+// Vindplaats per normbedrag, herleid op 04-09-2026 en vastgelegd in BRONNEN.md.
+const BRON_NORMBEDRAG = {
+  2026: 'art. 12a lid 1 onderdeel c Wet LB 1964, jaarversie 2026-01-01 op ' +
+        'wetten.overheid.nl/BWBR0002471; verhoogd bij Bijstellingsregeling directe ' +
+        'belastingen 2026, art. II onderdeel B (Stcrt. 2025, 40487) — reguliere ' +
+        'indexatie op grond van art. 12a lid 7',
+  2025: 'art. 12a lid 1 onderdeel c Wet LB 1964, jaarversie 2025-01-01; ongewijzigd ' +
+        'ten opzichte van 2024, zie Bijstellingsregeling directe belastingen 2025 ' +
+        '(Stcrt. 2024, 38492), tabel van niet vervangen bedragen vanwege de afrondingsregel',
+  2024: 'art. 12a lid 1 onderdeel c Wet LB 1964, jaarversie 2024-01-01 op ' +
+        'wetten.overheid.nl/BWBR0002471',
+};
+
+// Vindplaats per grens van het toptarief. De grens is dezelfde in art. 2.10a,
+// dus het geboortejaar doet er voor deze uitkomst niet toe; dat is nagegaan.
+const BRON_TOPTARIEFGRENS = {
+  2026: 'art. 2.10 lid 1 Wet IB 2001, jaarversie 2026-01-01 op ' +
+        'wetten.overheid.nl/BWBR0011353; art. 2.10a van hetzelfde jaar heeft dezelfde grens',
+  2025: 'art. 2.10 lid 1 Wet IB 2001, jaarversie 2025-01-01 op ' +
+        'wetten.overheid.nl/BWBR0011353; art. 2.10a van hetzelfde jaar heeft dezelfde grens',
+  2024: 'art. 2.10 lid 1 Wet IB 2001, jaarversie 2024-01-01 op ' +
+        'wetten.overheid.nl/BWBR0011353; art. 2.10a van hetzelfde jaar heeft dezelfde grens',
+};
+
+/** De gebruikte fiscale waarden en regels, elk met de vindplaats erbij. */
+function bronregels(t) {
+  const inv = t.invoer;
+  const jaar = inv.jaar;
+  const uit = [];
+
+  uit.push({ label: 'Normbedrag ' + jaar, getal: NORMBEDRAGEN[jaar],
+    formaat: '#,##0.00',
+    bron: BRON_NORMBEDRAG[jaar] || 'niet in deze tool vastgelegd; de tool rekent ' +
+      'daarom niet door voor dit jaar' });
+
+  uit.push({ label: 'Onderdeel a is 100% van het vergelijkingsloon',
+    bron: 'art. 12a lid 1 onderdeel a Wet LB 1964, jaarversie 2023-01-01 en later; de ' +
+      'doelmatigheidsmarge van 75% is afgeschaft met het Belastingplan 2023, ' +
+      'Kamerstukken II 2022/23, 36 202, nr. 3, par. 1.1' });
+
+  uit.push({ label: 'Onderdeel b omvat ook de verbonden lichamen',
+    bron: 'art. 12a lid 1 onderdeel b jo. lid 5 onderdeel d Wet LB 1964 jo. art. 10a ' +
+      'lid 7 Wet LB 1964 (belang van ten minste een derde); KG:204:2026:6 van ' +
+      '24 maart 2026, en KG:204:2025:10 van 24 juni 2025 voor de vraag of die ' +
+      'werknemer zelf een aanmerkelijk belang heeft' });
+
+  if (inv.afroomAan) {
+    uit.push({ label: 'Afroommethode: opbrengsten minus toerekenbare kosten, lasten ' +
+      'en afschrijvingen, exclusief het DGA-loon',
+      bron: 'HR 17 september 2004, nr. 38378, ECLI:NL:HR:2004:AN8666 (BNB 2005/50), ' +
+        'herhaald in HR 9 november 2012, nr. 11/03555, ECLI:NL:HR:2012:BW4167, ' +
+        'r.o. 5.2 — het arrest noemt geen percentage' });
+    uit.push({ label: 'De afroommethode is subsidiair aan het vergelijkingsloon',
+      bron: 'HR 24 juni 2016, nr. 15/02880, ECLI:NL:HR:2016:1269, r.o. 2.3.4' });
+  }
+
+  if (inv.concernAan) {
+    uit.push({ label: 'Een norm bij toepassing van de doorbetaaldloonregeling',
+      bron: 'art. 12a lid 3 jo. art. 32d Wet LB 1964, jaarversie 2026-01-01; ' +
+        'KG:204:2026:2 van 14 januari 2026, dat KG:204:2022:6 introk' });
+    uit.push({ label: 'Geen beschikking nodig in aanmerkelijkbelangverhoudingen, de ' +
+      'voorwaarden van lid 1 blijven gelden',
+      bron: 'art. 32d lid 4 jo. lid 1 Wet LB 1964' });
+  }
+
+  if (inv.schijfAan) {
+    uit.push({ label: 'Grens van het toptarief ' + jaar, getal: TOPTARIEFGRENS[jaar],
+      formaat: '#,##0.00',
+      bron: BRON_TOPTARIEFGRENS[jaar] || 'niet in deze tool vastgelegd; de tool ' +
+        'rekent het volmaken van de schijf daarom niet door voor dit jaar' });
+    uit.push({ label: 'De bijtelling voor de auto is loon en vult de schijf mee',
+      bron: 'art. 13bis lid 1 Wet LB 1964; lid 4 neemt het voordeel in aanmerking voor ' +
+        'zover het de eigen bijdrage voor privegebruik overtreft' });
+  }
+
+  if (t.ok && !t.toets.voldoet && t.toets.heffingsbelangIndicatief !== null) {
+    uit.push({ label: 'Toptarief box 1 ' + jaar, getal: TOPTARIEF_BOX1[jaar],
+      formaat: '0.00%',
+      bron: 'art. 2.10 lid 1 Wet IB 2001, jaarversie ' + jaar + '-01-01; uitsluitend ' +
+        'gebruikt voor de indicatie van het heffingsbelang, nooit voor de bepaling ' +
+        'van het gebruikelijk loon zelf' });
+  }
+
+  return uit;
+}
+
+// Wat de tool niet doet. Overgenomen uit de afbakening in VERGELIJKING.md; hier
+// staat zij op de afdruk en in de export, waar de lezer haar nodig heeft.
+const AFBAKENING = [
+  'De tegenbewijsregeling van art. 12a lid 2 is niet geimplementeerd: aannemelijk ' +
+    'maken dat het loon uit de meest vergelijkbare dienstbetrekking lager is, is een ' +
+    'bewijsoordeel en geen rekenregel. De uitkomst is daarom altijd ten minste het ' +
+    'normbedrag.',
+  'Art. 12a lid 4 (de regeling geldt niet bij een vast te stellen loon van niet meer ' +
+    'dan EUR 5.000) blijft daardoor buiten bereik: die drempel is alleen via lid 2 te halen.',
+  'De toepassingsvoorwaarde van de afroommethode toetst de tool niet. De vink is de ' +
+    'verklaring van de gebruiker.',
+  'Het vergelijkingsloon zelf wordt niet opgezocht. De tool rekent met het ingevulde ' +
+    'bedrag; het onderbouwen daarvan is het eigenlijke werk.',
+  'Een salaris afleiden uit een managementfee doet de tool niet. De persoonlijke ' +
+    'holding wordt langs art. 12a behandeld: een norm met de doorbetaaldloonregeling, ' +
+    'een norm per lichaam zonder haar.',
+  'Het volmaken van de tweede schijf is tariefplanning op grond van art. 2.10 Wet IB ' +
+    '2001 en geen norm. De aanvullende heffing van art. 2.10 lid 2, aftrekbare ' +
+    'pensioeninleg van de werknemer en de heffingskortingen zitten er niet in; de ' +
+    'uitkomst is geen netto-uitkomst.',
+  'Het heffingsbelang in de conclusie is een bovengrens tegen het toptarief van box 1. ' +
+    'Het VPB-effect van de hogere loonkosten en de werkelijke tariefschijf van de DGA ' +
+    'rekent de tool niet uit.',
+  'De tool bewaart niets. Opslaan is een handeling van de gebruiker naar een plek die ' +
+    'hij zelf kiest; er gaat geen invoer naar een server.',
+];
+
+// ── Het dossierbestand ─────────────────────────────────────────────────────
+// Alleen invoer, nooit een uitkomst: die wordt bij het openen opnieuw berekend
+// met de dan geldende tool, en dat is de bedoeling.
+
+function dossierUitInvoer(inv, vandaag) {
+  const d = {
+    tool: TOOL_ID,
+    toolVersie: TOOL_VERSIE,
+    dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: vandaag,
+  };
+  INVOERVELDEN.forEach(function (v) { d[v.id] = inv[v.id]; });
+  return d;
+}
+
+/** Alleen de velden die de tool kent; een onbekend extra veld wordt genegeerd. */
+function invoerUitDossier(d) {
+  const ruw = {};
+  INVOERVELDEN.forEach(function (v) { ruw[v.id] = d[v.id]; });
+  return normaliseerInvoer(ruw);
+}
+
+/**
+ * Leest een dossierbestand en keurt het volledig voordat er iets verandert.
+ *
+ * Alles wordt vooraf getoetst: geen enkel veld wordt overgenomen zolang er nog
+ * een fout in kan zitten. Een ontbrekend of leeg veld geeft een zichtbare
+ * melding en nooit een stille standaardwaarde of nul, want dan zou een oud
+ * dossier opengaan met een ander uitgangspunt dan waarmee het is opgeslagen.
+ * Een nieuwer formaat wordt geweigerd in plaats van gedeeltelijk gelezen.
+ *
+ * @returns {{ok: true, dossier: object, invoer: object} | {ok: false, fout: string}}
+ */
+function leesDossier(tekst) {
+  let d;
+  try {
+    d = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Dit is geen geldig dossierbestand: de JSON kon niet ' +
+      'worden gelezen. Er is niets gewijzigd.' };
+  }
+
+  if (!d || typeof d !== 'object' || Array.isArray(d)) {
+    return { ok: false, fout: 'Dit bestand bevat geen dossiergegevens. Er is niets ' +
+      'gewijzigd.' };
+  }
+
+  if (d.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit dossierbestand hoort niet bij Gebruikelijk loon ' +
+      '(tool: ' + (d.tool === undefined ? 'niet vermeld' : String(d.tool)) + '). ' +
+      'Er is niets gewijzigd.' };
+  }
+
+  if (!Number.isInteger(d.dossierVersie)) {
+    return { ok: false, fout: 'Het dossierbestand noemt geen geldige formaatversie. ' +
+      'Er is niets gewijzigd.' };
+  }
+
+  // Ondergrens. Versie 1 is het eerste formaat dat heeft bestaan; nul en negatief
+  // zijn geen formaat waarvoor de tool een lezing of een migratiepad heeft. Zonder
+  // deze grens zou zo'n bestand langs de versiecontrole glippen en als versie 1
+  // worden gelezen, en dat is precies de stille aanname die hier niet mag.
+  if (d.dossierVersie < 1) {
+    return { ok: false, fout: 'Het dossierbestand noemt formaatversie ' +
+      d.dossierVersie + ', en dat is geen bestaand formaat. Deze tool kent versie 1 ' +
+      'tot en met ' + DOSSIER_VERSIE + ' en heeft voor een lagere versie geen ' +
+      'migratiepad. Er is niets gewijzigd.' };
+  }
+
+  if (d.dossierVersie > DOSSIER_VERSIE) {
+    return { ok: false, fout: 'Dit dossierbestand is van formaatversie ' +
+      d.dossierVersie + ' en deze tool kent formaatversie ' + DOSSIER_VERSIE + '. ' +
+      'Werk de tool bij: een nieuwer formaat lezen zou betekenen dat de tool velden ' +
+      'negeert die zij niet kent. Er is niets gewijzigd.' };
+  }
+
+  const fouten = [];
+  INVOERVELDEN.forEach(function (v) {
+    const w = d[v.id];
+    if (w === undefined || w === null) {
+      fouten.push(v.label + ' ontbreekt');
+      return;
+    }
+    if (v.soort === 'vink') {
+      if (typeof w !== 'boolean') fouten.push(v.label + ' is geen ja/nee-waarde');
+      return;
+    }
+    if (v.soort === 'tekst') {
+      if (typeof w !== 'string') fouten.push(v.label + ' is geen tekst');
+      return;
+    }
+    if (typeof w !== 'number' || !Number.isFinite(w)) {
+      fouten.push(v.label + ' is geen getal');
+      return;
+    }
+    if (v.soort === 'jaar') {
+      if (JAREN.indexOf(String(w)) === -1) {
+        fouten.push('het belastingjaar ' + w + ' kent deze tool niet (beschikbaar: ' +
+          JAREN.join(', ') + ')');
+      }
+      return;
+    }
+    if (v.soort === 'aantal') {
+      if (!Number.isInteger(w) || w < 1) {
+        fouten.push(v.label + ' is geen geheel getal van ten minste 1');
+      }
+      return;
+    }
+    if (w < 0) fouten.push(v.label + ' is negatief');
+  });
+
+  if (fouten.length) {
+    return { ok: false, fout: 'Dit dossierbestand is onvolledig of ongeldig, en de tool ' +
+      'vult niets zelf in: ' + fouten.join('; ') + '. Er is niets gewijzigd.' };
+  }
+
+  return { ok: true, dossier: d, invoer: invoerUitDossier(d) };
+}
+
+/** Bestandsnaam-vriendelijke vorm van het kenmerk. */
+function slug(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+function bestandsnaam(inv, vandaag, extensie) {
+  return TOOL_ID + '-' + slug(inv.kenmerk) + '-' + vandaag + '.' + extensie;
+}
+
+// ── TOESTAND, OPSTELLING EN DOSSIER — EINDE ────────────────────────────────
 
 // Zet de uitkomst van de kern om in de rijen die de tool toont. De rij voor de
 // afroommethode staat er ook als zij afvalt: dat de methode is beoordeeld en
@@ -893,30 +1495,374 @@ function normenrijen(u) {
   return rijen;
 }
 
-function bereken() {
-  const jaar = parseInt(document.getElementById('jaar').value, 10);
-  const huidigLoon = getal('huidigLoon');
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. Overgenomen uit Berekeningen; zolang er geen
+// gedeelde engine.js is, staat deze schrijver in elke tool tussen deze
+// markers, zodat hij herkenbaar blijft als gedeelde code.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
 
-  const uitkomst = bepaalGebruikelijkLoon({
-    jaar,
-    vergelijkingsloon: getal('vergelijkingsloon'),
-    hoogsteWerknemer: getal('hoogsteWerknemer'),
-    hoogsteWerknemerVerbonden: getal('hoogsteWerknemerVerbonden'),
-    afroomAan: document.getElementById('afroomCheck').checked,
-    opbrengsten: getal('omzet'),
-    toerekenbareKosten: getal('overigeKosten'),
-    concernAan: document.getElementById('concernCheck').checked,
-    doorbetaaldLoon: document.getElementById('doorbetaaldCheck').checked,
-    aantalLichamen: getal('aantalLichamen'),
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
   });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
 
-  if (uitkomst === null) {
-    toonJaarfout(jaar);
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+
+// ── EXPORTINHOUD — wat er van deze berekening meegaat naar Excel ───────────
+// Deze functie rekent niet: zij zet de opstelling om in cellen. Een bevroren
+// resultaatblad zonder formules, want rekenregels in Excel-formuletaal
+// naschrijven zou de fiscale logica een tweede keer implementeren.
+
+/** Een opstellingsrij als cellen: label, waarde, en de vindplaats erachter. */
+function opstellingRij(r) {
+  const cellen = [celTekst(r.label)];
+  if (typeof r.getal === 'number' && isFinite(r.getal)) {
+    cellen.push(celGetal(r.getal, r.formaat || '#,##0.00'));
+  } else {
+    cellen.push(celTekst(r.tekst === undefined ? '' : r.tekst));
+  }
+  if (r.bron) cellen.push(celTekst(r.bron));
+  return cellen;
+}
+
+function exportBladen(t) {
+  const inv = t.invoer;
+  const r = [];
+
+  r.push([celTekst('Gebruikelijk loon', true)]);
+  r.push([celTekst('Toets van het DGA-loon aan art. 12a Wet LB 1964')]);
+  r.push([celTekst('Tool'), celTekst(TOOL_ID)]);
+  r.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  r.push([celTekst('Geexporteerd op'), celTekst(t.vandaag)]);
+  r.push([celTekst('Kenmerk'), celTekst(inv.kenmerk || '—')]);
+  r.push([celTekst('Opgesteld door'), celTekst(inv.opsteller || '—')]);
+  r.push([celTekst('Datum'), celTekst(inv.peildatum || '—')]);
+  r.push([]);
+
+  r.push([celTekst('Invoer', true)]);
+  invoerregels(inv).forEach(function (x) { r.push(opstellingRij(x)); });
+  r.push([]);
+
+  r.push([celTekst('Uitkomst', true)]);
+  if (t.ok) {
+    uitkomstregels(t).forEach(function (x) { r.push(opstellingRij(x)); });
+  } else {
+    r.push([celTekst('Niet doorgerekend'), celTekst('zie de waarschuwingen hieronder')]);
+  }
+  r.push([]);
+
+  r.push([celTekst('Toelichting en vindplaatsen', true)]);
+  bronregels(t).forEach(function (x) { r.push(opstellingRij(x)); });
+  r.push([]);
+
+  r.push([celTekst('Waarschuwingen bij deze berekening', true)]);
+  if (t.meldingen.length) {
+    t.meldingen.forEach(function (m) { r.push([celTekst(m)]); });
+  } else {
+    r.push([celTekst('Geen.')]);
+  }
+  r.push([]);
+
+  r.push([celTekst('Wat deze tool niet doet', true)]);
+  AFBAKENING.forEach(function (a) { r.push([celTekst(a)]); });
+  r.push([]);
+  r.push([celTekst('Bewijs van gelijkwaardigheid met het vervangen rekenmodel: ' +
+    'VERGELIJKING.md in de repository. Alle vindplaatsen: BRONNEN.md.')]);
+
+  return [{ naam: 'Gebruikelijk loon', rijen: r, breedtes: [58, 16, 95] }];
+}
+
+// ── PRESENTATIELAAG — leest uitsluitend de toestand van bouwToestand() ────
+
+// ── Weergave ────────────────────────────────────────────────────────────────
+// Alles hieronder is UI en raakt de fiscale kern niet aan; het roept haar aan.
+
+function fmt(n) {
+  const afgerond = Math.round(n);
+  const teken = afgerond < 0 ? '− ' : '';
+  return teken + '€ ' + Math.abs(afgerond).toLocaleString('nl-NL');
+}
+
+function toonJaarfout(toestand) {
+  const jaar = toestand.jaar;
+  const jaren = JAREN.join(', ');
+  const c = document.getElementById('conclusieCard');
+  c.className = 'conclusie-card warn';
+  c.innerHTML = `
+    <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen normbedrag voor ${jaar}</div></div>
+    <div class="c-body">
+      Voor ${jaar} is het normbedrag van artikel 12a, eerste lid, onderdeel c, Wet LB 1964
+      niet in deze tool vastgelegd. De tool rekent bewust <strong>niet</strong> door met het bedrag van een
+      ander jaar: dat zou een onjuiste norm opleveren.<br><br>
+      Beschikbare jaren: <strong>${jaren}</strong>.
+    </div>`;
+  document.getElementById('normenGrid').innerHTML = '';
+  document.getElementById('normenTabel').innerHTML = '';
+  document.getElementById('wetsgrondslag').innerHTML = '';
+  document.getElementById('concernCard').innerHTML = '';
+  document.getElementById('concernCard').className = '';
+  document.getElementById('schijfCard').innerHTML = '';
+  document.getElementById('schijfCard').className = '';
+  toonDossierstuk(toestand);
+  document.getElementById('resultSection').style.display = 'block';
+}
+
+function toggleAfroom() {
+  const s = document.getElementById('afroomSection');
+  s.classList.toggle('active', document.getElementById('afroomCheck').checked);
+  bereken();
+}
+
+function toggleConcern() {
+  const s = document.getElementById('concernSection');
+  s.classList.toggle('active', document.getElementById('concernCheck').checked);
+  bereken();
+}
+
+function toggleSchijf() {
+  const s = document.getElementById('schijfSection');
+  s.classList.toggle('active', document.getElementById('schijfCheck').checked);
+  bereken();
+}
+
+function bereken() {
+  // Een berekening, een toestand. Het scherm, de afdruk, de export en het
+  // dossierbestand lezen daarna allemaal diezelfde toestand.
+  const toestand = bouwToestand(normaliseerInvoer(leesInvoer()), datumStempel());
+  LAATSTE = toestand;
+
+  const huidigLoon = toestand.invoer.huidigLoon;
+
+  if (!toestand.ok) {
+    toonJaarfout(toestand);
     return;
   }
 
-  const toets = toetsLoon(uitkomst, huidigLoon);
-  const rijen = normenrijen(uitkomst);
+  const uitkomst = toestand.uitkomst;
+  const toets = toestand.toets;
+  const rijen = toestand.rijen;
   const maatgevend = uitkomst.maatgevend;
 
   // Normenkaarten
@@ -986,7 +1932,8 @@ function bereken() {
   }
 
   toonConcern(uitkomst);
-  toonSchijf(uitkomst);
+  toonSchijf(toestand);
+  toonDossierstuk(toestand);
 
   document.getElementById('resultSection').style.display = 'block';
 }
@@ -1050,29 +1997,23 @@ function toonConcern(u) {
 
 // Het volmaken van de tweede schijf. Tariefplanning, geen toets aan artikel 12a:
 // de norm is een ondergrens en gaat dus voor op het doelloon.
-function toonSchijf(u) {
+function toonSchijf(t) {
   const kaart = document.getElementById('schijfCard');
 
-  if (!document.getElementById('schijfCheck').checked) {
+  if (!t.invoer.schijfAan) {
     kaart.className = '';
     kaart.innerHTML = '';
     return;
   }
 
-  const v = volmakenSchijf({
-    jaar: u.jaar,
-    overigeInkomsten: getal('overigeInkomsten'),
-    aftrekposten: getal('aftrekposten'),
-    bijtellingAuto: getal('bijtellingAuto'),
-    norm: u.maatgevend,
-  });
+  const v = t.schijf;
 
   if (v === null) {
     kaart.className = 'conclusie-card warn';
     kaart.innerHTML = `
-      <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen tarieftabel voor ${u.jaar}</div></div>
+      <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Geen tarieftabel voor ${t.jaar}</div></div>
       <div class="c-body">
-        Voor ${u.jaar} is de tabel van artikel 2.10 Wet IB 2001 niet in deze tool vastgelegd. De tool rekent bewust
+        Voor ${t.jaar} is de tabel van artikel 2.10 Wet IB 2001 niet in deze tool vastgelegd. De tool rekent bewust
         <strong>niet</strong> door met de tabel van een ander jaar.
       </div>`;
     return;
@@ -1118,6 +2059,207 @@ function toonSchijf(u) {
     </div>`;
 }
 
+
+// ── De uitgangen: afdrukken, exporteren, opslaan en openen ─────────────────
+
+function el(id) { return document.getElementById(id); }
+
+// De laatst berekende toestand. De drie uitgangen lezen deze en rekenen niets
+// opnieuw uit: wat er wordt afgedrukt, geexporteerd en opgeslagen is exact wat
+// de gebruiker op het scherm zag.
+let LAATSTE = null;
+
+function leesInvoer() {
+  const ruw = {};
+  INVOERVELDEN.forEach(function (v) {
+    const veld = el(v.dom || v.id);
+    ruw[v.id] = v.soort === 'vink' ? veld.checked : veld.value;
+  });
+  return ruw;
+}
+
+function zetInvoer(inv) {
+  INVOERVELDEN.forEach(function (v) {
+    const veld = el(v.dom || v.id);
+    if (v.soort === 'vink') veld.checked = !!inv[v.id];
+    else veld.value = inv[v.id];
+  });
+  // Rechtstreeks, niet via de toggles: die roepen bereken() aan en dan zou de
+  // pagina tussentijds met een halve invoer worden hertekend.
+  el('afroomSection').classList.toggle('active', !!inv.afroomAan);
+  el('concernSection').classList.toggle('active', !!inv.concernAan);
+  el('schijfSection').classList.toggle('active', !!inv.schijfAan);
+}
+
+function datumStempel() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' +
+    String(n.getDate()).padStart(2, '0');
+}
+
+function esc(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Zet een opstellingsrij om in een tabelrij; hetzelfde rijtje dat naar Excel gaat. */
+function opstellingHtml(regels) {
+  return '<table class="dossier-tabel">' + regels.map(function (r) {
+    let waarde;
+    if (typeof r.getal === 'number' && isFinite(r.getal)) {
+      if (r.formaat === '0') waarde = String(r.getal);
+      else if (r.formaat === '0.00%') waarde = (r.getal * 100).toFixed(2).replace('.', ',') + '%';
+      else waarde = fmt(r.getal);
+    } else if (r.tekst !== undefined) {
+      waarde = esc(r.tekst);
+    } else {
+      waarde = '';
+    }
+    return '<tr><td>' + esc(r.label) +
+      (r.bron ? '<span class="bron-noot">' + esc(r.bron) + '</span>' : '') +
+      '</td><td class="waarde">' + waarde + '</td></tr>';
+  }).join('') + '</table>';
+}
+
+/**
+ * Het afdrukbare dossierstuk. Er is EEN pagina: de uitkomst en de tussenstappen
+ * staan in de resultaatkaarten die ook op het scherm staan, en dit vult aan wat
+ * een afdruk tot dossierstuk maakt — kenmerk, datum, versie, alle actieve
+ * invoer, de vindplaatsen, de waarschuwingen en de afbakening. Geen enkel getal
+ * staat daardoor twee keer op het papier.
+ */
+function toonDossierstuk(t) {
+  const inv = t.invoer;
+
+  el('dossierKop').innerHTML = '<h2>Dossierstuk gebruikelijk loon</h2>' +
+    opstellingHtml([
+      { label: 'Klantnaam of kenmerk', tekst: inv.kenmerk || '—' },
+      { label: 'Opgesteld door', tekst: inv.opsteller || '—' },
+      { label: 'Datum', tekst: inv.peildatum || '—' },
+      { label: 'Afgedrukt op', tekst: t.vandaag },
+      { label: 'Tool en versie', tekst: TOOL_ID + ' ' + TOOL_VERSIE },
+    ]);
+
+  el('dossierInvoer').innerHTML = '<h2>Invoer</h2>' + opstellingHtml(invoerregels(inv));
+
+  const lijst = function (regels) {
+    return '<ul class="dossier-lijst">' + regels.map(function (m) {
+      return '<li>' + esc(m) + '</li>';
+    }).join('') + '</ul>';
+  };
+
+  el('dossierBronnen').innerHTML =
+    '<h2>Toelichting en vindplaatsen</h2>' + opstellingHtml(bronregels(t)) +
+    '<h2>Waarschuwingen bij deze berekening</h2>' +
+    (t.meldingen.length ? lijst(t.meldingen) : '<p class="dossier-noot">Geen.</p>') +
+    '<h2>Wat deze tool niet doet</h2>' + lijst(AFBAKENING) +
+    '<p class="dossier-noot">Bewijs van gelijkwaardigheid met het vervangen ' +
+    'rekenmodel: VERGELIJKING.md in de repository. Alle vindplaatsen met datum van ' +
+    'controle: BRONNEN.md.</p>';
+}
+
+function toonUitgangmelding(tekst, isFout) {
+  const m = el('uitgangMelding');
+  m.className = 'uitgang-melding ' + (isFout ? 'fout' : 'goed');
+  m.textContent = tekst;
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+/**
+ * Neemt een dossierbestand over. Eerst wordt het hele bestand gekeurd; pas als
+ * dat lukt verandert er iets aan de invoer. Een ongeldig, onvolledig of te
+ * nieuw bestand laat de huidige stand dus volledig ongemoeid.
+ */
+function neemDossierOver(tekst) {
+  const r = leesDossier(tekst);
+  if (!r.ok) {
+    toonUitgangmelding(r.fout, true);
+    return false;
+  }
+  zetInvoer(r.invoer);
+  bereken();
+  toonUitgangmelding('Dossierbestand geopend' +
+    (r.dossier.opgeslagen ? ', opgeslagen op ' + r.dossier.opgeslagen : '') +
+    ' met tool-versie ' + (r.dossier.toolVersie || 'onbekend') +
+    '. De uitkomst is opnieuw berekend met de huidige tool, versie ' +
+    TOOL_VERSIE + '.', false);
+  return true;
+}
+
+function startUitgangen() {
+  el('versieStempel').textContent = 'Versie ' + TOOL_VERSIE;
+  el('peildatum').value = datumStempel();
+
+  el('btnPrint').addEventListener('click', function () { window.print(); });
+
+  el('btnExcel').addEventListener('click', function () {
+    if (!LAATSTE) {
+      toonUitgangmelding('Er is nog geen berekening om te exporteren.', true);
+      return;
+    }
+    bewaarBestand(xlsxBytes(exportBladen(LAATSTE)),
+      bestandsnaam(LAATSTE.invoer, LAATSTE.vandaag, 'xlsx'),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toonUitgangmelding('Het werkblad is een bevroren weergave van deze berekening, ' +
+      'zonder formules. Wie een variant wil, varieert in de tool en exporteert opnieuw.',
+      false);
+  });
+
+  el('btnOpslaan').addEventListener('click', function () {
+    if (!LAATSTE) {
+      toonUitgangmelding('Er is nog geen invoer om op te slaan.', true);
+      return;
+    }
+    const d = dossierUitInvoer(LAATSTE.invoer, LAATSTE.vandaag);
+    bewaarBestand(new TextEncoder().encode(JSON.stringify(d, null, 2)),
+      bestandsnaam(LAATSTE.invoer, LAATSTE.vandaag, 'json'), 'application/json');
+    toonUitgangmelding('Het dossierbestand bevat alleen uw invoer, geen uitkomsten: ' +
+      'die worden bij het openen opnieuw berekend met de dan geldende tool. Er gaat ' +
+      'niets naar een server.', false);
+  });
+
+  el('btnOpenen').addEventListener('click', function () { el('bestandInvoer').click(); });
+
+  // Drie manieren waarop het lezen kan mislukken, en alle drie eindigen zichtbaar:
+  // een leesfout (onerror), een afgebroken lezing (onabort) en een uitzondering die
+  // readAsText zelf gooit. Die laatste ontsnapte eerder aan elke melding, waardoor
+  // een klik stil niets deed. In alle drie de gevallen blijft de invoer staan, blijven
+  // de resultaatblokken en de rekenmeldingen ongemoeid, en werkt een volgende geldige
+  // import gewoon.
+  el('bestandInvoer').addEventListener('change', function (ev) {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';                       // zodat hetzelfde bestand opnieuw kan
+    if (!f) return;
+
+    const mislukt = function (waarom) {
+      toonUitgangmelding('Het bestand kon niet worden gelezen: ' + waarom +
+        '. Er is niets gewijzigd.', true);
+    };
+
+    try {
+      const lezer = new FileReader();
+      lezer.onload = function () { neemDossierOver(String(lezer.result)); };
+      lezer.onerror = function () { mislukt('er trad een leesfout op'); };
+      lezer.onabort = function () { mislukt('het lezen is afgebroken'); };
+      lezer.readAsText(f);
+    } catch (e) {
+      mislukt('de browser weigerde het lezen');
+    }
+  });
+}
+
+startUitgangen();
+
 bereken();
 
 </script>
@@ -1141,7 +2283,7 @@ bereken();
        ophalen, dus de claim "geen data verlaat uw browser" zou onjuist zijn. -->
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw ingevulde gegevens verlaten uw browser niet</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 12:09</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 7 sep 2026, 20:42</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Berekening blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
