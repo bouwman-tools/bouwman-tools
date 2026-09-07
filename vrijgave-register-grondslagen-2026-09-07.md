@@ -35,3 +35,10 @@ de actuele publieke basis opgebouwd; lokale interne wijzigingen worden niet geme
 
 De inhoudelijk verantwoordelijke beoordeelt of de beperkte bronidentificaties passend
 zijn. De wijziging legt geen accordering vast en verklaart de bronversies niet blijvend actueel.
+
+## Aanvulling 8 september: identificatie jaarwaarden Gebruikelijk loon
+
+Het register noemde de vervallen constante `MINIMA`. De bron en publieke HTML
+bevatten identiek `NORMBEDRAGEN`, `TOPTARIEF_BOX1` en `TOPTARIEFGRENS`; het register
+noemt nu die drie bestaande tabellen. Alleen de metadata-identificatie is gecontroleerd,
+niet opnieuw de fiscale inhoud. Controledatum, accordering en status zijn behouden.
