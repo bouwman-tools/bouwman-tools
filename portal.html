@@ -182,19 +182,36 @@
       return secties;
     }
 
-    async function getEmail() {
+    async function laadToegang() {
+      let res;
       try {
-        const res = await fetch('/cdn-cgi/access/get-identity');
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.email || null;
-      } catch { return null; }
+        res = await fetch('/portal.html/api/permissions', {
+          method: 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+        });
+      } catch {
+        throw new Error('Je toegang kon niet worden gecontroleerd. Open het portaal opnieuw en probeer het nogmaals.');
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Je portaaltoegang kon niet worden bevestigd. Open het portaal opnieuw om je aan te melden.');
+      }
+      if (!res.ok) throw new Error('Je toegang kon niet worden geladen. Probeer het later opnieuw.');
+      if (res.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
+        throw new Error('Het portaal ontving geen geldig toegangsantwoord. Open het portaal opnieuw.');
+      }
+      let data;
+      try { data = await res.json(); } catch { throw new Error('Het portaal ontving geen geldig toegangsantwoord.'); }
+      if (!data || typeof data !== 'object' || Array.isArray(data) || Object.hasOwn(data, 'error') ||
+          !Object.hasOwn(data, 'email') || typeof data.email !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(data.email) ||
+          /[\u0000-\u001f\u007f]/.test(data.email) || !Object.hasOwn(data, 'access') ||
+          !(data.access === 'all' || (Array.isArray(data.access) && data.access.every(t => typeof t === 'string')))) {
+        throw new Error('Het portaal ontving geen geldig toegangsantwoord.');
+      }
+      return data;
     }
 
     function canSee(file, access) {
-      if (!access) return true;
       if (access === 'all') return true;
-      return access.includes(file);
+      return Array.isArray(access) && access.includes(file);
     }
 
     // Faalt het register, dan komt er een melding en geen lege pagina: die zou niet te
@@ -209,27 +226,19 @@
     }
 
     async function render() {
-      const [uitkomst, email] = await Promise.all([laadRegister().catch(e => e), getEmail()]);
-      if (uitkomst instanceof Error) { meldRegisterFout(uitkomst); return; }
-      const secties = uitkomst;
-
-      let access = [];
-      if (email) {
-        try {
-          const res = await fetch('https://access-beheer.s-bouwman.workers.dev/permissions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          });
-          access = (await res.json()).access ?? [];
-        } catch { access = []; }
-      }
-
-      if (email) {
-        document.getElementById('user-email').textContent = email;
-      }
-
       const main = document.getElementById('main-content');
+      main.textContent = 'Tools laden…';
+      document.getElementById('user-email').textContent = '';
+      const [register, toegang] = await Promise.allSettled([laadRegister(), laadToegang()]);
+      if (register.status === 'rejected') { meldRegisterFout(register.reason); return; }
+      if (toegang.status === 'rejected') {
+        main.textContent = toegang.reason.message;
+        return;
+      }
+      const secties = register.value;
+      const { email, access } = toegang.value;
+      document.getElementById('user-email').textContent = email;
+
       let html = '';
       let anyVisible = false;
 

@@ -170,16 +170,15 @@ test('geldige status en workercontrole volgen hun handler', async () => {
   assert.equal(calls.external.length, 2);
   assert.deepEqual(calls.writes, []);
 });
-test('publiek /permissions en zijn bestaande preflight blijven werken', async () => {
+test('oude /permissions en preflight zijn standaard gesloten zonder migratievenster', async () => {
   const url = 'https://access-beheer.s-bouwman.workers.dev/permissions';
   const preflight = await run({ url, method: 'OPTIONS', origin: ORIGIN });
-  assert.equal(preflight.status, 204);
-  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), ORIGIN);
+  assert.equal(preflight.status, 410);
+  assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), null);
   noData();
   const response = await run({ url, method: 'POST', origin: ORIGIN, body: JSON.stringify({ email: 'synthetic@example.invalid' }) });
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { access: [] });
-  assert.deepEqual(calls.reads, ['data']);
+  assert.equal(response.status, 410);
+  noData();
 });
 
 test('upsert weigert ongeldige adressen/prototypesleutels vóór KV of Cloudflare', async () => {

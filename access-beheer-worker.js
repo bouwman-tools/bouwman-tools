@@ -2,12 +2,16 @@
 // KV binding: PERMISSIONS
 // Secret: CF_API_TOKEN (bestaande ADMIN_TOKEN wordt niet gebruikt)
 // Beheerroute: https://bouwman.tools/beheer.html/api/admin/*
+// Portaalroute: https://bouwman.tools/portal.html/api/permissions
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const ADMIN_ORIGIN = 'https://bouwman.tools';
 const ADMIN_PREFIX = '/beheer.html/api';
 const ACCESS_ISSUER = 'https://bouwman-tools.cloudflareaccess.com';
 const ADMIN_AUD = 'af8ac2b405ebe46b6574d003ef84f2c25c9e737d961c6871216727ad2d7790c8';
+// Publieke metadata van de bestaande portaal-app; dit is niet de beheer-AUD.
+const PORTAL_AUD = '657d4271cbbc633b07596f57968f3eb586fe7c4e5d6d51e3b58dcef545e1f646';
+const PORTAL_PATH = '/portal.html/api/permissions';
 // Alleen de vaste team-JWKS; nooit een URL uit een aangeleverd token volgen.
 const ACCESS_KEYS = createRemoteJWKSet(new URL(`${ACCESS_ISSUER}/cdn-cgi/access/certs`));
 const ADMIN_ROUTES = new Map([
@@ -15,18 +19,50 @@ const ADMIN_ROUTES = new Map([
   ['/admin/upsert', 'POST'], ['/admin/delete', 'POST'],
 ]);
 
-async function geldigBeheerToken(request) {
+async function leesAccessToken(request, audience) {
   const token = request.headers.get('Cf-Access-Jwt-Assertion');
-  if (!token) return false;
+  if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, ACCESS_KEYS, {
-      issuer: ACCESS_ISSUER, audience: ADMIN_AUD, algorithms: ['RS256'],
+      issuer: ACCESS_ISSUER, audience, algorithms: ['RS256'],
       requiredClaims: ['iss', 'aud', 'exp', 'sub'],
     });
-    return payload.type === 'app' && typeof payload.sub === 'string' && payload.sub.length > 0;
+    return payload.type === 'app' && typeof payload.sub === 'string' && payload.sub.length > 0 ? payload : null;
   } catch {
-    return false; // Ook bij onbereikbare JWKS: geen toegang en geen tokendetails loggen.
+    return null; // Ook bij onbereikbare JWKS: geen toegang en geen tokendetails loggen.
   }
+}
+
+function geldigPortaalEmail(email) {
+  return typeof email === 'string' && /^[^\s@]+@[^\s@]+$/.test(email) && !/[\u0000-\u001f\u007f]/.test(email);
+}
+
+async function eigenRechten(email, env) {
+  // Geen normalisatie of opslagmutatie: de bestaande exacte sleutel blijft leidend.
+  const permissions = JSON.parse(await env.PERMISSIONS.get('data'));
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) {
+    throw new Error('Ongeldige rechtenopslag');
+  }
+  const access = Object.hasOwn(permissions, email) ? permissions[email] : [];
+  if (access !== 'all' && !(Array.isArray(access) && access.every(t => typeof t === 'string'))) {
+    throw new Error('Ongeldige persoonlijke rechten');
+  }
+  return access;
+}
+
+function legacyVensterOpen(env) {
+  // Alleen voor de eerste migratiedeploy. De uitvoerder kiest deze publieke tijden
+  // pas bij uitrol. Geen waarden, ongeldige tijden of een verlopen venster = dicht.
+  const isoUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  const parse = value => {
+    if (typeof value !== 'string' || !isoUtc.test(value)) return NaN;
+    const time = Date.parse(value);
+    return Number.isFinite(time) && new Date(time).toISOString() === value ? time : NaN;
+  };
+  const from = parse(env.LEGACY_PERMISSIONS_FROM);
+  const until = parse(env.LEGACY_PERMISSIONS_UNTIL);
+  const now = Date.now();
+  return until > from && until - from <= 30 * 60 * 1000 && now >= from && now < until;
 }
 
 function adminAntwoord(data, status = 200) {
@@ -87,16 +123,35 @@ export default {
     const url = new URL(request.url);
     let path = url.pathname || '/';
 
-    if (path === '/permissions' && request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: cors(request) });
+    // Tijdelijke compatibiliteit voor de oude pagina, uitsluitend in het expliciete
+    // migratievenster. De volgende commit verwijdert dit endpoint definitief.
+    if (path === '/permissions') {
+      if (url.origin !== 'https://access-beheer.s-bouwman.workers.dev' || !legacyVensterOpen(env)) {
+        return adminAntwoord({ error: 'Deze route is gesloten.' }, 410);
+      }
+      if (request.headers.get('Origin') !== ADMIN_ORIGIN) return adminAntwoord({ error: 'Ongeldige herkomst.' }, 403);
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
+      if (request.method !== 'POST') return adminAntwoord({ error: 'Methode niet toegestaan.' }, 405);
+      let data;
+      try { data = await request.json(); } catch { return ok({ error: 'Ongeldige JSON.' }, request, 400); }
+      if (!geldigPortaalEmail(data?.email)) return ok({ error: 'E-mailadres vereist.' }, request, 400);
+      try { return ok({ access: await eigenRechten(data.email, env) }, request); }
+      catch { return ok({ error: 'Toegang kon niet worden geladen.' }, request, 503); }
     }
 
-    // Publiek: rechten ophalen voor één gebruiker (gebruikt door portal.html)
-    if (path === '/permissions' && request.method === 'POST') {
-      const { email } = await request.json();
-      const permissions = await getPermissions(env);
-      const access = email ? (permissions[email] ?? []) : [];
-      return ok({ access }, request);
+    if (path === PORTAL_PATH && url.origin === ADMIN_ORIGIN) {
+      if (request.method !== 'GET') return adminAntwoord({ error: 'Methode niet toegestaan.' }, 405);
+      const identity = await leesAccessToken(request, PORTAL_AUD);
+      if (!identity) return adminAntwoord({ error: 'Portaaltoegang ontbreekt of is verlopen.' }, 401);
+      if (!geldigPortaalEmail(identity.email)) {
+        return adminAntwoord({ error: 'De aangemelde identiteit bevat geen geldig e-mailadres.' }, 403);
+      }
+      try {
+        const access = await eigenRechten(identity.email, env);
+        return adminAntwoord({ email: identity.email, access });
+      } catch {
+        return adminAntwoord({ error: 'Toegang kon niet worden geladen. Probeer het later opnieuw.' }, 503);
+      }
     }
 
     // Alleen het kindpad van de bestaande beheer-Access-app. workers.dev en oude
@@ -110,7 +165,7 @@ export default {
     // Preflight bevat geen data, CORS-toestemming of verzoeken naar KV/Cloudflare.
     if (request.method === 'OPTIONS') return adminAntwoord(null, 204);
     if (request.method !== method) return adminAntwoord({ error: 'Methode niet toegestaan.' }, 405);
-    if (!await geldigBeheerToken(request)) {
+    if (!await leesAccessToken(request, ADMIN_AUD)) {
       return adminAntwoord({ error: 'Beheertoegang ontbreekt of is verlopen. Open beheer opnieuw.' }, 401);
     }
     if (method === 'POST') {
@@ -424,7 +479,7 @@ function cors(request) {
 function ok(data, request, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...cors(request), 'Content-Type': 'application/json' },
+    headers: { ...cors(request), 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
   });
 }
 
