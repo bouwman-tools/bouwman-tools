@@ -202,7 +202,7 @@ test('scheduled blijft server-side controleren zonder portaal-JWT of rechtenmuta
   const { env, ctx } = fixture({ raw: '{}' });
   await worker.scheduled({}, env, ctx);
   assert.deepEqual(calls.reads, ['data']);
-  assert.deepEqual(calls.writes.map(([key]) => key), ['controle-status']);
+  assert.deepEqual(calls.writes.map(([key]) => key), ['sync-status', 'controle-status']);
   assert.equal(calls.external.length, 2);
   assert.equal(calls.jwks, 0);
 });

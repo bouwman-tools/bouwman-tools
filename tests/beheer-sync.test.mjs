@@ -12,7 +12,7 @@ afterEach(() => {
   console.log = realLog;
 });
 
-function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail } = {}) {
+function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail, alwaysFail = false } = {}) {
   const writes = new Map();
   const reads = [];
   const gets = [];
@@ -21,9 +21,11 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
   const policies = new Map();
   const logs = [];
   let injected = false;
+  let fetchCount = 1; // Reserveer ook de JWKS-fetch van een echt beheerverzoek.
   console.error = (...args) => logs.push(args.join(' '));
   console.log = (...args) => logs.push(args.join(' '));
   globalThis.fetch = async (url, options = {}) => {
+    if (++fetchCount > 50) throw new Error('Too many subrequests by single Worker invocation');
     const href = String(url);
     if (href === 'https://bouwman.tools/tools.json') {
       return Response.json({ tools: [], portaalworkers: [] });
@@ -31,7 +33,7 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
     if (href.endsWith('/workers/scripts')) return Response.json({ result: [] });
     if (href.endsWith('/policies')) {
       gets.push(href);
-      if (fail && !injected) {
+      if (fail && (!injected || alwaysFail)) {
         injected = true;
         return fail();
       }
@@ -54,6 +56,8 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       async put(key, value) { writes.set(key, JSON.parse(value)); },
     } },
     writes, reads, gets, puts, responses, logs,
+    resetBudget() { fetchCount = 1; },
+    get fetchCount() { return fetchCount; },
   };
 }
 
@@ -64,7 +68,8 @@ for (const [name, fail] of [
 ]) {
   test(`synchronisatie telt ${name} eenmaal, gaat verder en bewaart status`, async () => {
     const f = fixture({ fail });
-    const result = await beheer.syncCFAccess({ 'synthetic@example.invalid': 'all' }, f.env);
+    const result = await beheer.syncCFAccess({ 'synthetic@example.invalid': 'all' }, f.env,
+      ['portal.html', 'Join-jaarrekening-review.html', 'auto-fiscaal-2027.html']);
     const status = f.writes.get('sync-status');
     assert.ok(status, 'Ook bij fouten wordt de syncstatus opgeslagen');
     assert.deepEqual(result, status);
@@ -92,17 +97,37 @@ for (const raw of ['{invalid-json', 'null']) {
   });
 }
 
-test('synchroniseren en nacontroleren bewaart actuele, overeenkomende statussen zonder rechten te wijzigen', async () => {
+test('meerdere begrensde rondes herstellen alle 33 apps en eindigen met een volledige leescontrole', async () => {
   const f = fixture();
-  await beheer.synchroniseerEnControleer(f.env);
+  let result, hash, rounds = 0;
+  const budgets = [];
+  do {
+    f.resetBudget();
+    const before = f.puts.length;
+    result = await beheer.synchroniseerEnControleer(f.env, undefined, hash);
+    hash = result.bronHash;
+    budgets.push(f.fetchCount);
+    assert.ok(f.fetchCount <= 48, `Ronde ${rounds + 1} gebruikte ${f.fetchCount} subrequests`);
+    assert.ok(f.puts.length - before <= 6);
+    if (rounds === 0) {
+      assert.equal(f.puts.length, 6);
+      assert.equal(result.controle.resterend, 27);
+      assert.equal(result.voortzetten, true);
+    }
+    assert.ok(++rounds <= 10, 'Geen eindeloze vervolgverzoeken');
+  } while (result.voortzetten);
   const sync = f.writes.get('sync-status');
   const controle = f.writes.get('controle-status');
   assert.ok(sync);
   assert.ok(controle);
   assert.equal(sync.mislukt, 0);
-  assert.ok(sync.gelukt > 1);
-  assert.equal(sync.gelukt, f.puts.length);
-  assert.equal(controle.gecontroleerd, sync.gelukt);
+  assert.equal(result.ok, true);
+  assert.equal(f.puts.length, 33);
+  assert.equal(sync.gelukt, 0, 'De laatste ronde leest uitsluitend');
+  assert.equal(sync.ongewijzigd, 33);
+  assert.equal(controle.gecontroleerd, 33);
+  assert.equal(controle.resterend, 0);
+  assert.equal(budgets.at(-1), 36, '33 policies, 2 workercontroles en 1 gereserveerde JWKS');
   assert.deepEqual(controle.afwijkingen, []);
   assert.deepEqual(controle.workers.ontbreekt, []);
   assert.ok(Number.isFinite(Date.parse(sync.tijdstip)));
@@ -111,4 +136,39 @@ test('synchroniseren en nacontroleren bewaart actuele, overeenkomende statussen 
   assert.deepEqual([...f.writes.keys()].sort(), ['controle-status', 'sync-status']);
   assert.ok(f.responses.every(response => response.bodyUsed),
     'Alle succesvolle PUT-responsebodies worden geconsumeerd of geannuleerd');
+});
+
+test('blijvende netwerkfouten leiden niet tot eindeloze vervolgverzoeken', async () => {
+  const f = fixture({ alwaysFail: true, fail() { throw new Error('synthetic-private-marker'); } });
+  const result = await beheer.synchroniseerEnControleer(f.env);
+  assert.equal(result.ok, false);
+  assert.equal(result.voortzetten, false);
+  assert.equal(result.controle.afwijkingen.length, 33);
+  assert.equal(f.puts.length, 0);
+  assert.ok(f.fetchCount <= 48);
+  assert.equal(JSON.stringify(result).includes('synthetic-private-marker'), false);
+});
+
+test('afwijkende bronhash breekt af voordat policies of opslag worden geschreven', async () => {
+  const f = fixture();
+  const result = await beheer.synchroniseerEnControleer(f.env, undefined, 'synthetic-stale-hash');
+  assert.equal(result.ok, false);
+  assert.ok(result.error);
+  assert.equal(Boolean(result.voortzetten), false);
+  assert.equal(f.puts.length, 0);
+  assert.equal(f.gets.length, 0);
+  assert.equal(f.writes.size, 0);
+});
+
+test('scheduled blijft onder 48 requests en rapporteert resterend herstel bij 33 afwijkingen', async () => {
+  const f = fixture();
+  await beheer.default.scheduled({}, f.env, { waitUntil() { assert.fail('Geen achtergrondtaak verwacht'); } });
+  assert.ok(f.fetchCount <= 48);
+  assert.equal(f.puts.length, 6);
+  const controle = f.writes.get('controle-status');
+  assert.equal(controle.gecontroleerd, 33);
+  assert.equal(controle.hersteld, 6);
+  assert.equal(controle.resterend, 27);
+  assert.equal(controle.afwijkingen.length, 27);
+  assert.equal(f.writes.has('data'), false);
 });

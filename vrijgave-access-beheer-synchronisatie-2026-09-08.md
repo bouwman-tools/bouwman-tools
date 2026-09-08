@@ -8,6 +8,12 @@ Synchronisatie en dagelijkse controle bewaren ook een foutuitslag wanneer een ex
 
 Tijdens het onderzoek bleek bovendien een oude checkout te zijn uitgerold. Daardoor ontbraken de actuele beheer-authenticatie en drie planningstools. De gecontroleerde bron is eerst hersteld. Deploy deze worker uitsluitend met de eigen `wrangler.access-beheer.jsonc` vanuit de actuele bron.
 
-Validatie: synthetische tests voor authenticatie, netwerkfouten, ongeldige JSON, HTTP 401, ongeldige rechtenopslag, statusopslag en nacontrole. Productie-eindcontrole wordt na uitrol afzonderlijk vastgelegd; testresultaten alleen bewijzen geen actuele policy-overeenkomst.
+Een tweede productie-uitvoering bewees bovendien de limiet van 50 externe subrequests: na 24 writes vielen de resterende verzoeken uit. Daarom leest een ronde alle policies eenmaal, bewaart die uitsluitend in werkgeheugen en herstelt maximaal zes echte afwijkingen met PUT en een nieuwe GET. Inclusief workercontrole en JWKS blijft dit bij de huidige 33 apps onder 49 verzoeken. Het budget krimpt automatisch bij meer apps. De beheerpagina vervolgt bij voortgang automatisch en voert na de laatste wijziging een volledige leesronde uit. Een bronhash voorkomt dat vervolgrondes ongemerkt andere of verouderde bronrechten gebruiken.
+
+De dagelijkse controle blijft op het bestaande tijdstip draaien. Bij meer afwijkingen dan het rondebudget bewaart zij expliciet wat nog openstaat; zij meldt dan geen volledig herstel. De beheeractie kan die vervolgrondes meteen uitvoeren. Een onbekende policyvorm wordt gemeld en niet overschreven.
+
+Validatie: synthetische tests voor authenticatie, netwerkfouten, ongeldige JSON, HTTP 401, ongeldige rechtenopslag, statusopslag en nacontrole. Een runtime-mock weigert verzoek 51 en bewijst dat iedere vervolgronde onder de limiet blijft. Productie-eindcontrole wordt na uitrol afzonderlijk vastgelegd; testresultaten alleen bewijzen geen actuele policy-overeenkomst.
 
 Technische bron voor de gemeten tijdslimiet: https://developers.cloudflare.com/workers/runtime-apis/context/#waituntil
+
+Subrequestlimiet: https://developers.cloudflare.com/workers/platform/limits/#subrequests

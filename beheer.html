@@ -236,7 +236,8 @@
     // GET /admin/users is de gebruikersmap: 'error' kan een bestaande sleutel zijn.
     // Alleen mutaties geven een bevestigings-/foutenvelop terug.
     if (!data || typeof data !== 'object' || Array.isArray(data) ||
-        (method === 'POST' && (data.error || data.ok !== true))) {
+        (method === 'POST' && (data.error || (data.ok !== true &&
+          !(data.ok === false && typeof data.voortzetten === 'boolean'))))) {
       throw new Error('Het beheerverzoek is niet bevestigd.');
     }
     return data;
@@ -343,7 +344,7 @@
     btn.disabled = true;
     try {
       const opslagMoment = Date.now();
-      const resultaat = await api('/admin/upsert', 'POST', { email, tools });
+      const resultaat = await voltooiSynchronisatie(await api('/admin/upsert', 'POST', { email, tools }));
       await loadUsers();
       resetForm();
       document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
@@ -362,7 +363,7 @@
   async function deleteUser(email) {
     if (!confirm(`${email} verwijderen?`)) return;
     try {
-      await api('/admin/delete', 'POST', { email });
+      await voltooiSynchronisatie(await api('/admin/delete', 'POST', { email }));
       await loadUsers();
       showToast(`${email} verwijderd.`);
       await laadStatus();
@@ -374,7 +375,7 @@
     btn.disabled = true;
     btn.textContent = 'Synchroniseren en controleren…';
     try {
-      const resultaat = await api('/admin/sync', 'POST', {});
+      const resultaat = await voltooiSynchronisatie(await api('/admin/sync', 'POST', {}));
       await laadStatus();
       showToast(resultaat.ok ? 'Synchronisatie en nacontrole afgerond.' :
         'Synchronisatie niet volledig gelukt. Bekijk de beheerstatus.');
@@ -383,6 +384,17 @@
       btn.disabled = false;
       btn.textContent = 'Bestaande rechten synchroniseren';
     }
+  }
+
+  async function voltooiSynchronisatie(resultaat) {
+    // Iedere stap is een afzonderlijke worker-uitvoering onder de requestlimiet.
+    // De bronhash voorkomt dat een andere wijziging of oude KV-replica ongemerkt
+    // de rechten van een lopende synchronisatie vervangt.
+    for (let stap = 0; resultaat.voortzetten && stap < 12; stap++) {
+      resultaat = await api('/admin/sync', 'POST', { bronHash: resultaat.bronHash });
+    }
+    if (resultaat.voortzetten) throw new Error('Synchronisatie heeft nog open stappen. Start opnieuw.');
+    return resultaat;
   }
 
   function showToast(msg) {

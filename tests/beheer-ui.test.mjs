@@ -3,6 +3,25 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
+test('vervolgrondes gebruiken dezelfde bronhash en stoppen na volledige controle', async () => {
+  let rounds = 0;
+  const { context } = page((url, options) => {
+    assert.ok(url.endsWith('/admin/sync'));
+    assert.equal(JSON.parse(options.body).bronHash, 'synthetic-hash');
+    rounds++;
+    return Response.json({ ok: rounds === 3, voortzetten: rounds < 3, bronHash: 'synthetic-hash' });
+  });
+  const result = await context.voltooiSynchronisatie({ voortzetten: true, bronHash: 'synthetic-hash' });
+  assert.equal(rounds, 3);
+  assert.equal(result.ok, true);
+});
+
+test('geen oneindige vervolgrondes als de server blijft doorsturen', async () => {
+  const { context, requests } = page(() => Response.json({ ok: false, voortzetten: true, bronHash: 'synthetic-hash' }));
+  await assert.rejects(context.voltooiSynchronisatie({ voortzetten: true, bronHash: 'synthetic-hash' }), /open stappen/);
+  assert.equal(requests.length, 12);
+});
+
 // Voer de echte paginafuncties uit; alleen DOM, fetch en tijd worden vervangen.
 // Geen browser-/Cloudflare-integratieclaim: die volgt pas bij de expliciete uitrol.
 const html = readFileSync(new URL('../beheer.html', import.meta.url), 'utf8');

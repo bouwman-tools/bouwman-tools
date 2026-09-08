@@ -177,8 +177,9 @@ export default {
     // De bronrechten blijven intact. Houd het verzoek open tot uitvoering én
     // nacontrole klaar zijn: waitUntil stopt na 30 seconden na het antwoord.
     if (path === '/admin/sync' && request.method === 'POST') {
-      try { await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
-      return adminAntwoord(await synchroniseerEnControleer(env));
+      let body;
+      try { body = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
+      return adminAntwoord(await synchroniseerEnControleer(env, undefined, body?.bronHash));
     }
 
     if (path === '/admin/upsert' && request.method === 'POST') {
@@ -222,7 +223,9 @@ export default {
   //
   // Vindt hij een afwijking, dan schrijft hij de policies opnieuw en meet daarna
   // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
-  // dan staan tot iemand in beheer.html een gebruiker opsloeg.
+  // dan staan tot iemand in beheer.html een gebruiker opsloeg. Een controleronde
+  // herstelt nu maximaal het berekende requestbudget (momenteel zes apps). Meer
+  // afwijkingen worden expliciet opgeslagen; beheer kan direct vervolgrondes doen.
   //
   // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen op het
   // account staan. Die dag bleek kvk-proxy er niet te zijn, terwijl kvk-zoeker.html op
@@ -235,75 +238,12 @@ export default {
   // AGENTS.md. Deze controle vangt overigens beide gevallen: een Worker die wegvalt en
   // een tool die live gaat zonder dat zijn Worker ooit is uitgerold.
   async scheduled(event, env, ctx) {
-    const tijdstip = new Date().toISOString();
     try {
-
-    if (!env.CF_API_TOKEN) {
-      const reden = 'CF_API_TOKEN ontbreekt op de worker';
-      console.error('controle: ' + reden);
-      await schrijfStatus(env, STATUS_CONTROLE, {
-        tijdstip, gecontroleerd: 0, overgeslagen: 0,
-        afwijkingen: [{ tool: '*', reden }],
-        workers: { reden },
-      });
-      return;
-    }
-
-    const permissions = await getPermissions(env);
-    let uit = await controleerPolicies(permissions, env);
-    let hersteld = 0;
-
-    // Een afwijking die vanzelf te herstellen is, hoort niet te blijven staan tot
-    // iemand toevallig een gebruiker opslaat in beheer.html. Juist bij een nieuwe tool
-    // loopt de policy achter terwijl de rechten hier al kloppen: wie 'all' heeft, heeft
-    // recht op die tool, maar Cloudflare weet dat pas na een synchronisatie. Zo bleef
-    // xaf_export.html op 02-09-2026 onbereikbaar voor wie er wel recht op had.
-    //
-    // De opslag is de bron: syncCFAccess schrijft de policy uit de rechten hier, en
-    // slaat een tool over waar niemand recht op heeft. Een lege of onbereikbare opslag
-    // sluit dus niemand buiten; er wordt dan niets geschreven.
-    if (uit.afwijkingen.length) {
-      console.error(`controle: ${uit.afwijkingen.length} afwijking(en) gevonden: ` +
-        uit.afwijkingen.map(a => `${a.tool} (${a.reden})`).join('; '));
-
-      await syncCFAccess(permissions, env);
-
-      // Opnieuw meten in plaats van aannemen dat het herstel is gelukt: wat overblijft
-      // is een echt probleem en hoort in beheer.html te blijven staan.
-      const na = await controleerPolicies(permissions, env);
-      hersteld = uit.afwijkingen.length - na.afwijkingen.length;
-      uit = na;
-
-      console.log(`controle: ${hersteld} afwijking(en) hersteld, ` +
-        `${uit.afwijkingen.length} over`);
-    } else {
-      console.log(`controle: ${uit.gecontroleerd} tools in orde, ` +
-        `${uit.overgeslagen} overgeslagen`);
-    }
-
-    // Bestaan de Workers waar tools van afhangen nog? Bewust alleen melden: een
-    // verdwenen Worker terugzetten vraagt vaak ook een secret opnieuw, en dat kan
-    // deze worker niet. Automatisch herstel zou hier een lege huls neerzetten die
-    // er wel is maar niets doet, en dat is erger dan een melding.
-    const workers = await controleerWorkers(env);
-    if (workers.reden) {
-      console.error('workercontrole overgeslagen: ' + workers.reden);
-    } else if (workers.ontbreekt.length) {
-      console.error('workercontrole: ontbreekt op het account: ' +
-        workers.ontbreekt.map(w => `${w.naam} (voor ${w.waarvoor})`).join('; '));
-    } else {
-      console.log(`workercontrole: ${workers.verwacht} uit het register aanwezig, ` +
-        `${workers.aanwezig} op het account` +
-        (workers.ongebruikt.length
-          ? `, waar geen tool naar verwijst: ${workers.ongebruikt.join(', ')}`
-          : ''));
-    }
-
-    await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit, hersteld, workers });
+      await synchroniseerEnControleer(env);
     } catch {
       console.error('controle: uitvoering mislukt; rechtenopslag of externe dienst onbereikbaar');
       await schrijfStatus(env, STATUS_CONTROLE, {
-        tijdstip, gecontroleerd: 0, overgeslagen: 0,
+        tijdstip: new Date().toISOString(), gecontroleerd: 0, overgeslagen: 0,
         afwijkingen: [{ tool: '*', reden: 'Controle kon niet worden voltooid; bekijk de workerlogs.' }],
       });
     }
@@ -330,7 +270,7 @@ function rechthebbenden(permissions, file) {
 // Vergelijkt per Access-app de toegelaten adressen met de rechten in de opslag.
 // Bewaart geen adressen in de uitkomst, alleen aantallen en de naam van de tool:
 // die uitkomst is voor een melding, niet voor een ledenlijst.
-async function controleerPolicies(permissions, env) {
+async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_IDS), policies) {
   const afwijkingen = [];
   let gecontroleerd = 0, overgeslagen = 0;
 
@@ -354,12 +294,19 @@ async function controleerPolicies(permissions, env) {
       }
       const data = await res.json();
       const policy = data.result?.[0];
-      if (!policy) {
+      if (data.success === false || !policy) {
         afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
         return;
       }
 
-      const aanwezig = (policy.include || []).map(r => r?.email?.email).filter(Boolean);
+      if (data.result.length !== 1 || (policy.decision && policy.decision !== 'allow') ||
+          !Array.isArray(policy.include) || policy.include.some(r => typeof r?.email?.email !== 'string') ||
+          (policy.exclude?.length || 0) > 0 || (policy.require?.length || 0) > 0) {
+        afwijkingen.push({ tool: file, reden: 'Policyvorm wijkt af van de beheerde e-mailrechten; geen automatische wijziging.' });
+        return;
+      }
+      const aanwezig = policy.include.map(r => r.email.email);
+      policies?.set(file, policy);
       const ontbreekt = verwacht.filter(e => !aanwezig.includes(e)).length;
       const teveel = aanwezig.filter(e => !verwacht.includes(e)).length;
       gecontroleerd++;
@@ -378,7 +325,7 @@ async function controleerPolicies(permissions, env) {
         reden: 'Netwerkfout of ongeldig antwoord tijdens nacontrole',
       });
     }
-  });
+  }, bestanden);
 
   return { gecontroleerd, overgeslagen, afwijkingen };
 }
@@ -470,15 +417,15 @@ async function getPermissions(env) {
 
 // Vier onafhankelijke apps tegelijk; per app blijven lezen en schrijven sequentieel.
 // Geen losgelaten achtergrondwerk: de aanroeper wacht op alle apps.
-async function voorElkeApp(actie) {
-  const entries = Object.entries(APP_IDS);
+async function voorElkeApp(actie, bestanden = Object.keys(APP_IDS)) {
+  const entries = bestanden.map(file => [file, APP_IDS[file]]);
   let index = 0;
   await Promise.all(Array.from({ length: 4 }, async () => {
     while (index < entries.length) await actie(entries[index++]);
   }));
 }
 
-export async function syncCFAccess(permissions, env) {
+export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP_IDS), policies, bewaren = true) {
   let gelukt = 0, overgeslagen = 0, mislukt = 0;
   const fouten = [];
   await voorElkeApp(async ([file, appId]) => {
@@ -488,14 +435,17 @@ export async function syncCFAccess(permissions, env) {
       if (!env.CF_API_TOKEN) throw new Error('CF_API_TOKEN ontbreekt op de worker');
       const base = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`;
       const headers = { Authorization: `Bearer ${env.CF_API_TOKEN}` };
-      const res = await fetch(base, { headers });
-      if (!res.ok) {
-        await res.body?.cancel();
-        throw new Error(`policies ophalen gaf HTTP ${res.status}`);
+      let policy = policies?.get(file);
+      if (!policy) {
+        const res = await fetch(base, { headers });
+        if (!res.ok) {
+          await res.body?.cancel();
+          throw new Error(`policies ophalen gaf HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        policy = data.result?.[0];
+        if (data.success === false || !policy) throw new Error('Geen bruikbare policy gevonden');
       }
-      const data = await res.json();
-      const policy = data.result?.[0];
-      if (data.success === false || !policy) throw new Error('Geen bruikbare policy gevonden');
       const put = await fetch(`${base}/${policy.id}`, {
         method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...policy, include: emails.map(e => ({ email: { email: e } })) }),
@@ -518,22 +468,50 @@ export async function syncCFAccess(permissions, env) {
       fouten.push({ tool: file, reden });
       console.error(`syncCFAccess ${file}: ${reden}`);
     }
-  });
+  }, bestanden);
   const status = { tijdstip: new Date().toISOString(), gelukt, overgeslagen, mislukt, fouten };
-  await schrijfStatus(env, STATUS_SYNC, status);
+  if (bewaren) await schrijfStatus(env, STATUS_SYNC, status);
   console.log(`syncCFAccess klaar: ${gelukt} bijgewerkt, ${overgeslagen} overgeslagen, ${mislukt} mislukt`);
   return status;
 }
 
-export async function synchroniseerEnControleer(env, opgeslagenRechten) {
-  // Gebruik na upsert/delete exact de opgeslagen snapshot. KV kan een directe
-  // herlezing nog uit een oudere replica beantwoorden.
+async function rechtenHash(permissions) {
+  const canoniek = JSON.stringify(Object.fromEntries(Object.entries(permissions).sort(([a], [b]) => a.localeCompare(b))));
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canoniek));
+  return [...new Uint8Array(hash)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+export async function synchroniseerEnControleer(env, opgeslagenRechten, verwachteHash) {
+  // Gebruik na upsert/delete exact de opgeslagen snapshot, niet een oude KV-replica.
   const permissions = opgeslagenRechten ?? await getPermissions(env);
-  const synchronisatie = await syncCFAccess(permissions, env);
-  const uit = await controleerPolicies(permissions, env);
+  const bronHash = await rechtenHash(permissions);
+  if (verwachteHash && bronHash !== verwachteHash) {
+    return { ok: false, error: 'Rechtenopslag is gewijzigd of nog niet overal bijgewerkt. Start de synchronisatie opnieuw.' };
+  }
+  const bestanden = Object.keys(APP_IDS);
+  // Laat ruimte voor JWKS, register, workerlijst en eventuele redirects.
+  const budget = Math.max(0, Math.min(6, Math.floor((45 - bestanden.length) / 2)));
+  if (!budget) throw new Error('Te veel apps voor een veilige controleronde');
+  const policies = new Map();
+  const voor = await controleerPolicies(permissions, env, bestanden, policies);
+  const herstelbaar = voor.afwijkingen.filter(a => policies.has(a.tool));
+  const gekozen = herstelbaar.slice(0, budget).map(a => a.tool);
+  const synchronisatie = await syncCFAccess(permissions, env, gekozen, policies, false);
+  const na = gekozen.length ? await controleerPolicies(permissions, env, gekozen) : { afwijkingen: [] };
+  const afwijkingen = voor.afwijkingen.filter(a => !gekozen.includes(a.tool)).concat(na.afwijkingen);
+  const hersteld = gekozen.length - na.afwijkingen.length;
+  const resterend = herstelbaar.length - gekozen.length;
+  synchronisatie.ongewijzigd = voor.gecontroleerd - herstelbaar.length;
+  synchronisatie.resterend = resterend;
+  synchronisatie.tijdstip = new Date().toISOString();
+  await schrijfStatus(env, STATUS_SYNC, synchronisatie);
   const workers = await controleerWorkers(env);
-  const controle = { tijdstip: new Date().toISOString(), ...uit, workers };
+  const controle = { tijdstip: new Date().toISOString(), gecontroleerd: voor.gecontroleerd,
+    overgeslagen: voor.overgeslagen, afwijkingen, hersteld, resterend, workers };
   await schrijfStatus(env, STATUS_CONTROLE, controle);
-  return { ok: synchronisatie.mislukt === 0 && uit.afwijkingen.length === 0,
-    synchronisatie, controle };
+  // Na writes nog een aparte volledige leesronde; geen herhaling zonder voortgang.
+  return { ok: synchronisatie.mislukt === 0 && afwijkingen.length === 0 &&
+      !workers.reden && workers.ontbreekt.length === 0,
+    voortzetten: hersteld > 0 && synchronisatie.mislukt === 0,
+    bronHash, synchronisatie, controle };
 }
