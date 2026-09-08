@@ -73,7 +73,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | **ontbreekt** | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | Rente rekening-courant | nog niet gepubliceerd | bouwman-tools/rc-rente-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 
@@ -105,7 +105,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🔵 concept | Hypotheek annuïtair | nog niet gepubliceerd | bouwman-tools/hypotheek-annuitair | n.v.t. | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🔵 concept | Tijdplan | nog niet gepubliceerd | bouwman-tools/tijdplan | n.v.t. | **ontbreekt** | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Tijdplan | nog niet gepubliceerd | bouwman-tools/tijdplan | n.v.t. | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
 - **Hypotheek in BV**: Zet de bankhypotheek doorlopen, oversluiten naar de eigen BV en aflossen over een jaar naast elkaar, met box 1, box 2 en box 3, de toets op excessief lenen en de kwalificatie als eigenwoningschuld
