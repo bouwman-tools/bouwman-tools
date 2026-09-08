@@ -59,6 +59,17 @@
             background: var(--primary);
         }
 
+        /* Melding over de browseropslag: alleen zichtbaar als lezen of bewaren mislukt */
+        .opslag-melding {
+            margin: 12px 24px 0;
+            padding: 10px 14px;
+            background: var(--yellow);
+            color: var(--text-dark);
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
         /* Join Logo */
         .join-logo-container {
             display: flex;
@@ -492,6 +503,8 @@
             <h2 class="wizard-title">NHG Werkgeversverklaring 2024</h2>
             <p class="wizard-subtitle">Vul de velden in — exporteer als officieel PDF-formulier</p>
         </div>
+
+        <div id="opslag-melding" class="opslag-melding" role="alert" hidden></div>
 
         <div class="wizard-content">
 
@@ -1167,7 +1180,128 @@ let voortzetting = 'nee';
 let currentZoom = 80;
 
 // === INIT ===
+// === OPSLAGKERN — BEGIN ===
+// Alles wat de browseropslag aanraakt loopt via dit blok. Het kent geen DOM en pakt
+// de opslag niet zelf: die wordt meegegeven, zodat de tests een stub kunnen aanreiken
+// die gooit, onzin teruggeeft of ontbreekt. Elke methode geeft { ok, waarde, fout }
+// terug en gooit nooit. `fout` noemt alleen de soort fout, nooit de opgeslagen inhoud
+// en nooit de boodschap van de browser, want die kan een sleutel of waarde bevatten.
+//
+// Waarom dit er is: vóór deze ronde liet een beschadigde waarde JSON.parse gooien in de
+// laadstap, en liet een opslag die weigert elke update() gooien. De gebruiker stond dan
+// voor een formulier dat niets meer deed, zonder melding.
+function maakOpslag(storage) {
+    const geen = { ok: false, waarde: null, fout: 'geen-opslag' };
+    function soort(err) { return (err && err.name) ? String(err.name) : 'onbekend'; }
+    return {
+        lees(sleutel) {
+            if (!storage) return geen;
+            try { return { ok: true, waarde: storage.getItem(sleutel), fout: null }; }
+            catch (err) { return { ok: false, waarde: null, fout: 'lezen-mislukt:' + soort(err) }; }
+        },
+        // Leest een JSON-object. Niets bewaard is geen fout; onzin wel.
+        leesJson(sleutel) {
+            const r = this.lees(sleutel);
+            if (!r.ok) return r;
+            if (r.waarde === null || r.waarde === '') return { ok: true, waarde: null, fout: null };
+            let data;
+            try { data = JSON.parse(r.waarde); }
+            catch (err) { return { ok: false, waarde: null, fout: 'ongeldige-json' }; }
+            if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+                return { ok: false, waarde: null, fout: 'ongeldige-inhoud' };
+            }
+            return { ok: true, waarde: data, fout: null };
+        },
+        // Leest een keuze uit een vaste lijst; alles anders valt terug op de standaard.
+        leesKeuze(sleutel, toegestaan, standaard) {
+            const r = this.lees(sleutel);
+            if (!r.ok) return { ok: false, waarde: standaard, fout: r.fout };
+            if (r.waarde === null || r.waarde === '') return { ok: true, waarde: standaard, fout: null };
+            if (toegestaan.indexOf(r.waarde) !== -1) return { ok: true, waarde: r.waarde, fout: null };
+            return { ok: false, waarde: standaard, fout: 'ongeldige-keuze' };
+        },
+        schrijf(sleutel, waarde) {
+            if (!storage) return geen;
+            try { storage.setItem(sleutel, waarde); return { ok: true, waarde: null, fout: null }; }
+            catch (err) { return { ok: false, waarde: null, fout: 'bewaren-mislukt:' + soort(err) }; }
+        },
+        verwijder(sleutel) {
+            if (!storage) return geen;
+            try { storage.removeItem(sleutel); return { ok: true, waarde: null, fout: null }; }
+            catch (err) { return { ok: false, waarde: null, fout: 'verwijderen-mislukt:' + soort(err) }; }
+        }
+    };
+}
+// === OPSLAGKERN — EINDE ===
+
+// De greep naar localStorage zelf kan al gooien, bijvoorbeeld bij opslag die door
+// beleid is geblokkeerd. Daarom ook die in een try; zonder opslag werkt de tool door.
+const OPSLAG = maakOpslag((function () {
+    try { return (typeof localStorage !== 'undefined') ? localStorage : null; }
+    catch (e) { return null; }
+})());
+
+// Mislukt het lezen van welke sleutel ook, dan wordt er naar geen van de drie sleutels
+// meer geschreven. Anders zou de eerste update() na het laden het lege formulier over de
+// onleesbare maar nog aanwezige gegevens heen zetten, terwijl de melding beweert dat die
+// niet zijn weggegooid. De blokkade geldt voor alles tegelijk, zodat zij precies zegt wat
+// de melding zegt: nieuwe invoer wordt pas weer bewaard na Reset. Zij wordt bij elke
+// lading opnieuw uit de opslagstand afgeleid en hangt dus niet aan het geheugen van de
+// pagina: is na een half gelukte Reset nog een sleutel onleesbaar, dan blokkeert de
+// volgende lading opnieuw alles. Alleen een Reset waarbij alle drie de verwijderingen
+// slagen laat een schone opslag achter.
+const OPSLAG_SLEUTELS = ['nhg_wizard_data', 'nhg_contractType', 'nhg_voortzetting'];
+const opslagGeblokkeerd = new Set();
+function blokkeerOpslagNaLeesfout() { OPSLAG_SLEUTELS.forEach(k => opslagGeblokkeerd.add(k)); }
+function schrijfBewaakt(sleutel, waarde) {
+    if (opslagGeblokkeerd.has(sleutel)) return { ok: false, waarde: null, fout: 'geblokkeerd-na-leesfout' };
+    const r = OPSLAG.schrijf(sleutel, waarde);
+    if (!r.ok) meldOpslagProbleem('bewaren', r.fout);
+    return r;
+}
+
+// Eén zichtbare melding voor opslagproblemen. Lezen en bewaren worden apart bijgehouden
+// en samen getoond; een bewaarprobleem wordt niet bij elke toetsaanslag opnieuw gemeld.
+const opslagProblemen = { lezen: null, bewaren: null };
+function meldOpslagProbleem(soort, fout) {
+    if (opslagProblemen[soort]) return;
+    opslagProblemen[soort] = fout || 'onbekend';
+    const el = document.getElementById('opslag-melding');
+    if (!el) return;
+    const delen = [];
+    if (opslagProblemen.lezen === 'geen-opslag') {
+        delen.push('De browseropslag is hier niet beschikbaar; eerder ingevulde gegevens zijn ' +
+            'niet terug te halen.');
+    } else if (opslagProblemen.lezen) {
+        delen.push('Eerder bewaarde invoer kon niet worden gelezen (' + opslagProblemen.lezen +
+            '). Je begint met een leeg formulier. De bewaarde gegevens blijven staan en worden ' +
+            'niet overschreven; nieuwe invoer wordt pas weer bewaard nadat je ze met de knop ' +
+            'Reset hebt gewist. Invullen en exporteren werken gewoon.');
+    }
+    if (opslagProblemen.bewaren) {
+        delen.push('Bewaren in de browser werkt nu niet (' + opslagProblemen.bewaren +
+            '). Je kunt gewoon doorwerken en de PDF exporteren, maar na herladen is de invoer weg.');
+    }
+    el.textContent = delen.join(' ');
+    el.hidden = false;
+}
+
+// Vóór de eerste update(): is elke sleutel leesbaar? De laadvolgorde doet eerst
+// loadFromStorage en dan update(), en die update() bewaart. Werd een leesfout op het
+// contracttype pas in initContractType ontdekt, dan had update() de formulierdata al
+// weggeschreven terwijl de melding beweert dat niets meer wordt bewaard. Daarom eerst
+// alle drie lezen; de eigenlijke laadstappen lezen daarna gewoon opnieuw.
+function controleerOpslagLeesbaarheid() {
+    const w = OPSLAG.leesJson('nhg_wizard_data');
+    const ct = OPSLAG.leesKeuze('nhg_contractType', ['onbepaald', 'bepaald', 'flex'], 'onbepaald');
+    const vv = OPSLAG.leesKeuze('nhg_voortzetting', ['nee', 'onbepaald', 'bepaald'], 'nee');
+    for (const r of [w, ct, vv]) {
+        if (!r.ok) { blokkeerOpslagNaLeesfout(); meldOpslagProbleem('lezen', r.fout); }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    controleerOpslagLeesbaarheid();
     loadFromStorage();
     update();
     initContractType();
@@ -1175,10 +1309,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initContractType() {
-    const saved = localStorage.getItem('nhg_contractType') || 'onbepaald';
-    setContractType(saved, true);
-    const savedVV = localStorage.getItem('nhg_voortzetting') || 'nee';
-    setVoortzetting(savedVV, true);
+    const ct = OPSLAG.leesKeuze('nhg_contractType', ['onbepaald', 'bepaald', 'flex'], 'onbepaald');
+    if (!ct.ok) { blokkeerOpslagNaLeesfout(); meldOpslagProbleem('lezen', ct.fout); }
+    setContractType(ct.waarde, true);
+    const vv = OPSLAG.leesKeuze('nhg_voortzetting', ['nee', 'onbepaald', 'bepaald'], 'nee');
+    if (!vv.ok) { blokkeerOpslagNaLeesfout(); meldOpslagProbleem('lezen', vv.fout); }
+    setVoortzetting(vv.waarde, true);
 }
 
 // === SECTION TOGGLE ===
@@ -1197,7 +1333,7 @@ function setContractType(type, skipSave) {
     });
     document.getElementById('cond-bepaald').classList.toggle('show', type === 'bepaald');
     document.getElementById('cond-flex').classList.toggle('show', type === 'flex');
-    if(!skipSave) localStorage.setItem('nhg_contractType', type);
+    if(!skipSave) schrijfBewaakt('nhg_contractType', type);
     update();
 }
 
@@ -1232,7 +1368,7 @@ function setVoortzetting(val, skipSave) {
         if(opt) opt.classList.toggle('selected', r.value === val);
     });
     document.getElementById('cond-vv-bepaald').classList.toggle('show', val === 'bepaald');
-    if(!skipSave) localStorage.setItem('nhg_voortzetting', val);
+    if(!skipSave) schrijfBewaakt('nhg_voortzetting', val);
     update();
 }
 
@@ -1415,13 +1551,20 @@ function saveToStorage() {
     const data = {};
     FIELDS.forEach(id => { data[id] = getVal(id); });
     RADIOS.forEach(name => { data['radio_' + name] = getRadio(name); });
-    localStorage.setItem('nhg_wizard_data', JSON.stringify(data));
+    schrijfBewaakt('nhg_wizard_data', JSON.stringify(data));
 }
 
 function loadFromStorage() {
-    const saved = localStorage.getItem('nhg_wizard_data');
-    if(!saved) return;
-    const data = JSON.parse(saved);
+    const r = OPSLAG.leesJson('nhg_wizard_data');
+    if (!r.ok) {
+        // Niet wissen en ook niet laten overschrijven: de gebruiker beslist zelf via Reset.
+        // Wel melden, en verder gaan met een leeg formulier zodat de tool bruikbaar blijft.
+        blokkeerOpslagNaLeesfout();
+        meldOpslagProbleem('lezen', r.fout);
+        return;
+    }
+    const data = r.waarde;
+    if(!data) return;
     FIELDS.forEach(id => {
         const el = document.getElementById(id);
         if(el && data[id]) el.value = data[id];
@@ -1460,9 +1603,29 @@ function loadFromStorage() {
 
 function resetForm() {
     if(!confirm('Wil je alle ingevulde gegevens wissen?')) return;
-    localStorage.removeItem('nhg_wizard_data');
-    localStorage.removeItem('nhg_contractType');
-    localStorage.removeItem('nhg_voortzetting');
+    // Verwijderen in vaste volgorde, de formulierdata als laatste, en stoppen bij de eerste
+    // mislukking. Zo kan een half gelukte Reset nooit de beschadigde formulierdata weghalen
+    // terwijl een andere sleutel blijft staan: dan zou de volgende lading er gezond uitzien en
+    // was de mislukte Reset stil verdwenen. Mislukt er iets, dan herlaadt de pagina niet en
+    // zegt een melding wat er niet is gelukt; de blokkade blijft staan.
+    const volgorde = ['nhg_contractType', 'nhg_voortzetting', 'nhg_wizard_data'];
+    let mislukt = null;
+    for (const k of volgorde) {
+        const r = OPSLAG.verwijder(k);
+        if (!r.ok) { mislukt = { sleutel: k, fout: r.fout }; break; }
+    }
+    if (mislukt) {
+        const el = document.getElementById('opslag-melding');
+        if (el) {
+            el.textContent = 'Reset is niet gelukt: een bewaarde sleutel kon niet worden verwijderd (' +
+                mislukt.fout + '). Er is niets herladen en er wordt niets bewaard tot een Reset wel ' +
+                'slaagt. Je kunt gewoon doorwerken en de PDF exporteren.';
+            el.hidden = false;
+        }
+        blokkeerOpslagNaLeesfout();
+        return;
+    }
+    opslagGeblokkeerd.clear();
     location.reload();
 }
 
@@ -1661,6 +1824,6 @@ async function downloadPDF() {
     }
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 08:57</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 8 sep 2026, 14:02</div>
 </body>
 </html>
