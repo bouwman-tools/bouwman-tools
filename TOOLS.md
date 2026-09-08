@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-07
+Bijgewerkt: 2026-09-08
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -66,7 +66,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟡 beta | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-08 |
 | 🔵 concept | DCF-rekenmodel | nog niet gepubliceerd | bouwman-tools/dcf-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🔵 concept | Dividendscenario's | nog niet gepubliceerd | bouwman-tools/dividend-scenarios | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
