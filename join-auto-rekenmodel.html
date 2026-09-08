@@ -1351,6 +1351,35 @@ function valideerInvoer(i) {
   if (i.wevBandMaanden > 0) {
     waarschuwingen.push(`In ${i.wevBandJaar} is de auto ouder dan 15 jaar maar nog niet ouder dan de youngtimergrens van dat jaar. De tool rekent dan met het reguliere percentage over de cataloguswaarde, in lijn met de toelichting bij het besluit van 12-02-2026 (nr. 2026-2493). De wettekst van art. 3.20 lid 5b stelt de waarde bij meer dan vijftien jaar echter op de waarde in het economische verkeer; dat verschil is niet opgelost en kan een lagere bijtelling verdedigbaar maken.`);
   }
+  // Vanaf 2027 gaat de youngtimergrens naar 25 jaar. Dat is vastgesteld recht en
+  // dus de rekenbasis, geen concept: art. II en IV van het Belastingplan 2026,
+  // Stb. 2025, 444. Er ligt wel een aangekondigd alternatief pad (motie
+  // Grinwis/Oosterhuis, Kamerstuk 32140-294, en de kamerbrief van 22-06-2026) dat
+  // nog niet is vastgesteld. De melding zegt allebei, zodat niemand de uitkomst
+  // voor een jaar na 2026 als afgedaan leest.
+  if (i.raakt2027OfLater) {
+    waarschuwingen.push('De gebruiksduur loopt door tot in 2027 of later. Vanaf 1 januari 2027 ligt de youngtimergrens op 25 jaar in plaats van 16, en daarmee rekent deze tool ook. Dat is vastgesteld recht (Belastingplan 2026, Stb. 2025, 444). Er is wel een wijziging van dat pad aangekondigd die nog niet is vastgesteld, dus controleer de stand van zaken voordat u deze uitkomst voor een jaar na 2026 gebruikt.');
+  }
+
+  // Pseudo-eindheffing van art. 32bc Wet LB, ingevoerd per 01-01-2027 door
+  // Stb. 2025, 444: 12% voor de werkgever over een personenauto op fossiele
+  // brandstof die ook privé ter beschikking staat, woon-werkverkeer meegeteld.
+  // De tool rekent die last niet mee en kan dat ook niet: of de heffing speelt
+  // hangt af van twee dingen die de tool niet vaststelt. De energiekeuze die zij
+  // wél kent (benzine/diesel, plug-in hybride, elektrisch, waterstof) stuurt de
+  // nulemissiekorting op de bijtelling; zij is geen vastgestelde emissie- of
+  // voertuigclassificatie en bewijst dus niet of deze auto onder art. 32bc valt.
+  // Daarnaast vraagt de tool nergens de datum waarop dezelfde inhoudingsplichtige
+  // de auto voor het eerst ter beschikking stelde, terwijl daar het overgangsrecht
+  // van art. 39j Wet LB tot 17-09-2030 aan hangt. Daarom een voorwaardelijke
+  // melding, ook bij een als elektrisch ingevoerde auto: dat label is geen bewijs.
+  if (i.raakt2027OfLater && (i.rol === 'dga' || i.rol === 'werknemer')) {
+    const slot = i.rol === 'dga'
+      ? 'De tool rekent die heffing niet mee, dus dit is geen volledige vergelijking van de werkgeverslasten.'
+      : 'De tool rekent die heffing niet mee. Zij drukt op de werkgever en staat dus niet in uw netto uitkomst, maar kan wel meewegen in wat een werkgever aanbiedt.';
+    waarschuwingen.push('Vanaf 1 januari 2027 kent art. 32bc Wet LB een pseudo-eindheffing van 12% voor de werkgever over een personenauto op fossiele brandstof die ook privé ter beschikking staat; woon-werkverkeer telt daarbij mee (Stb. 2025, 444). Of die heffing hier speelt, hangt af van gegevens die deze tool niet vaststelt. De energiekeuze hierboven bepaalt de nulemissiekorting op de bijtelling en is geen vastgestelde emissieclassificatie, dus zij zegt niet of deze auto onder de heffing valt. En de datum waarop dezelfde inhoudingsplichtige de auto voor het eerst ter beschikking stelde wordt nergens gevraagd: was dat vóór 2027, dan geldt overgangsrecht tot 17 september 2030 (art. 39j Wet LB). ' + slot);
+  }
+
   if (i.overgangBeschikbaar && !i.youngtimerOvergangGekozen) {
     waarschuwingen.push('Voor deze auto lijkt de overgangsregeling van het besluit van 12-02-2026 (nr. 2026-2493) open te staan: hij werd in 2025 ouder dan 15 jaar en stond toen al ter beschikking. U mag dan in 2026 de oude youngtimergrens van 15 jaar toepassen. Zet dat aan als u daarvoor kiest.');
   }
@@ -1787,6 +1816,30 @@ function parseMaandJaar(str) {
 
 // Bijtelling over de hele gebruiksduur, uitgesplitst per kalenderjaar.
 // start = { jaar, maand } (maand 1-12), mnd = gebruiksduur in maanden.
+// Raakt de gebruiksduur een kalenderjaar vanaf `jaar`?
+//
+// Deze vraag hangt bewust NIET aan het bijtellingsregime. Zonder datum eerste
+// toelating geeft werkBijtellingBij() null, maar de tool rekent dan gewoon door
+// op een handmatig ingevuld bijtellings- of forfaitpercentage. Hing de jaarvlag
+// aan dat regime, dan verdwenen de meldingen over 2027 precies in het geval
+// waarin de gebruiker het minste heeft ingevuld en de signalering het hardst
+// nodig heeft. Alleen de laatste maand van de duur telt: raakt die het jaar,
+// dan raakt de periode het.
+//
+// `Math.ceil(mnd) - 1` en niet `mnd - 1`, zodat deze helper dezelfde laatste maand
+// aanwijst als de maandlus van bijtellingOverPeriode. Die lus telt met
+// `i < mnd`, dus bij een gebroken duur van 12,5 maanden draait zij dertien keer en
+// raakt zij de dertiende maand. Zonder afronding zei de vlag daar false terwijl de
+// bijtelling die maand wél meenam, en dan verdwijnt de melding voor een jaar dat
+// in de uitkomst zit. Dit is technische aansluiting op het bestaande maandmodel en
+// geen uitspraak over de vraag of een gebroken maand fiscaal hoort te worden
+// afgerond; aan de bedragen verandert hier niets.
+function periodeRaaktJaarOfLater(start, mnd, jaar) {
+  if (!start || !(start.jaar > 0) || !(start.maand > 0) || !(mnd > 0)) return false;
+  const laatsteIdx = start.jaar * 12 + (start.maand - 1) + (Math.ceil(mnd) - 1);
+  return Math.floor(laatsteIdx / 12) >= jaar;
+}
+
 function bijtellingOverPeriode(start, mnd, auto) {
   if (!(mnd > 0)) return { fout: 'geen-gebruiksduur' };
   if (!parseDatum(auto.datumToelating)) return { fout: 'ongeldige-datum' };
@@ -2447,6 +2500,9 @@ function bereken() {
     wevBandMaanden:     regimeOk ? (bijtPeriode.wevBandMaanden || 0) : 0,
     wevBandJaar:        regimeOk ? bijtPeriode.wevBandJaar : null,
     overgangBeschikbaar: regimeOk ? !!bijtPeriode.overgangBeschikbaar : false,
+    // Niet via bijtPeriode: die is null zodra de datum eerste toelating ontbreekt,
+    // terwijl de tool dan wel doorrekent. Zie periodeRaaktJaarOfLater.
+    raakt2027OfLater:    periodeRaaktJaarOfLater(start, mnd, 2027),
     youngtimerOvergangGekozen: !!(document.getElementById('youngtimer_overgang') || {}).checked,
     forfaitBegrensd:    fisc.forfaitBegrensd,
     belastAandeel:      btw_af,
@@ -2734,7 +2790,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 00:09</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 8 sep 2026, 01:13</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
