@@ -71,6 +71,7 @@ const STATUS_CONTROLE = 'controle-status';
 const REGISTER_URL = 'https://bouwman.tools/tools.json';
 
 const APP_IDS = {
+  'bankbridge.html':                    '206b16c5-48a9-4218-943a-4dc1b803e99d',
   'portal.html':                         '4f132e0b-6557-4726-8371-111024d21f39',
   'Join-jaarrekening-review.html':       '8a515a1c-6b83-4d4c-9c1d-b42a7a9b61a8',
   'auto-fiscaal-2027.html':              'a504237d-750a-476b-95e8-2396a872e6fa',
@@ -224,7 +225,7 @@ export default {
   // Vindt hij een afwijking, dan schrijft hij de policies opnieuw en meet daarna
   // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
   // dan staan tot iemand in beheer.html een gebruiker opsloeg. Een controleronde
-  // herstelt nu maximaal het berekende requestbudget (momenteel zes apps). Meer
+  // herstelt nu maximaal het berekende requestbudget (hoogstens zes apps). Meer
   // afwijkingen worden expliciet opgeslagen; beheer kan direct vervolgrondes doen.
   //
   // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen op het
@@ -446,7 +447,33 @@ export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP
         policy = data.result?.[0];
         if (data.success === false || !policy) throw new Error('Geen bruikbare policy gevonden');
       }
-      const put = await fetch(`${base}/${policy.id}`, {
+      let updateUrl = `${base}/${policy.id}`;
+      if (policy.reusable === true) {
+        // De app-listing bewijst de koppeling; het actuele accountantwoord moet
+        // daarnaast bewijzen dat geen andere app deze policy gebruikt.
+        // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/policies/methods/get/
+        updateUrl = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/policies/${policy.id}`;
+        const res = await fetch(updateUrl, { headers });
+        if (!res.ok) {
+          await res.body?.cancel();
+          throw new Error(`policy controleren gaf HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (data.success !== true || data.result?.id !== policy.id ||
+            data.result?.reusable !== true || data.result?.app_count !== 1) {
+          throw new Error('Herbruikbare policy is gedeeld of exclusiviteit is niet bevestigd');
+        }
+        policy = data.result;
+        if (policy.decision !== 'allow' || !Array.isArray(policy.include) ||
+            policy.include.some(r => typeof r?.email?.email !== 'string') ||
+            (policy.exclude?.length || 0) > 0 || (policy.require?.length || 0) > 0) {
+          throw new Error('Herbruikbare policy heeft geen beheerde e-mailrechten');
+        }
+        // Alleen beschrijfbare policyvelden meesturen, geen accountmetadata.
+        const { id, account_id, app_count, created_at, updated_at, reusable, ...instellingen } = policy;
+        policy = instellingen;
+      }
+      const put = await fetch(updateUrl, {
         method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...policy, include: emails.map(e => ({ email: { email: e } })) }),
       });
@@ -460,8 +487,10 @@ export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP
     } catch (e) {
       // Geen upstream antwoord, adressen of mogelijk gevoelige exceptiontekst loggen.
       const message = String(e?.message || '');
-      const reden = /^(policies ophalen|policy bijwerken) gaf HTTP \d{3}$/.test(message) ||
+      const reden = /^(policies ophalen|policy controleren|policy bijwerken) gaf HTTP \d{3}$/.test(message) ||
         ['CF_API_TOKEN ontbreekt op de worker', 'Geen bruikbare policy gevonden',
+          'Herbruikbare policy is gedeeld of exclusiviteit is niet bevestigd',
+          'Herbruikbare policy heeft geen beheerde e-mailrechten',
           'Cloudflare bevestigt de wijziging niet'].includes(message)
         ? message : 'Netwerkfout of ongeldig antwoord tijdens synchronisatie';
       mislukt++;
@@ -490,12 +519,19 @@ export async function synchroniseerEnControleer(env, opgeslagenRechten, verwacht
   }
   const bestanden = Object.keys(APP_IDS);
   // Laat ruimte voor JWKS, register, workerlijst en eventuele redirects.
-  const budget = Math.max(0, Math.min(6, Math.floor((45 - bestanden.length) / 2)));
-  if (!budget) throw new Error('Te veel apps voor een veilige controleronde');
+  let budget = 45 - bestanden.length;
+  if (budget < 3) throw new Error('Te veel apps voor een veilige controleronde');
   const policies = new Map();
   const voor = await controleerPolicies(permissions, env, bestanden, policies);
   const herstelbaar = voor.afwijkingen.filter(a => policies.has(a.tool));
-  const gekozen = herstelbaar.slice(0, budget).map(a => a.tool);
+  const gekozen = [];
+  for (const afwijking of herstelbaar) {
+    // PUT + nacontrole; reusable vraagt eerst een actuele exclusiviteitscheck.
+    const kosten = policies.get(afwijking.tool).reusable === true ? 3 : 2;
+    if (gekozen.length === 6 || kosten > budget) continue;
+    gekozen.push(afwijking.tool);
+    budget -= kosten;
+  }
   const synchronisatie = await syncCFAccess(permissions, env, gekozen, policies, false);
   const na = gekozen.length ? await controleerPolicies(permissions, env, gekozen) : { afwijkingen: [] };
   const afwijkingen = voor.afwijkingen.filter(a => !gekozen.includes(a.tool)).concat(na.afwijkingen);

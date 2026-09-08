@@ -1,6 +1,10 @@
 import test, { afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as beheer from '../access-beheer-worker.js';
+
+const workerSource = readFileSync(new URL('../access-beheer-worker.js', import.meta.url), 'utf8');
+const appCount = [...workerSource.match(/const APP_IDS = \{([\s\S]*?)\n\};/)[1].matchAll(/'[^']+'\s*:/g)].length;
 
 // Alle rechten, API-antwoorden en credentials hieronder zijn synthetisch.
 const realFetch = globalThis.fetch;
@@ -12,11 +16,15 @@ afterEach(() => {
   console.log = realLog;
 });
 
-function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail, alwaysFail = false } = {}) {
+function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail, alwaysFail = false,
+    reusable = false, policyDetail } = {}) {
   const writes = new Map();
   const reads = [];
   const gets = [];
   const puts = [];
+  const detailGets = [];
+  const putBodies = [];
+  const policyApps = new Map();
   const responses = [];
   const policies = new Map();
   const logs = [];
@@ -37,13 +45,27 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
         injected = true;
         return fail();
       }
-      return Response.json({ success: true, result: [
-        policies.get(href) || { id: 'synthetic-policy', include: [] },
-      ] });
+      const isReusable = reusable === true || (reusable === 'first' && (gets[0] === href));
+      const id = isReusable ? `synthetic-policy-${href.split('/').at(-2)}` : 'synthetic-policy';
+      policyApps.set(id, href);
+      const policy = policies.get(href) || { id, include: [], decision: 'allow', reusable: isReusable };
+      return Response.json({ success: true, result: [policy] });
     }
-    if (href.endsWith('/policies/synthetic-policy') && options.method === 'PUT') {
+    if (href.includes('/access/policies/') && options.method !== 'PUT') {
+      detailGets.push(href);
+      const id = href.split('/').at(-1);
+      const policy = { id, include: [], decision: 'allow', reusable: true, app_count: 1,
+        ...policies.get(policyApps.get(id)) };
+      return policyDetail ? policyDetail(policy) : Response.json({ success: true, result: policy });
+    }
+    if (href.includes('/policies/synthetic-policy') && options.method === 'PUT') {
       puts.push(href);
-      policies.set(href.slice(0, -'/synthetic-policy'.length), JSON.parse(options.body));
+      const body = JSON.parse(options.body);
+      putBodies.push(body);
+      const id = href.split('/').at(-1);
+      const isReusable = href.includes('/access/policies/');
+      const appUrl = isReusable ? policyApps.get(id) : href.slice(0, -'/synthetic-policy'.length);
+      policies.set(appUrl, { ...body, id, reusable: isReusable });
       const response = Response.json({ success: true, result: { id: 'synthetic-policy' } });
       responses.push(response);
       return response;
@@ -55,7 +77,7 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       async get(key) { reads.push(key); return key === 'data' ? raw : null; },
       async put(key, value) { writes.set(key, JSON.parse(value)); },
     } },
-    writes, reads, gets, puts, responses, logs,
+    writes, reads, gets, puts, responses, logs, detailGets, putBodies,
     resetBudget() { fetchCount = 1; },
     get fetchCount() { return fetchCount; },
   };
@@ -97,8 +119,9 @@ for (const raw of ['{invalid-json', 'null']) {
   });
 }
 
-test('meerdere begrensde rondes herstellen alle 33 apps en eindigen met een volledige leescontrole', async () => {
-  const f = fixture();
+for (const reusable of [false, true, 'first']) {
+test(`begrensde rondes herstellen alle apps en eindigen met leescontrole (reusable=${reusable})`, async () => {
+  const f = fixture({ reusable });
   let result, hash, rounds = 0;
   const budgets = [];
   do {
@@ -110,11 +133,11 @@ test('meerdere begrensde rondes herstellen alle 33 apps en eindigen met een voll
     assert.ok(f.fetchCount <= 48, `Ronde ${rounds + 1} gebruikte ${f.fetchCount} subrequests`);
     assert.ok(f.puts.length - before <= 6);
     if (rounds === 0) {
-      assert.equal(f.puts.length, 6);
-      assert.equal(result.controle.resterend, 27);
+      assert.ok(f.puts.length > 0);
+      assert.equal(result.controle.resterend, appCount - f.puts.length);
       assert.equal(result.voortzetten, true);
     }
-    assert.ok(++rounds <= 10, 'Geen eindeloze vervolgverzoeken');
+    assert.ok(++rounds <= appCount + 1, 'Geen eindeloze vervolgverzoeken');
   } while (result.voortzetten);
   const sync = f.writes.get('sync-status');
   const controle = f.writes.get('controle-status');
@@ -122,12 +145,13 @@ test('meerdere begrensde rondes herstellen alle 33 apps en eindigen met een voll
   assert.ok(controle);
   assert.equal(sync.mislukt, 0);
   assert.equal(result.ok, true);
-  assert.equal(f.puts.length, 33);
+  assert.equal(f.puts.length, appCount);
+  assert.equal(f.detailGets.length, reusable === true ? appCount : reusable === 'first' ? 1 : 0);
   assert.equal(sync.gelukt, 0, 'De laatste ronde leest uitsluitend');
-  assert.equal(sync.ongewijzigd, 33);
-  assert.equal(controle.gecontroleerd, 33);
+  assert.equal(sync.ongewijzigd, appCount);
+  assert.equal(controle.gecontroleerd, appCount);
   assert.equal(controle.resterend, 0);
-  assert.equal(budgets.at(-1), 36, '33 policies, 2 workercontroles en 1 gereserveerde JWKS');
+  assert.equal(budgets.at(-1), appCount + 3, 'Alle policies, 2 workercontroles en 1 gereserveerde JWKS');
   assert.deepEqual(controle.afwijkingen, []);
   assert.deepEqual(controle.workers.ontbreekt, []);
   assert.ok(Number.isFinite(Date.parse(sync.tijdstip)));
@@ -137,13 +161,14 @@ test('meerdere begrensde rondes herstellen alle 33 apps en eindigen met een voll
   assert.ok(f.responses.every(response => response.bodyUsed),
     'Alle succesvolle PUT-responsebodies worden geconsumeerd of geannuleerd');
 });
+}
 
 test('blijvende netwerkfouten leiden niet tot eindeloze vervolgverzoeken', async () => {
   const f = fixture({ alwaysFail: true, fail() { throw new Error('synthetic-private-marker'); } });
   const result = await beheer.synchroniseerEnControleer(f.env);
   assert.equal(result.ok, false);
   assert.equal(result.voortzetten, false);
-  assert.equal(result.controle.afwijkingen.length, 33);
+  assert.equal(result.controle.afwijkingen.length, appCount);
   assert.equal(f.puts.length, 0);
   assert.ok(f.fetchCount <= 48);
   assert.equal(JSON.stringify(result).includes('synthetic-private-marker'), false);
@@ -160,15 +185,51 @@ test('afwijkende bronhash breekt af voordat policies of opslag worden geschreven
   assert.equal(f.writes.size, 0);
 });
 
-test('scheduled blijft onder 48 requests en rapporteert resterend herstel bij 33 afwijkingen', async () => {
+test('scheduled blijft onder 48 requests en rapporteert resterend herstel', async () => {
   const f = fixture();
   await beheer.default.scheduled({}, f.env, { waitUntil() { assert.fail('Geen achtergrondtaak verwacht'); } });
   assert.ok(f.fetchCount <= 48);
-  assert.equal(f.puts.length, 6);
+  assert.ok(f.puts.length > 0 && f.puts.length <= 6);
   const controle = f.writes.get('controle-status');
-  assert.equal(controle.gecontroleerd, 33);
-  assert.equal(controle.hersteld, 6);
-  assert.equal(controle.resterend, 27);
-  assert.equal(controle.afwijkingen.length, 27);
+  assert.equal(controle.gecontroleerd, appCount);
+  assert.equal(controle.hersteld, f.puts.length);
+  assert.equal(controle.resterend, appCount - f.puts.length);
+  assert.equal(controle.afwijkingen.length, appCount - f.puts.length);
   assert.equal(f.writes.has('data'), false);
 });
+
+test('reusable gebruikt accountendpoint en bewaart actuele policyinstellingen', async () => {
+  const f = fixture({ reusable: true, policyDetail: policy => Response.json({ success: true,
+    result: { ...policy, name: 'Synthetic latest name', session_duration: '12h' } }) });
+  const result = await beheer.syncCFAccess({ 'synthetic@example.invalid': 'all' }, f.env, ['bankbridge.html']);
+  assert.equal(result.gelukt, 1);
+  assert.equal(f.detailGets.length, 1);
+  assert.equal(f.puts[0], f.detailGets[0]);
+  assert.match(f.puts[0], /\/access\/policies\/synthetic-policy-/);
+  assert.equal(f.putBodies[0].session_duration, '12h');
+  assert.equal(f.putBodies[0].name, 'Synthetic latest name');
+  assert.equal(Object.hasOwn(f.putBodies[0], 'app_count'), false);
+  assert.deepEqual(f.putBodies[0].include, [{ email: { email: 'synthetic@example.invalid' } }]);
+});
+
+for (const [name, policyDetail] of [
+  ['gedeeld', p => Response.json({ success: true, result: { ...p, app_count: 2 } })],
+  ['zonder telling', p => Response.json({ success: true, result: { ...p, app_count: undefined } })],
+  ['verkeerde policy', p => Response.json({ success: true, result: { ...p, id: 'synthetic-other' } })],
+  ['foutantwoord', p => Response.json({ success: false, result: p })],
+  ['HTTP 403', () => new Response('synthetic-private-marker', { status: 403 })],
+  ['ongeldige JSON', () => new Response('synthetic-private-marker')],
+  ['gewijzigde regels', p => Response.json({ success: true, result: { ...p, require: [{ everyone: {} }] } })],
+]) {
+  test(`reusable schrijft niets bij ${name} en stopt vervolgverzoeken`, async () => {
+    const f = fixture({ reusable: true, policyDetail });
+    const result = await beheer.synchroniseerEnControleer(f.env);
+    assert.equal(result.ok, false);
+    assert.equal(result.voortzetten, false);
+    assert.ok(result.synchronisatie.mislukt > 0);
+    assert.equal(f.puts.length, 0);
+    assert.ok(f.fetchCount <= 48);
+    assert.equal(JSON.stringify(result).includes('synthetic-private-marker'), false);
+    assert.equal(f.logs.join('\n').includes('synthetic-private-marker'), false);
+  });
+}
