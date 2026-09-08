@@ -58,7 +58,7 @@ test('bevestigde opslag ververst overzicht, reset formulier en meldt succes', as
   await context.saveUser();
   assert.equal(node('email-input').value, '');
   assert.equal(node('.btn-save').disabled, false);
-  assert.match(node('toast').textContent, /opgeslagen/);
+  assert.match(node('toast').textContent, /opgeslagen/i);
   // Derde verzoek is de statusbalk, die na een geslaagde opslag opnieuw wordt geladen:
   // zonder dat bleef daar de stand van vóór deze opslag staan.
   assert.equal(requests.length, 3);
@@ -108,7 +108,7 @@ test('gebruikersmap met error/prototype/quotes blijft zichtbaar en via echte kno
     assert.equal(row.children[3].textContent, 'Verwijderen');
     await row.children[3].onclick();
     assert.match(node('toast').textContent, /verwijderd/);
-    assert.equal(requests.length, 3);
+    assert.equal(requests.length, 4);
     assert.equal(Object.hasOwn(permissions, email), false);
   }
 });

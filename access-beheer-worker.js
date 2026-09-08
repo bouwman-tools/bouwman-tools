@@ -16,7 +16,7 @@ const PORTAL_PATH = '/portal.html/api/permissions';
 const ACCESS_KEYS = createRemoteJWKSet(new URL(`${ACCESS_ISSUER}/cdn-cgi/access/certs`));
 const ADMIN_ROUTES = new Map([
   ['/admin/users', 'GET'], ['/admin/status', 'GET'], ['/admin/workers', 'GET'],
-  ['/admin/upsert', 'POST'], ['/admin/delete', 'POST'],
+  ['/admin/upsert', 'POST'], ['/admin/delete', 'POST'], ['/admin/sync', 'POST'],
 ]);
 
 async function leesAccessToken(request, audience) {
@@ -174,6 +174,13 @@ export default {
       return adminAntwoord(await controleerWorkers(env));
     }
 
+    // De bronrechten blijven intact. Houd het verzoek open tot uitvoering én
+    // nacontrole klaar zijn: waitUntil stopt na 30 seconden na het antwoord.
+    if (path === '/admin/sync' && request.method === 'POST') {
+      try { await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
+      return adminAntwoord(await synchroniseerEnControleer(env));
+    }
+
     if (path === '/admin/upsert' && request.method === 'POST') {
       let data;
       try { data = await request.json(); } catch { return adminAntwoord({ error: 'Ongeldige JSON.' }, 400); }
@@ -190,8 +197,7 @@ export default {
       const permissions = await getPermissions(env);
       permissions[email] = tools;
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      ctx.waitUntil(syncCFAccess(permissions, env));
-      return adminAntwoord({ ok: true });
+      return adminAntwoord(await synchroniseerEnControleer(env, permissions));
     }
 
     if (path === '/admin/delete' && request.method === 'POST') {
@@ -204,8 +210,7 @@ export default {
       const permissions = await getPermissions(env);
       delete permissions[email];
       await env.PERMISSIONS.put('data', JSON.stringify(permissions));
-      ctx.waitUntil(syncCFAccess(permissions, env));
-      return adminAntwoord({ ok: true });
+      return adminAntwoord(await synchroniseerEnControleer(env, permissions));
     }
 
     return new Response('Not found', { status: 404 });
@@ -231,6 +236,7 @@ export default {
   // een tool die live gaat zonder dat zijn Worker ooit is uitgerold.
   async scheduled(event, env, ctx) {
     const tijdstip = new Date().toISOString();
+    try {
 
     if (!env.CF_API_TOKEN) {
       const reden = 'CF_API_TOKEN ontbreekt op de worker';
@@ -294,6 +300,13 @@ export default {
     }
 
     await schrijfStatus(env, STATUS_CONTROLE, { tijdstip, ...uit, hersteld, workers });
+    } catch {
+      console.error('controle: uitvoering mislukt; rechtenopslag of externe dienst onbereikbaar');
+      await schrijfStatus(env, STATUS_CONTROLE, {
+        tijdstip, gecontroleerd: 0, overgeslagen: 0,
+        afwijkingen: [{ tool: '*', reden: 'Controle kon niet worden voltooid; bekijk de workerlogs.' }],
+      });
+    }
   }
 };
 
@@ -301,7 +314,8 @@ async function schrijfStatus(env, sleutel, status) {
   try {
     await env.PERMISSIONS.put(sleutel, JSON.stringify(status));
   } catch (e) {
-    console.error(`status ${sleutel} wegschrijven mislukt: ${e && e.message ? e.message : String(e)}`);
+    console.error(`status ${sleutel} wegschrijven mislukt`);
+    throw new Error('Uitvoeringsstatus kon niet worden opgeslagen');
   }
 }
 
@@ -320,13 +334,13 @@ async function controleerPolicies(permissions, env) {
   const afwijkingen = [];
   let gecontroleerd = 0, overgeslagen = 0;
 
-  for (const [file, appId] of Object.entries(APP_IDS)) {
+  await voorElkeApp(async ([file, appId]) => {
     const verwacht = rechthebbenden(permissions, file);
 
     // De synchronisatie laat een policy bewust ongemoeid als niemand recht
     // heeft op die tool, want een lege lijst wordt door de API geweigerd.
     // De controle moet dat overslaan, anders klaagt zij daar eeuwig over.
-    if (verwacht.length === 0) { overgeslagen++; continue; }
+    if (verwacht.length === 0) { overgeslagen++; return; }
 
     try {
       const res = await fetch(
@@ -334,14 +348,15 @@ async function controleerPolicies(permissions, env) {
         { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
       );
       if (!res.ok) {
+        await res.body?.cancel();
         afwijkingen.push({ tool: file, reden: `policies ophalen gaf HTTP ${res.status}` });
-        continue;
+        return;
       }
       const data = await res.json();
       const policy = data.result?.[0];
       if (!policy) {
         afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
-        continue;
+        return;
       }
 
       const aanwezig = (policy.include || []).map(r => r?.email?.email).filter(Boolean);
@@ -360,10 +375,10 @@ async function controleerPolicies(permissions, env) {
     } catch (e) {
       afwijkingen.push({
         tool: file,
-        reden: `onverwachte fout: ${e && e.message ? e.message : String(e)}`,
+        reden: 'Netwerkfout of ongeldig antwoord tijdens nacontrole',
       });
     }
-  }
+  });
 
   return { gecontroleerd, overgeslagen, afwijkingen };
 }
@@ -442,83 +457,83 @@ async function controleerWorkers(env) {
 }
 
 async function getPermissions(env) {
-  return JSON.parse(await env.PERMISSIONS.get('data') || '{}');
+  const raw = await env.PERMISSIONS.get('data');
+  if (!raw) throw new Error('Rechtenopslag ontbreekt');
+  const permissions = JSON.parse(raw);
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions) ||
+      Object.values(permissions).some(t => t !== 'all' &&
+        !(Array.isArray(t) && t.every(v => typeof v === 'string')))) {
+    throw new Error('Ongeldige rechtenopslag');
+  }
+  return permissions;
 }
 
-// Let op: deze functie wordt met ctx.waitUntil losgelaten, dus het opslaan in
-// beheer.html wacht er niet op en meldt altijd succes. De console.error-regels
-// hieronder zijn de enige manier om te zien of het bijwerken van de policies
-// werkelijk lukt. Meelezen kan met: npx wrangler tail --name access-beheer
-async function syncCFAccess(permissions, env) {
+// Vier onafhankelijke apps tegelijk; per app blijven lezen en schrijven sequentieel.
+// Geen losgelaten achtergrondwerk: de aanroeper wacht op alle apps.
+async function voorElkeApp(actie) {
+  const entries = Object.entries(APP_IDS);
+  let index = 0;
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (index < entries.length) await actie(entries[index++]);
+  }));
+}
+
+export async function syncCFAccess(permissions, env) {
   let gelukt = 0, overgeslagen = 0, mislukt = 0;
   const fouten = [];
-  if (!env.CF_API_TOKEN) {
-    console.error('syncCFAccess: CF_API_TOKEN ontbreekt op de worker; elke aanroep zal falen');
-    fouten.push({ tool: '*', reden: 'CF_API_TOKEN ontbreekt op de worker' });
-  }
-
-  for (const [file, appId] of Object.entries(APP_IDS)) {
-    let emails;
-    if (file === 'portal.html') {
-      // Iedereen met enige toegang kan de portal zien
-      emails = Object.keys(permissions);
-    } else {
-      emails = Object.entries(permissions)
-        .filter(([, t]) => t === 'all' || (Array.isArray(t) && t.includes(file)))
-        .map(([e]) => e);
-    }
-
-    if (emails.length === 0) { overgeslagen++; continue; }
-
-    const pRes = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
-      { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
-    );
-    if (!pRes.ok) {
-      console.error(`syncCFAccess ${file}: policies ophalen gaf HTTP ${pRes.status}`);
-      fouten.push({ tool: file, reden: `policies ophalen gaf HTTP ${pRes.status}` });
-    }
-    const pData = await pRes.json();
-    const policy = pData.result?.[0];
-    if (!policy) {
-      mislukt++;
-      console.error(`syncCFAccess ${file}: geen policy gevonden om bij te werken; ` +
-        `antwoord: ${JSON.stringify(pData).slice(0, 300)}`);
-      fouten.push({ tool: file, reden: 'geen policy gevonden om bij te werken' });
-      continue;
-    }
-
-    const put = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies/${policy.id}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${env.CF_API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...policy,
-          include: emails.map(e => ({ email: { email: e } })),
-        }),
+  await voorElkeApp(async ([file, appId]) => {
+    const emails = rechthebbenden(permissions, file);
+    if (!emails.length) { overgeslagen++; return; }
+    try {
+      if (!env.CF_API_TOKEN) throw new Error('CF_API_TOKEN ontbreekt op de worker');
+      const base = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`;
+      const headers = { Authorization: `Bearer ${env.CF_API_TOKEN}` };
+      const res = await fetch(base, { headers });
+      if (!res.ok) {
+        await res.body?.cancel();
+        throw new Error(`policies ophalen gaf HTTP ${res.status}`);
       }
-    );
-    if (!put.ok) {
-      mislukt++;
-      const tekst = (await put.text()).slice(0, 300);
-      console.error(`syncCFAccess ${file}: policy bijwerken gaf HTTP ${put.status}: ${tekst}`);
-      fouten.push({ tool: file, reden: `policy bijwerken gaf HTTP ${put.status}` });
-    } else {
+      const data = await res.json();
+      const policy = data.result?.[0];
+      if (data.success === false || !policy) throw new Error('Geen bruikbare policy gevonden');
+      const put = await fetch(`${base}/${policy.id}`, {
+        method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...policy, include: emails.map(e => ({ email: { email: e } })) }),
+      });
+      if (!put.ok) {
+        await put.body?.cancel();
+        throw new Error(`policy bijwerken gaf HTTP ${put.status}`);
+      }
+      const written = await put.json();
+      if (written.success === false) throw new Error('Cloudflare bevestigt de wijziging niet');
       gelukt++;
-      console.log(`syncCFAccess ${file}: policy bijgewerkt met ${emails.length} adres(sen)`);
+    } catch (e) {
+      // Geen upstream antwoord, adressen of mogelijk gevoelige exceptiontekst loggen.
+      const message = String(e?.message || '');
+      const reden = /^(policies ophalen|policy bijwerken) gaf HTTP \d{3}$/.test(message) ||
+        ['CF_API_TOKEN ontbreekt op de worker', 'Geen bruikbare policy gevonden',
+          'Cloudflare bevestigt de wijziging niet'].includes(message)
+        ? message : 'Netwerkfout of ongeldig antwoord tijdens synchronisatie';
+      mislukt++;
+      fouten.push({ tool: file, reden });
+      console.error(`syncCFAccess ${file}: ${reden}`);
     }
-  }
-
-  console.log(`syncCFAccess klaar: ${gelukt} bijgewerkt, ${overgeslagen} overgeslagen ` +
-    `(niemand heeft recht), ${mislukt} mislukt`);
-
-  // Bewaren zodat beheer.html kan melden of het bijwerken werkelijk lukte.
-  await schrijfStatus(env, STATUS_SYNC, {
-    tijdstip: new Date().toISOString(),
-    gelukt, overgeslagen, mislukt, fouten,
   });
+  const status = { tijdstip: new Date().toISOString(), gelukt, overgeslagen, mislukt, fouten };
+  await schrijfStatus(env, STATUS_SYNC, status);
+  console.log(`syncCFAccess klaar: ${gelukt} bijgewerkt, ${overgeslagen} overgeslagen, ${mislukt} mislukt`);
+  return status;
+}
+
+export async function synchroniseerEnControleer(env, opgeslagenRechten) {
+  // Gebruik na upsert/delete exact de opgeslagen snapshot. KV kan een directe
+  // herlezing nog uit een oudere replica beantwoorden.
+  const permissions = opgeslagenRechten ?? await getPermissions(env);
+  const synchronisatie = await syncCFAccess(permissions, env);
+  const uit = await controleerPolicies(permissions, env);
+  const workers = await controleerWorkers(env);
+  const controle = { tijdstip: new Date().toISOString(), ...uit, workers };
+  await schrijfStatus(env, STATUS_CONTROLE, controle);
+  return { ok: synchronisatie.mislukt === 0 && uit.afwijkingen.length === 0,
+    synchronisatie, controle };
 }

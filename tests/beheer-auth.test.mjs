@@ -9,12 +9,12 @@ const ISSUER = 'https://bouwman-tools.cloudflareaccess.com';
 const AUD = 'af8ac2b405ebe46b6574d003ef84f2c25c9e737d961c6871216727ad2d7790c8';
 const realFetch = globalThis.fetch;
 let worker, privateKey, wrongKey, jwk, jwksFailure = false;
-let calls;
+let calls, policies;
 before(async () => {
   ({ privateKey, publicKey: jwk } = await generateKeyPair('RS256'));
   jwk = { ...await exportJWK(jwk), kid: 'synthetic', alg: 'RS256', use: 'sig' };
   ({ privateKey: wrongKey } = await generateKeyPair('RS256'));
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, init = {}) => {
     const href = String(url);
     if (href === ISSUER + '/cdn-cgi/access/certs') {
       calls.jwks++;
@@ -24,8 +24,11 @@ before(async () => {
     calls.external.push(href);
     if (href === ORIGIN + '/tools.json') return Response.json({ tools: [], portaalworkers: [] });
     if (href.endsWith('/workers/scripts')) return Response.json({ result: [] });
-    if (href.endsWith('/policies')) return Response.json({ result: [{ id: 'synthetic-policy' }] });
-    if (href.endsWith('/policies/synthetic-policy')) return Response.json({ success: true });
+    if (href.endsWith('/policies')) return Response.json({ result: [policies.get(href) || { id: 'synthetic-policy', include: [] }] });
+    if (href.endsWith('/policies/synthetic-policy')) {
+      policies.set(href.replace('/synthetic-policy', ''), JSON.parse(init.body));
+      return Response.json({ success: true });
+    }
     throw new Error('Onverwachte externe actie: ' + href);
   };
   worker = (await import('../access-beheer-worker.js')).default;
@@ -40,11 +43,15 @@ async function token(overrides = {}, { key, header = {} } = {}) {
 }
 function fixture(initial = { 'synthetic@example.invalid': [] }) {
   calls = { reads: [], writes: [], external: [], jwks: 0, scheduled: [] };
+  policies = new Map();
   const data = JSON.parse(JSON.stringify(initial));
   return {
     env: { CF_API_TOKEN: 'synthetic-not-a-credential', PERMISSIONS: {
       async get(key) { calls.reads.push(key); return key === 'data' ? JSON.stringify(data) : null; },
-      async put(key, value) { calls.writes.push([key, JSON.parse(value)]); },
+      async put(key, value) {
+        calls.writes.push([key, JSON.parse(value)]);
+        // Opzettelijk een achterlopende KV-replica: get blijft de oude data geven.
+      },
     } },
     ctx: { waitUntil(promise) { calls.scheduled.push(promise); } },
   };
@@ -96,7 +103,7 @@ const invalid = {
 for (const [name, getToken] of Object.entries(invalid)) {
   test(`${name}: geen beheer-read/write of Cloudflare-actie, ook met vertrouwde Origin`, async () => {
     const jwt = await getToken();
-    for (const [path, method] of [['users', 'GET'], ['status', 'GET'], ['workers', 'GET'], ['upsert', 'POST'], ['delete', 'POST']]) {
+    for (const [path, method] of [['users', 'GET'], ['status', 'GET'], ['workers', 'GET'], ['upsert', 'POST'], ['delete', 'POST'], ['sync', 'POST']]) {
       const response = await run({ jwt, path, method, origin: ORIGIN,
         body: method === 'POST' ? JSON.stringify({ email: 'synthetic@example.invalid', tools: [] }) : undefined });
       assert.equal(response.status, 401, path);
@@ -139,7 +146,7 @@ test('preflight geeft geen data of CORS-toestemming; verkeerde methode dispatcht
 });
 test('mutaties vereisen exacte Origin en JSON voordat data wordt gelezen', async () => {
   const jwt = await token();
-  for (const path of ['upsert', 'delete']) {
+  for (const path of ['upsert', 'delete', 'sync']) {
     for (const origin of [undefined, 'null', 'https://bouwman.tools.attacker.invalid', 'https://attacker.invalid', ORIGIN + '/']) {
       assert.equal((await run({ jwt, path, method: 'POST', origin, body: '{}' })).status, 403);
       noData();
@@ -156,10 +163,14 @@ test('geldige upsert/delete voeren echte mutatie uit op alleen synthetische KV',
     const response = await run({ jwt, path, method: 'POST', origin: ORIGIN, contentType: 'application/json; charset=utf-8',
       body: JSON.stringify({ email: 'new@example.invalid', tools: [] }) });
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true });
+    assert.equal((await response.json()).ok, true);
     const saved = calls.writes.find(([key]) => key === 'data')[1];
     assert.equal(Object.hasOwn(saved, 'new@example.invalid'), path === 'upsert');
-    assert.equal(calls.scheduled.length, 1);
+    assert.equal(calls.scheduled.length, 0);
+    assert.ok(calls.writes.some(([key]) => key === 'sync-status'));
+    assert.ok(calls.writes.some(([key]) => key === 'controle-status'));
+    assert.equal(calls.reads.filter(key => key === 'data').length, 1,
+      'Synchronisatie moet de opgeslagen snapshot gebruiken, niet een oude KV-herlezing');
   }
 });
 test('geldige status en workercontrole volgen hun handler', async () => {
@@ -169,6 +180,19 @@ test('geldige status en workercontrole volgen hun handler', async () => {
   assert.equal((await run({ jwt, path: 'workers' })).status, 200);
   assert.equal(calls.external.length, 2);
   assert.deepEqual(calls.writes, []);
+});
+
+test('sync-only wacht op nacontrole en schrijft geen gebruikersrechten', async () => {
+  const response = await run({ jwt: await token(), path: 'sync', method: 'POST',
+    origin: ORIGIN, body: '{}' });
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.ok, true);
+  assert.equal(result.controle.afwijkingen.length, 0);
+  assert.equal(calls.scheduled.length, 0);
+  assert.equal(calls.writes.some(([key]) => key === 'data'), false);
+  assert.ok(calls.writes.some(([key]) => key === 'sync-status'));
+  assert.ok(calls.writes.some(([key]) => key === 'controle-status'));
 });
 test('oude /permissions en preflight zijn standaard gesloten zonder migratievenster', async () => {
   const url = 'https://access-beheer.s-bouwman.workers.dev/permissions';

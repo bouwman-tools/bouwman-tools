@@ -174,6 +174,7 @@
 
     <div class="form-actions">
       <button class="btn-save" onclick="saveUser()">Opslaan</button>
+      <button id="sync-button" onclick="syncRechten()">Bestaande rechten synchroniseren</button>
       <button class="btn-cancel" onclick="resetForm()">Annuleren</button>
     </div>
   </div>
@@ -342,11 +343,12 @@
     btn.disabled = true;
     try {
       const opslagMoment = Date.now();
-      await api('/admin/upsert', 'POST', { email, tools });
+      const resultaat = await api('/admin/upsert', 'POST', { email, tools });
       await loadUsers();
       resetForm();
       document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
-      showToast(`${email} opgeslagen.`);
+      showToast(resultaat.ok ? 'Opgeslagen en toegang gecontroleerd.' :
+        'Opgeslagen; synchronisatie niet volledig gelukt. Bekijk de beheerstatus.');
       // Zonder dit blijft de statusbalk de stand van vóór deze opslag tonen.
       await laadStatus(opslagMoment);
     } catch (e) {
@@ -363,7 +365,24 @@
       await api('/admin/delete', 'POST', { email });
       await loadUsers();
       showToast(`${email} verwijderd.`);
+      await laadStatus();
     } catch (e) { showToast(e.message); }
+  }
+
+  async function syncRechten() {
+    const btn = document.getElementById('sync-button');
+    btn.disabled = true;
+    btn.textContent = 'Synchroniseren en controleren…';
+    try {
+      const resultaat = await api('/admin/sync', 'POST', {});
+      await laadStatus();
+      showToast(resultaat.ok ? 'Synchronisatie en nacontrole afgerond.' :
+        'Synchronisatie niet volledig gelukt. Bekijk de beheerstatus.');
+    } catch (e) { showToast(e.message); }
+    finally {
+      btn.disabled = false;
+      btn.textContent = 'Bestaande rechten synchroniseren';
+    }
   }
 
   function showToast(msg) {
@@ -374,8 +393,7 @@
   }
 
   // Toont of het bijwerken van de Access-policies werkelijk is gelukt. De
-  // synchronisatie wordt losgelaten met waitUntil, dus het opslaan zelf kan
-  // niets over de uitkomst zeggen; die staat in de KV-opslag. Faalt dit
+  // synchronisatie wordt afgewacht en apart in KV opgeslagen. Faalt dit
   // ophalen, dan toont de balk een fout: afwezigheid van status is geen succes.
   // Een opgeslagen uitslag is een momentopname en geen huidige stand. Zonder
   // ouderdomstoets leest een oud resultaat als de toestand van nu: op 08-09-2026 stond
@@ -420,9 +438,8 @@
       const contr = st.controle;
       let fout = false;
       let onbekend = false;
-      // Na een opslag loopt syncCFAccess in waitUntil door: de uitslag kan er nog niet
-      // staan. Zonder deze regel leest de vorige uitslag als het resultaat van wat je
-      // net deed, en dat is precies waar op 08-09-2026 een half uur aan verloren ging.
+      // Ook bij een afgebroken verbinding of achterlopende KV-replica mag een oude
+      // uitslag nooit doorgaan voor het resultaat van de zojuist uitgevoerde opslag.
       if (naOpslag && (!st.synchronisatie || !st.synchronisatie.tijdstip ||
           Date.parse(st.synchronisatie.tijdstip) < naOpslag)) {
         onbekend = true;
