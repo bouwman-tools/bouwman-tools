@@ -582,6 +582,36 @@ function normId(val) {
   return String(val).trim().replace(/\.0+$/, '');
 }
 
+// Twee onafhankelijke indelingen van dezelfde factuurregels, laatste drie jaren.
+function bepaalFactuurjaar(val) {
+  if (!val) return NaN;
+  if (val instanceof Date) return val.getFullYear();
+  const serial = Number(val);
+  // Excel bewaart een kalenderdatum; zijn UTC-middernacht niet lokaal verschuiven.
+  if (Number.isFinite(serial) && serial > 1000) return new Date(excelSerialToMs(serial)).getUTCFullYear();
+  const datum = parseDateStr(String(val));
+  return Number.isFinite(datum.getTime()) ? datum.getFullYear() : NaN;
+}
+
+function koppelOmzetJaren(klanten, facturen, thisYear = new Date().getFullYear()) {
+  const perKlant = new Map();
+  for (const f of facturen) {
+    if (!perKlant.has(f.klantId)) perKlant.set(f.klantId, {dienst: new Map(), factuur: new Map(), zonderDatum: 0});
+    const omzet = perKlant.get(f.klantId);
+    const dienstjaar = Math.round(parseFloat(f.jaar));
+    const factuurjaar = f.factuurjaar;
+    for (const [jaar, map] of [[dienstjaar, omzet.dienst], [factuurjaar, omzet.factuur]]) {
+      if (jaar >= thisYear - 2 && jaar <= thisYear) map.set(jaar, (map.get(jaar) || 0) + f.bedrag);
+    }
+    if (!Number.isFinite(factuurjaar)) omzet.zonderDatum++;
+  }
+  const jaren = map => map && map.size ? [...map].map(([jaar, bedrag]) => ({jaar, bedrag})).sort((a,b) => b.jaar - a.jaar) : null;
+  return klanten.map(k => {
+    const o = perKlant.get(k.id);
+    return {...k, _omzetJaren: jaren(o?.dienst), _omzetFactuurJaren: jaren(o?.factuur), _facturenZonderDatum: o?.zonderDatum || 0};
+  });
+}
+
 function parseWorkbook(wb) {
   const ksName  = wb.SheetNames.find(n => n.toLowerCase() === 'klanten');
   const pName   = wb.SheetNames.find(n => n.toLowerCase() === 'prijzen');
@@ -624,6 +654,7 @@ function parseWorkbook(wb) {
       factuurnr:   String(r['Factuurnr.'] || '').trim(),
       datum:       formatDate(r['Datum']),
       datumRaw:    parseRawDate(r['Datum']),
+      factuurjaar: bepaalFactuurjaar(r['Datum']),
       code:        String(r['Code'] || '').trim(),
       omschrijving: String(r['Omschrijving'] || '').trim(),
       jaar:        String(r['Jaar'] || '').trim(),
@@ -678,21 +709,7 @@ function parseWorkbook(wb) {
     verstuurdBDFmt:          formatDate(r['Aangifte verstuurd aan belastingdienst']),
   })).filter(r => r.klantId && r.jaar);
 
-  const thisYear = new Date().getFullYear();
-  const omzetMap = {};
-  for (const f of DATA.facturen) {
-    const j = Math.round(parseFloat(f.jaar));
-    if (j >= thisYear - 2 && j <= thisYear) {
-      if (!omzetMap[f.klantId]) omzetMap[f.klantId] = {};
-      omzetMap[f.klantId][j] = (omzetMap[f.klantId][j] || 0) + f.bedrag;
-    }
-  }
-  DATA.klanten = DATA.klanten.map(k => {
-    const o = omzetMap[k.id];
-    if (!o) return { ...k, _omzetJaren: null };
-    const jaren = Object.keys(o).map(j => ({ jaar: +j, bedrag: o[j] })).sort((a,b) => b.jaar - a.jaar);
-    return { ...k, _omzetJaren: jaren.length ? jaren : null };
-  });
+  DATA.klanten = koppelOmzetJaren(DATA.klanten, DATA.facturen);
 
   // Importvalidatie
   const _klantIds = new Set(DATA.klanten.map(k => k.id));
@@ -815,9 +832,10 @@ function renderClientList(clients) {
         ${c.abonnement ? '<span class="badge badge-abo">Abonnement</span>' : ''}
         ${c.loon ? '<span class="badge badge-loon">Loon</span>' : ''}
       </div>
-      ${c._omzetJaren ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
-        ${c._omzetJaren.map(o => `<span>${o.jaar}: <strong style="color:var(--navy);">€ ${fmtNum(o.bedrag)}</strong></span>`).join('')}
-      </div>` : ''}
+      ${[['Dienstjaar', c._omzetJaren], ['Factuurjaar', c._omzetFactuurJaren]].map(([label, jaren]) => jaren ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">
+        <span>${label}:</span>${jaren.map(o => `<span>${o.jaar}: <strong style="color:var(--navy);">€ ${fmtNum(o.bedrag)}</strong></span>`).join('')}
+      </div>` : '').join('')}
+      ${c._facturenZonderDatum ? `<div style="font-size:11px;margin-top:4px;color:var(--text-muted);">${c._facturenZonderDatum} factuurregel(s) zonder geldige datum niet ingedeeld naar factuurjaar.</div>` : ''}
     </div>
   `).join('');
 }
@@ -1978,6 +1996,6 @@ function fmtNum(n) {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 aug 2026, 09:45</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 8 sep 2026, 21:21</div>
 </body>
 </html>
