@@ -59,7 +59,10 @@ test('bevestigde opslag ververst overzicht, reset formulier en meldt succes', as
   assert.equal(node('email-input').value, '');
   assert.equal(node('.btn-save').disabled, false);
   assert.match(node('toast').textContent, /opgeslagen/);
-  assert.equal(requests.length, 2);
+  // Derde verzoek is de statusbalk, die na een geslaagde opslag opnieuw wordt geladen:
+  // zonder dat bleef daar de stand van vóór deze opslag staan.
+  assert.equal(requests.length, 3);
+  assert.match(String(requests[2][0]), /\/admin\/status$/);
 });
 test('refreshfout na bevestigde opslag behoudt invoer en geeft geen algemene succesmelding', async () => {
   const { context, node } = page(async url => url.endsWith('/upsert')

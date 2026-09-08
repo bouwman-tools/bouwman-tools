@@ -341,11 +341,14 @@
     btn.textContent = 'Opslaan…';
     btn.disabled = true;
     try {
+      const opslagMoment = Date.now();
       await api('/admin/upsert', 'POST', { email, tools });
       await loadUsers();
       resetForm();
       document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
       showToast(`${email} opgeslagen.`);
+      // Zonder dit blijft de statusbalk de stand van vóór deze opslag tonen.
+      await laadStatus(opslagMoment);
     } catch (e) {
       showToast(e.message);
     } finally {
@@ -406,7 +409,7 @@
     if (rest > 0) regels.push(`<b>${rest} verdere regel(s) niet getoond.</b>`);
   }
 
-  async function laadStatus() {
+  async function laadStatus(naOpslag) {
     const balk = document.getElementById('statusbalk');
     try {
       const st = await api('/admin/status');
@@ -417,9 +420,16 @@
       const contr = st.controle;
       let fout = false;
       let onbekend = false;
-      // Apart van 'fout': het advies om een gebruiker op te slaan helpt alleen bij een
-      // policy die achterloopt, en niet bij een Worker die van het account weg is.
-      let policyFout = false;
+      // Na een opslag loopt syncCFAccess in waitUntil door: de uitslag kan er nog niet
+      // staan. Zonder deze regel leest de vorige uitslag als het resultaat van wat je
+      // net deed, en dat is precies waar op 08-09-2026 een half uur aan verloren ging.
+      if (naOpslag && (!st.synchronisatie || !st.synchronisatie.tijdstip ||
+          Date.parse(st.synchronisatie.tijdstip) < naOpslag)) {
+        onbekend = true;
+        regels.push('<b>De synchronisatie van je laatste opslag is nog niet ' +
+          'weggeschreven.</b> Wat hieronder staat is een eerdere uitslag en zegt niets ' +
+          'over wat je net hebt opgeslagen. Herlaad deze pagina over een moment.');
+      }
       let authFout = false;
 
       if (sync) {
@@ -427,7 +437,6 @@
         if (sync.mislukt || fouten.length) {
           fout = true;
           authFout = heeftAuthenticatieFout(fouten);
-          policyFout = !authFout;
           regels.push(`De laatst opgeslagen synchronisatie (${tijd(sync.tijdstip)}) heeft ` +
             `de toegang <b>niet</b> volledig bijgewerkt: ${sync.mislukt} van de tools ` +
             `mislukte. Dit is de opgeslagen uitslag van die poging, niet de stand van nu.`);
@@ -457,7 +466,6 @@
         }
         if (afw.length) {
           fout = true;
-          if (!authFout) policyFout = true;
           regels.push(`Die controle (${tijd(contr.tijdstip)}) vond ` +
             `<b>${afw.length} afwijking(en)</b> tussen de rechten hier en wat er ` +
             `werkelijk op Cloudflare staat, en kon die niet herstellen.`);
@@ -499,17 +507,18 @@
         }
       }
 
-      // Twee tegengestelde adviezen, dus nooit samen. Bij 401 helpt opnieuw opslaan niet.
+      // Alles hierboven is een opgeslagen meting. De pagina weet niet of er sindsdien
+      // iets is veranderd, bijvoorbeeld een vervangen token, en mag dus geen actuele
+      // oorzaak of handeling voorschrijven. Daarom geen advies om opnieuw op te slaan:
+      // een 500, een 403 of een oude afwijking bewijst niet dat die schrijfactie nodig is.
       if (authFout) {
-        regels.push('<b>Cloudflare accepteert het token van de worker niet (HTTP 401).</b> ' +
-          'Rechten toekennen wordt dan niet doorgezet, hoe vaak je ook opslaat. Waarom het ' +
-          'wordt geweigerd staat hiermee niet vast: verlopen, vervangen of ontbrekend zijn ' +
-          'alle drie mogelijk. Dit vraagt een nieuw token op de worker en kan alleen de ' +
-          'beheerder; opslaan hieronder lost het niet op.');
-      } else if (policyFout) {
-        regels.push('De dagelijkse controle probeert dit zelf te herstellen. Blijft het ' +
-          'staan, dan lukt dat niet: sla hieronder een gebruiker op om het meteen opnieuw ' +
-          'te laten schrijven.');
+        regels.push('Bij die synchronisatie weigerde Cloudflare de authenticatie ' +
+          '(HTTP 401). Of de toegang inmiddels is hersteld, blijkt pas uit een nieuwe ' +
+          'controle. Is het token intussen vervangen, voer het dan niet opnieuw in op ' +
+          'grond van deze historische melding.');
+      } else if (fout) {
+        regels.push('Dit is de uitslag van dat moment. Of het er nu nog zo staat, blijkt ' +
+          'pas uit een nieuwe controle.');
       }
 
       balk.className = 'statusbalk ' + (fout ? 'fout' : onbekend ? 'onbekend' : 'goed');
