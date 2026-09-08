@@ -30,6 +30,12 @@
   legend { font-weight: 600; font-size: .9rem; padding: 0 .4rem; }
   label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
   .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
+  .veld .hint { margin-top: .35rem; }
+  /* De eenheid hoort naast het veld te blijven staan. Een invoerveld is 100% breed, dus
+     een los teken erachter valt op een eigen regel; deze rij houdt ze bij elkaar. */
+  .met-eenheid { display: flex; align-items: center; gap: .45rem; }
+  .met-eenheid input { flex: 1; min-width: 0; }
+  .eenheid { flex: none; color: var(--gedempt); font-size: .92rem; }
   input[type=number], input[type=text], select {
     width: 100%; padding: .5rem .6rem; font: inherit; font-size: .95rem;
     border: 1px solid var(--lijn); border-radius: 4px; background: #fff; color: inherit;
@@ -108,40 +114,39 @@
 
   <form id="formulier">
     <fieldset>
-      <legend>Tarieven en disconteringsvoet</legend>
+      <legend>Belastingtarief</legend>
       <div class="keuze">
         <input type="radio" name="tariefmodus" id="modus-perjaar" value="perJaar" checked>
         <label for="modus-perjaar">
-          <b>Per jaar via de schijven.</b> De gemiste afschrijving van elk jaar komt bovenop
-          het verwachte inkomen en de heffing daarover wordt per schijf berekend; de
-          niet-afschrijfbare meerwaarde krijgt dezelfde behandeling in het jaar waarin zij
-          vrijvalt, tegen het inkomen van dát jaar. Zuiverder zolang de winst niet volledig
-          in de hoogste schijf valt. De tarieven van het gekozen jaar gelden dan wel voor
-          alle jaren.
+          <b>Per jaar via de schijven.</b> De heffing volgt uit de schijven van het verwachte
+          inkomen, per jaar.
         </label>
       </div>
       <div class="keuze">
         <input type="radio" name="tariefmodus" id="modus-vast" value="vast">
         <label for="modus-vast">
-          <b>Eén vast tarief</b> voor de hele looptijd, hieronder in te vullen. Bedoeld voor
-          een tarief dat uit een waardering of uit onderhandeling komt, en voor een winst
-          die toch al ruim in de hoogste schijf valt.
+          <b>Eén vast tarief</b> voor de hele looptijd, zelf in te vullen.
         </label>
       </div>
+      <p class="hint" id="modus-uitleg"></p>
 
       <div id="vaste-tarieven">
         <div class="rij">
           <div class="veld">
-            <label for="tarief-afschrijving">Belastingtarief afschrijving
-              <span class="hint">Het tarief waartegen de gemiste afschrijving in aftrek zou zijn gekomen.</span>
-            </label>
-            <input type="number" id="tarief-afschrijving" step="0.01" min="0" max="100" value="25.8"> %
+            <label for="tarief-afschrijving">Tarief afschrijving</label>
+            <div class="met-eenheid">
+              <input type="number" id="tarief-afschrijving" step="0.01" min="0" max="100" value="25.8">
+              <span class="eenheid">%</span>
+            </div>
+            <span class="hint">Waartegen de gemiste afschrijving in aftrek zou zijn gekomen.</span>
           </div>
           <div class="veld">
-            <label for="tarief-uitgesteld">Belastingtarief uitgestelde heffing
-              <span class="hint">Het tarief in het jaar waarin de heffing naar verwachting plaatsvindt.</span>
-            </label>
-            <input type="number" id="tarief-uitgesteld" step="0.01" min="0" max="100" value="25.8"> %
+            <label for="tarief-uitgesteld">Tarief uitgestelde heffing</label>
+            <div class="met-eenheid">
+              <input type="number" id="tarief-uitgesteld" step="0.01" min="0" max="100" value="25.8">
+              <span class="eenheid">%</span>
+            </div>
+            <span class="hint">Het tarief in het jaar waarin de heffing plaatsvindt.</span>
           </div>
         </div>
       </div>
@@ -149,70 +154,75 @@
       <div id="modus-velden" hidden>
         <div class="rij">
           <div class="veld">
-            <label for="modus-jaar">Jaar van de tarieven
-              <span class="hint">Deze tarieven gelden voor de hele looptijd; de tool kent geen tariefsverloop. Een jaar dat niet in de tabel staat geeft een melding en geen uitkomst.</span>
-            </label>
-            <input type="number" id="modus-jaar" step="1" value="2026">
-          </div>
-          <div class="veld">
             <label for="modus-middel">Belastingmiddel</label>
             <select id="modus-middel">
               <option value="ib">Inkomstenbelasting, winst uit onderneming</option>
               <option value="vpb">Vennootschapsbelasting</option>
             </select>
           </div>
+          <div class="veld">
+            <label for="modus-jaar">Jaar van de tarieven</label>
+            <input type="number" id="modus-jaar" step="1" value="2026">
+            <span class="hint">Geldt voor de hele looptijd. Een jaar buiten de tabel geeft een melding.</span>
+          </div>
         </div>
-        <div class="veld">
-          <label for="modus-inkomen"><span id="modus-inkomen-label">Verwacht belastbaar inkomen uit werk en woning per jaar</span>
-            <span class="hint" id="modus-inkomen-hint">Zonder de gemiste afschrijving en zonder de latente winst. Eén bedrag voor alle jaren: een bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.</span>
-          </label>
-          <input type="number" id="modus-inkomen" step="1000" min="0" value="0">
+        <div class="rij">
+          <div class="veld">
+            <label for="modus-inkomen"><span id="modus-inkomen-label">Verwacht inkomen per jaar</span></label>
+            <div class="met-eenheid">
+              <span class="eenheid">&euro;</span>
+              <input type="number" id="modus-inkomen" step="1000" min="0" value="0">
+            </div>
+            <span class="hint" id="modus-inkomen-hint"></span>
+          </div>
+          <div class="veld" id="modus-vrijval-veld" hidden>
+            <label for="modus-inkomen-vrijval"><span id="modus-vrijval-label">Verwacht inkomen in het vrijvaljaar</span></label>
+            <div class="met-eenheid">
+              <span class="eenheid">&euro;</span>
+              <input type="number" id="modus-inkomen-vrijval" step="1000" min="0" value="0">
+            </div>
+            <span class="hint">Vóór de meerwaarde die de tool zelf berekent, anders telt die dubbel. Overige stakingswinst hoort er juist wél in.</span>
+          </div>
         </div>
         <div class="keuze">
           <input type="checkbox" id="modus-afwijkend">
           <label for="modus-afwijkend">
-            Afwijkend inkomen in het jaar waarin de niet-afschrijfbare meerwaarde vrijvalt.
-            Zet dit aan bij een verwacht stakingsjaar: dan vallen ook andere stille
-            reserves, fiscale reserves en overige stakingswinst in dat jaar in de winst
-            (art. 3.8 Wet IB 2001) en is het inkomen daar hoger dan in de jaren ervoor.
+            Afwijkend inkomen in het vrijvaljaar, bijvoorbeeld bij een verwacht stakingsjaar.
           </label>
-        </div>
-        <div class="veld" id="modus-vrijval-veld" hidden>
-          <label for="modus-inkomen-vrijval"><span id="modus-vrijval-label">Verwacht belastbaar inkomen in het vrijvaljaar</span>
-            <span class="hint">Vóór de meerwaarde die de tool zelf berekent, anders telt die dubbel. Overige stakingswinst hoort er juist wél in.</span>
-          </label>
-          <input type="number" id="modus-inkomen-vrijval" step="1000" min="0" value="0">
         </div>
         <div id="modus-ib-velden">
           <div class="veld">
-            <label for="modus-groep">Positie van de belastingplichtige
-              <span class="hint">Bepaalt de premie volksverzekeringen in de eerste schijf en welke tabel geldt.</span>
-            </label>
+            <label for="modus-groep">Positie van de belastingplichtige</label>
             <select id="modus-groep">
               <option value="premieplichtig">Onder de AOW-leeftijd, premieplichtig</option>
               <option value="aow">AOW-leeftijd bereikt</option>
               <option value="aowVoor1946">AOW-leeftijd bereikt, geboren vóór 1 januari 1946</option>
             </select>
+            <span class="hint">Bepaalt de premie volksverzekeringen in de eerste schijf en welke tabel geldt.</span>
           </div>
           <div class="keuze">
             <input type="checkbox" id="modus-mkb" checked>
             <label for="modus-mkb">
-              MKB-winstvrijstelling van toepassing (art. 3.79a Wet IB 2001). Zet dit uit voor
-              box-1-inkomen dat geen winst uit onderneming is.
+              MKB-winstvrijstelling van toepassing (art. 3.79a Wet IB 2001).
             </label>
           </div>
         </div>
       </div>
+    </fieldset>
 
-      <div class="veld">
-        <label for="disconteringsvoet">Disconteringsvoet</label>
-        <input type="number" id="disconteringsvoet" step="0.01" min="0" max="100" value="6"> %
+    <fieldset>
+      <legend>Disconteringsvoet</legend>
+      <div class="veld" style="max-width:13rem">
+        <label for="disconteringsvoet">Voet per jaar</label>
+        <div class="met-eenheid">
+          <input type="number" id="disconteringsvoet" step="0.01" min="0" max="100" value="6">
+          <span class="eenheid">%</span>
+        </div>
       </div>
       <div class="keuze">
         <input type="radio" name="grondslag" id="grondslag-netto" value="netto" checked>
         <label for="grondslag-netto">
-          <span id="grondslag-netto-tekst">Ingevoerd als brutovoet; de tool maakt hem netto met het tarief voor afschrijving:
-          <code>netto = bruto &times; (1 &minus; tarief)</code>.</span>
+          <span id="grondslag-netto-tekst"></span>
         </label>
       </div>
       <div class="keuze">
@@ -221,6 +231,10 @@
           Ingevoerd als nettovoet; de tool rekent er rechtstreeks mee.
         </label>
       </div>
+      <p class="hint">
+        De hoogte van de voet volgt geen wettelijke regel. De tool vult er daarom geen norm
+        voor in; zie de toelichting onderaan.
+      </p>
     </fieldset>
 
     <fieldset>
@@ -245,13 +259,18 @@
       <div class="rij">
         <div class="veld">
           <label for="niet-bedrag">Meerwaarde</label>
-          <input type="number" id="niet-bedrag" step="0.01" min="0" value="0">
+          <div class="met-eenheid">
+            <span class="eenheid">&euro;</span>
+            <input type="number" id="niet-bedrag" step="0.01" min="0" value="0">
+          </div>
         </div>
         <div class="veld">
-          <label for="niet-jaar">Heffing vindt plaats over
-            <span class="hint">Aantal jaren vanaf nu. Bij een IB-ondernemer bijvoorbeeld het vermoedelijke stakingsjaar.</span>
-          </label>
-          <input type="number" id="niet-jaar" step="1" min="0" value="30"> jaar
+          <label for="niet-jaar">Heffing vindt plaats over</label>
+          <div class="met-eenheid">
+            <input type="number" id="niet-jaar" step="1" min="0" value="30">
+            <span class="eenheid">jaar</span>
+          </div>
+          <span class="hint">Aantal jaren vanaf nu; bij een IB-ondernemer bijvoorbeeld het vermoedelijke stakingsjaar.</span>
         </div>
       </div>
     </fieldset>
@@ -839,13 +858,15 @@ function voegPostToe(bedrag, termijn, soort) {
     '<button type="button" class="licht verwijder">Verwijderen</button></div>' +
     '<div class="rij">' +
       '<div class="veld"><label for="bedrag-' + n + '">Meerwaarde</label>' +
-      '<input type="number" id="bedrag-' + n + '" class="bedrag-in" step="0.01" min="0" value="' + bedrag + '"></div>' +
+      '<div class="met-eenheid"><span class="eenheid">&euro;</span>' +
+      '<input type="number" id="bedrag-' + n + '" class="bedrag-in" step="0.01" min="0" value="' + bedrag + '"></div></div>' +
       '<div class="veld"><label for="termijn-' + n + '">Af te schrijven in</label>' +
-      '<input type="number" id="termijn-' + n + '" class="termijn-in" step="1" min="0" value="' + termijn + '"> jaar</div>' +
+      '<div class="met-eenheid"><input type="number" id="termijn-' + n + '" class="termijn-in" step="1" min="0" value="' + termijn + '">' +
+      '<span class="eenheid">jaar</span></div></div>' +
       '<div class="veld"><label for="soort-' + n + '">Soort</label>' +
       '<select id="soort-' + n + '" class="soort-in">' +
-        '<option value="goodwill"' + (soort === 'goodwill' ? ' selected' : '') + '>Goodwill (ten hoogste 10% per jaar)</option>' +
-        '<option value="overig"' + (soort === 'overig' ? ' selected' : '') + '>Ander bedrijfsmiddel (ten hoogste 20% per jaar)</option>' +
+        '<option value="goodwill"' + (soort === 'goodwill' ? ' selected' : '') + '>Goodwill (max. 10%)</option>' +
+        '<option value="overig"' + (soort === 'overig' ? ' selected' : '') + '>Ander bedrijfsmiddel (max. 20%)</option>' +
       '</select></div>' +
     '</div>';
   vak.querySelector('.verwijder').addEventListener('click', () => {
@@ -899,16 +920,24 @@ function toonTariefmodus() {
   const middel = document.getElementById('modus-middel').value;
   document.getElementById('modus-ib-velden').hidden = middel !== 'ib';
   document.getElementById('modus-inkomen-label').textContent = middel === 'ib'
-    ? 'Verwacht belastbaar inkomen uit werk en woning per jaar'
+    ? 'Verwacht inkomen per jaar'
     : 'Verwacht belastbaar bedrag per jaar';
   document.getElementById('modus-inkomen-hint').textContent = middel === 'ib'
-    ? 'Voor de jaren waarin de afschrijving zou hebben gelopen, zonder de gemiste ' +
-      'afschrijving zelf en zonder de latente winst. Eén bedrag voor al die jaren: een ' +
-      'bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.'
-    : 'De overige winst van de jaren waarin de afschrijving zou hebben gelopen, zonder ' +
-      'de gemiste afschrijving zelf. Eén bedrag voor al die jaren.';
+    ? 'Belastbaar inkomen uit werk en woning in de jaren waarin de afschrijving zou hebben ' +
+      'gelopen, zonder de gemiste afschrijving en zonder de latente winst. Eén bedrag voor ' +
+      'al die jaren.'
+    : 'Belastbaar bedrag in de jaren waarin de afschrijving zou hebben gelopen, zonder de ' +
+      'gemiste afschrijving. Eén bedrag voor al die jaren.';
+  document.getElementById('modus-uitleg').textContent = perJaar
+    ? 'De gemiste afschrijving van elk jaar komt bovenop het verwachte inkomen; de ' +
+      'niet-afschrijfbare meerwaarde krijgt dezelfde behandeling in het jaar waarin zij ' +
+      'vrijvalt, tegen het inkomen van dát jaar. Zuiverder zolang de winst niet volledig ' +
+      'in de hoogste schijf valt. De tarieven van het gekozen jaar gelden voor alle jaren.'
+    : 'Eén tarief voor de gemiste afschrijving en één voor de uitgestelde heffing, beide ' +
+      'vast over de hele looptijd. Bedoeld voor een tarief dat uit een waardering of uit ' +
+      'onderhandeling komt, en voor winst die toch al ruim in de hoogste schijf valt.';
   document.getElementById('modus-vrijval-label').textContent = middel === 'ib'
-    ? 'Verwacht belastbaar inkomen uit werk en woning in het vrijvaljaar'
+    ? 'Verwacht inkomen in het vrijvaljaar'
     : 'Verwacht belastbaar bedrag in het vrijvaljaar';
 
   const afwijkend = document.getElementById('modus-afwijkend').checked;
@@ -1208,6 +1237,32 @@ toonTariefhulp();
         voor de winst apart. Ook is de <b>acute</b> heffing die een overdrager voorkomt door
         geruisloos door te schuiven iets anders dan de <b>latente</b> druk die de overnemer
         overneemt; dat hoeven niet dezelfde percentages te zijn.
+      </p>
+
+      <h3>De twee manieren om het tarief te bepalen</h3>
+      <p>
+        <b>Per jaar via de schijven</b> is de standaard. De gemiste afschrijving van elk jaar
+        komt bovenop het verwachte inkomen van dat jaar en de heffing daarover volgt uit de
+        schijven; de niet-afschrijfbare meerwaarde krijgt dezelfde behandeling in het jaar
+        waarin zij vrijvalt. Dat is zuiverder dan één tarief zolang de winst niet volledig in
+        de hoogste schijf valt: de tarieven lopen op, dus een bedrag dat over de jaren wordt
+        uitgesmeerd raakt lagere schijven dan hetzelfde bedrag ineens. De uitkomst is daarmee
+        lager of gelijk, nooit hoger.
+      </p>
+      <p>
+        <b>Eén vast tarief</b> blijft daarnaast staan, voor een tarief dat uit een waardering
+        of uit onderhandeling komt en voor winst die toch al ruim in de hoogste schijf valt.
+        Wie een berekening van vóór 8 september 2026 naloopt, gebruikt deze keuze met het
+        tarief dat toen is ingevuld.
+      </p>
+      <p>
+        <b>Het vrijvaljaar is geen gewoon jaar.</b> Valt de vrijval van de niet-afschrijfbare
+        meerwaarde samen met staking, dan komen in datzelfde jaar ook andere stille reserves,
+        fiscale reserves en overige stakingswinst tot de winst (art. 3.8 Wet IB 2001) en ligt
+        het inkomen hoger dan in de jaren ervoor. Daarom heeft dat jaar een eigen
+        inkomensveld, dat standaard gelijk is aan het inkomen van de andere jaren. Vul daar
+        het inkomen in vóór de meerwaarde die de tool zelf berekent, anders telt die dubbel;
+        overige stakingswinst hoort er juist wél in.
       </p>
 
       <h3>Wat conventie is en geen wettelijke regel</h3>
