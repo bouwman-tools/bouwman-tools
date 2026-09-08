@@ -25,8 +25,10 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
+| ⚪ verborgen | BankBridge | `/bankbridge.html` | Sylvainbouwman/BankBridge | **nee** | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 | 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 
+- **BankBridge**: Zet bankafschriften lokaal in de browser om naar MT940 en CAMT.053, met validatie voor export.
 - **Bewaarplicht Checker**: Berekent de wettelijke bewaartermijn (art. 52 AWR) per documenttype, inclusief de einddatum
 
 ## Arbeidsrecht & Compliance
@@ -151,6 +153,13 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 17b \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel17b)
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 18, leden 1-2 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel18)
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 19, leden 1-8 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel19)
+
+## Let op: niet afgeschermd
+
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
+
+- BankBridge (`bankbridge.html`)
 
 ## Workers
 
