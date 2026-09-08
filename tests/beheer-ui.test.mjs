@@ -62,6 +62,8 @@ for (const [name, response] of Object.entries(failures)) {
     assert.equal(node('email-input').value, 'synthetic@example.invalid');
     assert.equal(node('.btn-save').disabled, false);
     assert.equal(node('.btn-save').textContent, 'Opslaan');
+    assert.equal(node('voortgang').hidden, true);
+    assert.equal(node('sync-button').disabled, false);
     assert.ok(node('toast').textContent.length > 0);
     assert.doesNotMatch(node('toast').textContent, /opgeslagen|<html>/);
     assert.equal(requests.length, 1);
@@ -82,6 +84,38 @@ test('bevestigde opslag ververst overzicht, reset formulier en meldt succes', as
   // zonder dat bleef daar de stand van vóór deze opslag staan.
   assert.equal(requests.length, 3);
   assert.match(String(requests[2][0]), /\/admin\/status$/);
+});
+
+test('opslaan toont voortgang tijdens wachten en vervolgrondes, zonder dubbele wijziging', async () => {
+  const { context, node } = page(() => { throw new Error('Onverwachte fetch'); });
+  let eersteKlaar, controleKlaar;
+  const eerste = new Promise(resolve => { eersteKlaar = resolve; });
+  const controle = new Promise(resolve => { controleKlaar = resolve; });
+  const paden = [];
+  context.api = async path => { paden.push(path); return path === '/admin/upsert' ? eerste : controle; };
+  context.loadUsers = async () => {};
+  context.resetForm = () => {};
+  context.laadStatus = async () => {};
+  const klaar = context.saveUser();
+  assert.equal(node('voortgang').hidden, false);
+  assert.match(node('voortgang-tekst').textContent, /Rechten opslaan/);
+  assert.equal(node('.btn-save').disabled, true);
+  assert.equal(node('sync-button').disabled, true);
+  await context.saveUser();
+  await context.syncRechten();
+  await context.deleteUser('synthetic@example.invalid');
+  assert.deepEqual(paden, ['/admin/upsert']);
+  eersteKlaar({ voortzetten: true, bronHash: 'synthetic-hash', synchronisatie: { resterend: 3 } });
+  await new Promise(setImmediate);
+  assert.match(node('voortgang-tekst').textContent, /Nog 3 tools/);
+  assert.equal(node('voortgang').hidden, false);
+  assert.equal(node('toast').textContent, '');
+  controleKlaar({ ok: true });
+  await klaar;
+  assert.equal(node('voortgang').hidden, true);
+  assert.equal(node('.btn-save').disabled, false);
+  assert.equal(node('sync-button').disabled, false);
+  assert.match(node('toast').textContent, /Opgeslagen en toegang gecontroleerd/);
 });
 test('refreshfout na bevestigde opslag behoudt invoer en geeft geen algemene succesmelding', async () => {
   const { context, node } = page(async url => url.endsWith('/upsert')

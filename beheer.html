@@ -101,6 +101,11 @@
     }
     .btn-cancel:hover { background: #F5EBE0; }
 
+    .voortgang { padding: 16px 20px; margin-bottom: 20px; background: #fff;
+      border: 1px solid #E8C4A8; border-radius: 12px; color: #2C1A0E; }
+    .voortgang p { margin: 6px 0 12px; font-size: .85rem; color: #765843; }
+    .voortgang progress { width: 100%; height: 8px; accent-color: #C0522A; }
+
     /* Melding over de laatste synchronisatie of controle van de toegang.
        Zonder deze balk kan het bijwerken van de Access-policies stil mislukken. */
     .statusbalk {
@@ -151,6 +156,11 @@
 <main id="app" style="display:none">
 
   <div class="statusbalk" id="statusbalk" hidden></div>
+  <div class="voortgang" id="voortgang" role="status" aria-live="polite" hidden>
+    <strong id="voortgang-tekst">Toegang wordt bijgewerkt…</strong>
+    <p>Dit kan even duren. Laat deze pagina open; je krijgt bericht zodra het klaar is.</p>
+    <progress aria-label="Toegang wordt verwerkt"></progress>
+  </div>
 
   <div class="card" id="users-card">
     <div class="section-title">Huidige gebruikers</div>
@@ -335,16 +345,38 @@
     buildToolsGrid([]);
   }
 
+  let verwerkingBezig = false;
+  function toonVoortgang(tekst) {
+    document.getElementById('voortgang-tekst').textContent = tekst;
+    document.getElementById('voortgang').hidden = false;
+  }
+  function startVerwerking(tekst) {
+    verwerkingBezig = true;
+    document.querySelector('.btn-save').disabled = true;
+    document.getElementById('sync-button').disabled = true;
+    toonVoortgang(tekst);
+    document.getElementById('voortgang').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function stopVerwerking() {
+    verwerkingBezig = false;
+    document.getElementById('voortgang').hidden = true;
+    document.querySelector('.btn-save').disabled = false;
+    document.getElementById('sync-button').disabled = false;
+  }
+
   async function saveUser() {
+    if (verwerkingBezig) return;
     const email = editingEmail || document.getElementById('email-input').value.trim();
     if (!email) { showToast('Voer een e-mailadres in.'); return; }
     const tools = getSelectedTools();
     const btn = document.querySelector('.btn-save');
     btn.textContent = 'Opslaan…';
     btn.disabled = true;
+    startVerwerking('Rechten opslaan en toegang bijwerken…');
     try {
       const opslagMoment = Date.now();
       const resultaat = await voltooiSynchronisatie(await api('/admin/upsert', 'POST', { email, tools }));
+      toonVoortgang('Gebruikersoverzicht en laatste controle ophalen…');
       await loadUsers();
       resetForm();
       document.getElementById('users-card').scrollIntoView({ behavior: 'smooth' });
@@ -355,32 +387,40 @@
     } catch (e) {
       showToast(e.message);
     } finally {
+      stopVerwerking();
       btn.textContent = 'Opslaan';
       btn.disabled = false;
     }
   }
 
   async function deleteUser(email) {
+    if (verwerkingBezig) return;
     if (!confirm(`${email} verwijderen?`)) return;
+    startVerwerking('Gebruiker verwijderen en toegang bijwerken…');
     try {
       await voltooiSynchronisatie(await api('/admin/delete', 'POST', { email }));
       await loadUsers();
       showToast(`${email} verwijderd.`);
       await laadStatus();
     } catch (e) { showToast(e.message); }
+    finally { stopVerwerking(); }
   }
 
   async function syncRechten() {
+    if (verwerkingBezig) return;
     const btn = document.getElementById('sync-button');
     btn.disabled = true;
     btn.textContent = 'Synchroniseren en controleren…';
+    startVerwerking('Bestaande rechten vergelijken met de toegang…');
     try {
       const resultaat = await voltooiSynchronisatie(await api('/admin/sync', 'POST', {}));
+      toonVoortgang('Laatste controle ophalen…');
       await laadStatus();
       showToast(resultaat.ok ? 'Synchronisatie en nacontrole afgerond.' :
         'Synchronisatie niet volledig gelukt. Bekijk de beheerstatus.');
     } catch (e) { showToast(e.message); }
     finally {
+      stopVerwerking();
       btn.disabled = false;
       btn.textContent = 'Bestaande rechten synchroniseren';
     }
@@ -391,6 +431,10 @@
     // De bronhash voorkomt dat een andere wijziging of oude KV-replica ongemerkt
     // de rechten van een lopende synchronisatie vervangt.
     for (let stap = 0; resultaat.voortzetten && stap < 12; stap++) {
+      const resterend = resultaat.synchronisatie?.resterend;
+      toonVoortgang(Number.isInteger(resterend) && resterend > 0
+        ? `Nog ${resterend} tools bijwerken; daarna de toegang controleren…`
+        : 'Toegang opnieuw controleren…');
       resultaat = await api('/admin/sync', 'POST', { bronHash: resultaat.bronHash });
     }
     if (resultaat.voortzetten) throw new Error('Synchronisatie heeft nog open stappen. Start opnieuw.');
