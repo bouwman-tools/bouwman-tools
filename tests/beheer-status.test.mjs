@@ -74,30 +74,62 @@ for (const [naam, tijdstip] of [['ontbrekend tijdstip', undefined], ['onleesbaar
   });
 }
 
-test('401 in de synchronisatie wijst naar het token en niet naar opnieuw opslaan', async () => {
+test('een oude 401 blijft in de verleden tijd en eist geen nieuw token', async () => {
   const balk = await toon({
     synchronisatie: { tijdstip: '2026-09-08T08:32:13Z', mislukt: 30, fouten: [fout401('portal.html')] },
     controle: oudeControle,
   });
-  assert.match(balk.innerHTML, /token van de worker niet \(HTTP 401\)/);
-  assert.doesNotMatch(balk.innerHTML, /sla hieronder een gebruiker op/);
+  assert.match(balk.innerHTML, /weigerde Cloudflare de authenticatie/);
+  // De pagina kent een tokenwissel niet en mag dus geen actuele weigering claimen.
+  assert.doesNotMatch(balk.innerHTML, /accepteert het token/);
+  assert.doesNotMatch(balk.innerHTML, /vraagt een nieuw token/);
+  assert.match(balk.innerHTML, /blijkt pas uit een nieuwe controle/);
   assert.match(balk.className, /fout/);
 });
 
-test('401 laat de oorzaak open in plaats van verlopen te beweren', async () => {
+test('een oude 401 waarschuwt tegen opnieuw invoeren op grond van historie', async () => {
   const balk = await toon({
     synchronisatie: { tijdstip: '2026-09-08T08:32:13Z', mislukt: 1, fouten: [fout401('bua.html')] },
   });
-  assert.match(balk.innerHTML, /verlopen, vervangen of ontbrekend/);
+  assert.match(balk.innerHTML, /niet opnieuw in op grond van deze historische melding/);
 });
 
-test('een andere fout dan 401 houdt het advies om opnieuw op te slaan', async () => {
+test('geen enkele fout levert het advies om een gebruiker op te slaan', async () => {
+  for (const reden of ['policy bijwerken gaf HTTP 500', 'scriptlijst ophalen gaf HTTP 403',
+                       'policies ophalen gaf HTTP 401']) {
+    const balk = await toon({
+      synchronisatie: { tijdstip: '2026-09-08T11:00:00Z', mislukt: 1, fouten: [{ tool: 'bua.html', reden }] },
+    });
+    assert.doesNotMatch(balk.innerHTML, /sla hieronder een gebruiker op/);
+  }
+});
+
+test('een andere fout dan 401 noemt de uitslag van dat moment', async () => {
   const balk = await toon({
     synchronisatie: { tijdstip: '2026-09-08T11:00:00Z', mislukt: 1,
       fouten: [{ tool: 'bua.html', reden: 'policy bijwerken gaf HTTP 500' }] },
   });
-  assert.match(balk.innerHTML, /sla hieronder een gebruiker op/);
-  assert.doesNotMatch(balk.innerHTML, /HTTP 401/);
+  assert.match(balk.innerHTML, /uitslag van dat moment/);
+  assert.doesNotMatch(balk.innerHTML, /401/);
+});
+
+test('na een opslag meldt de balk dat de synchronisatie nog niet is weggeschreven', async () => {
+  const { context, balk } = page({
+    synchronisatie: { tijdstip: '2026-09-08T08:32:13Z', mislukt: 30, fouten: [fout401('portal.html')] },
+  });
+  await context.laadStatus(Date.parse('2026-09-08T11:50:00Z'));
+  assert.match(balk.innerHTML, /nog niet weggeschreven/);
+  assert.match(balk.innerHTML, /zegt niets over wat je net hebt opgeslagen/);
+  assert.match(balk.className, /(fout|onbekend)/);
+});
+
+test('een synchronisatie van ná de opslag geldt wel als de nieuwe uitslag', async () => {
+  const { context, balk } = page({
+    synchronisatie: { tijdstip: '2026-09-08T11:55:00Z', gelukt: 35, mislukt: 0, fouten: [] },
+  });
+  await context.laadStatus(Date.parse('2026-09-08T11:50:00Z'));
+  assert.doesNotMatch(balk.innerHTML, /nog niet weggeschreven/);
+  assert.match(balk.innerHTML, /35 tools bijgewerkt/);
 });
 
 test('403 wordt niet als authenticatiefout gelezen', async () => {
