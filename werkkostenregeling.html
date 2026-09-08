@@ -543,7 +543,7 @@ function vindplaatsen(jaar) {
 // hun getallen uit dezelfde functie halen.
 
 const TOOLNAAM = 'werkkostenregeling';
-const TOOLVERSIE = '2026-09-07';
+const TOOLVERSIE = '2026-09-08';
 const DOSSIER_VERSIE = 1;
 
 const euro = function (bedrag, decimalen) {
@@ -1034,12 +1034,29 @@ function dossierNaarJson(d) {
 
 // Een onbekend veld wordt genegeerd. Een ontbrekend veld geeft een zichtbare
 // melding en blijft leeg; er komt nooit stilzwijgend een standaardwaarde in.
+/**
+ * Bepaalt of een waarde uit een dossierbestand als bedrag telt.
+ *
+ * Toegestaan is een eindig getal, of een tekst die er een bevat. Alles daarbuiten
+ * blijft leeg en wordt gemeld. `Number()` alleen is hier te soepel: die maakt van
+ * `true` een 1 en van `false`, `[]` of een enkele spatie een 0. Een veld dat leeg
+ * oogt werd daardoor stil een bedrag, en bij het fiscaal loon is dat de grondslag
+ * van de vrije ruimte.
+ */
+function bedragUitDossier(waarde) {
+  if (typeof waarde === 'number' && Number.isFinite(waarde)) return waarde;
+  if (typeof waarde === 'string' && waarde.trim() !== '' && Number.isFinite(Number(waarde))) {
+    return Number(waarde);
+  }
+  return null;
+}
+
 function jsonNaarDossier(tekst, aantalPosten) {
   let doc;
   try {
     doc = JSON.parse(tekst);
   } catch (fout) {
-    throw new Error('Dit bestand is geen leesbaar dossierbestand: ' + fout.message);
+    throw new Error('Dit bestand is geen leesbaar dossierbestand: de JSON kon niet worden gelezen.');
   }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
     throw new Error('Dit bestand is geen leesbaar dossierbestand.');
@@ -1062,20 +1079,24 @@ function jsonNaarDossier(tekst, aantalPosten) {
     );
   }
 
-  const bron = doc.invoer && typeof doc.invoer === 'object' ? doc.invoer : null;
+  // Een lijst is wel een object maar geen invoer. De toplaag sluit een array al uit;
+  // zonder deze controle glipte hij hier alsnog door en kwam het formulier leeg terug
+  // met een melding per veld, in plaats van een nette weigering.
+  const bron = doc.invoer && typeof doc.invoer === 'object' && !Array.isArray(doc.invoer)
+    ? doc.invoer : null;
   if (!bron) {
     throw new Error('Het dossierbestand bevat geen invoer.');
   }
 
   const invoer = {};
   DOSSIERVELDEN.forEach(function (veld) {
-    const waarde = bron[veld];
-    if (waarde === null || waarde === undefined || waarde === '' || !Number.isFinite(Number(waarde))) {
+    const bedrag = bedragUitDossier(bron[veld]);
+    if (bedrag === null) {
       invoer[veld] = null;
       meldingen.push('Het veld "' + veld + '" ontbreekt in het bestand of is geen getal. '
         + 'Het is leeg gelaten; vul het zelf in.');
     } else {
-      invoer[veld] = Number(waarde);
+      invoer[veld] = bedrag;
     }
   });
 
@@ -1087,14 +1108,14 @@ function jsonNaarDossier(tekst, aantalPosten) {
   } else {
     posten = [];
     for (let i = 0; i < aantalPosten; i++) {
-      const waarde = bron.posten[i];
-      if (waarde === null || waarde === undefined || waarde === '' || !Number.isFinite(Number(waarde))) {
+      const bedrag = bedragUitDossier(bron.posten[i]);
+      if (bedrag === null) {
         posten.push(null);
         if (i < bron.posten.length) {
           meldingen.push('Post ' + (i + 1) + ' in het bestand is geen bedrag en is leeg gelaten.');
         }
       } else {
-        posten.push(Number(waarde));
+        posten.push(bedrag);
       }
     }
     if (bron.posten.length !== aantalPosten) {
@@ -1614,6 +1635,9 @@ els.bestandKiezer.addEventListener('change', function () {
   if (!bestand) return;
   const lezer = new FileReader();
   lezer.onerror = function () { status('Het bestand kon niet worden gelezen.'); };
+  lezer.onabort = function () {
+    status('Het openen van het bestand is afgebroken; er is niets gewijzigd.');
+  };
   lezer.onload = function () {
     let dossier;
     try {
