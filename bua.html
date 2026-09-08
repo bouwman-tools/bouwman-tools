@@ -147,6 +147,17 @@
       .grid2, .rij-velden { grid-template-columns: 1fr; }
       main { padding: 24px 16px 60px; }
     }
+    #printDossier { display: none; }
+    @media print {
+      @page { size: A4; margin: 15mm; }
+      body > header, body > main { display: none !important; }
+      #printDossier { display: block; font-size: 10pt; color: #000; }
+      #printDossier h1 { font-size: 18pt; margin-bottom: 16pt; }
+      #printDossier h2 { font-size: 13pt; margin: 16pt 0 6pt; break-after: avoid; }
+      #printDossier table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+      #printDossier td { padding: 5pt; border-bottom: 1px solid #ccc; vertical-align: top; overflow-wrap: anywhere; white-space: pre-wrap; }
+      #printDossier tr { break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
@@ -250,6 +261,18 @@
       <button type="button" id="kopieer" hidden>Berekening kopiëren</button>
     </div>
 
+    <div class="card">
+      <h2>Dossier bewaren en meenemen</h2>
+      <p class="hint">Bewaar geldige invoer als JSON om later te herstellen. Print en Excel bevatten de actuele invoer, uitkomst, meldingen en bronnen. Bestanden blijven op uw apparaat.</p>
+      <div class="knoppen">
+        <button type="button" id="bewaarDossier">Dossier bewaren (JSON)</button>
+        <button type="button" id="openDossier">Dossier openen (JSON)</button>
+        <button type="button" id="printKnop">Print / PDF</button>
+        <button type="button" id="excelKnop">Excel downloaden (.xlsx)</button>
+      </div>
+      <input type="file" id="dossierBestand" accept=".json,application/json" hidden>
+      <p id="dossierMelding" role="status" aria-live="polite" style="margin-top:12px"></p>
+    </div>
     <div id="uitkomst" hidden></div>
 
     <div class="section-title">Toelichting</div>
@@ -292,12 +315,13 @@
     </details>
 
     <footer>
-      Rekent volledig in uw browser; er worden geen gegevens verzonden of opgeslagen.
+      Rekent volledig in uw browser; er worden geen gegevens verzonden of automatisch opgeslagen. U kunt zelf een dossierbestand downloaden.
       Deze uitkomst is een hulpmiddel en geen fiscaal advies.
       <span id="controleDatum"></span>
     </footer>
   </div>
 </main>
+<article id="printDossier" aria-label="Printdossier"></article>
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
@@ -810,6 +834,7 @@ function voegRijToe(prefix, omschrijving, soort) {
   rijTeller += 1;
   const container = $(prefix === 'overige' ? 'overigeRijen' : 'giftRijen');
   container.insertAdjacentHTML('beforeend', rijHtml(prefix, rijTeller, omschrijving || '', soort));
+  wisUitkomst();
 }
 
 function leesRijen(prefix) {
@@ -977,6 +1002,249 @@ function alsTekst(uit) {
   return r.join('\n');
 }
 
+// DOSSIERUITGANGEN — geen fiscale rekenregels; één momentopname voor alle uitgangen.
+const DOSSIER_VERSIE = 1;
+const TOOL_VERSIE = '1.1.0';
+const KANTINE_VELDEN = {
+  aanschafkostenExclBtw: ['kantineKosten', 'Aanschafkosten spijzen en dranken exclusief btw'],
+  deelDerdenExclBtw: ['kantineDerden', 'Deel derden exclusief btw'],
+  omzetPersoneelInclBtw: ['kantineOmzet', 'Omzet personeel inclusief btw'],
+  aantalWerknemers: ['kantineWerknemers', 'Aantal werknemers met toegang'],
+};
+const RIJ_VELDEN = {
+  omschrijving: 'Omschrijving', uitgavenExclBtw: 'Uitgaven exclusief btw',
+  btwOpUitgaven: 'Btw op uitgaven', aantalBegunstigden: 'Aantal begunstigden',
+  eigenBijdrageExclBtw: 'Eigen bijdrage exclusief btw', btwOverEigenBijdrage: 'Btw over eigen bijdrage',
+};
+
+function dossierMelding(tekst) { $('dossierMelding').textContent = tekst; }
+function wisUitkomst() {
+  $('uitkomst').hidden = true;
+  $('uitkomst').innerHTML = '';
+  $('kopieer').hidden = true;
+  $('printDossier').innerHTML = '';
+}
+
+function controleerInvoer(data) {
+  function vorm(obj, velden, naam) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) ||
+        Object.keys(obj).length !== velden.length || velden.some(k => !Object.hasOwn(obj, k))) {
+      throw new Error(naam + ': onjuiste velden of structuur.');
+    }
+  }
+  function numeriek(v, naam) {
+    if (!['string', 'number'].includes(typeof v) ||
+        (typeof v === 'string' && v.length > 100) || getal(v) === null) {
+      throw new Error(naam + ': verwacht een eindig getal of een leeg invoerveld.');
+    }
+    // Number-inputs gebruiken een punt; normaliseer toegestane komma-invoer vóór herstel.
+    return v === '' ? '' : String(getal(v));
+  }
+  vorm(data, ['jaar', 'gebrokenBoekjaar', 'kantine', 'overige', 'giften'], 'Invoer');
+  if (!['string', 'number'].includes(typeof data.jaar) || !isGeldigBoekjaar(Number(data.jaar)) ||
+      typeof data.gebrokenBoekjaar !== 'boolean') throw new Error('Boekjaar of boekjaarsoort is ongeldig.');
+  vorm(data.kantine, Object.keys(KANTINE_VELDEN), 'Kantine');
+  const invoer = {jaar: String(Number(data.jaar)), gebrokenBoekjaar: data.gebrokenBoekjaar, kantine: {}};
+  Object.keys(KANTINE_VELDEN).forEach(k => { invoer.kantine[k] = numeriek(data.kantine[k], KANTINE_VELDEN[k][1]); });
+  ['overige', 'giften'].forEach(groep => {
+    if (!Array.isArray(data[groep]) || data[groep].length > 1000) throw new Error(groep + ': verwacht maximaal 1000 rijen.');
+    invoer[groep] = data[groep].map((rij, index) => {
+      vorm(rij, Object.keys(RIJ_VELDEN), groep + ' rij ' + (index + 1));
+      if (typeof rij.omschrijving !== 'string' || rij.omschrijving.length > 2000) throw new Error('Omschrijving ontbreekt of is langer dan 2000 tekens.');
+      const uit = {omschrijving: rij.omschrijving};
+      Object.keys(RIJ_VELDEN).filter(k => k !== 'omschrijving').forEach(k => { uit[k] = numeriek(rij[k], RIJ_VELDEN[k]); });
+      return uit;
+    });
+  });
+  const resultaat = berekenBua(invoer);
+  if (!resultaat.geldig) throw new Error(resultaat.meldingen.map(m => m.tekst).join(' '));
+  function eindig(x) {
+    if (typeof x === 'number' && !Number.isFinite(x)) throw new Error('De bedragen zijn te groot om betrouwbaar te verwerken.');
+    if (x && typeof x === 'object') Object.values(x).forEach(eindig);
+  }
+  eindig(resultaat);
+  return {invoer, resultaat};
+}
+
+function maakDossier() {
+  if (Array.from(document.querySelectorAll('input[type="number"]')).some(i => i.validity.badInput)) {
+    throw new Error('Controleer de getalvelden; een waarde kan niet worden gelezen.');
+  }
+  const data = controleerInvoer(leesInvoer());
+  toonUitkomst(data.resultaat);
+  return {tool: 'BUA', schemaVersie: DOSSIER_VERSIE, toolVersie: TOOL_VERSIE,
+    bronnenGecontroleerd: BRONNEN_GECONTROLEERD, gemaaktOp: new Date().toISOString(),
+    ...data, bronnen: BRONNEN};
+}
+
+function leesDossier(tekst) {
+  if (typeof tekst !== 'string' || tekst.length > 5 * 1024 * 1024) throw new Error('Dossier is te groot (maximaal 5 MB).');
+  let data;
+  try { data = JSON.parse(tekst); } catch (_) { throw new Error('Dit bestand bevat geen leesbare JSON.'); }
+  if (!data || Array.isArray(data) || data.tool !== 'BUA' || data.schemaVersie !== DOSSIER_VERSIE ||
+      typeof data.toolVersie !== 'string' || typeof data.bronnenGecontroleerd !== 'string') {
+    throw new Error('Geen ondersteund BUA-dossier (schemaversie 1).');
+  }
+  // Opgeslagen resultaten en bronnen zijn alleen archiefinformatie, nooit rekeninvoer.
+  return {...controleerInvoer(data.invoer), oudereVersie: data.toolVersie !== TOOL_VERSIE || data.bronnenGecontroleerd !== BRONNEN_GECONTROLEERD};
+}
+
+function herstelDossier(data) {
+  // Bouw beide rijgroepen los van de live DOM; pas na volledige validatie en opbouw vervangen.
+  const groepen = ['overige', 'giften'].map(groep => {
+    const container = document.createElement('div');
+    data.invoer[groep].forEach(rij => {
+      const prefix = groep === 'overige' ? 'overige' : 'gift';
+      container.insertAdjacentHTML('beforeend', rijHtml(prefix, ++rijTeller, rij.omschrijving, prefix));
+      const el = container.lastElementChild;
+      Object.keys(RIJ_VELDEN).forEach(k => { el.querySelector('[data-veld="' + k + '"]').value = rij[k]; });
+    });
+    return Array.from(container.children);
+  });
+  $('jaar').value = data.invoer.jaar;
+  $('gebrokenBoekjaar').value = data.invoer.gebrokenBoekjaar ? 'ja' : 'nee';
+  Object.keys(KANTINE_VELDEN).forEach(k => { $(KANTINE_VELDEN[k][0]).value = data.invoer.kantine[k]; });
+  $('overigeRijen').replaceChildren(...groepen[0]);
+  $('giftRijen').replaceChildren(...groepen[1]);
+  wisUitkomst();
+  toonUitkomst(data.resultaat);
+}
+
+async function importeerBestand(bestand) {
+  if (!bestand) { dossierMelding('Geen bestand gekozen; invoer behouden.'); return; }
+  const beginInvoer = JSON.stringify(leesInvoer());
+  try {
+    if (bestand.size > 5 * 1024 * 1024) throw new Error('Dossier is te groot (maximaal 5 MB).');
+    const data = leesDossier(await bestand.text());
+    if (beginInvoer !== JSON.stringify(leesInvoer())) throw new Error('De invoer is tijdens het lezen gewijzigd. Kies het dossier opnieuw.');
+    if (!window.confirm('De huidige invoer vervangen door dit BUA-dossier?')) { dossierMelding('Import geannuleerd; invoer behouden.'); return; }
+    herstelDossier(data);
+    dossierMelding('Dossier hersteld en opnieuw berekend.' + (data.oudereVersie ? ' Het dossier gebruikte een andere tool- of bronversie; controleer de nieuwe uitkomst.' : ''));
+  } catch (fout) { dossierMelding('Import niet uitgevoerd. ' + fout.message); }
+  finally { $('dossierBestand').value = ''; }
+}
+
+function dossierTabellen(d) {
+  const invoer = [['Boekjaar', Number(d.invoer.jaar)], ['Gebroken boekjaar', d.invoer.gebrokenBoekjaar ? 'Ja' : 'Nee']];
+  Object.keys(KANTINE_VELDEN).forEach(k => invoer.push([KANTINE_VELDEN[k][1], d.invoer.kantine[k] === '' ? '(leeg; rekent als 0)' : Number(d.invoer.kantine[k])]));
+  ['overige', 'giften'].forEach(groep => {
+    if (!d.invoer[groep].length) invoer.push([groep === 'overige' ? 'Personeelsvoorzieningen' : 'Relatiegeschenken en giften', 'Geen rijen']);
+    d.invoer[groep].forEach((rij, i) => Object.keys(RIJ_VELDEN).forEach(k => invoer.push([
+      (groep === 'overige' ? 'Voorziening ' : 'Gift ') + (i + 1) + ' — ' + RIJ_VELDEN[k],
+      k === 'omschrijving' ? rij[k] : rij[k] === '' ? '(leeg; rekent als 0)' : Number(rij[k]),
+    ])));
+  });
+  const resultaat = [['Correctie kantine', d.resultaat.correctieKantine], ['Correctie overige personeelsvoorzieningen', d.resultaat.correctieOverige],
+    ['Correctie relatiegeschenken en giften', d.resultaat.correctieGiften], ['Totaal uit te sluiten btw', d.resultaat.totaalCorrectie]];
+  // Dezelfde tussenresultaten als op het scherm, met leesbare dossierlabels.
+  const k = d.resultaat.kantine;
+  [['Aanschafkosten personeel', k.kostenPersoneel], ['Kantineopslag', k.opslag],
+    ['Kantinebedrag waarmee wordt vergeleken', k.bedragArt3], ['Kantineverschil', k.verschil],
+    ['Kantineverschil per werknemer', k.verschilPerWerknemer], ['Drempel per begunstigde', d.resultaat.drempel],
+    ['Totaal personeel per begunstigde', d.resultaat.totaalPersoneelPerBegunstigde],
+    ['Drempel personeel overschreden', d.resultaat.drempelOverschredenPersoneel ? 'Ja' : 'Nee'],
+    ['Eigen bijdrage verlaagt drempeltoets', d.resultaat.waarden.eigenBijdrageVerlaagtDrempeltoets ? 'Ja' : 'Nee'],
+  ].forEach(r => resultaat.push(r));
+  ['overige', 'giften'].forEach(groep => {
+    const label = groep === 'overige' ? 'Voorzieningen' : 'Geschenken en giften';
+    resultaat.push([label + ' — drempeltotaal per begunstigde', d.resultaat[groep].drempeltotaal]);
+    resultaat.push([label + ' — drempel zelfstandig overschreden',
+      (groep === 'overige' ? d.resultaat.overigeOverschrijdt : d.resultaat.giftenOverschrijdt) ? 'Ja' : 'Nee']);
+    d.resultaat[groep].rijen.forEach((rij, i) => {
+      const prefix = label + ' rij ' + (i+1) + ' — ' + rij.naam + ' — ';
+      resultaat.push([prefix + 'uitgaven per begunstigde', rij.uitgavenPerBegunstigde],
+        [prefix + 'eigen bijdrage per begunstigde', rij.eigenBijdragePerBegunstigde],
+        [prefix + 'bijdrage aan drempeltoets', rij.drempelbijdrage]);
+    });
+  });
+  return [
+    ['Dossier', [['BUA en kantineregeling', 'Dossiermomentopname; herbereken wijzigingen in de tool'], ['Eenheid', 'Bedragen in EUR, tenzij aantallen of anders vermeld'], ['Toolversie', d.toolVersie],
+      ['Schemaversie', d.schemaVersie], ['Bronnen gecontroleerd', d.bronnenGecontroleerd], ['Gemaakt op (UTC)', d.gemaaktOp]]],
+    ['Invoer', invoer], ['Resultaat', resultaat],
+    ['Meldingen', d.resultaat.meldingen.length ? d.resultaat.meldingen.map(m => [m.soort, m.tekst]) : [['Meldingen', 'Geen meldingen uit de berekening.']]],
+    ['Bronnen', Object.values(d.bronnen).map(b => [b.naam, b.url, b.toelichting])],
+  ];
+}
+
+function printHtml(d) {
+  return '<h1>BUA-dossier — boekjaar ' + esc(d.invoer.jaar) + '</h1>' + dossierTabellen(d).map(([naam, rijen]) =>
+    '<section><h2>' + esc(naam) + '</h2><table><tbody>' + rijen.map(rij => '<tr>' + rij.map(v => '<td>' + esc(v) + '</td>').join('') + '</tr>').join('') + '</tbody></table></section>').join('');
+}
+
+// Minimale OOXML-werkmap in een ZIP zonder compressie: lokaal, zonder CDN of bibliotheek.
+// Alle tekst is inlineStr (nooit een Excel-formule); ongeldige XML-tekens worden vervangen.
+function xmlTekst(v) {
+  return esc(String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '\uFFFD')
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD'));
+}
+function zipBestanden(bestanden) {
+  const encoder = new TextEncoder(), stukken = [], index = [];
+  let offset = 0;
+  function crc32(bytes) {
+    let crc = -1;
+    for (const b of bytes) { crc ^= b; for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xEDB88320 : 0); }
+    return (crc ^ -1) >>> 0;
+  }
+  function header(lengte, velden) {
+    const b = new Uint8Array(lengte), v = new DataView(b.buffer);
+    velden.forEach(([positie, waarde, grootte]) => grootte === 2 ? v.setUint16(positie, waarde, true) : v.setUint32(positie, waarde, true));
+    return b;
+  }
+  for (const [pad, xml] of bestanden) {
+    const naam = encoder.encode(pad), data = encoder.encode(xml), crc = crc32(data);
+    const lokaal = header(30, [[0,0x04034b50,4],[4,20,2],[12,33,2],[14,crc,4],[18,data.length,4],[22,data.length,4],[26,naam.length,2]]);
+    stukken.push(lokaal, naam, data);
+    index.push(header(46, [[0,0x02014b50,4],[4,20,2],[6,20,2],[14,33,2],[16,crc,4],[20,data.length,4],[24,data.length,4],[28,naam.length,2],[42,offset,4]]), naam);
+    offset += lokaal.length + naam.length + data.length;
+  }
+  const indexLengte = index.reduce((n,b) => n + b.length, 0);
+  const einde = header(22, [[0,0x06054b50,4],[8,bestanden.length,2],[10,bestanden.length,2],[12,indexLengte,4],[16,offset,4]]);
+  return new Blob([...stukken, ...index, einde], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function maakXlsx(d) {
+  const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const rel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const tabellen = dossierTabellen(d);
+  const bestanden = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' + tabellen.map((_,i) => '<Override PartName="/xl/worksheets/sheet' + (i+1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('') + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="' + rel + '/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml', '<workbook xmlns="' + ns + '" xmlns:r="' + rel + '"><sheets>' + tabellen.map(([naam],i) => '<sheet name="' + naam + '" sheetId="' + (i+1) + '" r:id="rId' + (i+1) + '"/>').join('') + '</sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + tabellen.map((_,i) => '<Relationship Id="rId' + (i+1) + '" Type="' + rel + '/worksheet" Target="worksheets/sheet' + (i+1) + '.xml"/>').join('') + '<Relationship Id="styles" Type="' + rel + '/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml', '<styleSheet xmlns="' + ns + '"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF2C1A0E"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="4"><xf fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf fontId="1" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1"/></xf><xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="1" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+  ];
+  tabellen.forEach(([naam, rijen], i) => {
+    const alle = [[naam, 'Waarde', ...(naam === 'Bronnen' ? ['Toelichting'] : [])], ...rijen];
+    bestanden.push(['xl/worksheets/sheet' + (i+1) + '.xml', '<worksheet xmlns="' + ns + '"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="65" customWidth="1"/><col min="2" max="3" width="80" customWidth="1"/></cols><sheetData>' + alle.map((rij,r) => {
+      const hoogte = Math.max(22, ...rij.map(v => Math.ceil(String(v).length / 65) * 15 + 8));
+      return '<row r="' + (r+1) + '" ht="' + Math.min(409, hoogte) + '" customHeight="1">' + rij.map((v,c) => {
+        const ref = String.fromCharCode(65+c) + (r+1);
+        if (typeof v === 'number') {
+          if (!Number.isFinite(v)) throw new Error('Ongeldige getalwaarde in Excel-uitvoer.');
+          return '<c r="' + ref + '" s="' + (Number.isInteger(v) ? 3 : 2) + '"><v>' + v + '</v></c>';
+        }
+        return '<c r="' + ref + '" s="' + (r === 0 ? 1 : 0) + '" t="inlineStr"><is><t xml:space="preserve">' + xmlTekst(v) + '</t></is></c>';
+      }).join('') + '</row>';
+    }).join('') + '</sheetData><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><pageSetup orientation="landscape" paperSize="9"/></worksheet>']);
+  });
+  return zipBestanden(bestanden);
+}
+
+function downloadDossier(blob, naam) {
+  const url = URL.createObjectURL(blob), link = document.createElement('a');
+  link.href = url; link.download = naam; document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function dossierActie(actie) {
+  try {
+    const d = maakDossier();
+    if (actie === 'json') downloadDossier(new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'}), 'BUA-' + d.invoer.jaar + '.json');
+    if (actie === 'xlsx') downloadDossier(maakXlsx(d), 'BUA-' + d.invoer.jaar + '.xlsx');
+    if (actie === 'print') { $('printDossier').innerHTML = printHtml(d); window.print(); }
+    dossierMelding(actie === 'print' ? 'Printdossier geopend; u kunt ook opslaan als PDF.' : 'Dossierdownload klaargezet.');
+  } catch (fout) { wisUitkomst(); dossierMelding('Geen uitvoer gemaakt. ' + fout.message); }
+}
+
+
 function bouwPagina() {
   const select = $('jaar');
   JAREN.slice().reverse().forEach(function (jaar) {
@@ -1003,7 +1271,7 @@ function bouwPagina() {
 
   document.addEventListener('click', function (e) {
     const id = e.target && e.target.getAttribute && e.target.getAttribute('data-verwijder');
-    if (id && $(id)) $(id).remove();
+    if (id && $(id)) { $(id).remove(); wisUitkomst(); }
   });
 
   $('bereken').addEventListener('click', function () {
@@ -1017,8 +1285,8 @@ function bouwPagina() {
     $('giftRijen').innerHTML = '';
     STANDAARD_VOORZIENINGEN.forEach(function (naam) { voegRijToe('overige', naam, 'voorziening'); });
     STANDAARD_GIFTEN.forEach(function (naam) { voegRijToe('gift', naam, 'gift'); });
-    $('uitkomst').hidden = true;
-    $('kopieer').hidden = true;
+    wisUitkomst();
+    dossierMelding('Invoer leeggemaakt.');
   });
 
   $('kopieer').addEventListener('click', function () {
@@ -1033,6 +1301,18 @@ function bouwPagina() {
     });
   });
 
+  $('bewaarDossier').addEventListener('click', () => dossierActie('json'));
+  $('excelKnop').addEventListener('click', () => dossierActie('xlsx'));
+  $('printKnop').addEventListener('click', () => dossierActie('print'));
+  $('openDossier').addEventListener('click', () => { $('dossierBestand').value = ''; $('dossierBestand').click(); });
+  $('dossierBestand').addEventListener('change', e => importeerBestand(e.target.files[0]));
+  $('dossierBestand').addEventListener('cancel', () => dossierMelding('Geen bestand gekozen; invoer behouden.'));
+  $('app').addEventListener('input', e => { if (e.target.id !== 'dossierBestand') { wisUitkomst(); dossierMelding('Invoer gewijzigd; uitgangen worden opnieuw berekend.'); } });
+  $('app').addEventListener('change', e => { if (e.target.id !== 'dossierBestand') wisUitkomst(); });
+  window.addEventListener('beforeprint', () => {
+    try { $('printDossier').innerHTML = printHtml(maakDossier()); }
+    catch (fout) { $('printDossier').innerHTML = '<h1>Geen geldig BUA-dossier</h1><p>' + esc(fout.message) + '</p>'; }
+  });
   $('app').hidden = false;
 }
 
