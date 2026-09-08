@@ -113,6 +113,8 @@
     }
     .statusbalk.fout { background: #FBEAEA; border-color: #D99; color: #8A1B1B; }
     .statusbalk.goed { background: #EDF7F0; border-color: #A8CBB4; color: #1D6B3F; }
+    /* Niet groen en niet rood: er is geen recente uitslag, dus de stand is onbekend. */
+    .statusbalk.onbekend { background: #FFF6E5; border-color: #E0C08A; color: #7A5210; }
     .statusbalk b { font-weight: 700; }
     .statusbalk ul { margin: 8px 0 0; padding-left: 20px; }
 
@@ -372,6 +374,38 @@
   // synchronisatie wordt losgelaten met waitUntil, dus het opslaan zelf kan
   // niets over de uitkomst zeggen; die staat in de KV-opslag. Faalt dit
   // ophalen, dan toont de balk een fout: afwezigheid van status is geen succes.
+  // Een opgeslagen uitslag is een momentopname en geen huidige stand. Zonder
+  // ouderdomstoets leest een oud resultaat als de toestand van nu: op 08-09-2026 stond
+  // hier nog de controle van 04-09 08:00:39 terwijl de dagelijkse run sinds 05-09 elke
+  // keer faalde vóór het opslaan. De marge is ruim boven het dagelijkse interval, zodat
+  // één overgeslagen ronde nog geen alarm geeft.
+  const CONTROLE_MARGE_UREN = 36;
+
+  function ouderdom(iso) {
+    if (!iso) return { bekend: false, reden: 'zonder tijdstip' };
+    const d = new Date(iso);
+    if (isNaN(d)) return { bekend: false, reden: 'met een onleesbaar tijdstip' };
+    const uren = (Date.now() - d.getTime()) / 3600000;
+    if (uren < -1) return { bekend: false, reden: 'met een tijdstip in de toekomst' };
+    return { bekend: true, verouderd: uren > CONTROLE_MARGE_UREN, uren: Math.round(uren) };
+  }
+
+  // 401 betekent dat Cloudflare het token van de worker niet accepteert. Dat is iets
+  // anders dan een policy die achterloopt, en het vraagt de tegenovergestelde handeling:
+  // niet opnieuw opslaan, maar het token vernieuwen.
+  function heeftAuthenticatieFout(fouten) {
+    return (fouten || []).some(f => /(^|\D)401(\D|$)/.test(String(f && f.reden)));
+  }
+
+  // Toon alles wat past en zeg exact hoeveel er niet staat, zodat een lange lijst niet
+  // stil wordt afgekapt zoals eerder bij zes afwijkingen gebeurde.
+  const REGELS_MAX = 8;
+  function voegRegelsToe(regels, items, tekst) {
+    for (const x of items.slice(0, REGELS_MAX)) regels.push(tekst(x));
+    const rest = items.length - REGELS_MAX;
+    if (rest > 0) regels.push(`<b>${rest} verdere regel(s) niet getoond.</b>`);
+  }
+
   async function laadStatus() {
     const balk = document.getElementById('statusbalk');
     try {
@@ -382,20 +416,24 @@
       const sync = st.synchronisatie;
       const contr = st.controle;
       let fout = false;
+      let onbekend = false;
       // Apart van 'fout': het advies om een gebruiker op te slaan helpt alleen bij een
       // policy die achterloopt, en niet bij een Worker die van het account weg is.
       let policyFout = false;
+      let authFout = false;
 
       if (sync) {
         const fouten = sync.fouten || [];
         if (sync.mislukt || fouten.length) {
           fout = true;
-          policyFout = true;
-          regels.push(`De laatste keer opslaan (${tijd(sync.tijdstip)}) heeft de toegang ` +
-            `<b>niet</b> volledig bijgewerkt: ${sync.mislukt} van de tools mislukte.`);
-          for (const f of fouten.slice(0, 5)) regels.push(`${f.tool}: ${f.reden}`);
+          authFout = heeftAuthenticatieFout(fouten);
+          policyFout = !authFout;
+          regels.push(`De laatst opgeslagen synchronisatie (${tijd(sync.tijdstip)}) heeft ` +
+            `de toegang <b>niet</b> volledig bijgewerkt: ${sync.mislukt} van de tools ` +
+            `mislukte. Dit is de opgeslagen uitslag van die poging, niet de stand van nu.`);
+          voegRegelsToe(regels, fouten, f => `${f.tool}: ${f.reden}`);
         } else {
-          regels.push(`Laatste keer opslaan (${tijd(sync.tijdstip)}): ` +
+          regels.push(`Laatst opgeslagen synchronisatie (${tijd(sync.tijdstip)}): ` +
             `${sync.gelukt} tools bijgewerkt.`);
         }
       }
@@ -403,13 +441,27 @@
       if (contr) {
         const afw = contr.afwijkingen || [];
         const hersteld = contr.hersteld || 0;
+        const oud = ouderdom(contr.tijdstip);
+        // Eerst de ouderdom, want die bepaalt of de rest nog iets over nu zegt.
+        if (!oud.bekend) {
+          onbekend = true;
+          regels.push(`Er staat een controle ${oud.reden}, dus de <b>actuele toestand is ` +
+            `onbekend</b>. Wat hieronder staat is niet te plaatsen in de tijd.`);
+        } else if (oud.verouderd) {
+          onbekend = true;
+          regels.push(`De laatst opgeslagen controle is <b>${oud.uren} uur oud</b> ` +
+            `(${tijd(contr.tijdstip)}), terwijl zij dagelijks hoort te lopen. De ` +
+            `<b>actuele toestand is onbekend</b>: sindsdien is er geen uitslag ` +
+            `weggeschreven, wat erop wijst dat de controle zelf niet doorkomt. Lees het ` +
+            `onderstaande als historie, niet als de stand van nu.`);
+        }
         if (afw.length) {
           fout = true;
-          policyFout = true;
-          regels.push(`De dagelijkse controle (${tijd(contr.tijdstip)}) vond ` +
+          if (!authFout) policyFout = true;
+          regels.push(`Die controle (${tijd(contr.tijdstip)}) vond ` +
             `<b>${afw.length} afwijking(en)</b> tussen de rechten hier en wat er ` +
             `werkelijk op Cloudflare staat, en kon die niet herstellen.`);
-          for (const a of afw.slice(0, 5)) regels.push(`${a.tool}: ${a.reden}`);
+          voegRegelsToe(regels, afw, a => `${a.tool}: ${a.reden}`);
         } else if (hersteld) {
           // Geen foutmelding: de controle heeft zijn werk gedaan. Wel tonen, want een
           // afwijking die telkens terugkomt is een signaal op zichzelf.
@@ -447,13 +499,20 @@
         }
       }
 
-      if (policyFout) {
+      // Twee tegengestelde adviezen, dus nooit samen. Bij 401 helpt opnieuw opslaan niet.
+      if (authFout) {
+        regels.push('<b>Cloudflare accepteert het token van de worker niet (HTTP 401).</b> ' +
+          'Rechten toekennen wordt dan niet doorgezet, hoe vaak je ook opslaat. Waarom het ' +
+          'wordt geweigerd staat hiermee niet vast: verlopen, vervangen of ontbrekend zijn ' +
+          'alle drie mogelijk. Dit vraagt een nieuw token op de worker en kan alleen de ' +
+          'beheerder; opslaan hieronder lost het niet op.');
+      } else if (policyFout) {
         regels.push('De dagelijkse controle probeert dit zelf te herstellen. Blijft het ' +
           'staan, dan lukt dat niet: sla hieronder een gebruiker op om het meteen opnieuw ' +
-          'te laten schrijven, en is het token op de worker de eerste verdachte.');
+          'te laten schrijven.');
       }
 
-      balk.className = 'statusbalk ' + (fout ? 'fout' : 'goed');
+      balk.className = 'statusbalk ' + (fout ? 'fout' : onbekend ? 'onbekend' : 'goed');
       balk.innerHTML = regels.length > 1
         ? `${regels[0]}<ul>${regels.slice(1).map(r => `<li>${r}</li>`).join('')}</ul>`
         : regels[0];
