@@ -166,6 +166,21 @@
           </label>
           <input type="number" id="modus-inkomen" step="1000" min="0" value="0">
         </div>
+        <div class="keuze">
+          <input type="checkbox" id="modus-afwijkend">
+          <label for="modus-afwijkend">
+            Afwijkend inkomen in het jaar waarin de niet-afschrijfbare meerwaarde vrijvalt.
+            Zet dit aan bij een verwacht stakingsjaar: dan vallen ook andere stille
+            reserves, fiscale reserves en overige stakingswinst in dat jaar in de winst
+            (art. 3.8 Wet IB 2001) en is het inkomen daar hoger dan in de jaren ervoor.
+          </label>
+        </div>
+        <div class="veld" id="modus-vrijval-veld" hidden>
+          <label for="modus-inkomen-vrijval"><span id="modus-vrijval-label">Verwacht belastbaar inkomen in het vrijvaljaar</span>
+            <span class="hint">Vóór de meerwaarde die de tool zelf berekent, anders telt die dubbel. Overige stakingswinst hoort er juist wél in.</span>
+          </label>
+          <input type="number" id="modus-inkomen-vrijval" step="1000" min="0" value="0">
+        </div>
         <div id="modus-ib-velden">
           <div class="veld">
             <label for="modus-groep">Positie van de belastingplichtige
@@ -541,6 +556,26 @@ function heffingOverWinst(bedrag, context) {
   return null;
 }
 
+/** De tariefcontext voor het jaar waarin de niet-afschrijfbare meerwaarde vrijvalt.
+ *  Zonder eigen opgave geldt het inkomen van de exploitatiejaren, maar dat is een
+ *  vertrekpunt en geen aanname die vastligt: valt de vrijval samen met staking, dan komen
+ *  in dat jaar ook andere stille reserves, fiscale reserves en overige stakingswinst tot
+ *  de winst (art. 3.8 Wet IB 2001), en ligt het inkomen fors hoger. Het bedrag hoort te
+ *  gelden vóór de meerwaarde die de tool zelf berekent, anders telt die dubbel.
+ *  Let op: een inkomen van 0 is een opgave en geen ontbrekende waarde. */
+function contextVrijvaljaar(context) {
+  if (!context) return context;
+  const eigen = context.inkomenVrijvaljaar;
+  if (eigen === undefined || eigen === null) return context;
+  return {
+    middel: context.middel,
+    jaar: context.jaar,
+    inkomenVoor: eigen,
+    groep: context.groep,
+    mkbOndernemer: context.mkbOndernemer,
+  };
+}
+
 /** Welke tariefmodus geldt: 'vast' voor één tarief over de hele looptijd, 'perJaar' voor
  *  een heffing die per jaar over de schijven wordt berekend. Zonder opgave het vaste
  *  tarief, zodat invoer van vóór deze keuze ongewijzigd blijft rekenen. */
@@ -596,6 +631,11 @@ function valideerInvoer(invoer) {
         'in de tarieftabel staat en een verwacht inkomen van nul of hoger; bij de ' +
         'inkomstenbelasting ook een bekende positie ten opzichte van de AOW-leeftijd. ' +
         'De tool valt niet terug op een ander jaar.'
+      );
+    } else if (heffingOverWinst(0, contextVrijvaljaar(invoer.tariefcontext)) === null) {
+      fouten.push(
+        'Het afwijkende inkomen in het vrijvaljaar is niet bruikbaar: vul nul of een ' +
+        'hoger bedrag in, of laat het weg om het inkomen van de andere jaren te gebruiken.'
       );
     }
   } else {
@@ -674,14 +714,19 @@ function verzamelWaarschuwingen(invoer, voet) {
  *   posten: [{ bedrag, termijn, soort: 'goodwill' | 'overig' }],
  *   nietAfschrijfbaar: { bedrag, jaar },
  *   tariefmodus: 'vast' | 'perJaar'   (zonder opgave: 'vast'),
- *   tariefcontext: { middel: 'ib' | 'vpb', jaar, inkomenVoor, groep, mkbOndernemer },
+ *   tariefcontext: {
+ *     middel: 'ib' | 'vpb', jaar, inkomenVoor, groep, mkbOndernemer,
+ *     inkomenVrijvaljaar,             (weglaten om `inkomenVoor` te gebruiken)
+ *   },
  * }
  *
  * In de modus 'perJaar' worden de twee tarieven niet gebruikt. De gemiste afschrijving
- * van elk jaar komt dan bovenop het verwachte inkomen en de heffing daarover wordt per
- * schijf berekend; hetzelfde gebeurt met de niet-afschrijfbare meerwaarde in het jaar
- * waarin die vrijvalt. Het verwachte inkomen is één bedrag voor de hele looptijd, en de
- * tarieven van het gekozen jaar gelden voor alle jaren: de tool kent geen tariefsverloop.
+ * van elk jaar komt dan bovenop het verwachte inkomen van de exploitatiejaren en de
+ * heffing daarover wordt per schijf berekend. De niet-afschrijfbare meerwaarde krijgt
+ * dezelfde behandeling in het jaar waarin zij vrijvalt, maar dan tegen het verwachte
+ * inkomen van dát jaar: valt de vrijval samen met staking, dan ligt het inkomen daar
+ * hoger. Zonder eigen opgave gelden beide inkomens gelijk. De tarieven van het gekozen
+ * jaar gelden voor alle jaren: de tool kent geen tariefsverloop.
  */
 function berekenLatentie(invoer) {
   const fouten = valideerInvoer(invoer);
@@ -719,7 +764,7 @@ function berekenLatentie(invoer) {
   const niet = invoer.nietAfschrijfbaar || { bedrag: 0, jaar: 0 };
   const heffingUitgesteld = niet.bedrag > 0
     ? (modus === 'perJaar'
-        ? heffingOverWinst(niet.bedrag, invoer.tariefcontext)
+        ? heffingOverWinst(niet.bedrag, contextVrijvaljaar(invoer.tariefcontext))
         : niet.bedrag * invoer.tariefUitgesteld)
     : 0;
 
@@ -826,6 +871,9 @@ function leesInvoer() {
       inkomenVoor: parseFloat(document.getElementById('modus-inkomen').value),
       groep: document.getElementById('modus-groep').value,
       mkbOndernemer: document.getElementById('modus-mkb').checked,
+      inkomenVrijvaljaar: document.getElementById('modus-afwijkend').checked
+        ? parseFloat(document.getElementById('modus-inkomen-vrijval').value)
+        : undefined,
     } : undefined,
     tariefAfschrijving: parseFloat(document.getElementById('tarief-afschrijving').value) / 100,
     tariefUitgesteld: parseFloat(document.getElementById('tarief-uitgesteld').value) / 100,
@@ -852,11 +900,17 @@ function toonTariefmodus() {
     ? 'Verwacht belastbaar inkomen uit werk en woning per jaar'
     : 'Verwacht belastbaar bedrag per jaar';
   document.getElementById('modus-inkomen-hint').textContent = middel === 'ib'
-    ? 'Zonder de gemiste afschrijving en zonder de latente winst. Eén bedrag voor alle ' +
-      'jaren: een bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel ' +
-      'niet waarmaakt.'
-    : 'De overige winst van het jaar, zonder de gemiste afschrijving. Eén bedrag voor ' +
-      'alle jaren.';
+    ? 'Voor de jaren waarin de afschrijving zou hebben gelopen, zonder de gemiste ' +
+      'afschrijving zelf en zonder de latente winst. Eén bedrag voor al die jaren: een ' +
+      'bedrag per jaar zou een nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.'
+    : 'De overige winst van de jaren waarin de afschrijving zou hebben gelopen, zonder ' +
+      'de gemiste afschrijving zelf. Eén bedrag voor al die jaren.';
+  document.getElementById('modus-vrijval-label').textContent = middel === 'ib'
+    ? 'Verwacht belastbaar inkomen uit werk en woning in het vrijvaljaar'
+    : 'Verwacht belastbaar bedrag in het vrijvaljaar';
+
+  const afwijkend = document.getElementById('modus-afwijkend').checked;
+  document.getElementById('modus-vrijval-veld').hidden = !afwijkend;
 
   document.getElementById('grondslag-netto-tekst').innerHTML = perJaar
     ? 'Ingevoerd als brutovoet; de tool maakt hem netto met het effectieve tarief dat hij ' +
@@ -865,8 +919,17 @@ function toonTariefmodus() {
       '<code>netto = bruto &times; (1 &minus; tarief)</code>.';
 }
 
-['modus-vast', 'modus-perjaar', 'modus-middel'].forEach(naam => {
+['modus-vast', 'modus-perjaar', 'modus-middel', 'modus-afwijkend'].forEach(naam => {
   document.getElementById(naam).addEventListener('change', toonTariefmodus);
+});
+
+// Wie het vinkje aanzet, ziet het inkomen van de andere jaren als vertrekpunt staan in
+// plaats van een nul die stil een heel ander tarief oplevert.
+document.getElementById('modus-afwijkend').addEventListener('change', gebeurtenis => {
+  if (gebeurtenis.target.checked) {
+    document.getElementById('modus-inkomen-vrijval').value =
+      document.getElementById('modus-inkomen').value;
+  }
 });
 toonTariefmodus();
 
@@ -884,12 +947,17 @@ function tarieftoelichting(uitkomst, invoer) {
     regels.push('effectief <b>' + procent.format(uitkomst.effectiefTariefUitgesteld) +
       '</b> over de niet-afschrijfbare meerwaarde');
   }
+  const vrijval = contextVrijvaljaar(context);
+  const woord = context.middel === 'ib' ? 'inkomen' : 'belastbaar bedrag';
+  const afwijkend = vrijval.inkomenVoor !== context.inkomenVoor
+    ? ' In het vrijvaljaar is gerekend met een ' + woord + ' van ' +
+      euro.format(vrijval.inkomenVoor) + ', vóór de meerwaarde zelf.'
+    : '';
   return '<div class="melding vlak">Het tarief is per jaar over de schijven berekend, ' +
     'met de tarieven van ' + context.jaar + ' voor de hele looptijd en een verwacht ' +
-    (context.middel === 'ib' ? 'inkomen' : 'belastbaar bedrag') + ' van ' +
-    euro.format(context.inkomenVoor) + ' per jaar: ' + regels.join(' en ') + '. ' +
-    'Dat de tarieven van één jaar voor de hele looptijd gelden is een aanname; de tool ' +
-    'kent geen tariefsverloop.</div>';
+    woord + ' van ' + euro.format(context.inkomenVoor) + ' per jaar: ' +
+    regels.join(' en ') + '.' + afwijkend + ' Dat de tarieven van één jaar voor de hele ' +
+    'looptijd gelden is een aanname; de tool kent geen tariefsverloop.</div>';
 }
 
 function meldingen(lijst, soort, kop) {
@@ -1156,9 +1224,14 @@ toonTariefhulp();
           anders over denkt, voert de nettovoet rechtstreeks in.
         </li>
         <li>
-          <b>Eén verwacht inkomen voor alle jaren</b> in de modus per jaar. Het inkomen van de
-          ondernemer over tien tot veertig jaar is niet bekend, en een bedrag per jaar zou een
-          nauwkeurigheid suggereren die de tarieftabel niet waarmaakt.
+          <b>Eén verwacht inkomen voor de exploitatiejaren</b> in de modus per jaar. Het
+          inkomen van de ondernemer over tien tot veertig jaar is niet bekend, en een bedrag
+          per jaar zou een nauwkeurigheid suggereren die de tarieftabel niet waarmaakt. Het
+          jaar waarin de niet-afschrijfbare meerwaarde vrijvalt heeft wél een eigen veld: dat
+          jaar is niet representatief zodra het samenvalt met staking, want dan komen ook
+          andere stille reserves, fiscale reserves en overige stakingswinst tot de winst
+          (art. 3.8 Wet IB 2001). Zonder eigen opgave gelden beide inkomens gelijk; dat is
+          een vertrekpunt en geen aanname die vastligt.
         </li>
         <li>
           <b>Contant maken per heel jaar aan het einde van het jaar.</b> Het bedrag van jaar t
