@@ -29,7 +29,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 
 - **BankBridge**: Zet bankafschriften lokaal in de browser om naar MT940 en CAMT.053, met validatie voor export.
-- **Bewaarplicht Checker**: Berekent de wettelijke bewaartermijn (art. 52 AWR) per documenttype, inclusief de einddatum
+- **Bewaarplicht Checker**: Toont bewaartermijnen per documenttype voor administratie, personeel en accountantsdossiers en berekent de einddatum met toepasselijke uitzonderingen
 
 ## Arbeidsrecht & Compliance
 
