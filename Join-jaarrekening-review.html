@@ -1474,6 +1474,56 @@ function stopLoadingSteps() {
   steps.forEach(s => document.getElementById(s).classList.add('active'));
 }
 
+// RESPONSVALIDATIE — BEGIN
+function validateApiResponse(data) {
+  if (data?.stop_reason !== 'end_turn' || !Array.isArray(data.content) ||
+      !data.content.length || data.content.some(b => b.type !== 'text' || typeof b.text !== 'string')) {
+    throw new Error('De analyse is niet volledig afgerond. Er is geen beoordeling beschikbaar. Probeer opnieuw.');
+  }
+  const text = data.content.map(b => b.text).join('\n');
+  if (!text.trim()) throw new Error('De analyse bevat geen antwoord. Probeer opnieuw.');
+  return text;
+}
+
+function parseReviewSections(raw, allowed, required) {
+  const matches = [...raw.matchAll(/##([A-Z_]+)##/g)];
+  const result = Object.create(null);
+  for (let i = 0; i < matches.length; i++) {
+    const key = matches[i][1];
+    if (!allowed.includes(key) || Object.hasOwn(result, key)) {
+      throw new Error('De analyse bevat onbekende of dubbele onderdelen. Er is geen beoordeling beschikbaar.');
+    }
+    result[key] = raw.slice(matches[i].index + matches[i][0].length,
+      matches[i + 1]?.index ?? raw.length).trim();
+  }
+  if (required.some(key => !result[key])) {
+    throw new Error('De analyse mist een verplicht onderdeel. Er is geen beoordeling beschikbaar.');
+  }
+  return result;
+}
+
+function validateReviewA(raw) {
+  const required = ['AFWIJKINGEN', 'ONTBREKEND', 'OVERIG', 'PLAUSIBILITEIT', 'SCORE'];
+  const sections = parseReviewSections(raw, ['DETECTIE', ...required], required);
+  const match = sections.SCORE.match(/^(?:(🟢|🟠|🔴)\s*)?(Groen|Oranje|Rood)\s*[–—-]\s*(\S[\s\S]*)$/iu);
+  const kleuren = { groen: '🟢', oranje: '🟠', rood: '🔴' };
+  if (!match || (match[1] && match[1] !== kleuren[match[2].toLowerCase()])) {
+    throw new Error('De analyse bevat geen eenduidige score. Er is geen beoordeling beschikbaar.');
+  }
+  return { sections, kleur: match[2].toLowerCase(), toelichting: match[3] };
+}
+
+function validateReviewBC(raw) {
+  // De prompt staat lege/ontbrekende B-secties en een lege NOTITIE expliciet toe.
+  const sections = parseReviewSections(raw,
+    ['B_FINANCIEEL', 'B_RESULTAAT', 'B_FISCAAL', 'B_RISICO', 'NOTITIE'], []);
+  if (!Object.hasOwn(sections, 'NOTITIE')) {
+    throw new Error('De analyse mist de afsluitende notitiesectie. Probeer opnieuw.');
+  }
+  return sections;
+}
+// RESPONSVALIDATIE — EINDE
+
 // ─── API HELPER ────────────────────────────────────────────────────────────
 async function callClaude(apiKey, systemPrompt, userText, maxTokens) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1509,7 +1559,7 @@ async function callClaude(apiKey, systemPrompt, userText, maxTokens) {
 
   const data = await response.json();
   return {
-    rawText: data.content.map(b => b.text || '').join(''),
+    rawText: validateApiResponse(data),
     inputTokens: data.usage?.input_tokens || 0,
     outputTokens: data.usage?.output_tokens || 0
   };
@@ -1564,13 +1614,9 @@ btnReview.addEventListener('click', async () => {
       totalOutput += a.outputTokens;
     }
 
-    // ── Module A direct tonen
-    stopLoadingSteps();
-    loadingCard.classList.remove('visible');
-    resetLoading();
-
+    // Pas resultaten tonen zodra beide antwoorden volledig zijn gevalideerd.
+    validateReviewA(a.rawText);
     const kostenA = (a.inputTokens * 3 + a.outputTokens * 15) / 1_000_000 * 0.92;
-    renderResult(a.rawText, a.inputTokens, a.outputTokens, kostenA);
 
     // Laadstatus voor Module B+C tonen terwijl tweede call loopt
     resultBodyBC.innerHTML = `
@@ -1579,20 +1625,25 @@ btnReview.addEventListener('click', async () => {
         <span style="font-size:13px; color:var(--muted);">Inhoudelijke analyse en klantnotitie worden opgesteld…</span>
       </div>`;
     resultFilenameBC.textContent = selectedFile?.name || '';
-    resultCardBC.style.display = 'block';
+    loadingModuleLabel.textContent = 'Stap 2 van 2 — Inhoudelijke analyse en klantnotitie';
 
     // ── Aanroep 2: Module B+C — inhoudelijk + klantnotitie
     const promptBC   = isBV ? SYSTEM_PROMPT_BC_BV : SYSTEM_PROMPT_BC_IB;
     const userTextBC = `Analyseer de jaarrekening als ervaren samensteller en fiscaal adviseur voor ${isBV ? 'BV' : 'IB-ondernemingen'}. Gebruik de exacte sectielabels (##B_FINANCIEEL## etc. en ##NOTITIE##).`;
 
     const bc = await callClaude(apiKey, promptBC, userTextBC, 3000);
+    validateReviewBC(bc.rawText);
     totalInput  += bc.inputTokens;
     totalOutput += bc.outputTokens;
 
     // Laadstatus verbergen en Module B+C renderen
     resultCardBC.style.display = 'none';
     resultBodyBC.innerHTML = '';
+    renderResult(a.rawText, a.inputTokens, a.outputTokens, kostenA);
     renderModuleBC(bc.rawText);
+    stopLoadingSteps();
+    loadingCard.classList.remove('visible');
+    resetLoading();
 
     // Totale kosten bijwerken
     const kostenEUR = (totalInput * 3 + totalOutput * 15) / 1_000_000 * 0.92;
@@ -1603,6 +1654,9 @@ btnReview.addEventListener('click', async () => {
     document.getElementById('kostenInfo').style.display = 'flex';
 
   } catch (err) {
+    resultCard.classList.remove('visible');
+    resultCardNotitie.style.display = 'none';
+    detectieCard.style.display = 'none';
     stopLoadingSteps();
     loadingCard.classList.remove('visible');
     resetLoading();
@@ -1676,6 +1730,7 @@ function renderDetectie(raw) {
 
 // ─── RESULT RENDEREN ───────────────────────────────────────────────────────
 function renderResult(raw, inputTokens, outputTokens, kostenEUR) {
+  const validated = validateReviewA(raw);
   resultFilename.textContent = selectedFile?.name || '';
   renderDetectie(raw);
 
@@ -1687,33 +1742,18 @@ function renderResult(raw, inputTokens, outputTokens, kostenEUR) {
   ];
 
   // Tekst opsplitsen per sectie
-  const sectionMap = {};
-  sections.forEach((s, i) => {
-    const start = raw.indexOf(`##${s.key}##`);
-    if (start === -1) { sectionMap[s.key] = ''; return; }
-    const after = start + `##${s.key}##`.length;
-    const nextKeys = sections.slice(i + 1).map(ns => `##${ns.key}##`);
-    let end = raw.length;
-    nextKeys.forEach(nk => {
-      const pos = raw.indexOf(nk, after);
-      if (pos !== -1 && pos < end) end = pos;
-    });
-    sectionMap[s.key] = raw.slice(after, end).trim();
-  });
+  const sectionMap = validated.sections;
 
   // SCORE apart extraheren (staat als laatste sectie, niet in de renderbare sections-array)
-  const scoreStart = raw.indexOf('##SCORE##');
-  const scoreText = scoreStart !== -1 ? raw.slice(scoreStart + '##SCORE##'.length).trim() : '';
-  let scoreClass = 'score-groen';
-  let scoreLabel = '🟢 Groen';
-  let scoreDesc  = 'Direct verzendbaar';
-  if (scoreText.includes('🔴') || scoreText.toLowerCase().includes('rood')) {
-    scoreClass = 'score-rood';   scoreLabel = '🔴 Rood';   scoreDesc = 'Niet verzendbaar';
-  } else if (scoreText.includes('🟠') || scoreText.toLowerCase().includes('oranje')) {
-    scoreClass = 'score-oranje'; scoreLabel = '🟠 Oranje'; scoreDesc = 'Aanpassen vóór verzending';
-  }
+  const scores = {
+    groen: ['🟢 Groen', 'Direct verzendbaar'],
+    oranje: ['🟠 Oranje', 'Aanpassen vóór verzending'],
+    rood: ['🔴 Rood', 'Niet verzendbaar']
+  };
+  const scoreClass = 'score-' + validated.kleur;
+  const [scoreLabel, scoreDesc] = scores[validated.kleur];
   // Extra toelichting uit de scoretekst (deel na " – " of eerste zin na het kleurlabel)
-  const scoreTail = scoreText.replace(/^[🟢🟠🔴]\s*\w+\s*[–-]\s*/u, '').trim();
+  const scoreTail = validated.toelichting.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   scoreBadge.className = 'score-hero ' + scoreClass;
   scoreBadge.innerHTML = `<div>
     <div class="score-hero-label">${scoreLabel}</div>
@@ -1724,7 +1764,7 @@ function renderResult(raw, inputTokens, outputTokens, kostenEUR) {
   // Secties renderen
   let html = '';
   sections.forEach(s => {
-    const content = sectionMap[s.key] || 'Geen bijzonderheden geconstateerd.';
+    const content = sectionMap[s.key];
     html += `
       <div class="review-section">
         <div class="section-header">
@@ -1855,6 +1895,7 @@ function makeNotitieBlock(tekst) {
 }
 
 function renderModuleBC(raw) {
+  validateReviewBC(raw);
   const bSections = [
     { key: 'B_FINANCIEEL', num: 'B1', title: 'Financiële positie & liquiditeit' },
     { key: 'B_RESULTAAT',  num: 'B2', title: 'Resultaatontwikkeling' },
@@ -1954,6 +1995,6 @@ btnReset.addEventListener('click', () => {
   steps.forEach(s => document.getElementById(s).classList.remove('active'));
 });
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 13:26</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 21:18</div>
 </body>
 </html>
