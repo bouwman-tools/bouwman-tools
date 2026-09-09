@@ -106,7 +106,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🔵 concept | Hypotheek annuïtair | nog niet gepubliceerd | bouwman-tools/hypotheek-annuitair | n.v.t. | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟡 beta | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🔵 concept | Tijdplan | nog niet gepubliceerd | bouwman-tools/tijdplan | n.v.t. | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
