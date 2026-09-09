@@ -3,6 +3,34 @@ main = "kvk-worker.js"
 compatibility_date = "2024-01-01"
 account_id = "9f2508dc476f0183404720277152eb16"
 
+# De sleutel KVK_API_KEY zit in deze worker, dus het adres waarop hij te bereiken
+# is bepaalt wie die sleutel kan gebruiken.
+#
+# Het openbare workers.dev-adres gaat daarom uit. Dat adres staat buiten de zone
+# bouwman.tools en kan door Cloudflare Access niet worden beschermd: een
+# Access-cookie van bouwman.tools geldt daar niet, en wie het adres kent kon de
+# worker rechtstreeks bevragen. De CORS-poort in kvk-worker.js weert alleen een
+# browser van een ander domein en geen curl, zoals het commentaar daar zelf zegt.
+#
+# In plaats daarvan hangt de worker onder het pad van de pagina die hem gebruikt.
+# Cloudflare Access beschermt bouwman.tools/kvk-zoeker.html; een kindpad daarvan
+# erft die bescherming, en de aanroep uit de pagina is dan same-origin, zodat de
+# Access-cookie meegaat. Datzelfde patroon gebruikt access-beheer al voor
+# beheer.html/api/admin/* en portal.html/api/*.
+#
+# Voorwaarde: de pagina moet dit adres aanroepen. Dat staat in de repository
+# kvk-zoeker, in kvk-zoeker.html, en die versie moet gepubliceerd zijn voordat
+# workers_dev uitgaat. De uitrolvolgorde staat in de vrijgavenotitie.
+workers_dev = false
+
+# Oudere versies mogen niet via een eigen openbaar previewadres bereikbaar blijven;
+# dat zou dezelfde omweg om Access heen opnieuw openzetten.
+preview_urls = false
+
+[[routes]]
+pattern = "https://bouwman.tools/kvk-zoeker.html/api/*"
+zone_name = "bouwman.tools"
+
 [[kv_namespaces]]
 binding = "KV"
 id = "b0bfa97c2a40424c9d4d0eacd86a8fa5"
