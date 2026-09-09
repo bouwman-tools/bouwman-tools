@@ -2136,6 +2136,20 @@ function simulateRoute(inp, policy) {
   var priv = inp.privateAvailable;
   var bv = inp.bvCashAvailable;
   var cumFictief = inp.priorFictief;
+
+  /* Verliesadministratie per jaar in plaats van één lopend saldo. Zonder
+     verliesjaar is terugwenteling naar het voorafgaande kalenderjaar niet te
+     bepalen en verval na zes jaar evenmin (art. 4.49 lid 1 Wet IB 2001).
+     `openLosses` staat op volgorde van ontstaan, want lid 3 schrijft die
+     volgorde voor. `taxableLeft` en `assessedTax` houden per afgesloten jaar bij
+     wat er nog verrekenbaar is en welke heffing er destijds is opgelegd; dat
+     eerste is nodig om te weten hoeveel een verlies nog kan terugwentelen, het
+     tweede om de teruggaaf te kunnen berekenen. `refundDue` is de kasstroom:
+     jaar van ontvangst → bedrag. */
+  var openLosses = [];
+  var taxableLeft = {};
+  var refundDue = {};
+  var refundAfterHorizon = 0;
   var lossCarry = 0;
   var distributableLeft = isFinite(inp.distributable) ? inp.distributable : Infinity;
   var budgetLeft = policy.noDividend ? Infinity : Math.max(0, policy.depositBudget || 0);
@@ -2145,6 +2159,7 @@ function simulateRoute(inp, policy) {
     interest: 0, deposit: 0, depositApplied: 0, grossDividend: 0, dividendTax: 0,
     netDividend: 0, netSettled: 0, netPaidInCash: 0, box2Total: 0, box2TaxLow: 0,
     box2TaxHigh: 0, box2HighPart: 0, additionalIB: 0, privateOutTax: 0, taxRefund: 0,
+    lossRefund: 0,
     privateOut: 0, bvCashOut: 0, bvCashIn: 0, fictiefVoordeel: 0
   };
 
@@ -2152,6 +2167,26 @@ function simulateRoute(inp, policy) {
   while (y < maxY && debt > SETTLE) {
     y++;
     if (y > 1) { priv += inp.privateAnnual; bv += inp.bvCashAnnual; }
+
+    // Teruggaaf uit terugwenteling van een verlies van het vorige jaar. Zij komt
+    // binnen in het jaar ná het verliesjaar: de aangifte over het verliesjaar
+    // gaat dat jaar de deur uit en daarop volgen de verliesverrekeningsbeschikking
+    // en de vermindering van de aanslag over het jaar daarvóór. Dat tijdstip is
+    // een praktische modelaanname en geen wettelijke betaaltermijn; de wet regelt
+    // de verrekening, niet het moment van uitbetaling.
+    var refundNow = refundDue[y] || 0;
+    if (refundNow > EPS) priv += refundNow;
+
+    // Verliezen die hun zes jaar hebben gehad, vervallen (art. 4.49 lid 1).
+    // Zij tellen niet meer mee voor het dividendplafond en niet meer voor de
+    // heffing; de tool laat ze dus niet stil doorlopen.
+    var stillOpen = [];
+    for (var li = 0; li < openLosses.length; li++) {
+      if (y - openLosses[li].year <= LOSS_CARRY_FORWARD_YEARS) stillOpen.push(openLosses[li]);
+    }
+    openLosses = stillOpen;
+    lossCarry = 0;
+    for (li = 0; li < openLosses.length; li++) lossCarry += openLosses[li].amount;
 
     var base = {
       openingDebt: debt, interestRate: inp.rcInterestRate, timingMonths: inp.timingMonths,
@@ -2208,6 +2243,7 @@ function simulateRoute(inp, policy) {
     res.year = y;
     res.excessiveMaxAmount = exc.maxAmount;
     res.relevantDebtAtYearEnd = res.closingDebt + inp.otherLoans;
+    res.lossRefundReceived = refundNow;
     rows.push(res);
 
     T.interest += res.interestTotal;
@@ -2225,6 +2261,7 @@ function simulateRoute(inp, policy) {
     T.additionalIB += res.additionalIB;
     T.privateOutTax += res.privateOutTax;
     T.taxRefund += res.taxRefund;
+    T.lossRefund += res.lossRefundReceived;
     T.privateOut += res.privateOutDeposit + res.privateOutTax;
     T.bvCashIn += res.bvCashIn;
     T.bvCashOut += res.bvCashOutDividendTax + res.bvCashOutCashDividend;
@@ -2233,18 +2270,70 @@ function simulateRoute(inp, policy) {
     debt = res.closingDebt;
     priv = res.privateClosing;
     bv = res.bvCashClosing;
-    lossCarry = res.lossCarryOut;
+
+    /* Verliesverrekening bijwerken, op verliesjaar en in de volgorde van
+       art. 4.49 lid 3. Een positief jaar verbruikt eerst de oudste openstaande
+       verliezen. Een negatief jaar levert een nieuw verlies dat éérst
+       terugwentelt naar het voorafgaande kalenderjaar en pas met wat overblijft
+       vooruit gaat; die volgorde is niet vrij te kiezen, en zij is ook de reden
+       dat dit in één doorloop kan: het voorafgaande jaar is al berekend.
+
+       De heffing van dat eerdere jaar blijft staan zoals zij is opgelegd. De
+       terugwenteling verlaagt haar niet met terugwerkende kracht in de route
+       maar levert een teruggaaf, en die komt binnen in het jaar ná het
+       verliesjaar. Zo blijft de betaling staan waar zij hoorde en komt het geld
+       terug wanneer het werkelijk terugkomt. */
+    var incomeBefore = res.grossDividend + res.fictiefVoordeel;
+    if (incomeBefore > EPS) {
+      var teVerbruiken = Math.min(incomeBefore, lossCarry);
+      for (li = 0; li < openLosses.length && teVerbruiken > EPS; li++) {
+        var pak = Math.min(openLosses[li].amount, teVerbruiken);
+        openLosses[li].amount -= pak;
+        teVerbruiken -= pak;
+      }
+    } else if (incomeBefore < -EPS) {
+      var nieuwVerlies = -incomeBefore;
+      var vorigJaar = y - LOSS_CARRY_BACK_YEARS;
+      var terug = Math.min(nieuwVerlies, taxableLeft[vorigJaar] || 0);
+      if (terug > EPS) {
+        var oudBelastbaar = taxableLeft[vorigJaar];
+        var nieuwBelastbaar = oudBelastbaar - terug;
+        taxableLeft[vorigJaar] = nieuwBelastbaar;
+        var verlichting =
+          box2TaxOnIncome(oudBelastbaar, inp.lowBracketAvail, inp.lowRate, inp.highRate).total -
+          box2TaxOnIncome(nieuwBelastbaar, inp.lowBracketAvail, inp.lowRate, inp.highRate).total;
+        refundDue[y + 1] = (refundDue[y + 1] || 0) + verlichting;
+        nieuwVerlies -= terug;
+      }
+      if (nieuwVerlies > EPS) openLosses.push({ year: y, amount: nieuwVerlies });
+    }
+    var nogOpen = [];
+    for (li = 0; li < openLosses.length; li++) {
+      if (openLosses[li].amount > EPS) nogOpen.push(openLosses[li]);
+    }
+    openLosses = nogOpen;
+    taxableLeft[y] = res.box2Income;
+
     cumFictief = exc.cumulativeAfter;
     if (isFinite(distributableLeft)) distributableLeft -= res.grossDividend;
     if (isFinite(budgetLeft)) budgetLeft = Math.max(0, budgetLeft - Math.min(res.deposit, budgetLeft));
     if (geenActie && !laterMiddelen) break;
   }
 
+  // Teruggaaf die pas na afloop van de route binnenkomt. Zij verlaagt de heffing
+  // wel degelijk, maar valt buiten de getoonde jaren; vandaar apart.
+  for (var rk in refundDue) {
+    if (Number(rk) > rows.length) refundAfterHorizon += refundDue[rk];
+  }
+
   var pvTax = 0, pvAll = 0;
   for (var i = 0; i < rows.length; i++) {
     var disc = Math.pow(1 + inp.discountRate, i);
-    pvTax += rows[i].box2Total / disc;
-    pvAll += (rows[i].box2Total + rows[i].interestTotal) / disc;
+    // De teruggaaf komt binnen in het jaar waarin zij staat, dus zij wordt op
+    // dat moment verdisconteerd en niet op het moment van de aanslag.
+    var netto = rows[i].box2Total - rows[i].lossRefundReceived;
+    pvTax += netto / disc;
+    pvAll += (netto + rows[i].interestTotal) / disc;
   }
 
   var route = {
@@ -2274,9 +2363,16 @@ function simulateRoute(inp, policy) {
     // verhoogt de schuld en daarmee het benodigde dividend, dus haar fiscale
     // effect zit al volledig in de heffing. Zij telt daarom niet nog eens als
     // afzonderlijke kostenpost mee.
-    taxCost: T.box2Total,
+    // De maatstaf is de heffing zoals zij na verliesverrekening werkelijk
+    // uitpakt: het opgelegde bedrag minus de teruggaaf uit terugwenteling. Ook
+    // een teruggaaf die pas na de laatste getoonde jaar binnenkomt telt mee,
+    // want de wet verrekent het verlies ongeacht wanneer het geld er is.
+    taxCost: T.box2Total - T.lossRefund - refundAfterHorizon,
     taxCostPV: pvTax,
-    directCost: T.box2Total + T.interest,   // informatief: heffing plus interne rente
+    lossRefundTotal: T.lossRefund,
+    lossRefundAfterHorizon: refundAfterHorizon,
+    lossesUnsettled: lossCarry,
+    directCost: T.box2Total - T.lossRefund - refundAfterHorizon + T.interest,   // informatief: heffing plus interne rente
     directCostPV: pvAll,
     latentCredit: inp.latentRate * T.grossDividend,
     hitsHighRate: T.box2HighPart > EPS,
@@ -2399,6 +2495,10 @@ function checkRouteInvariants(inp, route) {
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     if (i > 0) { privChain += inp.privateAnnual; bvChain += inp.bvCashAnnual; }
+    // De teruggaaf uit terugwenteling komt bij het privévermogen voordat het
+    // jaar wordt gerekend, want de heffing is ook uit dat vermogen betaald.
+    // Zonder deze term valt de kasketen om zodra er wordt teruggewenteld.
+    privChain += (r.lossRefundReceived || 0);
     var Y = 'jaar ' + r.year + ' ';
 
     chk(Y + 'beginstand RC', r.openingDebt, debtChain);
@@ -3288,6 +3388,36 @@ function renderRouteCard(route, inp, opts) {
       'Houd hier rekening mee bij de vergelijking met een route die minder privégeld stort.');
   }
 
+  if (route.lossRefundTotal > 1 || route.lossRefundAfterHorizon > 1) {
+    var terugJaren = [];
+    for (var lr = 0; lr < route.rows.length; lr++) {
+      if (route.rows[lr].lossRefundReceived > 1) {
+        terugJaren.push('jaar ' + route.rows[lr].year + ': ' + euro(route.rows[lr].lossRefundReceived));
+      }
+    }
+    html += signal('info', '<strong>In deze route ontstaat een verlies in box 2 dat wordt teruggewenteld.</strong> ' +
+      'Lost de DGA af, dan geeft dat een negatief fictief regulier voordeel (art. 4.14a lid 1 onderdeel b). ' +
+      'Is het box 2-inkomen van een jaar daardoor negatief, dan verrekent art. 4.49 lid 1 dat verlies met het ' +
+      'voorafgaande kalenderjaar en de zes volgende. De aanslag over dat eerdere jaar is dan al betaald, dus de ' +
+      'terugwenteling levert een teruggaaf' +
+      (terugJaren.length ? ' (' + terugJaren.join('; ') + ')' : '') + '. ' +
+      '<em>Het moment van ontvangst is een aanname van deze tool en geen wettelijke betaaltermijn:</em> de teruggaaf ' +
+      'staat in het jaar ná het verliesjaar, omdat de aangifte over het verliesjaar dan de deur uit gaat en daarop ' +
+      'de verliesverrekeningsbeschikking en de vermindering van de eerdere aanslag volgen. Loopt dat in werkelijkheid ' +
+      'anders, dan verschuift alleen het tijdstip en niet het bedrag.' +
+      (route.lossRefundAfterHorizon > 1
+        ? ' Van de teruggaaf valt ' + euro(route.lossRefundAfterHorizon) + ' na het laatste getoonde jaar; die is in de heffing verwerkt maar staat in geen enkel jaar hierboven.'
+        : ''));
+  }
+
+  if (route.lossesUnsettled > 1) {
+    html += signal('warn', '<strong>' + euro(route.lossesUnsettled) + ' aan box 2-verlies blijft binnen deze route onverrekend.</strong> ' +
+      'Er is in de getoonde jaren geen box 2-inkomen meer om het mee te verrekenen. Een verlies vervalt niet meteen: ' +
+      'het is nog zes jaar te verrekenen met inkomen uit aanmerkelijk belang (art. 4.49 lid 1), maar dat valt buiten ' +
+      'de horizon van deze berekening. De tool rekent het daarom niet als voordeel mee; de werkelijke last kan dus ' +
+      'lager uitvallen dan hier staat.');
+  }
+
   if (route.invariants && route.invariants.liquidity.length) {
     html += signal('warn', '<strong>Liquiditeitstekort in deze route.</strong> ' + route.invariants.liquidity.join('; ') +
       '. Er is externe financiering nodig; de tool rekent dat niet in.');
@@ -3344,6 +3474,9 @@ function renderRouteCard(route, inp, opts) {
     }
     privRows.push(row('Af: rechtstreeks op de RC afgelost', '− ' + euro(T.depositApplied)));
     privRows.push(row('Af: aanvullende IB box 2', '− ' + euro(T.privateOutTax)));
+    if (T.lossRefund > EPS) {
+      privRows.push(row('Bij: teruggaaf door terugwenteling van verlies', '+ ' + euro(T.lossRefund)));
+    }
     if (T.netPaidInCash > EPS) privRows.push(row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)));
     privRows.push(row('<strong>Totaal privé ingezet</strong>', '<strong>' + euro(route.privateUsed) + '</strong>'));
     privRows.push(rowMuted('waarvan netto beroep op het privévermogen', euro(route.privateNetUsed)));
@@ -3847,6 +3980,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 7 sep 2026, 11:28</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 22:54</div>
 </body>
 </html>
