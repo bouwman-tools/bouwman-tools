@@ -153,7 +153,7 @@ async function stuurNtfy(env, count) {
 // browserverkeer. Een script of curl stuurt geen Origin mee en wordt hierdoor
 // niet geweerd, en de worker kent geen authenticatie.
 //
-// Dat gat is per 10-09-2026 gedicht buiten deze code om, en het is nuttig te
+// Dat gat is per 09-09-2026 gedicht buiten deze code om, en het is nuttig te
 // weten waar: de worker hangt nu onder bouwman.tools/kvk-zoeker.html/api/*, een
 // kindpad van de pagina die Cloudflare Access al beschermt, en het openbare
 // workers.dev-adres staat uit. Zie wrangler.toml. Een verzoek dat hier
