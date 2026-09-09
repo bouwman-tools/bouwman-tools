@@ -379,7 +379,7 @@
         <div class="field">
           <label>Aandeel in bijtelling / forfait</label>
           <div class="sw"><input type="number" id="aandeel_pct" value="100" step="1" min="0" max="100"><span class="af">%</span></div>
-          <div class="field-note">Staat de auto aan meer dan &eacute;&eacute;n ondernemer ter beschikking, bijvoorbeeld in een VOF, dan wordt de onttrekking in de praktijk verdeeld. Voor die verdeelsleutel bestaat geen wettelijke regel; vul dan ook de autokosten voor hetzelfde aandeel in</div>
+          <div class="field-note"><span class="bron bron-regel">rechtspraak</span> Staat de auto aan meer dan &eacute;&eacute;n persoon ter beschikking, bijvoorbeeld in een VOF, dan wordt het forfait over hen verdeeld en niet bij ieder volledig geteld (ECLI:NL:GHSHE:2004:AO4912). Maatstaf is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding. Vul dan ook de autokosten voor hetzelfde aandeel in</div>
         </div>
         <div class="field">
           <label>Btw bij aanschaf afgetrokken</label>
@@ -1189,10 +1189,17 @@ function berekenBelastingeffect(rol, i) {
   // gebracht en kan die kosten niet overtreffen. De Belastingdienst rekent dat
   // in haar voorbeelden voor: bij een cataloguswaarde van EUR 50.000 en
   // EUR 9.000 autokosten is de bijtelling EUR 9.000 in plaats van EUR 11.000.
-  // Bron: belastingdienst.nl, "Voorbeelden berekening privégebruik auto",
-  // gecontroleerd 03-09-2026. Bij de parlementaire behandeling van art. 3.20 is
-  // bevestigd dat de correctie op grond van jurisprudentie nooit uitgaat boven
-  // de werkelijke kosten.
+  // Bron: belastingdienst.nl, "Voorbeelden berekening privégebruik auto".
+  //
+  // De rechtsgrond is HR 17 maart 1993, ECLI:NL:HR:1993:ZC5299 (BNB 1993/166),
+  // r.o. 3.3, over de voorganger art. 42 lid 2 Wet IB 1964: de kosten die worden
+  // geacht niet ten behoeve van de onderneming te zijn gemaakt kunnen "in enig
+  // jaar niet hoger worden gesteld dan de in dat jaar te dezer zake werkelijk
+  // gemaakte kosten". Datzelfde arrest zondert een boekwinst bij vervreemding
+  // uitdrukkelijk van die toets uit: een incidentele bate verlaagt het plafond
+  // niet. Deze tool rekent niet met een boekwinst bij verkoop, dus die nuance
+  // speelt hier niet; wie de restwaarde hoger inschat dan de boekwaarde moet er
+  // wel op bedacht zijn. Gecontroleerd 09-09-2026.
   //
   // De btw-correctie privégebruik hoort tot die autokosten: zij wordt geboekt
   // ten laste van de autokosten en verhoogt het plafond dus. Dat is uitleg, geen
@@ -1242,12 +1249,35 @@ function berekenBelastingeffect(rol, i) {
 
 // ─── Aandeel in de onttrekking ────────────────────────────────────────────────
 //
-// Staat een auto van de onderneming aan meer dan een ondernemer ter beschikking
-// (de klassieke VOF), dan wordt de onttrekking in de praktijk over hen verdeeld,
-// vaak half om half. Voor die verdeelsleutel is geen wettelijke regel, geen
-// goedkeuring en geen jurisprudentie gevonden waarnaar hier verwezen kan worden.
-// De tool schrijft daarom geen verdeling voor: het aandeel is invoer, standaard
-// 100%, en wie het verlaagt moet de autokosten voor hetzelfde aandeel invullen.
+// Staat een auto aan meer dan een persoon ter beschikking, dan wordt het forfait
+// niet bij ieder van hen volledig geteld maar over hen verdeeld. Dat is geen
+// praktijk maar rechtspraak: Hof 's-Hertogenbosch 12 januari 2004,
+// ECLI:NL:GHSHE:2004:AO4912, r.o. 4.2, in navolging van HR 1 maart 1978,
+// BNB 1978/82, oordeelt dat het bedrag van het forfait "in redelijkheid moet
+// worden verdeeld over elk dergenen aan wie de auto ter beschikking is gesteld".
+// Zie in dezelfde zin Hof Den Haag 13 januari 2022, ECLI:NL:GHDHA:2022:9,
+// r.o. 5.4, en voor de loonheffingen KG:204:2025:3, § 3.1.3.
+//
+// De maatstaf is dus de mate van TERBESCHIKKINGSTELLING, niet het aandeel in de
+// winst en niet het aantal gereden kilometers. KG:204:2025:3 maakt dat expliciet:
+// staat een auto het hele jaar aan twee personen ter beschikking, dan is de
+// verdeling 50/50, ook als de een hem meer gebruikt dan de ander. Half om half
+// is een vangnet bij gebrek aan aanknopingspunten, geen regel.
+//
+// LET OP — de rechtspraak hierboven gaat over art. 42 Wet IB 1964 en over
+// ter beschikking GESTELDE auto's. Er is geen gepubliceerde uitspraak of
+// kennisgroepstandpunt over de verdeling van art. 3.20 over vennoten van een
+// VOF. De brug is dat de memorie van toelichting art. 3.20 uitdrukkelijk aan
+// art. 42 ontleent (Kamerstukken II 1998/99, 26 727, nr. 3), maar die stap is
+// beredeneerd en niet door een bron bevestigd.
+//
+// Daarom schrijft de tool geen sleutel voor: het aandeel is invoer, standaard
+// 100%. Wie het verlaagt moet de autokosten voor hetzelfde aandeel invullen,
+// want deze kern verdeelt eerst en toetst daarna aan de ingevulde kosten. Of
+// die volgorde juist is, is een open vraag: er is geen bron over de vraag of
+// bij meerdere gerechtigden eerst op het niveau van de auto moet worden
+// begrensd en daarna verdeeld. Bij gelijke sleutels maakt het niets uit.
+// Gecontroleerd 09-09-2026.
 const AANDEEL_ONTTREKKING_STANDAARD = 1;
 
 // Belastingeffect over de hele gebruiksduur, per gebruiksjaar gerekend.
@@ -1385,6 +1415,9 @@ function valideerInvoer(i) {
   }
   if (i.forfaitBegrensd) {
     waarschuwingen.push('Het autokostenforfait is afgetopt op de werkelijke autokosten inclusief de btw-correctie privégebruik; zonder die aftopping zou de onttrekking hoger uitkomen dan de kosten die ten laste van de winst zijn gebracht.');
+  }
+  if (i.aandeel !== undefined && i.aandeel < 1) {
+    waarschuwingen.push('U verdeelt de bijtelling of het forfait. De maatstaf daarvoor is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding en niet het aantal gereden kilometers (Hof Den Bosch 12-01-2004, ECLI:NL:GHSHE:2004:AO4912; KG:204:2025:3). Vul de autokosten voor hetzelfde aandeel in, anders grijpt de aftopping op de werkelijke kosten niet. Let ook op de 500-kilometergrens: de wettekst knoopt aan bij het privégebruik van de auto, terwijl de Belastingdienst die grens in de loonsfeer per gebruiker herrekent. Voor de IB-ondernemer is dat niet uitgemaakt.');
   }
   if (i.belastAandeel !== undefined && i.belastAandeel < 1) {
     const pct = Math.round(i.belastAandeel * 1000) / 10;
@@ -2803,7 +2836,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 22:06</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 22:11</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
