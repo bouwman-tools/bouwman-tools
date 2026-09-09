@@ -1,0 +1,1537 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tijdplan — bouwman.tools</title>
+<style>
+:root{
+  --ink:#1c2430; --zacht:#5b6875; --lijn:#dde3ea; --vlak:#f6f8fa; --wit:#fff;
+  --accent:#1f5f8b; --accent-zacht:#e8f1f7; --warn:#b4531a; --warn-vlak:#fdf1e7;
+  --fout:#a02020; --fout-vlak:#fbecec; --ok:#1d6f42;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--vlak);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+header h1{font-size:26px;margin:0 0 4px}
+header p.sub{margin:0 0 22px;color:var(--zacht)}
+.kaart{background:var(--wit);border:1px solid var(--lijn);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.kaart h2{font-size:17px;margin:0 0 14px}
+.rij{display:flex;flex-wrap:wrap;gap:16px}
+.veld{display:flex;flex-direction:column;gap:4px}
+.veld label{font-size:13px;color:var(--zacht)}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select,textarea{
+  border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;background:var(--wit)}
+input[type=number]{width:120px}
+textarea{width:100%;min-height:60px;resize:vertical}
+button{border:1px solid var(--lijn);background:var(--wit);border-radius:6px;
+  padding:8px 14px;cursor:pointer}
+button:hover{background:var(--accent-zacht);border-color:var(--accent)}
+button.primair{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primair:hover{filter:brightness(1.08)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--lijn);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--zacht);font-size:12px;text-transform:uppercase;
+  letter-spacing:.03em}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.melding{border-radius:8px;padding:12px 14px;margin:10px 0;font-size:14px}
+.melding.fout{background:var(--fout-vlak);border:1px solid #eccaca;color:var(--fout)}
+.melding.waarschuwing{background:var(--warn-vlak);border:1px solid #f0d6bd;color:var(--warn)}
+.melding.info{background:var(--accent-zacht);border:1px solid #cfe0ec}
+.hulp{font-size:13px;color:var(--zacht);margin:6px 0 0}
+.personen-tabel input[type=text]{width:150px}
+.personen-tabel input[type=number]{width:90px}
+
+/* ── tijdlijn ─────────────────────────────────────────────────────────── */
+.tijdlijn{position:relative;padding-left:96px}
+.tl-jaar{position:relative;padding:10px 0 10px 22px;border-left:2px solid var(--lijn)}
+.tl-jaar:last-child{border-left-color:transparent}
+.tl-jaar .label{position:absolute;left:-96px;top:8px;width:74px;text-align:right;
+  font-variant-numeric:tabular-nums;font-weight:600}
+.tl-jaar .stip{position:absolute;left:-7px;top:15px;width:12px;height:12px;
+  border-radius:50%;background:var(--lijn);border:2px solid var(--wit)}
+.tl-jaar.heeft .stip{background:var(--accent)}
+.tl-jaar .leeftijden{font-size:13px;color:var(--zacht)}
+.tl-geb{display:inline-block;background:var(--accent-zacht);border:1px solid #cfe0ec;
+  border-radius:999px;padding:2px 10px;margin:3px 6px 3px 0;font-size:13px}
+.tl-geb.aow{background:#eaf5ee;border-color:#c8e3d2}
+.tl-geb.eigen{background:var(--vlak);border-color:var(--lijn)}
+.leeg{color:var(--zacht);font-style:italic}
+
+/* Wat alleen op de afdruk hoort. De invoervelden zelf gaan dan uit, zodat elke
+   waarde precies eenmaal in het printpad staat en er geen tweede bron ontstaat. */
+.alleenprint{display:none}
+.alleenprintblok{display:none}
+.metatabel{width:auto;font-size:14px}
+.metatabel td{border:none;padding:2px 24px 2px 0}
+.metatabel td.naam{color:var(--zacht)}
+
+@media print{
+  /* Zonder deze regel komt het papierformaat van de browser of de printer. Op een
+     Nederlandse printer is dat A4, maar in een headless render viel het op Letter.
+     Een dossierstuk hoort niet van de instelling van de lezer af te hangen. */
+  @page{size:A4}
+  body{background:#fff}
+  .noprint{display:none !important}
+  .alleenprint{display:inline}
+  .alleenprintblok{display:block}
+  .kaart{border:none;padding:0;margin:0 0 16px;break-inside:avoid}
+  .wrap{max-width:none;padding:0}
+  a[href]:after{content:""}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Tijdplan</h1>
+  <p class="sub">Leeftijden en mutatiemomenten per gezin, over de hele planningshorizon.
+    <span id="versieStempel"></span></p>
+</header>
+
+<div class="kaart">
+  <h2>Dossier</h2>
+  <div class="rij noprint">
+    <div class="veld"><label for="kenmerk">Klantnaam of kenmerk</label>
+      <input type="text" id="kenmerk" style="width:260px" placeholder="bijv. Familie De Vries" /></div>
+    <div class="veld"><label for="opsteller">Opstelling gemaakt door</label>
+      <input type="text" id="opsteller" style="width:220px" /></div>
+    <div class="veld"><label for="peildatum">Datum</label>
+      <input type="text" id="peildatum" style="width:140px" /></div>
+  </div>
+  <p class="hulp noprint">Deze gegevens komen op de afdruk en in de export. De tool bewaart niets
+    en stuurt niets naar een server.</p>
+  <div class="alleenprintblok" id="dossierPrint"></div>
+</div>
+
+<div class="kaart noprint">
+  <h2>Uitgangspunten</h2>
+  <div class="rij">
+    <div class="veld"><label for="startjaar">Start in jaar</label>
+      <input type="number" id="startjaar" value="2026" min="1900" max="2200" step="1" /></div>
+    <div class="veld"><label for="horizon">Aantal jaren vooruit</label>
+      <input type="number" id="horizon" value="45" min="1" max="100" step="1" /></div>
+  </div>
+  <p class="hulp">Het bronmodel hield een vaste horizon van 45 jaar aan. Die is hier vrij,
+    want de lengte van een tijdplan hoort bij de casus en niet bij het raster.</p>
+</div>
+
+<div class="kaart">
+  <h2>Gezinsleden</h2>
+  <table class="personen-tabel">
+    <thead><tr>
+      <th style="width:180px">Naam of initialen</th>
+      <th class="num" style="width:130px">Leeftijd in startjaar</th>
+      <th style="width:130px">Geboortejaar</th>
+      <th class="noprint"></th>
+    </tr></thead>
+    <tbody id="personenBody"></tbody>
+  </table>
+  <p class="noprint" style="margin-top:12px">
+    <button type="button" id="btnPersoon">Gezinslid toevoegen</button>
+  </p>
+  <p class="hulp">Het geboortejaar wordt afgeleid uit startjaar min leeftijd. Wie in het
+    startjaar nog jarig moet worden, is feitelijk een jaar eerder geboren; op jaarniveau is
+    dat verschil niet te zien. Elk afgeleid moment houdt daarom een marge van een jaar.</p>
+</div>
+
+<div class="kaart">
+  <h2>Mutatiemomenten</h2>
+  <p class="hulp" style="margin:0 0 12px">Een moment hangt aan een vast jaar, of aan de
+    leeftijd van een gezinslid. In het tweede geval rekent de tool het jaar zelf uit; dat is
+    precies de vraag die in het werkblad met het oog moest worden opgezocht.</p>
+  <table>
+    <thead><tr>
+      <th style="width:110px">Soort</th>
+      <th style="width:170px">Wie of welk jaar</th>
+      <th class="num" style="width:100px">Leeftijd</th>
+      <th>Omschrijving</th>
+      <th class="num" style="width:80px">Jaar</th>
+      <th class="noprint"></th>
+    </tr></thead>
+    <tbody id="momentenBody"></tbody>
+  </table>
+  <p class="noprint" style="margin-top:12px">
+    <button type="button" id="btnMoment">Mutatiemoment toevoegen</button>
+    <label style="margin-left:18px;font-size:14px">
+      <input type="checkbox" id="toonAow" checked /> AOW-moment automatisch tonen
+    </label>
+  </p>
+</div>
+
+<div id="meldingen"></div>
+
+<div class="kaart">
+  <h2>Tijdlijn</h2>
+  <div id="tijdlijn"></div>
+</div>
+
+<div class="kaart">
+  <h2>Overzicht per jaar</h2>
+  <div style="overflow-x:auto"><table id="rasterTabel"></table></div>
+</div>
+
+<div class="kaart noprint">
+  <h2>Uitgangen</h2>
+  <p>
+    <button type="button" class="primair" onclick="window.print()">Afdrukken als dossierstuk</button>
+    <button type="button" id="btnExcel">Exporteren naar Excel</button>
+    <button type="button" id="btnOpslaan">Opslaan als bestand</button>
+    <button type="button" id="btnOpenen">Bestand openen</button>
+    <input type="file" id="bestandInvoer" accept="application/json,.json" style="display:none" />
+  </p>
+  <p class="hulp">Het dossierbestand bevat alleen de invoer, geen uitkomsten. Bij het openen
+    rekent de tool opnieuw, met de dan geldende versie.</p>
+</div>
+
+<div class="kaart">
+  <h2>Afbakening en vindplaatsen</h2>
+  <div id="afbakening"></div>
+</div>
+
+</div>
+
+<script>
+"use strict";
+
+// ==========================================================================
+// FISCALE KERN — BEGIN
+//
+// Alles tussen deze markering en "FISCALE KERN — EINDE" is pure rekencode
+// zonder DOM. tests/laad-kern.mjs snijdt dit blok uit het bestand, zodat wat
+// de browser uitvoert exact is wat wordt getest. Er komt later één gedeelde
+// tarievenbron; die wordt uit deze markers gelicht.
+// ==========================================================================
+
+const TOOL_ID = 'tijdplan';
+const TOOL_VERSIE = '1.0.0';
+const DOSSIER_VERSIE = 1;
+
+/* ── Jaargebonden waarden ────────────────────────────────────────────────
+   Dit onderwerp is bijna helemaal datumrekenen; de enige jaargebonden waarde
+   die erin thuishoort is de AOW-leeftijd. De tabel is overgenomen uit de tool
+   Dividend_scenarios, waar zij op 2026-09-02 is gecontroleerd aan
+   rijksoverheid.nl/aow-leeftijd.
+
+   Vindplaats: art. 7a lid 1 AOW en de op grond van lid 2 gedane mededelingen.
+   2024 tot en met 2027: 67 jaar. 2028 tot en met 2031: 67 jaar en 3 maanden.
+
+   De sleutel is het jaar waarin de AOW-leeftijd wordt bereikt, niet het
+   geboortejaar. Voor jaren buiten deze tabel is de leeftijd niet vastgesteld;
+   de tool geeft dan een zichtbare melding en rekent nooit stil door met de
+   waarde van een ander jaar. */
+const AOW_LEEFTIJD_PER_JAAR = {
+  2024: { jaren: 67, maanden: 0 },
+  2025: { jaren: 67, maanden: 0 },
+  2026: { jaren: 67, maanden: 0 },
+  2027: { jaren: 67, maanden: 0 },
+  2028: { jaren: 67, maanden: 3 },
+  2029: { jaren: 67, maanden: 3 },
+  2030: { jaren: 67, maanden: 3 },
+  2031: { jaren: 67, maanden: 3 }
+};
+
+const AOW_JAREN = Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number).sort((a, b) => a - b);
+
+/** Grenzen waarbinnen een jaartal nog als jaartal wordt aanvaard. */
+const JAAR_MIN = 1900;
+const JAAR_MAX = 2200;
+const MAX_HORIZON = 100;
+const MAX_LEEFTIJD = 120;
+
+/**
+ * AOW-leeftijd voor een jaar uit de tabel.
+ * Een jaar dat er niet in staat levert een fout op en nooit een stille
+ * terugval op een ander jaar: een tijdplan loopt tientallen jaren vooruit en
+ * zou anders een AOW-moment tonen dat op niets berust.
+ */
+function aowLeeftijdInJaar(jaar) {
+  const j = Number(jaar);
+  const w = AOW_LEEFTIJD_PER_JAAR[j];
+  if (!w) {
+    throw new Error(
+      'Voor ' + (jaar === '' || jaar === null || jaar === undefined ? '(leeg)' : jaar) +
+      ' is de AOW-leeftijd niet vastgesteld; de tabel loopt van ' +
+      AOW_JAREN[0] + ' tot en met ' + AOW_JAREN[AOW_JAREN.length - 1] + '.'
+    );
+  }
+  return w;
+}
+
+/** Geboortejaar zoals dit model het bedoelt: startjaar min leeftijd in dat jaar. */
+function geboortejaarUit(startjaar, leeftijdInStartjaar) {
+  return Number(startjaar) - Number(leeftijdInStartjaar);
+}
+
+/**
+ * Het jaar waarin iemand een bepaalde leeftijd bereikt.
+ * Dit is de omgekeerde vraag van het bronmodel: daar stond de leeftijd per jaar
+ * in een kolom en moest de gebruiker het jaar zoeken.
+ */
+function jaarBijLeeftijd(startjaar, leeftijdInStartjaar, doelLeeftijd) {
+  return Number(startjaar) + (Number(doelLeeftijd) - Number(leeftijdInStartjaar));
+}
+
+/** Leeftijd van iemand in een gegeven jaar. */
+function leeftijdInJaar(startjaar, leeftijdInStartjaar, jaar) {
+  return Number(leeftijdInStartjaar) + (Number(jaar) - Number(startjaar));
+}
+
+/**
+ * Het jaar waarin iemand de AOW-leeftijd bereikt.
+ *
+ * De tabel is gesleuteld op het jaar waarin die leeftijd valt, dus er wordt
+ * gezocht naar het jaar waarin de leeftijd van de persoon gelijk is aan de
+ * dan geldende AOW-leeftijd in hele jaren. Staat er ook een aantal maanden bij,
+ * dan kan het moment afhankelijk van de geboortemaand een jaar later vallen;
+ * dat zegt de uitkomst erbij in plaats van een precisie te suggereren die er
+ * op jaarniveau niet is.
+ *
+ * Geeft null wanneer het AOW-jaar buiten de vastgestelde tabel valt. Dat is
+ * geen stille terugval: de aanroeper zet er een zichtbare melding bij.
+ */
+function aowJaarVoorPersoon(startjaar, leeftijdInStartjaar) {
+  for (let i = 0; i < AOW_JAREN.length; i++) {
+    const jaar = AOW_JAREN[i];
+    const w = AOW_LEEFTIJD_PER_JAAR[jaar];
+    if (leeftijdInJaar(startjaar, leeftijdInStartjaar, jaar) === w.jaren) {
+      return { jaar: jaar, jaren: w.jaren, maanden: w.maanden, onzeker: w.maanden > 0 };
+    }
+  }
+  return null;
+}
+
+/** Trimt en beperkt een vrije tekst zonder haar stil te veranderen. */
+function schoneTekst(v) {
+  return String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Normaliseert de ruwe invoer tot één vorm waar de rest mee rekent.
+ * Ontbrekende velden worden niet stil aangevuld; validatie doet de melding.
+ */
+function normaliseerInvoer(ruw) {
+  const r = ruw || {};
+  return {
+    kenmerk: schoneTekst(r.kenmerk),
+    opsteller: schoneTekst(r.opsteller),
+    peildatum: schoneTekst(r.peildatum),
+    startjaar: Number(r.startjaar),
+    horizon: Number(r.horizon),
+    toonAow: r.toonAow !== false,
+    personen: (Array.isArray(r.personen) ? r.personen : []).map(function (p) {
+      return { naam: schoneTekst(p && p.naam), leeftijd: Number(p && p.leeftijd) };
+    }),
+    momenten: (Array.isArray(r.momenten) ? r.momenten : []).map(function (m) {
+      return {
+        soort: (m && m.soort === 'leeftijd') ? 'leeftijd' : 'jaar',
+        persoonIndex: Number(m && m.persoonIndex),
+        jaar: Number(m && m.jaar),
+        leeftijd: Number(m && m.leeftijd),
+        omschrijving: schoneTekst(m && m.omschrijving)
+      };
+    })
+  };
+}
+
+function isGeheel(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n; }
+
+/**
+ * Toetst de invoer. Het bronmodel kende geen enkele validatie: een negatieve
+ * leeftijd of een startjaar van 1200 gaf daar gewoon een tabel. Hier zit het
+ * risico van dit onderwerp, niet in de formules.
+ */
+function valideerInvoer(inp) {
+  const fouten = [];
+  const waarschuwingen = [];
+
+  if (!isGeheel(inp.startjaar)) {
+    fouten.push('Vul een startjaar in als heel jaartal.');
+  } else if (inp.startjaar < JAAR_MIN || inp.startjaar > JAAR_MAX) {
+    fouten.push('Het startjaar moet tussen ' + JAAR_MIN + ' en ' + JAAR_MAX + ' liggen.');
+  }
+
+  if (!isGeheel(inp.horizon) || inp.horizon < 1) {
+    fouten.push('Het aantal jaren vooruit moet een heel getal van ten minste 1 zijn.');
+  } else if (inp.horizon > MAX_HORIZON) {
+    fouten.push('Het aantal jaren vooruit is begrensd op ' + MAX_HORIZON + '.');
+  }
+
+  if (inp.personen.length === 0) {
+    fouten.push('Voeg ten minste één gezinslid toe; zonder gezinslid is er geen tijdplan.');
+  }
+
+  inp.personen.forEach(function (p, i) {
+    const wie = 'Gezinslid ' + (i + 1) + (p.naam ? ' (' + p.naam + ')' : '');
+    if (!p.naam) fouten.push(wie + ' heeft geen naam of initialen.');
+    if (!isGeheel(p.leeftijd)) {
+      fouten.push(wie + ' heeft geen hele leeftijd in het startjaar.');
+    } else if (p.leeftijd < 0) {
+      fouten.push(wie + ' heeft een negatieve leeftijd.');
+    } else if (p.leeftijd > MAX_LEEFTIJD) {
+      fouten.push(wie + ' heeft een leeftijd boven ' + MAX_LEEFTIJD + '.');
+    }
+  });
+
+  const namen = inp.personen.map(function (p) { return p.naam.toLowerCase(); })
+    .filter(function (n) { return n !== ''; });
+  namen.forEach(function (n, i) {
+    if (namen.indexOf(n) !== i && waarschuwingen.indexOf('dubbel:' + n) === -1) {
+      waarschuwingen.push('Twee gezinsleden heten hetzelfde. De tijdlijn is dan lastig te lezen.');
+    }
+  });
+
+  inp.momenten.forEach(function (m, i) {
+    const wie = 'Mutatiemoment ' + (i + 1) + (m.omschrijving ? ' (' + m.omschrijving + ')' : '');
+    if (!m.omschrijving) fouten.push(wie + ' heeft geen omschrijving.');
+    if (m.soort === 'jaar') {
+      if (!isGeheel(m.jaar)) fouten.push(wie + ' heeft geen heel jaartal.');
+      else if (m.jaar < JAAR_MIN || m.jaar > JAAR_MAX) {
+        fouten.push(wie + ' heeft een jaartal buiten ' + JAAR_MIN + '-' + JAAR_MAX + '.');
+      }
+    } else {
+      if (!isGeheel(m.persoonIndex) || m.persoonIndex < 0 ||
+          m.persoonIndex >= inp.personen.length) {
+        fouten.push(wie + ' verwijst niet naar een bestaand gezinslid.');
+      }
+      if (!isGeheel(m.leeftijd) || m.leeftijd < 0 || m.leeftijd > MAX_LEEFTIJD) {
+        fouten.push(wie + ' heeft geen bruikbare leeftijd.');
+      }
+    }
+  });
+
+  return { ok: fouten.length === 0, fouten: fouten, waarschuwingen: waarschuwingen };
+}
+
+/**
+ * Bouwt de gebeurtenissen: de door de gebruiker opgegeven momenten, en per
+ * gezinslid het AOW-moment wanneer dat is aangezet.
+ *
+ * Een AOW-moment dat buiten de vastgestelde tabel valt komt niet als
+ * gebeurtenis terug maar als melding. Zo kan de tijdlijn nooit een moment
+ * tonen dat op een aangenomen waarde berust.
+ */
+function bouwGebeurtenissen(inp) {
+  const gebeurtenissen = [];
+  const meldingen = [];
+
+  inp.momenten.forEach(function (m) {
+    if (m.soort === 'jaar') {
+      gebeurtenissen.push({
+        jaar: m.jaar, soort: 'eigen', tekst: m.omschrijving, persoon: null
+      });
+    } else {
+      const p = inp.personen[m.persoonIndex];
+      const jaar = jaarBijLeeftijd(inp.startjaar, p.leeftijd, m.leeftijd);
+      gebeurtenissen.push({
+        jaar: jaar, soort: 'eigen', tekst: m.omschrijving,
+        persoon: p.naam, leeftijd: m.leeftijd
+      });
+    }
+  });
+
+  if (inp.toonAow) {
+    inp.personen.forEach(function (p) {
+      const a = aowJaarVoorPersoon(inp.startjaar, p.leeftijd);
+      if (a) {
+        gebeurtenissen.push({
+          jaar: a.jaar, soort: 'aow', persoon: p.naam, leeftijd: a.jaren,
+          tekst: 'AOW-leeftijd (' + a.jaren + ' jaar' +
+            (a.maanden ? ' en ' + a.maanden + ' maanden' : '') + ')',
+          onzeker: a.onzeker
+        });
+      } else {
+        const verwacht = jaarBijLeeftijd(inp.startjaar, p.leeftijd,
+          AOW_LEEFTIJD_PER_JAAR[AOW_JAREN[AOW_JAREN.length - 1]].jaren);
+        meldingen.push(
+          'Voor ' + p.naam + ' valt de AOW-leeftijd rond ' + verwacht +
+          ' en daarmee buiten de vastgestelde jaren ' + AOW_JAREN[0] + ' tot en met ' +
+          AOW_JAREN[AOW_JAREN.length - 1] + '. De tool toont daarom geen AOW-moment; ' +
+          'zij vult geen waarde in die niet is vastgesteld.'
+        );
+      }
+    });
+  }
+
+  gebeurtenissen.sort(function (a, b) {
+    if (a.jaar !== b.jaar) return a.jaar - b.jaar;
+    if (a.soort !== b.soort) return a.soort === 'aow' ? 1 : -1;
+    return String(a.tekst).localeCompare(String(b.tekst), 'nl');
+  });
+
+  return { gebeurtenissen: gebeurtenissen, meldingen: meldingen };
+}
+
+/**
+ * Hoofdingang. Levert het jaarraster met de leeftijden per gezinslid, de
+ * gebeurtenissen op hun jaar, en de meldingen.
+ *
+ * Het jaarraster is precies wat het bronmodel oplevert: per volgend jaar telt
+ * het jaartal met één op en telt elke leeftijd met één op. Dat deel moet cel
+ * voor cel gelijk zijn; VERGELIJKING.md toetst dat.
+ */
+function bouwTijdplan(ruw) {
+  const inp = normaliseerInvoer(ruw);
+  const validatie = valideerInvoer(inp);
+  if (!validatie.ok) return { ok: false, invoer: inp, validatie: validatie };
+
+  const g = bouwGebeurtenissen(inp);
+  const perJaar = new Map();
+  g.gebeurtenissen.forEach(function (geb) {
+    if (!perJaar.has(geb.jaar)) perJaar.set(geb.jaar, []);
+    perJaar.get(geb.jaar).push(geb);
+  });
+
+  const rijen = [];
+  for (let n = 0; n <= inp.horizon; n++) {
+    const jaar = inp.startjaar + n;
+    rijen.push({
+      jaar: jaar,
+      leeftijden: inp.personen.map(function (p) {
+        return leeftijdInJaar(inp.startjaar, p.leeftijd, jaar);
+      }),
+      gebeurtenissen: perJaar.get(jaar) || []
+    });
+  }
+
+  const buiten = g.gebeurtenissen.filter(function (geb) {
+    return geb.jaar < inp.startjaar || geb.jaar > inp.startjaar + inp.horizon;
+  });
+
+  return {
+    ok: true,
+    invoer: inp,
+    validatie: validatie,
+    rijen: rijen,
+    gebeurtenissen: g.gebeurtenissen,
+    buitenHorizon: buiten,
+    meldingen: g.meldingen,
+    geboortejaren: inp.personen.map(function (p) {
+      return geboortejaarUit(inp.startjaar, p.leeftijd);
+    })
+  };
+}
+
+// ==========================================================================
+// FISCALE KERN — EINDE
+// ==========================================================================
+
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. Overgenomen uit Berekeningen; zolang er geen
+// gedeelde engine.js is, staat deze schrijver in elke tool tussen deze
+// markers, zodat hij herkenbaar blijft als gedeelde code.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+
+// ==========================================================================
+// EXPORTINHOUD — wat er van dit tijdplan meegaat naar Excel.
+// Deze functie rekent niet: zij leest het resultaat dat het scherm ook toont.
+// ==========================================================================
+
+const BRONREGEL_AOW =
+  'AOW-leeftijd: art. 7a lid 1 AOW en de op grond van lid 2 gedane mededelingen. ' +
+  'Tabel gecontroleerd op 2026-09-02 aan rijksoverheid.nl/aow-leeftijd; ' +
+  'vastgesteld voor de jaren ' + AOW_JAREN[0] + ' tot en met ' +
+  AOW_JAREN[AOW_JAREN.length - 1] + '.';
+
+const AFBAKENING = [
+  'Deze tool rekent met hele jaren. Leeftijd in het startjaar is niet hetzelfde als ' +
+    'geboortedatum: wie in het startjaar nog jarig moet worden en wie al jarig is geweest, ' +
+    'krijgen dezelfde regel. Elk afgeleid moment houdt daardoor een marge van een jaar.',
+  'De tool bepaalt geen fiscale gevolgen van een mutatiemoment. Zij zegt in welk jaar iets ' +
+    'valt; wat daar fiscaal uit volgt, beoordeelt de adviseur.',
+  'Er is één jaargebonden waarde: de AOW-leeftijd. Valt die buiten de vastgestelde jaren, ' +
+    'dan toont de tool geen AOW-moment en zegt zij dat met zoveel woorden.',
+  'De tool bewaart niets en stuurt niets naar een server. Opslaan is een handeling van de ' +
+    'gebruiker naar een plek die hij zelf kiest.'
+];
+
+/**
+ * De meldingen die bij dit resultaat horen, in een lijst. Scherm, afdruk en
+ * Excel lezen alle drie deze functie, zodat een uitgang niet kan achterblijven
+ * bij een andere. Dat was precies wat er misging: het scherm toonde de
+ * waarschuwing over dubbele namen en de momenten buiten de horizon, de export
+ * liet ze weg.
+ */
+function buitenHorizonTekst(res) {
+  const b = (res && res.buitenHorizon) || [];
+  if (!b.length) return null;
+  return b.length + ' mutatiemoment' + (b.length === 1 ? '' : 'en') +
+    ' valt buiten de gekozen horizon: ' +
+    b.map(function (g) { return g.tekst + ' (' + g.jaar + ')'; }).join(', ') +
+    '. Verleng de horizon om het in de tijdlijn te zien.';
+}
+
+function relevanteMeldingen(res) {
+  const uit = [];
+  if (!res || !res.ok) return uit;
+  (res.validatie.waarschuwingen || []).forEach(function (w) {
+    uit.push({ soort: 'waarschuwing', tekst: w });
+  });
+  (res.meldingen || []).forEach(function (m) {
+    uit.push({ soort: 'waarschuwing', tekst: m });
+  });
+  const b = buitenHorizonTekst(res);
+  if (b) uit.push({ soort: 'info', tekst: b });
+  return uit;
+}
+
+function exportBladen(res) {
+  const inp = res.invoer;
+  const rijen = [];
+  const nu = new Date();
+  const datum = nu.getFullYear() + '-' +
+    String(nu.getMonth() + 1).padStart(2, '0') + '-' + String(nu.getDate()).padStart(2, '0');
+
+  rijen.push([celTekst('Tijdplan', true)]);
+  rijen.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  rijen.push([celTekst('Geëxporteerd op'), celTekst(datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(inp.kenmerk || '—')]);
+  rijen.push([celTekst('Opstelling gemaakt door'), celTekst(inp.opsteller || '—')]);
+  rijen.push([celTekst('Datum opstelling'), celTekst(inp.peildatum || '—')]);
+  rijen.push([]);
+
+  rijen.push([celTekst('Invoer', true)]);
+  rijen.push([celTekst('Start in jaar'), celGetal(inp.startjaar, '0')]);
+  rijen.push([celTekst('Aantal jaren vooruit'), celGetal(inp.horizon, '0')]);
+  rijen.push([celTekst('AOW-moment automatisch tonen'), celTekst(inp.toonAow ? 'ja' : 'nee')]);
+  rijen.push([]);
+  rijen.push([celTekst('Gezinslid', true), celTekst('Leeftijd in startjaar', true),
+    celTekst('Geboortejaar', true)]);
+  inp.personen.forEach(function (p, i) {
+    rijen.push([celTekst(p.naam), celGetal(p.leeftijd, '0'),
+      celGetal(res.geboortejaren[i], '0')]);
+  });
+  rijen.push([]);
+
+  rijen.push([celTekst('Opgegeven mutatiemomenten', true)]);
+  if (inp.momenten.length === 0) {
+    rijen.push([celTekst('geen')]);
+  } else {
+    rijen.push([celTekst('Soort', true), celTekst('Wie', true), celTekst('Leeftijd', true),
+      celTekst('Jaar', true), celTekst('Omschrijving', true)]);
+    inp.momenten.forEach(function (m) {
+      const p = m.soort === 'leeftijd' ? inp.personen[m.persoonIndex] : null;
+      rijen.push([
+        celTekst(m.soort === 'leeftijd' ? 'bij leeftijd' : 'vast jaar'),
+        celTekst(p ? p.naam : '—'),
+        m.soort === 'leeftijd' ? celGetal(m.leeftijd, '0') : celTekst('—'),
+        celGetal(m.soort === 'leeftijd'
+          ? jaarBijLeeftijd(inp.startjaar, p.leeftijd, m.leeftijd) : m.jaar, '0'),
+        celTekst(m.omschrijving)
+      ]);
+    });
+  }
+  rijen.push([]);
+
+  rijen.push([celTekst('Uitkomst per jaar', true)]);
+  const kop = [celTekst('Jaar', true)];
+  inp.personen.forEach(function (p) { kop.push(celTekst(p.naam, true)); });
+  kop.push(celTekst('Mutatiemomenten', true));
+  rijen.push(kop);
+  res.rijen.forEach(function (r) {
+    const rij = [celGetal(r.jaar, '0')];
+    r.leeftijden.forEach(function (l) { rij.push(celGetal(l, '0')); });
+    rij.push(celTekst(r.gebeurtenissen.map(function (g) {
+      return (g.persoon ? g.persoon + ': ' : '') + g.tekst;
+    }).join(' · ')));
+    rijen.push(rij);
+  });
+  rijen.push([]);
+
+  rijen.push([celTekst('Meldingen bij deze casus', true)]);
+  const meldingen = relevanteMeldingen(res);
+  if (meldingen.length === 0) {
+    rijen.push([celTekst('geen')]);
+  } else {
+    meldingen.forEach(function (m) { rijen.push([celTekst(m.tekst)]); });
+  }
+  rijen.push([]);
+
+  rijen.push([celTekst('Toelichting en vindplaatsen', true)]);
+  rijen.push([celTekst(BRONREGEL_AOW)]);
+  AFBAKENING.forEach(function (a) { rijen.push([celTekst(a)]); });
+
+  const breedtes = [26];
+  inp.personen.forEach(function () { breedtes.push(14); });
+  breedtes.push(60);
+
+  return [{ naam: 'Tijdplan', rijen: rijen, breedtes: breedtes }];
+}
+
+function slug(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+// ==========================================================================
+// DOSSIERBESTAND — schrijven, lezen en toetsen. Geen DOM.
+//
+// Het bestand bevat alleen invoer, geen uitkomsten. Alles wat een geopend
+// bestand kan mankeren wordt hier vastgesteld, voordat er ook maar een veld in
+// het scherm verandert. De handler schrijft pas als dit blok ok geeft; wordt
+// het bestand afgewezen, dan blijft de lopende opstelling ongemoeid.
+//
+// Wat hier uitdrukkelijk niet gebeurt: een ontbrekende, lege of verkeerd
+// getypeerde waarde stil naar nul, false of een lege lijst brengen. Zo gaat een
+// dossier open met een ander uitgangspunt dan waarmee het is opgeslagen, en dat
+// is bij een tijdplan niet aan de uitkomst te zien.
+// ==========================================================================
+
+function datumStempel() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' +
+    String(n.getDate()).padStart(2, '0');
+}
+
+const DOSSIER_VELDEN = ['startjaar', 'horizon', 'toonAow', 'personen', 'momenten'];
+const DOSSIER_METAVELDEN = ['kenmerk', 'opsteller', 'peildatum'];
+
+/* Het label zoals het op het scherm staat, per veld in het dossierbestand. Een
+   foutmelding noemt beide: het label leest als de tool zelf, de technische naam
+   wijst aan welke regel in het JSON-bestand het betreft. Wie het bestand met de
+   hand heeft aangepast heeft die naam nodig; wie dat niet deed heeft er niets aan. */
+const DOSSIER_LABEL = {
+  kenmerk: 'Klantnaam of kenmerk',
+  opsteller: 'Opstelling gemaakt door',
+  peildatum: 'Datum',
+  startjaar: 'Start in jaar',
+  horizon: 'Aantal jaren vooruit',
+  toonAow: 'AOW-moment automatisch tonen',
+  personen: 'Gezinsleden',
+  momenten: 'Mutatiemomenten',
+  naam: 'Naam of initialen',
+  leeftijd: 'Leeftijd in startjaar',
+  persoonIndex: 'Wie of welk jaar',
+  jaar: 'Jaar',
+  omschrijving: 'Omschrijving',
+  soort: 'Soort'
+};
+
+/** "Start in jaar" (startjaar) — het schermlabel met de veldnaam erachter. */
+function veldNaam(sleutel) {
+  const label = DOSSIER_LABEL[sleutel];
+  return label ? '"' + label + '" (' + sleutel + ')' : sleutel;
+}
+
+function isPlatObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+/** Leesbare aanduiding van wat er is aangetroffen, voor in een foutmelding. */
+function omschrijfWaarde(v) {
+  if (v === undefined) return 'niets';
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'een lijst';
+  if (typeof v === 'object') return 'een object';
+  if (typeof v === 'string') return 'de tekst "' + v + '"';
+  return String(v);
+}
+
+/**
+ * Het dossier zoals het wordt weggeschreven. Van een mutatiemoment gaan alleen
+ * de velden mee die bij die soort horen: een leeftijdsmoment heeft geen jaar en
+ * een jaarmoment geen leeftijd. Die stonden er eerder als NaN in en werden door
+ * JSON.stringify tot null, wat bij het teruglezen niet te onderscheiden is van
+ * een veld dat echt leeg is gelaten.
+ */
+function dossierUitInvoer(inv) {
+  return {
+    tool: TOOL_ID,
+    toolVersie: TOOL_VERSIE,
+    dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: datumStempel(),
+    kenmerk: inv.kenmerk,
+    opsteller: inv.opsteller,
+    peildatum: inv.peildatum,
+    startjaar: inv.startjaar,
+    horizon: inv.horizon,
+    toonAow: inv.toonAow,
+    personen: inv.personen.map(function (p) {
+      return { naam: p.naam, leeftijd: p.leeftijd };
+    }),
+    momenten: inv.momenten.map(function (m) {
+      const uit = { soort: m.soort, omschrijving: m.omschrijving };
+      if (m.soort === 'jaar') uit.jaar = m.jaar;
+      else { uit.persoonIndex = m.persoonIndex; uit.leeftijd = m.leeftijd; }
+      return uit;
+    })
+  };
+}
+
+function dossierFout(fouten) {
+  return { ok: false, fouten: fouten, fout: fouten.join(' ') };
+}
+
+/** Toetst een heel getal binnen grenzen en meldt wat er in plaats daarvan stond. */
+function toetsGeheel(fouten, waarde, wat, min, max) {
+  if (!isGeheel(waarde)) {
+    fouten.push(wat + ' moet een heel getal zijn; het bestand bevat ' +
+      omschrijfWaarde(waarde) + '.');
+    return false;
+  }
+  if (waarde < min || waarde > max) {
+    fouten.push(wat + ' moet tussen ' + min + ' en ' + max + ' liggen; het bestand bevat ' +
+      waarde + '.');
+    return false;
+  }
+  return true;
+}
+
+/** Een veld dat bij deze soort moment niet hoort mag ontbreken of null zijn. */
+function nietIngevuld(v) { return v === undefined || v === null; }
+
+/**
+ * Toetst een gelezen dossier volledig. Geeft alle fouten terug en niet alleen de
+ * eerste: wie een bestand met de hand heeft aangepast heeft er niets aan om ze
+ * een voor een te vinden.
+ */
+function toetsDossier(d) {
+  if (!isPlatObject(d)) {
+    return dossierFout(['Dit bestand bevat geen dossier maar ' + omschrijfWaarde(d) + '.']);
+  }
+  if (d.tool !== TOOL_ID) {
+    return dossierFout(['Dit dossierbestand hoort niet bij Tijdplan (tool: ' +
+      omschrijfWaarde(d.tool) + ').']);
+  }
+  if (d.dossierVersie !== DOSSIER_VERSIE) {
+    return dossierFout(['Dit dossierbestand heeft dossierversie ' +
+      omschrijfWaarde(d.dossierVersie) + '. Deze tool leest versie ' + DOSSIER_VERSIE +
+      ' en raadt niet wat een andere versie bedoelt.']);
+  }
+  const ontbreekt = DOSSIER_VELDEN.filter(function (v) { return d[v] === undefined; });
+  if (ontbreekt.length) {
+    return dossierFout(['Het dossierbestand mist ' + ontbreekt.map(veldNaam).join(', ') +
+      '. De tool vult die niet zelf in, want dan zou het dossier met een ander ' +
+      'uitgangspunt opengaan dan waarmee het is opgeslagen.']);
+  }
+
+  const fouten = [];
+
+  DOSSIER_METAVELDEN.forEach(function (v) {
+    if (d[v] !== undefined && typeof d[v] !== 'string') {
+      fouten.push('Het veld ' + veldNaam(v) + ' moet tekst zijn; het bestand bevat ' +
+        omschrijfWaarde(d[v]) + '.');
+    }
+  });
+
+  toetsGeheel(fouten, d.startjaar, 'Het veld ' + veldNaam('startjaar'), JAAR_MIN, JAAR_MAX);
+  toetsGeheel(fouten, d.horizon, 'Het veld ' + veldNaam('horizon'), 1, MAX_HORIZON);
+
+  if (d.toonAow !== true && d.toonAow !== false) {
+    fouten.push('Het veld ' + veldNaam('toonAow') + ' moet true of false zijn; het bestand ' +
+      'bevat ' + omschrijfWaarde(d.toonAow) + '.');
+  }
+
+  // Twee soorten mankement aan de lijst gezinsleden, met een verschillend gevolg.
+  //
+  // Structureel — geen lijst, leeg, of een element dat geen gezinslid is — betekent
+  // dat er niets te openen valt en het bestand wordt afgewezen.
+  //
+  // Een gezinslid waarvan alleen de naam of de leeftijd niet deugt is iets anders. De
+  // tool heeft daar al een zichtbare fout voor ("Gezinslid 1 heeft geen hele leeftijd
+  // in het startjaar") en rekent dan niet. Het bestand gaat dan wel open, met dat ene
+  // veld leeg, zodat de gebruiker zijn eigen casus ziet en hem ter plekke aanvult.
+  // Weigeren zou betekenen dat een halverwege opgeslagen dossier alleen nog met de
+  // hand in het JSON-bestand te repareren is. Besluit van Sylvain, 9 september 2026.
+  let aantalPersonen = 0;
+  const foutenVoorPersonen = fouten.length;
+  if (!Array.isArray(d.personen)) {
+    fouten.push('Het veld ' + veldNaam('personen') + ' moet een lijst gezinsleden zijn; ' +
+      'het bestand bevat ' + omschrijfWaarde(d.personen) + '.');
+  } else if (d.personen.length === 0) {
+    fouten.push('Het dossierbestand bevat geen enkel gezinslid; zonder gezinslid is er ' +
+      'geen tijdplan.');
+  } else {
+    aantalPersonen = d.personen.length;
+    d.personen.forEach(function (pers, i) {
+      const wie = 'Gezinslid ' + (i + 1);
+      if (!isPlatObject(pers)) {
+        fouten.push(wie + ' is geen gezinslid maar ' + omschrijfWaarde(pers) + '.');
+      }
+    });
+  }
+
+  const bruikbaar = fouten.length === foutenVoorPersonen ? aantalPersonen : 0;
+
+  if (!Array.isArray(d.momenten)) {
+    fouten.push('Het veld ' + veldNaam('momenten') + ' moet een lijst mutatiemomenten zijn; ' +
+      'het bestand bevat ' + omschrijfWaarde(d.momenten) + '.');
+  } else {
+    d.momenten.forEach(function (m, i) {
+      const wat = 'Mutatiemoment ' + (i + 1);
+      if (!isPlatObject(m)) {
+        fouten.push(wat + ' is geen mutatiemoment maar ' + omschrijfWaarde(m) + '.');
+        return;
+      }
+      if (m.soort !== 'jaar' && m.soort !== 'leeftijd') {
+        fouten.push(wat + ' heeft soort ' + omschrijfWaarde(m.soort) +
+          '; dat moet "jaar" of "leeftijd" zijn.');
+        return;
+      }
+      if (typeof m.omschrijving !== 'string' || m.omschrijving.trim() === '') {
+        fouten.push(wat + ' heeft geen omschrijving; het bestand bevat ' +
+          omschrijfWaarde(m.omschrijving) + '.');
+      }
+      if (m.soort === 'jaar') {
+        toetsGeheel(fouten, m.jaar, wat + ': het jaar', JAAR_MIN, JAAR_MAX);
+        if (!nietIngevuld(m.leeftijd)) {
+          toetsGeheel(fouten, m.leeftijd, wat + ': de leeftijd', 0, MAX_LEEFTIJD);
+        }
+        if (!nietIngevuld(m.persoonIndex) && bruikbaar > 0) {
+          toetsGeheel(fouten, m.persoonIndex, wat + ': het gezinslid', 0, bruikbaar - 1);
+        }
+      } else {
+        toetsGeheel(fouten, m.leeftijd, wat + ': de leeftijd', 0, MAX_LEEFTIJD);
+        if (bruikbaar === 0) {
+          fouten.push(wat + ' verwijst naar een gezinslid, maar het bestand bevat geen ' +
+            'bruikbare lijst gezinsleden.');
+        } else {
+          toetsGeheel(fouten, m.persoonIndex, wat + ': het gezinslid', 0, bruikbaar - 1);
+        }
+        if (!nietIngevuld(m.jaar)) {
+          toetsGeheel(fouten, m.jaar, wat + ': het jaar', JAAR_MIN, JAAR_MAX);
+        }
+      }
+    });
+  }
+
+  if (fouten.length) return dossierFout(fouten);
+  return { ok: true, dossier: d, invoer: invoerUitDossier(d) };
+}
+
+function leesDossier(tekst) {
+  let d;
+  try { d = JSON.parse(tekst); }
+  catch (e) {
+    return dossierFout(['Dit is geen geldig dossierbestand: de JSON kon niet worden gelezen.']);
+  }
+  return toetsDossier(d);
+}
+
+/**
+ * Zet een getoetst dossier om in de invoer waarmee het scherm werkt. Wordt
+ * alleen aangeroepen nadat toetsDossier ok heeft gegeven, en redt of vult hier
+ * dus niets meer. Het veld dat bij een soort moment niet actief is krijgt de
+ * plaatshouder die de tool zelf ook gebruikt; bij opslaan gaat die weer weg.
+ * Onbekende velden uit het bestand gaan niet mee.
+ */
+function invoerUitDossier(d) {
+  return {
+    kenmerk: typeof d.kenmerk === 'string' ? d.kenmerk : '',
+    opsteller: typeof d.opsteller === 'string' ? d.opsteller : '',
+    peildatum: typeof d.peildatum === 'string' ? d.peildatum : '',
+    startjaar: d.startjaar,
+    horizon: d.horizon,
+    toonAow: d.toonAow,
+    // Een naam of leeftijd die niet deugt komt hier leeg door. De invoercontrole van
+    // bouwTijdplan meldt dat vervolgens op het scherm en rekent niet; er wordt niets
+    // stil aangevuld en zeker geen nul.
+    personen: d.personen.map(function (pers) {
+      return {
+        naam: typeof pers.naam === 'string' ? pers.naam : '',
+        leeftijd: isGeheel(pers.leeftijd) && pers.leeftijd >= 0 && pers.leeftijd <= MAX_LEEFTIJD
+          ? pers.leeftijd : NaN
+      };
+    }),
+    momenten: d.momenten.map(function (m) {
+      return {
+        soort: m.soort,
+        persoonIndex: isGeheel(m.persoonIndex) ? m.persoonIndex : 0,
+        jaar: isGeheel(m.jaar) ? m.jaar : NaN,
+        leeftijd: isGeheel(m.leeftijd) ? m.leeftijd : NaN,
+        omschrijving: m.omschrijving
+      };
+    })
+  };
+}
+
+
+// ==========================================================================
+// PRESENTATIELAAG — leest uitsluitend het resultaat van bouwTijdplan().
+// Hier staat geen rekenlogica.
+// ==========================================================================
+
+const el = function (id) { return document.getElementById(id); };
+
+/**
+ * Houdt de printtekst naast een invoerveld gelijk aan wat er wordt getypt.
+ *
+ * Een naam of een omschrijving wijzigen tekent de rij bewust niet opnieuw: dan
+ * springt de cursor uit het veld midden in het typen. Daardoor liep de tekst die
+ * alleen op de afdruk staat achter op de invoer, en kon een dossierstuk een naam
+ * dragen die de casus niet meer had. Deze ene DOM-schrijfactie in dezelfde
+ * gebeurtenis lost dat op, zonder opnieuw te tekenen en zonder tweede berekening.
+ */
+function zetPrinttekst(inp, waarde) {
+  const span = inp.parentElement && inp.parentElement.querySelector('.alleenprint');
+  if (span) span.textContent = waarde;
+}
+
+let personen = [
+  { naam: 'AH', leeftijd: 46 },
+  { naam: 'BH', leeftijd: 46 },
+  { naam: 'CH', leeftijd: 12 }
+];
+let momenten = [];
+
+function tekenPersonen() {
+  const tb = el('personenBody');
+  tb.innerHTML = '';
+  personen.forEach(function (p, i) {
+    const tr = document.createElement('tr');
+    const startjaar = Number(el('startjaar').value);
+    const gj = isFinite(startjaar) && isFinite(p.leeftijd)
+      ? geboortejaarUit(startjaar, p.leeftijd) : '—';
+    tr.innerHTML =
+      '<td><input class="noprint" type="text" data-i="' + i + '" data-veld="naam" value="' +
+        String(p.naam).replace(/"/g, '&quot;') + '" />' +
+        '<span class="alleenprint">' + esc(p.naam) + '</span></td>' +
+      '<td class="num"><input class="noprint" type="number" data-i="' + i +
+        '" data-veld="leeftijd" value="' +
+        (isFinite(p.leeftijd) ? p.leeftijd : '') + '" min="0" max="120" step="1" />' +
+        '<span class="alleenprint">' + (isFinite(p.leeftijd) ? p.leeftijd : '—') + '</span></td>' +
+      '<td>' + gj + '</td>' +
+      '<td class="noprint"><button type="button" data-verwijder="' + i + '">verwijderen</button></td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      const i = Number(inp.dataset.i);
+      personen[i][inp.dataset.veld] =
+        inp.dataset.veld === 'leeftijd' ? Number(inp.value) : inp.value;
+      if (inp.dataset.veld === 'leeftijd') tekenPersonen();
+      else zetPrinttekst(inp, inp.value);
+      tekenMomenten();
+      herbereken();
+    });
+  });
+  tb.querySelectorAll('button[data-verwijder]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      personen.splice(Number(b.dataset.verwijder), 1);
+      momenten = momenten.filter(function (m) {
+        return m.soort !== 'leeftijd' || m.persoonIndex < personen.length;
+      });
+      tekenPersonen(); tekenMomenten(); herbereken();
+    });
+  });
+}
+
+function tekenMomenten() {
+  const tb = el('momentenBody');
+  tb.innerHTML = '';
+  if (momenten.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6" class="leeg">Nog geen mutatiemomenten opgegeven.</td></tr>';
+    return;
+  }
+  momenten.forEach(function (m, i) {
+    const tr = document.createElement('tr');
+    const opties = personen.map(function (p, pi) {
+      return '<option value="' + pi + '"' + (pi === m.persoonIndex ? ' selected' : '') + '>' +
+        String(p.naam).replace(/</g, '&lt;') + '</option>';
+    }).join('');
+    const startjaar = Number(el('startjaar').value);
+    let jaar = '—';
+    if (m.soort === 'jaar') jaar = isFinite(m.jaar) ? m.jaar : '—';
+    else {
+      const p = personen[m.persoonIndex];
+      if (p && isFinite(p.leeftijd) && isFinite(m.leeftijd) && isFinite(startjaar)) {
+        jaar = jaarBijLeeftijd(startjaar, p.leeftijd, m.leeftijd);
+      }
+    }
+    const wieTekst = m.soort === 'leeftijd'
+      ? (personen[m.persoonIndex] ? esc(personen[m.persoonIndex].naam) : '—')
+      : (isFinite(m.jaar) ? m.jaar : '—');
+    tr.innerHTML =
+      '<td><select class="noprint" data-i="' + i + '" data-veld="soort">' +
+        '<option value="leeftijd"' + (m.soort === 'leeftijd' ? ' selected' : '') + '>bij leeftijd</option>' +
+        '<option value="jaar"' + (m.soort === 'jaar' ? ' selected' : '') + '>vast jaar</option>' +
+        '</select>' +
+        '<span class="alleenprint">' +
+        (m.soort === 'leeftijd' ? 'bij leeftijd' : 'vast jaar') + '</span></td>' +
+      '<td>' + (m.soort === 'leeftijd'
+        ? '<select class="noprint" data-i="' + i + '" data-veld="persoonIndex">' + opties + '</select>'
+        : '<input class="noprint" type="number" data-i="' + i + '" data-veld="jaar" value="' +
+          (isFinite(m.jaar) ? m.jaar : '') + '" step="1" />') +
+        '<span class="alleenprint">' + wieTekst + '</span></td>' +
+      '<td class="num">' + (m.soort === 'leeftijd'
+        ? '<input class="noprint" type="number" data-i="' + i + '" data-veld="leeftijd" value="' +
+          (isFinite(m.leeftijd) ? m.leeftijd : '') + '" min="0" max="120" step="1" />' +
+          '<span class="alleenprint">' + (isFinite(m.leeftijd) ? m.leeftijd : '—') + '</span>'
+        : '—') + '</td>' +
+      '<td><input class="noprint" type="text" data-i="' + i +
+        '" data-veld="omschrijving" style="width:100%" value="' +
+        String(m.omschrijving || '').replace(/"/g, '&quot;') + '" />' +
+        '<span class="alleenprint">' + esc(m.omschrijving || '—') + '</span></td>' +
+      '<td class="num">' + jaar + '</td>' +
+      '<td class="noprint"><button type="button" data-verwijder="' + i + '">verwijderen</button></td>';
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input,select').forEach(function (inp) {
+    inp.addEventListener('input', function () {
+      const i = Number(inp.dataset.i);
+      const v = inp.dataset.veld;
+      momenten[i][v] = (v === 'omschrijving' || v === 'soort') ? inp.value : Number(inp.value);
+      if (v === 'soort' || v === 'leeftijd' || v === 'persoonIndex' || v === 'jaar') tekenMomenten();
+      else zetPrinttekst(inp, inp.value || '—');
+      herbereken();
+    });
+  });
+  tb.querySelectorAll('button[data-verwijder]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      momenten.splice(Number(b.dataset.verwijder), 1);
+      tekenMomenten(); herbereken();
+    });
+  });
+}
+
+function leesInvoer() {
+  return {
+    kenmerk: el('kenmerk').value,
+    opsteller: el('opsteller').value,
+    peildatum: el('peildatum').value,
+    startjaar: Number(el('startjaar').value),
+    horizon: Number(el('horizon').value),
+    toonAow: el('toonAow').checked,
+    personen: personen,
+    momenten: momenten
+  };
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+let LAATSTE = null;
+
+function herbereken() {
+  const res = bouwTijdplan(leesInvoer());
+  LAATSTE = res;
+  tekenDossierPrint(res.invoer);
+
+  const mv = el('meldingen');
+  mv.innerHTML = '';
+  if (!res.ok) {
+    mv.innerHTML = '<div class="melding fout"><strong>Tijdplan niet mogelijk.</strong><br>' +
+      res.validatie.fouten.map(esc).join('<br>') + '</div>';
+    el('tijdlijn').innerHTML = '<p class="leeg">Geen tijdlijn zolang de invoer niet klopt.</p>';
+    el('rasterTabel').innerHTML = '';
+    tekenAfbakening([]);
+    return;
+  }
+  relevanteMeldingen(res).forEach(function (m) {
+    mv.innerHTML += '<div class="melding ' + m.soort + '">' + esc(m.tekst) + '</div>';
+  });
+
+  tekenTijdlijn(res);
+  tekenRaster(res);
+  tekenAfbakening(res.meldingen);
+}
+
+/**
+ * Het blok dat alleen op de afdruk staat. De invoervelden zelf gaan in print
+ * uit, dus elke waarde staat precies eenmaal op papier en komt uit hetzelfde
+ * genormaliseerde resultaat als de tijdlijn en de tabel.
+ */
+function tekenDossierPrint(inv) {
+  const getal = function (v) { return isFinite(v) ? String(v) : '—'; };
+  const regels = [
+    ['Kenmerk', inv.kenmerk || '—'],
+    ['Opstelling gemaakt door', inv.opsteller || '—'],
+    ['Datum opstelling', inv.peildatum || '—'],
+    ['Start in jaar', getal(inv.startjaar)],
+    ['Aantal jaren vooruit', getal(inv.horizon)],
+    ['AOW-moment automatisch tonen', inv.toonAow ? 'ja' : 'nee']
+  ];
+  el('dossierPrint').innerHTML = '<table class="metatabel"><tbody>' +
+    regels.map(function (r) {
+      return '<tr><td class="naam">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+
+/**
+ * Een afgewezen dossierbestand verandert niets. Het scherm wordt opnieuw uit de
+ * onveranderde toestand opgebouwd en de fout komt daarboven te staan, zodat de
+ * lopende opstelling en haar uitkomst volledig blijven staan.
+ */
+function toonDossierfout(fouten) {
+  herbereken();
+  el('meldingen').insertAdjacentHTML('afterbegin',
+    '<div class="melding fout"><strong>Dossierbestand niet geladen.</strong><br>' +
+    fouten.map(esc).join('<br>') + '</div>');
+}
+
+/**
+ * Zet een getoetst dossier in het scherm. Dit is de enige plek die bij het
+ * openen van een bestand de toestand wijzigt, en zij toetst zelf niets meer.
+ */
+function pasInvoerToe(inv) {
+  el('kenmerk').value = inv.kenmerk;
+  el('opsteller').value = inv.opsteller;
+  el('peildatum').value = inv.peildatum;
+  el('startjaar').value = inv.startjaar;
+  el('horizon').value = inv.horizon;
+  el('toonAow').checked = inv.toonAow;
+  personen = inv.personen;
+  momenten = inv.momenten;
+  tekenPersonen(); tekenMomenten(); herbereken();
+}
+
+function tekenTijdlijn(res) {
+  const namen = res.invoer.personen.map(function (p) { return p.naam; });
+  const html = res.rijen.map(function (r) {
+    const heeft = r.gebeurtenissen.length > 0;
+    const bolletjes = r.gebeurtenissen.map(function (g) {
+      const kl = g.soort === 'aow' ? 'tl-geb aow' : 'tl-geb eigen';
+      return '<span class="' + kl + '">' + (g.persoon ? '<strong>' + esc(g.persoon) + '</strong> — ' : '') +
+        esc(g.tekst) + (g.onzeker ? ' *' : '') + '</span>';
+    }).join('');
+    const leeftijden = namen.map(function (n, i) {
+      return esc(n) + ' ' + r.leeftijden[i];
+    }).join(' · ');
+    return '<div class="tl-jaar' + (heeft ? ' heeft' : '') + '">' +
+      '<span class="label">' + r.jaar + '</span><span class="stip"></span>' +
+      (bolletjes || '') +
+      '<div class="leeftijden">' + leeftijden + '</div></div>';
+  }).join('');
+  const ster = res.gebeurtenissen.some(function (g) { return g.onzeker; })
+    ? '<p class="hulp">* De AOW-leeftijd kent voor dit jaar ook een aantal maanden. ' +
+      'Afhankelijk van de geboortemaand kan het moment een jaar later vallen; ' +
+      'op jaarniveau is dat niet te bepalen.</p>'
+    : '';
+  el('tijdlijn').innerHTML = '<div class="tijdlijn">' + html + '</div>' + ster;
+}
+
+function tekenRaster(res) {
+  const namen = res.invoer.personen.map(function (p) { return p.naam; });
+  let h = '<thead><tr><th class="num">Jaar</th>' +
+    namen.map(function (n) { return '<th class="num">' + esc(n) + '</th>'; }).join('') +
+    '<th>Mutatiemomenten</th></tr></thead><tbody>';
+  res.rijen.forEach(function (r) {
+    h += '<tr><td class="num">' + r.jaar + '</td>' +
+      r.leeftijden.map(function (l) { return '<td class="num">' + l + '</td>'; }).join('') +
+      '<td>' + esc(r.gebeurtenissen.map(function (g) {
+        return (g.persoon ? g.persoon + ': ' : '') + g.tekst;
+      }).join(' · ')) + '</td></tr>';
+  });
+  el('rasterTabel').innerHTML = h + '</tbody>';
+}
+
+function tekenAfbakening(extra) {
+  el('afbakening').innerHTML =
+    '<p><strong>Vindplaatsen.</strong> ' + esc(BRONREGEL_AOW) + '</p>' +
+    '<p><strong>Wat deze tool niet doet.</strong></p><ul>' +
+    AFBAKENING.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') +
+    '</ul>' +
+    (extra && extra.length
+      ? '<p><strong>Bij deze casus.</strong></p><ul>' +
+        extra.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>'
+      : '');
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+// ── opstarten ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  el('versieStempel').textContent = 'Versie ' + TOOL_VERSIE + '.';
+  el('peildatum').value = datumStempel();
+
+  el('btnPersoon').addEventListener('click', function () {
+    personen.push({ naam: '', leeftijd: 0 });
+    tekenPersonen(); tekenMomenten(); herbereken();
+  });
+  el('btnMoment').addEventListener('click', function () {
+    momenten.push({ soort: 'leeftijd', persoonIndex: 0, leeftijd: 40, jaar: NaN, omschrijving: '' });
+    tekenMomenten(); herbereken();
+  });
+  ['startjaar', 'horizon', 'kenmerk', 'opsteller', 'peildatum'].forEach(function (id) {
+    el(id).addEventListener('input', function () {
+      if (id === 'startjaar') { tekenPersonen(); tekenMomenten(); }
+      herbereken();
+    });
+  });
+  el('toonAow').addEventListener('change', herbereken);
+
+  el('btnExcel').addEventListener('click', function () {
+    if (!LAATSTE || !LAATSTE.ok) { alert('Er is nog geen geldig tijdplan om te exporteren.'); return; }
+    const bytes = xlsxBytes(exportBladen(LAATSTE));
+    bewaarBestand(bytes, 'tijdplan-' + slug(LAATSTE.invoer.kenmerk) + '-' + datumStempel() + '.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+
+  el('btnOpslaan').addEventListener('click', function () {
+    const d = dossierUitInvoer(normaliseerInvoer(leesInvoer()));
+    bewaarBestand(new TextEncoder().encode(JSON.stringify(d, null, 2)),
+      'tijdplan-' + slug(d.kenmerk) + '-' + datumStempel() + '.json', 'application/json');
+  });
+
+  el('btnOpenen').addEventListener('click', function () { el('bestandInvoer').click(); });
+  el('bestandInvoer').addEventListener('change', function (ev) {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    const lezer = new FileReader();
+    lezer.onerror = function () {
+      toonDossierfout(['Het bestand kon niet worden gelezen.']);
+    };
+    lezer.onabort = function () {
+      toonDossierfout(['Het openen van het bestand is afgebroken; er is niets gewijzigd.']);
+    };
+    lezer.onload = function () {
+      // Toetsen gebeurt volledig vóór deze regel; pas daarna verandert er iets.
+      const r = leesDossier(String(lezer.result));
+      if (!r.ok) { toonDossierfout(r.fouten); return; }
+      pasInvoerToe(r.invoer);
+    };
+    lezer.readAsText(f);
+  });
+
+  tekenPersonen();
+  tekenMomenten();
+  herbereken();
+});
+</script>
+</body>
+</html>
