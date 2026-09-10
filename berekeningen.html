@@ -1237,7 +1237,7 @@ const REVISIERENTE_TEGENBEWIJS_JAREN = 10;
    en bedraagt de waarde in het economische verkeer onmiddellijk voor de afkoop
    niet meer dan het bedrag van dat jaar, dan wordt die uitkering als een termijn
    van lijfrente aangemerkt. Er zijn dan geen negatieve uitgaven en dus ook geen
-   revisierente; de uitkering zelf is wel volledig belast.
+   revisierente; op de belastbare termijn kan de saldomethode van toepassing zijn.
 
    De grens is jaargebonden. De bedragen zijn per jaar teruggevonden in de tekst
    van art. 3.133 zoals die op 1 januari van dat jaar gold, en gecontroleerd op
@@ -1258,6 +1258,8 @@ const AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR = {
    van 2012 tot en met 2026 onveranderd in de wettekst. Gecontroleerd op
    7 september 2026 in de tekst per 1 januari van elk van die jaren. Wijzigt het,
    dan wordt het een tabel per jaar en geen tweede constante ernaast. */
+// Alleen documentatie van de jaargrens; de kern begrenst hiermee niet zelf.
+// De gebruiker stelt het beschikbare saldo vast inclusief toepasselijke jaargrenzen.
 const SALDOMETHODE_MAXIMUM_PER_JAAR = 2269;
 
 // Art. 30fc lid 1 AWR: het tijdvak vangt aan zes maanden te rekenen vanaf het
@@ -1390,19 +1392,16 @@ function afrondOmlaagOpEuro(bedrag) {
    samen; zijn ze er, dan is de grondslag lager en zou rekenen met de waarde in
    het economische verkeer te veel revisierente opleveren.
 
-   De vermindering van lid 2 kent een maximum: het bedrag van art. 3.107a lid 2,
-   dat per kalenderjaar geldt en voor alle overeenkomsten van dat jaar samen.
-   Deze kern past dat maximum toe en heeft daarvoor naast het bedrag ook het
-   aantal kalenderjaren nodig waarin die premies zijn betaald. Wat open blijft is
-   de verdeling over die jaren; zie open punt 7 in BRONNEN.md.
+   Het nog beschikbare saldo wordt expliciet vastgesteld ingevoerd, met
+   bevestiging van jaargrenzen, andere overeenkomsten en eerder gebruik.
+   Een totaal en aantal jaren bepalen dat bedrag niet. Historische regimes,
+   resterend saldo boven de uitkering en afwijking tussen WEV en uitkering
+   vallen buiten deze beperkte route; zie BRONNEN.md (controle 08-09-2026).
 
-   Blijft de afkoop op grond van art. 3.133 lid 2 onderdeel d Wet IB 2001 buiten
-   de negatieve uitgaven, doordat nog geen termijnen zijn vervallen en de waarde
-   binnen de grens van dat jaar blijft, dan is er in het geheel geen
-   revisierente. `termijnenVervallen` staat standaard op false, de opbouwfase,
-   zodat die uitzondering wordt getoetst in plaats van overgeslagen. De uitkering
-   is dan wel volledig belast, en `grondslagBox1` geeft daarom in dat geval de
-   hele waarde terug en niet de negatieve uitgaven.
+   Kleine afkoop vraagt bevestigde volledige uitkering ineens, geen vervallen
+   termijnen en relevante gezamenlijke instellingswaarde onder de jaargrens.
+   Ook die belastbare termijn wordt verminderd met beschikbaar saldo via
+   art. 3.133 lid 2 d, 3.100 lid 1 b en 3.107a Wet IB 2001.
 
    Tegenbewijs op verzoek (lid 3): per premiejaar de belastingrente over
    50 percent van de premie, met als tijdvak 1 juli van het jaar na het
@@ -1412,26 +1411,18 @@ function afrondOmlaagOpEuro(bedrag) {
    onafgerond en rondt alleen het eindbedrag per route naar beneden af op hele
    euro's; zie open punt 5 in BRONNEN.md. */
 function revisierenteAfkoopLijfrente({
-  jaarAfkoop, waardeEconomischVerkeer, nietAfgetrokkenPremies = 0,
-  jarenNietAfgetrokken = 0, termijnenVervallen = false, jaarBedongen, premies = []
+  jaarAfkoop, waardeEconomischVerkeer, gewoneAfkoopBevestigd,
+  uitkeringGelijkWev, volledigeAfkoopIneens, termijnenVervallen,
+  gezamenlijkeWaarde, saldoKeuze, beschikbaarSaldo, saldoBevestigd,
+  nietAfgetrokkenPremies, jarenNietAfgetrokken, jaarBedongen, premies = []
 }) {
   if (!Number.isInteger(jaarAfkoop)) return { fout: 'Geef het jaar van afkoop op.' };
-  if (!(waardeEconomischVerkeer >= 0)) {
-    return { fout: 'Geef de waarde in het economische verkeer op; die kan niet negatief zijn.' };
+  if (!Number.isFinite(waardeEconomischVerkeer) || waardeEconomischVerkeer < 0) {
+    return { fout: 'Geef een eindige waarde in het economische verkeer op; die kan niet negatief zijn.' };
   }
-  if (!(nietAfgetrokkenPremies >= 0)) {
-    return { fout: 'De niet in aftrek gebrachte premies kunnen niet negatief zijn.' };
-  }
-  if (nietAfgetrokkenPremies > waardeEconomischVerkeer) {
-    return { fout: 'De niet in aftrek gebrachte premies zijn hoger dan de waarde in het ' +
-                   'economische verkeer. Dan blijven er geen negatieve uitgaven over en is ' +
-                   'de invoer niet sluitend.' };
-  }
-  if (nietAfgetrokkenPremies > 0 &&
-      !(Number.isInteger(jarenNietAfgetrokken) && jarenNietAfgetrokken >= 1)) {
-    return { fout: 'Geef ook het aantal kalenderjaren waarin die premies zijn betaald. De ' +
-                   'vermindering van art. 3.137 lid 2 Wet IB 2001 is per kalenderjaar ' +
-                   'begrensd, dus zonder dat aantal is die grens niet toe te passen.' };
+  // Oude totaal/aantal-jaren-invoer bepaalt geen jaarlijkse, nog beschikbare ruimte.
+  if (nietAfgetrokkenPremies !== undefined || jarenNietAfgetrokken !== undefined) {
+    return { fout: 'De oude premie-invoer met een totaal en aantal kalenderjaren is vervallen. Stel het beschikbare saldo opnieuw vast.' };
   }
   if (!Number.isInteger(jaarBedongen)) {
     return { fout: 'Geef het jaar op waarin de aanspraak is bedongen. Daarvan hangt af ' +
@@ -1447,72 +1438,48 @@ function revisierenteAfkoopLijfrente({
     return { fout: 'Een premie moet een geldig, eindig bedrag van nul of hoger zijn.' };
   }
 
-  const meldingen = [];
+  // Begrensde gewone afkooproute. Onbekend of ontbrekend is geen bevestiging.
+  if (gewoneAfkoopBevestigd !== true) return { fout: 'Bevestig dat dit een gewone, kwalificerende lijfrenteafkoop is zonder oud regime, arbeidsongeschiktheidsuitzondering of eerdere fiscale onregelmatigheid. Andere gevallen vragen afzonderlijke beoordeling.' };
+  if (uitkeringGelijkWev !== true) return { fout: 'Bevestig dat de bruto-uitkering gelijk is aan de waarde in het economische verkeer. Een afwijkende uitkering valt buiten deze berekening.' };
+  if (volledigeAfkoopIneens !== true) return { fout: 'Deze berekening vereist een bevestigde volledige afkoop met uitkering ineens. Gedeeltelijke of anders uitgekeerde afkoop valt buiten deze route.' };
+  if (typeof termijnenVervallen !== 'boolean') return { fout: 'Stel vast of er al termijnen zijn vervallen.' };
+  if (!Number.isFinite(gezamenlijkeWaarde) || gezamenlijkeWaarde < waardeEconomischVerkeer) return { fout: 'Geef de vastgestelde gezamenlijke waarde bij dezelfde instelling op, inclusief deze aanspraak; die kan niet lager zijn dan de eigen waarde.' };
+  if (!['geen', 'vastgesteld'].includes(saldoKeuze)) return { fout: 'Kies of alle premies zijn afgetrokken of dat het nog beschikbare saldo is vastgesteld.' };
+  if (!Number.isFinite(beschikbaarSaldo) || beschikbaarSaldo < 0) return { fout: 'Het beschikbare saldo moet een eindig bedrag van nul of hoger zijn.' };
+  if (saldoKeuze === 'geen' && beschikbaarSaldo !== 0) return { fout: 'Alle premies afgetrokken past alleen bij een beschikbaar saldo van nul.' };
+  if (saldoKeuze === 'vastgesteld' && saldoBevestigd !== true) return { fout: 'Bevestig dat jaargrenzen, andere overeenkomsten en eerder gebruikt saldo in het beschikbare saldo zijn verwerkt.' };
+  if (beschikbaarSaldo > waardeEconomischVerkeer) return { fout: 'Het saldo is hoger dan de waarde in het economische verkeer. De verwerking van resterend saldo valt buiten deze beperkte route.' };
 
-  /* Art. 3.133 lid 2 onderdeel d Wet IB 2001. De grens wordt alleen opgezocht
-     als de uitzondering nog kan gelden: zijn er al termijnen vervallen, dan is
-     zij hoe dan ook niet van toepassing en hoeft het jaar niet in de tabel te
-     staan. */
+  // Wet IB 2001 art. 3.137 lid 2 jo. 3.107a: gebruik vastgesteld, nog
+  // beschikbaar saldo. Geen afleiding uit totaal maal aantal jaren.
+  // Controle 08-09-2026: BRONNEN.md, inclusief historische uitzonderingen.
+  const saldoVermindering = beschikbaarSaldo;
+  const saldoBegrensd = false; // De begrenzing is onderdeel van de vastgestelde invoer.
+  const belastbaarNaSaldo = waardeEconomischVerkeer - saldoVermindering;
+  const negatieveUitgaven = belastbaarNaSaldo;
+  const hoofdregel = negatieveUitgaven * REVISIERENTE_PERCENTAGE;
+  const meldingen = [{ soort: 'let', tekst:
+    'De ingevulde bevestigingen zijn aannames van de gebruiker, geen controle van polis of bewijsstukken door de tool. Het beschikbare saldo moet rekening houden met de jaargrenzen van art. 3.107a lid 2 Wet IB 2001, andere overeenkomsten en eerder gebruik.' }];
   const afkoopgrens = AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR[jaarAfkoop];
   if (!termijnenVervallen && afkoopgrens === undefined) {
-    return { fout: 'Voor ' + jaarAfkoop + ' is de grens van art. 3.133 lid 2 onderdeel d ' +
-                   'Wet IB 2001 niet gecontroleerd. Zonder die grens is niet vast te ' +
-                   'stellen of de afkoop van een kleine lijfrente buiten de negatieve ' +
-                   'uitgaven blijft.' };
+    return { fout: 'Voor ' + jaarAfkoop + ' is de grens van art. 3.133 lid 2 onderdeel d Wet IB 2001 niet gecontroleerd.' };
   }
-
-  if (!termijnenVervallen && waardeEconomischVerkeer <= afkoopgrens) {
-    meldingen.push({ soort: 'let',
-      tekst: 'Van de aanspraak zijn nog geen termijnen vervallen en de waarde in het ' +
-             'economische verkeer blijft binnen de grens die art. 3.133 lid 2 onderdeel d ' +
-             'Wet IB 2001 voor ' + jaarAfkoop + ' stelt van ',
-      bedrag: afkoopgrens,
-      staart: '. De uitkering in een bedrag wordt dan als een termijn van lijfrente ' +
-              'aangemerkt: er zijn geen negatieve uitgaven en er is geen revisierente. ' +
-              'De uitkering zelf is wel volledig belast in box 1. Wordt de aanspraak niet ' +
-              'in een bedrag uitgekeerd, dan geldt deze uitzondering niet. Dat er nog geen ' +
-              'termijn is vervallen kan de tool niet vaststellen: zij volgt hier het veld ' +
-              'daarover, dat standaard op de opbouwfase staat. Is er wel een termijn ' +
-              'vervallen, zet dat veld dan aan; er is dan wel revisierente.' });
+  // Art. 3.133 lid 2 d jo. 3.126a lid 5: toets de relevante gezamenlijke
+  // waarde VOOR saldovermindering. De individuele uitkering blijft de grondslag.
+  if (!termijnenVervallen && gezamenlijkeWaarde <= afkoopgrens) {
+    meldingen.push({ soort: 'let', tekst:
+      'Bij de bevestigde volledige uitkering ineens, zonder vervallen termijnen, blijft de gezamenlijke waarde bij dezelfde instelling binnen de jaargrens van ',
+      bedrag: afkoopgrens, staart:
+      '. De uitkering geldt als lijfrentetermijn (art. 3.133 lid 2 onderdeel d); art. 3.107a verlaagt de belastbare termijn met het beschikbare saldo. Er zijn geen negatieve uitgaven en geen revisierente.' });
     return {
       kleineAfkoop: true, afkoopgrens,
-      saldoVermindering: 0, saldoBegrensd: false, negatieveUitgaven: 0,
-      grondslagBox1: waardeEconomischVerkeer,
+      saldoVermindering, saldoBegrensd, negatieveUitgaven: 0,
+      grondslagBox1: belastbaarNaSaldo,
       hoofdregelExact: 0, hoofdregelBedrag: 0,
       tegenbewijsOpen: false, tegenbewijsExact: null, tegenbewijsBedrag: null,
       revisierenteExact: 0, revisierente: 0,
-      route: 'geen', deelVanGrondslag: 0,
-      regels: [], meldingen
+      route: 'geen', deelVanGrondslag: 0, regels: [], meldingen
     };
-  }
-
-  /* Art. 3.137 lid 1 en 2 Wet IB 2001, met het maximum van art. 3.107a lid 2.
-     Dat maximum geldt per kalenderjaar, dus de ruimte is het aantal jaren maal
-     dat bedrag. */
-  const saldoRuimte = (Number.isInteger(jarenNietAfgetrokken) ? jarenNietAfgetrokken : 0) *
-                      SALDOMETHODE_MAXIMUM_PER_JAAR;
-  const saldoVermindering = Math.min(nietAfgetrokkenPremies, saldoRuimte);
-  const saldoBegrensd = nietAfgetrokkenPremies > saldoVermindering;
-  const negatieveUitgaven = waardeEconomischVerkeer - saldoVermindering;
-  const hoofdregel = negatieveUitgaven * REVISIERENTE_PERCENTAGE;
-
-  if (nietAfgetrokkenPremies > 0) {
-    meldingen.push({ soort: 'let', tekst:
-      'De belastingplichtige moet aannemelijk maken dat de ingevulde premies niet als ' +
-      'uitgave voor inkomensvoorziening in aanmerking zijn genomen (art. 3.137 lid 2 ' +
-      'Wet IB 2001). Het maximum van art. 3.107a lid 2 geldt per kalenderjaar, en deze ' +
-      'berekening leidt de ruimte af uit het aantal jaren. Is in een enkel jaar meer dan ' +
-      'dat maximum niet afgetrokken, vul dan de som in van de bedragen per kalenderjaar ' +
-      'die elk op ten hoogste het maximum zijn gezet; anders komt de ruimte te ruim uit.' });
-  }
-  if (saldoBegrensd) {
-    meldingen.push({ soort: 'let',
-      tekst: 'Niet alle ingevulde premies gaan van de grondslag af. Art. 3.137 lid 2 jo. ' +
-             'art. 3.107a lid 2 Wet IB 2001 laat per kalenderjaar, voor alle ' +
-             'overeenkomsten van dat jaar samen, ten hoogste dit bedrag in mindering ' +
-             'brengen: ',
-      bedrag: SALDOMETHODE_MAXIMUM_PER_JAAR,
-      staart: '. Wat daarboven uitkomt verlaagt de grondslag van de revisierente niet.' });
   }
 
   const tegenbewijsOpen = jaarBedongen > jaarAfkoop - REVISIERENTE_TEGENBEWIJS_JAREN;
@@ -1629,7 +1596,7 @@ function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
    woning zijn (art. 3.133 jo. afdeling 3.7 Wet IB 2001) en worden belast tegen
    het tarief van art. 2.10. Blijft de afkoop op grond van art. 3.133 lid 2
    onderdeel d buiten de negatieve uitgaven, dan is de uitkering een termijn van
-   lijfrente en is de hele waarde belast; dan is dit dus niet hetzelfde bedrag.
+   lijfrente, verminderd met beschikbaar saldo; dan is dit dus niet hetzelfde bedrag.
    De aanroeper bepaalt welk van de twee het is, want die kent de voorwaarden. De revisierente komt daar bovenop en is geen belasting
    maar rente; zij is niet aftrekbaar.
 
@@ -1658,7 +1625,7 @@ function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revi
    Weergave. Roept de kern aan en raakt geen rekenlogica.
    ============================================================ */
 
-const VERSIE = '2026-09-07';
+const VERSIE = '2026-09-08';
 document.getElementById('versie').textContent = 'versie ' + VERSIE;
 
 const euro = n => (n === null || n === undefined || !isFinite(n))
@@ -2348,9 +2315,10 @@ const ONDERWERPEN = [
       'en met 2026.',
     'Art. 3.133 lid 2 onderdeel d Wet IB 2001: wordt een aanspraak waarvan nog geen ' +
       'termijnen zijn vervallen in een bedrag uitgekeerd en blijft de waarde in het ' +
-      'economische verkeer binnen de grens van dat jaar, dan geldt die uitkering als een ' +
+      'economische verkeer, inclusief de relevante aanspraken bij dezelfde instelling ' +
+      '(art. 3.126a lid 5), binnen de jaargrens, dan geldt die uitkering als een ' +
       'termijn van lijfrente. Er zijn dan geen negatieve uitgaven en dus geen ' +
-      'revisierente, terwijl de uitkering zelf volledig is belast. De grens is ' +
+      'revisierente; beschikbaar saldo verlaagt de belastbare termijn (art. 3.107a). De grens is ' +
       'jaargebonden en loopt van € 4.242 in 2012 tot € 5.513 in 2026.',
     'Art. 30i lid 3 AWR: het tegenbewijs geldt op verzoek en alleen als de aanspraak is ' +
       'bedongen minder dan tien jaren voor het jaar van de negatieve uitgaven. De bedragen ' +
@@ -2375,10 +2343,12 @@ const ONDERWERPEN = [
     'vanaf 2012; daarbuiten volgt een melding en geen uitkomst. Terugwenteling van premies ' +
     'naar het voorafgaande jaar (art. 3.130 lid 2 Wet IB 2001) wordt niet herkend: vul de ' +
     'premie in bij het jaar van aftrek. De tool toetst niet of er een oneigenlijke ' +
-    'handeling is. De waarde in het economische verkeer en de niet in aftrek gebrachte ' +
-    'premies zijn invoer; het maximum van art. 3.107a lid 2 op die vermindering wordt wel ' +
-    'toegepast, waarvoor het aantal kalenderjaren van die premies nodig is, maar de ' +
-    'verdeling over die jaren wordt niet gevraagd. ' +
+    'handeling is. Alleen bevestigde gewone, volledige afkoop ineens zonder oud regime, ' +
+    'arbeidsongeschiktheidsuitzondering of eerdere fiscale onregelmatigheid, met bruto-uitkering ' +
+    'gelijk aan WEV. De relevante gezamenlijke instellingswaarde wordt vóór saldo getoetst. ' +
+    'Beschikbaar saldo is vastgestelde invoer: jaargrenzen, andere overeenkomsten en eerder ' +
+    'gebruik moeten daarin zijn verwerkt. De tool controleert geen bewijsstukken of ' +
+    'jaaradministratie. Saldo boven de uitkering en onbekende voorwaarden geven geen uitkomst. ' +
     'De samenloop met de heffing over de afkoop is een schatting: één marginaal ' +
     'tarief, zonder heffingskortingen, zonder premies volksverzekeringen en zonder het overige ' +
     'inkomen, en het schijventarief staat alleen voor 2026 in de tool.',
@@ -2398,9 +2368,14 @@ const ONDERWERPEN = [
       { w: 2026, l: '2026' }
     ] },
     { k: 'waardeEconomischVerkeer', l: 'Waarde in het economische verkeer van de aanspraak', h: 'Op het tijdstip onmiddellijk voor de afkoop (art. 3.137 lid 1)', t: 'euro', v: 100000 },
-    { k: 'termijnenVervallen', l: 'Er zijn al termijnen vervallen', h: 'Is de lijfrente nog niet ingegaan, laat dit dan uit: bij een kleine waarde blijft de afkoop dan buiten de negatieve uitgaven (art. 3.133 lid 2 onderdeel d)', t: 'vinkje', v: false },
-    { k: 'nietAfgetrokkenPremies', l: 'Premies die niet in aftrek zijn gebracht', h: 'Aannemelijk te maken; verlaagt de grondslag (art. 3.137 lid 2). Laat nul staan als alle premies zijn afgetrokken', t: 'euro', v: 0 },
-    { k: 'jarenNietAfgetrokken', l: 'Aantal kalenderjaren van die premies', h: 'De vermindering is per kalenderjaar begrensd op € 2.269 (art. 3.107a lid 2), dus dit aantal bepaalt de ruimte', t: 'geheel', v: 0 },
+    { k: 'gewoneAfkoopBevestigd', l: 'Gewone kwalificerende afkoop vastgesteld', h: 'Geen oud regime, arbeidsongeschiktheidsuitzondering of eerdere fiscale onregelmatigheid; beoordeel de polis afzonderlijk', t: 'vinkje', v: false },
+    { k: 'uitkeringGelijkWev', l: 'Bruto-uitkering is gelijk aan de opgegeven waarde', h: 'Een afwijkende uitkering valt buiten deze beperkte route', t: 'vinkje', v: false },
+    { k: 'volledigeAfkoopIneens', l: 'Volledige afkoop met uitkering ineens vastgesteld', t: 'vinkje', v: false },
+    { k: 'termijnenStatus', l: 'Zijn er al termijnen vervallen?', t: 'keuze', v: 'onbekend', opties: [{ w: 'onbekend', l: 'Nog niet vastgesteld' }, { w: 'nee', l: 'Nee' }, { w: 'ja', l: 'Ja' }] },
+    { k: 'gezamenlijkeWaarde', l: 'Gezamenlijke waarde bij dezelfde instelling', h: 'Inclusief deze aanspraak en de relevante andere, nog niet ingegane aanspraken (art. 3.133 lid 2 d jo. 3.126a lid 5); toets vóór saldovermindering', t: 'euro', v: null },
+    { k: 'saldoKeuze', l: 'Niet-afgetrokken premies: beschikbare saldoruimte', t: 'keuze', v: 'onbekend', opties: [{ w: 'onbekend', l: 'Nog niet vastgesteld' }, { w: 'geen', l: 'Alle premies zijn afgetrokken' }, { w: 'vastgesteld', l: 'Nog beschikbaar saldo is vastgesteld' }] },
+    { k: 'beschikbaarSaldo', l: 'Vastgesteld nog beschikbaar saldo', h: 'Nul bij alle premies afgetrokken. Geen totaal van ongecorrigeerde premies: verwerk per jaar de toepasselijke grenzen, andere overeenkomsten en eerder gebruik', t: 'euro', v: null },
+    { k: 'saldoBevestigd', l: 'Jaargrenzen, andere overeenkomsten en eerder gebruik zijn verwerkt', h: 'Vereist bij vastgesteld saldo. Dit is een invoeraanname; bewaar de onderbouwing in uw eigen dossier', t: 'vinkje', v: false },
     { k: 'tariefSleutelBox1', l: 'Marginaal tarief box 1 over de afkoop', h: 'Welke schijf marginaal is hangt af van het overige inkomen; kies of geef zelf een tarief', t: 'keuze', v: 'derde', opties: [
       { w: 'derde', l: 'Derde schijf, 49,50 percent (2026)' },
       { w: 'tweede', l: 'Tweede schijf, 37,56 percent (2026)' },
@@ -2430,9 +2405,12 @@ const ONDERWERPEN = [
     }
     const r = revisierenteAfkoopLijfrente({
       jaarAfkoop: i.jaarAfkoop, waardeEconomischVerkeer: i.waardeEconomischVerkeer,
-      nietAfgetrokkenPremies: i.nietAfgetrokkenPremies,
-      jarenNietAfgetrokken: i.jarenNietAfgetrokken,
-      termijnenVervallen: i.termijnenVervallen,
+      gewoneAfkoopBevestigd: i.gewoneAfkoopBevestigd,
+      uitkeringGelijkWev: i.uitkeringGelijkWev,
+      volledigeAfkoopIneens: i.volledigeAfkoopIneens,
+      termijnenVervallen: i.termijnenStatus === 'nee' ? false : i.termijnenStatus === 'ja' ? true : undefined,
+      gezamenlijkeWaarde: i.gezamenlijkeWaarde,
+      saldoKeuze: i.saldoKeuze, beschikbaarSaldo: i.beschikbaarSaldo, saldoBevestigd: i.saldoBevestigd,
       jaarBedongen: i.jaarBedongen, premies
     });
     if (r.fout) return r;
@@ -2446,15 +2424,14 @@ const ONDERWERPEN = [
     if (i.tariefSleutelBox1 === 'eigen') {
       tarief = i.eigenTariefBox1;
     } else {
-      const tarieven = box1Tarieven(2026);
+      const tarieven = box1Tarieven(i.jaarAfkoop);
+      if (!tarieven) {
+        return { fout: 'Het schijventarief voor afkoopjaar ' + i.jaarAfkoop +
+          ' is niet in deze tool gecontroleerd. Kies een eigen marginaal tarief ' +
+          'voor dat jaar, of kies "De samenloop niet uitrekenen".' };
+      }
       const index = { eerste: 0, tweede: 1, derde: 2 }[i.tariefSleutelBox1];
       tarief = tarieven[index].tarief;
-      if (i.jaarAfkoop !== 2026) {
-        meldingen.push({ soort: 'let', tekst:
-          'De gekozen schijf is die van 2026 (art. 2.10 Wet IB 2001). Voor een afkoop in ' +
-          i.jaarAfkoop + ' is het tarief van dat jaar niet in de tool gecontroleerd: geef het ' +
-          'zelf op, of laat de samenloop buiten beschouwing.' });
-      }
     }
     const samenloop = samenloopAfkoopLijfrente({
       waardeEconomischVerkeer: i.waardeEconomischVerkeer,
@@ -2475,6 +2452,7 @@ const ONDERWERPEN = [
   uit: r => [
     ['Vermindering met niet-afgetrokken premies', euro(r.saldoVermindering)],
     ['Negatieve uitgaven, grondslag van de hoofdregel', euro(r.negatieveUitgaven)],
+    ['Belastbare grondslag box 1 na saldovermindering', euro(r.grondslagBox1)],
     ['Hoofdregel, 20 percent van die grondslag', euro(r.hoofdregelBedrag)],
     ['Tegenbewijsregeling staat open', r.tegenbewijsOpen ? 'Ja' : 'Nee'],
     ['Tegenbewijs, belastingrente over 50 percent van de premies', euro(r.tegenbewijsBedrag)],
@@ -2999,6 +2977,12 @@ function celInvoer(veld, waarde) {
 function exportBladen(o, r) {
   const fout = invoerFout(o);
   if (fout) throw new Error(fout);
+  // Een bewaarde knop mag na wijziging/import geen verouderde fiscale uitkomst
+  // combineren met nieuwe voorwaarden. Herbereken alleen dit onderwerp.
+  if (o.id === 'revisierente') {
+    r = o.reken({ ...invoer[o.id] });
+    if (r.fout) throw new Error(r.fout);
+  }
   const bladen = [];
   const rijen = [];
 
@@ -3124,7 +3108,7 @@ function exportKnoppen(o, r) {
    ============================================================ */
 // DOSSIERBESTAND — BEGIN
 
-const DOSSIER_FORMAATVERSIE = 1;
+const DOSSIER_FORMAATVERSIE = 2;
 const DOSSIER_MAX_KENMERK = 80;
 
 /* De waarde zoals zij in het invoervak staat, dus een percentage als 10 en niet
@@ -3268,6 +3252,11 @@ function leesDossier(tekst) {
 /* Zet de gelezen stand in de tool. Wat in het dossier ontbrak blijft op de
    standaardwaarde staan; de lezer heeft dat al gemeld. */
 function zetDossier(d) {
+  // Ontbrekende nieuwe toepassingsgegevens mogen nooit eerder aangevinkte
+  // bevestigingen overnemen, ook niet bij import over een complete berekening.
+  const revisie = ONDERWERPEN.find(o => o.id === 'revisierente');
+  for (const v of revisie.velden) invoer.revisierente[v.k] = leesVeld(v, v.v);
+
   for (const o of ONDERWERPEN) {
     for (const v of o.velden) {
       if (Object.prototype.hasOwnProperty.call(d.velden[o.id], v.k)) {
