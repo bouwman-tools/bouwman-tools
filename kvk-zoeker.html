@@ -456,7 +456,27 @@ td.col-status { width: 110px; }
 </div>
 
 <script>
-const KVK_WORKER    = 'https://kvk-proxy.s-bouwman.workers.dev';
+// De proxy hangt onder het pad van deze pagina, en dat is geen willekeurige keuze.
+// Cloudflare Access beschermt `bouwman.tools/kvk-zoeker.html`; een kindpad daarvan
+// erft die bescherming, zodat de sleutel KVK_API_KEY achter dezelfde login zit als
+// de pagina zelf. Bij een aanroep naar een ander domein, zoals het oude
+// workers.dev-adres, gaat de Access-cookie niet mee en antwoordt Cloudflare met een
+// inlogpagina in HTML. Zie PostbusClaude/BESLISPUNTEN.md punt 25.
+//
+// Twee dingen aan dit adres zijn niet vrij te kiezen, beide gemeld in de review van
+// 10-09-2026 en hier hersteld:
+//
+// 1. **Er moet een segment achter `/api/` staan.** De zoneroute van de worker is
+//    `bouwman.tools/kvk-zoeker.html/api/*`, en die wildcard matcht alleen wat er
+//    ná de schuine streep komt. Het kale `/api` valt er dus buiten: dat verzoek
+//    gaat naar de origin van de zone, geeft HTML terug en laat elke rij op `fout`
+//    staan. Wijzig dit adres niet zonder het routepatroon in `bouwman-tools`
+//    (`wrangler.toml`) ernaast te leggen.
+// 2. **Het pad blijft relatief aan de wortel.** Een absolute URL naar
+//    `https://bouwman.tools/...` maakt de aanroep niet same-origin; dat doet de
+//    plek waar de pagina staat. Zo doen `portal.html` en `beheer.html` het ook, en
+//    zo blijft de pagina werken als het domein ooit verandert.
+const KVK_WORKER    = '/kvk-zoeker.html/api/zoeken';
 const VERTRAGING_MS = 300;
 
 let werkblad      = null;
@@ -588,6 +608,8 @@ function statusBadge(rijIdx, heeftKvkBestaand) {
     case 'meerdere':    return `<span class="badge badge-kies">? kies (${res.opties.length})</span>`;
     case 'niet_gevonden': return `<span class="badge badge-nee">✗ niet gevonden</span>`;
     case 'fout':        return `<span class="badge badge-nee">! fout</span>`;
+    // Eigen soort naast 'fout': de aanroep is niet mislukt, de login is verlopen.
+    case 'sessie':      return `<span class="badge badge-nee">! log opnieuw in</span>`;
     default:            return '';
   }
 }
@@ -638,6 +660,20 @@ async function startVerwerking() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      // Een verlopen Access-sessie geeft geen JSON terug maar een inlogpagina in
+      // HTML. Zonder deze controle gooit resp.json() een parsefout, valt elke rij
+      // in de catch hieronder op 'fout', en leest de tool als defect terwijl er
+      // alleen opnieuw ingelogd moet worden. Doorgaan met de volgende rijen heeft
+      // dan geen zin, want die krijgen hetzelfde antwoord.
+      const soort = resp.headers.get('Content-Type') || '';
+      if (!soort.includes('application/json')) {
+        resultaatVoorRij(rijIdx).status = 'sessie';
+        updateRij(rijIdx);
+        document.getElementById('progress-txt').textContent =
+          'Sessie verlopen — herlaad de pagina en log opnieuw in';
+        break;
+      }
+
       const data = await resp.json();
       const res  = resultaatVoorRij(rijIdx);
 
@@ -962,6 +998,6 @@ function escHtml(s) {
   return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 jul 2026, 08:57</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 22:19</div>
 </body>
 </html>
