@@ -3349,7 +3349,11 @@ function renderRouteCard(route, inp, opts) {
 
   html += kpiRow([
     kpi('Looptijd', route.years + ' jaar'),
-    kpi('Totale box 2', euro(T.box2Total), route.hitsHighRate ? 'warn' : ''),
+    // Netto: de opgelegde heffing minus de teruggaaf uit terugwenteling. Dit is
+    // dezelfde maatstaf waarop betterRoute de routes rangschikt, dus het getal
+    // bovenaan hoort niet af te wijken van wat de vergelijking gebruikt. Zonder
+    // terugwenteling is dit exact T.box2Total en verandert er niets.
+    kpi('Totale box 2', euro(route.taxCost), route.hitsHighRate ? 'warn' : ''),
     kpi('Restschuld', euro(route.remainingDebt), route.fullyRepaid ? 'ok' : 'warn')
   ]);
 
@@ -3451,6 +3455,11 @@ function renderRouteCard(route, inp, opts) {
   divRows.push(row('<strong>Aanvullende IB voor de DGA</strong>', '<strong>' + euroSigned(T.additionalIB) + '</strong>',
     T.additionalIB < -EPS ? 'ok' : ''));
   if (T.taxRefund > EPS) divRows.push(rowMuted('waarvan teruggaaf dividendbelasting', euro(T.taxRefund)));
+  if (T.lossRefund > EPS || route.lossRefundAfterHorizon > EPS) {
+    divRows.push(rowMuted('─', '─'));
+    divRows.push(row('Af: teruggaaf door terugwenteling van verlies', '− ' + euro(T.lossRefund + route.lossRefundAfterHorizon)));
+    divRows.push(row('<strong>Box 2-heffing per saldo</strong>', '<strong>' + euro(route.taxCost) + '</strong>', 'ok'));
+  }
   html += block('Dividend en belasting', divRows);
 
   // ── RC-schuld ──
@@ -3497,8 +3506,15 @@ function renderRouteCard(route, inp, opts) {
 
   // ── Kosten ──
   var costRows = [
-    row('<strong>Totale box 2-heffing</strong>', '<strong>' + euro(T.box2Total) + '</strong>', route.hitsHighRate ? 'warn' : '')
+    row('<strong>Totale box 2-heffing</strong>', '<strong>' + euro(route.taxCost) + '</strong>', route.hitsHighRate ? 'warn' : '')
   ];
+  if (T.lossRefund > EPS || route.lossRefundAfterHorizon > EPS) {
+    // De opgelegde heffing en de teruggaaf apart, zodat zichtbaar blijft dat het
+    // nettobedrag hierboven uit twee bewegingen bestaat die in verschillende
+    // jaren vallen.
+    costRows.push(rowMuted('waarvan opgelegd bij aanslag', euro(T.box2Total)));
+    costRows.push(rowMuted('waarvan terugontvangen na terugwenteling', '− ' + euro(T.lossRefund + route.lossRefundAfterHorizon)));
+  }
   if (inp.discountRate > 0) costRows.push(rowMuted('Contante waarde box 2 tegen ' + pct(inp.discountRate), euro(route.taxCostPV)));
   if (T.interest > EPS) {
     costRows.push(rowMuted('Bijgeschreven RC-rente — interne geldstroom van de DGA naar de eigen BV; verhoogt de schuld en zit daardoor al in de heffing hierboven', euro(T.interest)));
@@ -3980,6 +3996,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 22:54</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 23:33</div>
 </body>
 </html>
