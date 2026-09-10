@@ -12,6 +12,8 @@ spec.loader.exec_module(check)
 LOGIN = "https://bouwman-tools.cloudflareaccess.com/cdn-cgi/access/login/bouwman.tools"
 LEGACY = "https://access-beheer.s-bouwman.workers.dev/permissions"
 PORTAAL = "https://bouwman.tools/portal.html/api/permissions"
+KVK_PAD = "https://bouwman.tools/kvk-zoeker.html/api/zoeken"
+KVK_LEGACY = "https://kvk-proxy.s-bouwman.workers.dev"
 
 
 class Response:
@@ -45,18 +47,20 @@ class Opener:
 def goede_weigering(request):
     if request.full_url == LEGACY:
         return Response(410)
-    if ".workers.dev/" in request.full_url:
+    # Zonder afsluitende schuine streep: het kvk-adres is de worker zelf, dus
+    # `https://kvk-proxy.s-bouwman.workers.dev` zonder pad erachter.
+    if ".workers.dev" in request.full_url:
         return Response(404)
     return Response(302, LOGIN + "?token=synthetic-private-query")
 
 
 class AdminRoutesTest(unittest.TestCase):
-    def test_twaalf_admin_en_zes_portaalproeven_zonder_auth_of_body_lezen(self):
+    def test_twaalf_admin_en_tien_portaalproeven_zonder_auth_of_body_lezen(self):
         opener = Opener(goede_weigering)
         output = io.StringIO()
         self.assertEqual(check.controleer(opener, output), 0)
-        self.assertEqual(len(opener.requests), 18)
-        self.assertIn("18 buitenproeven (12 admin, 6 portaal), 0 afwijkingen.", output.getvalue())
+        self.assertEqual(len(opener.requests), 22)
+        self.assertIn("22 buitenproeven (12 admin, 10 portaal), 0 afwijkingen.", output.getvalue())
         self.assertTrue(all(r.closed for r in opener.responses))
         self.assertNotIn("synthetic-private-query", output.getvalue())
         self.assertNotIn("?", output.getvalue())
@@ -76,8 +80,8 @@ class AdminRoutesTest(unittest.TestCase):
                 else:
                     self.assertEqual(request.full_url, LEGACY)
                 self.assertIsNone(request.data)
-        self.assertEqual(sum(r.get_header("Origin") is None for r, _ in opener.requests), 9)
-        self.assertEqual(sum(r.get_header("Origin") == "https://bouwman.tools" for r, _ in opener.requests), 9)
+        self.assertEqual(sum(r.get_header("Origin") is None for r, _ in opener.requests), 11)
+        self.assertEqual(sum(r.get_header("Origin") == "https://bouwman.tools" for r, _ in opener.requests), 11)
         # Expliciete regressie: alle oorspronkelijke twaalf verzoeken blijven bestaan.
         admin = [(r.full_url, r.method, r.get_header("Origin")) for r, _ in opener.requests if "/admin/" in r.full_url]
         self.assertCountEqual(admin, [
@@ -89,18 +93,22 @@ class AdminRoutesTest(unittest.TestCase):
         portaal = [(r.full_url, r.method, r.get_header("Origin")) for r, _ in opener.requests if "/admin/" not in r.full_url]
         self.assertCountEqual(portaal, [
             (url, method, origin)
-            for url, method in ((LEGACY, "POST"), (LEGACY, "OPTIONS"), (PORTAAL, "GET"))
+            for url, method in ((LEGACY, "POST"), (LEGACY, "OPTIONS"), (PORTAAL, "GET"),
+                                (KVK_PAD, "POST"), (KVK_LEGACY, "POST"))
             for origin in (None, "https://bouwman.tools")
         ])
 
     def test_ieder_portaalverzoek_met_succes_of_serverfout_maakt_controle_rood(self):
-        for url, method in ((LEGACY, "POST"), (LEGACY, "OPTIONS"), (PORTAAL, "GET")):
+        # KVK_LEGACY hoort hier ook in: een antwoord in plaats van een 404 betekent dat
+        # workers.dev voor kvk-proxy weer open staat, en dat is de wachter waar het om gaat.
+        for url, method in ((LEGACY, "POST"), (LEGACY, "OPTIONS"), (PORTAAL, "GET"),
+                            (KVK_PAD, "POST"), (KVK_LEGACY, "POST")):
             for status in (200, 204, 400, 500, 502, 503):
                 with self.subTest(url=url, method=method, status=status):
                     opener = Opener(lambda r: Response(status) if r.full_url == url and r.method == method else goede_weigering(r))
                     output = io.StringIO()
                     self.assertEqual(check.controleer(opener, output), 1)
-                    self.assertEqual(len(opener.requests), 18)
+                    self.assertEqual(len(opener.requests), 22)
                     self.assertIn("2 afwijkingen.", output.getvalue())
                     self.assertTrue(all(r.closed for r in opener.responses))
 
@@ -163,7 +171,7 @@ class AdminRoutesTest(unittest.TestCase):
             output = io.StringIO()
             self.assertEqual(check.controleer(Opener(lambda r: error), output), 1)
             self.assertNotIn("synthetic-private-query", output.getvalue())
-            self.assertIn("18 afwijkingen", output.getvalue())
+            self.assertIn("22 afwijkingen", output.getvalue())
 
     def test_http_error_wordt_gesloten_zonder_body(self):
         body = Response(0)
