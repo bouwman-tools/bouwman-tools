@@ -76,12 +76,21 @@
   // paneel van vijf regels naast een berekening is dat gevaarlijk: de lezer ziet
   // een bron die niet meer geldt. De widget laat ze daarom weg; wie de volledige
   // geschiedenis wil, klikt door naar de zoeker.
+  // De Belastingdienst zet de status vooraan de paginatitel: "[INGETROKKEN] KG:..." of
+  // "[VERVALLEN] KG:...", een enkele keer zonder blokhaken. Zoek daarom uitsluitend
+  // vooraan. Tot 10-09-2026 zocht deze functie de losse term in de eerste veertig
+  // tekens van de titel; daardoor viel KG:202:2023:35 "Vervallen restant
+  // persoonsgebonden aftrek als in een volgend jaar ..." uit elk paneel, terwijl dat
+  // een gewoon geldend standpunt is. Nagemeten op de volledige tabel: de regel vooraan
+  // wijst 115 van de 1147 standpunten aan, de oude regel 116 — dat ene verschil.
+  // Dezelfde regel staat in kennisgroepen-zoeker.html, waar zij de rode
+  // INGETROKKEN-badge bepaalt.
+  var INGETROKKEN_RE = /^\s*\[?\s*(ingetrokken|vervallen)\s*\]?/i;
+
   function isIngetrokken(s) {
     if (!s) return false;
-    var slug = String(s.slug || '');
-    if (/^(ingetrokken|vervallen)-/i.test(slug)) return true;
-    var titel = String(s.titel || '');
-    return /\b(ingetrokken|vervallen)\b/i.test(titel.slice(0, 40));
+    if (INGETROKKEN_RE.test(String(s.titel || ''))) return true;
+    return INGETROKKEN_RE.test(String(s.slug || ''));
   }
 
   // Dedupliceert, gooit ingetrokken en te zwakke matches weg en kapt af op max.

@@ -337,6 +337,13 @@
     letter-spacing: 0.8px;
   }
 
+  .tag-ingetrokken {
+    background: #fdeaea;
+    color: #a01b1b;
+    border: 1px solid #e08a8a;
+    letter-spacing: 0.8px;
+  }
+
   .standpunt-date {
     font-size: 11px;
     color: var(--gray-400);
@@ -1584,6 +1591,29 @@ function isGewijzigd(eerste_keer_gezien, gewijzigd_at) {
   return (Date.now() - new Date(gewijzigd_at).getTime()) / 86400000 <= BADGE_DAGEN;
 }
 
+// De Belastingdienst zet de status vooraan de paginatitel: "[INGETROKKEN] KG:..." of
+// "[VERVALLEN] KG:...", een enkele keer zonder blokhaken. Dat is het betrouwbaarste
+// signaal en het enige dat alle gevallen dekt: geteld op 10-09-2026 dragen 115 van de
+// 1147 standpunten de markering in de titel, terwijl maar 65 slugs met de term
+// beginnen. Zoek daarom uitsluitend vooraan, en niet ergens in de titel: KG:202:2023:35
+// "Vervallen restant persoonsgebonden aftrek ..." is een gewoon geldend standpunt en
+// mag niet als ingetrokken gelden.
+const INGETROKKEN_RE = /^\s*\[?\s*(ingetrokken|vervallen)\s*\]?/i;
+
+function isIngetrokken(s) {
+  if (!s) return false;
+  if (INGETROKKEN_RE.test(String(s.titel || ''))) return true;
+  return INGETROKKEN_RE.test(String(s.slug || ''));
+}
+
+// De titel zonder de statusmarkering vooraan. De rode badge zegt het al; de markering
+// er nog een keer bij laten staan duwt de eigenlijke titel weg.
+function titelZonderStatus(titel) {
+  const t = String(titel == null ? '' : titel);
+  const zonder = t.replace(INGETROKKEN_RE, '').replace(/^[\s:.,–—-]+/, '');
+  return zonder || t;
+}
+
 // ─── FOUTAFHANDELING ─────────────────────────────────────────────────────────
 function friendlyError(err) {
   const msg = (err && err.message) || '';
@@ -1826,10 +1856,18 @@ function buildAiContext(query, standpunten) {
   return standpunten.map((s, i) => {
     const url    = safeUrl(s.url) || (s.slug ? `${CONFIG.baseUrl}/publicaties/${s.slug}/` : '');
     const inhoud = (s.inhoud || '').slice(0, perItem);
+    // De status expliciet meegeven. De markering staat wel in de titel, maar een
+    // eigen regel laat geen ruimte voor twijfel: een ingetrokken standpunt mag niet
+    // als geldend recht worden samengevat.
+    const status = isIngetrokken(s)
+      ? 'INGETROKKEN of VERVALLEN — dit standpunt geldt niet meer. Vermeld dat expliciet '
+        + 'als je ernaar verwijst, en presenteer het nooit als geldend recht.'
+      : 'geldend';
     return [
       `STANDPUNT ${i + 1}:`,
       `Kenmerk: ${s.kenmerk || 'onbekend'}`,
       `Titel: ${s.titel || ''}`,
+      `Status: ${status}`,
       `Belastingsoort: ${s.belastingsoort || 'onbekend'}`,
       `Datum: ${s.datum || 'onbekend'}`,
       `URL: ${url}`,
@@ -2144,7 +2182,19 @@ function renderStandpuntCard(s, opts = {}) {
   const meta = document.createElement('div');
   meta.className = 'standpunt-meta';
 
-  if (isNieuw(s.eerste_keer_gezien) && !isGewijzigd(s.eerste_keer_gezien, s.gewijzigd_at)) {
+  const ingetrokken = isIngetrokken(s);
+  if (ingetrokken) {
+    const b = document.createElement('span');
+    b.className = 'tag tag-ingetrokken';
+    b.textContent = 'INGETROKKEN';
+    b.setAttribute('title', 'Dit standpunt is ingetrokken of vervallen en geldt niet meer');
+    meta.appendChild(b);
+  }
+
+  // Een ingetrokken standpunt is geen nieuw standpunt: de badge NIEUW zou de aandacht
+  // vestigen op iets dat juist níet meer geldt. GEWIJZIGD blijft wel staan, want dat
+  // vertelt dat de intrekking van kort geleden is.
+  if (!ingetrokken && isNieuw(s.eerste_keer_gezien) && !isGewijzigd(s.eerste_keer_gezien, s.gewijzigd_at)) {
     const b = document.createElement('span');
     b.className = 'tag tag-nieuw';
     b.textContent = 'NIEUW';
@@ -2183,9 +2233,10 @@ function renderStandpuntCard(s, opts = {}) {
   }
   card.appendChild(meta);
 
-  // Titel
+  // Titel. Bij een ingetrokken standpunt zonder de markering vooraan: die staat al in
+  // de badge, en anders duwt zij de eigenlijke titel weg.
   const title = document.createElement('h3');
-  title.textContent = s.titel || '(geen titel)';
+  title.textContent = (ingetrokken ? titelZonderStatus(s.titel) : s.titel) || '(geen titel)';
   card.appendChild(title);
 
   // Snippet (alleen bij zoekresultaten)
@@ -2952,6 +3003,6 @@ function showCopied(el, orig) {
 init();
 </script>
 
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 4 sep 2026, 00:05</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 22:09</div>
 </body>
 </html>
