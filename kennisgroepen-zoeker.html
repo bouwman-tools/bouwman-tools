@@ -1650,18 +1650,33 @@ function makeErrorEl(err) {
 }
 
 // ─── KG-KENMERK DETECTIE ─────────────────────────────────────────────────────
+// Beide officiële kenmerkformaten van de Belastingdienst:
+//   KG:<3c>:<4c>:<n>  bijv. KG:211:2026:5   (groep:jaar:volgnr)
+//   KG:<4c>:<3c>:<n>  bijv. KG:2026:211:19  (jaar:groep:volgnr)
+// Sla de veldvolgorde op exact zoals gevonden; normaliseer NIET.
+//
+// De scheiding is een dubbele punt of één witruimteteken, met horizontale witruimte om
+// die dubbele punt heen. Dat laatste komt uit de bron zelf: de Belastingdienst
+// publiceert onder meer "KG:204:2023: 5". Dezelfde tolerantie zit in scraper.py, zodat
+// wie hier "KG:204:2023: 5" intypt hetzelfde standpunt vindt als wie het aaneengesloten
+// intypt. Het volgnummer wordt genormaliseerd naar de vorm zonder spatie.
+//
+// De scheidingsgroep (?:[^\S\r\n]*:[^\S\r\n]*|\s) staat drie keer in het patroon: een
+// dubbele punt met eventuele spaties eromheen, of één los witruimteteken. De eerste
+// staat op ? omdat een zoekterm hier ook zonder scheiding na KG mag worden ingetypt;
+// de scraper eist die scheiding wel, want daar telt elke valse match als kenmerk.
+const KG_KENMERK_RE =
+  /KG(?:[^\S\r\n]*:[^\S\r\n]*|\s)?(\d{3,4})(?:[^\S\r\n]*:[^\S\r\n]*|\s)(\d{3,4})(?:[^\S\r\n]*:[^\S\r\n]*|\s)(\d+)/i;
+
 function normalizeKgKenmerk(query) {
-  // Beide officiële kenmerkformaten van de Belastingdienst:
-  //   KG:<3c>:<4c>:<n>  bijv. KG:211:2026:5   (groep:jaar:volgnr)
-  //   KG:<4c>:<3c>:<n>  bijv. KG:2026:211:19  (jaar:groep:volgnr)
-  // Sla de veldvolgorde op exact zoals gevonden; normaliseer NIET.
-  const m = query.trim().match(/KG[\s:]?(\d{3,4})[\s:](\d{3,4})[\s:](\d+)/i);
+  const m = String(query == null ? '' : query).trim().match(KG_KENMERK_RE);
   if (m) return `KG:${m[1]}:${m[2]}:${m[3]}`;
   return null;
 }
 
+// Eén definitie, twee gebruikers: dit antwoord mag nooit afwijken van normalizeKgKenmerk.
 function isKgKenmerkQuery(query) {
-  return /KG[\s:]?\d{3,4}[\s:]\d{3,4}[\s:]\d+/i.test(query.trim());
+  return normalizeKgKenmerk(query) !== null;
 }
 
 // ─── SUPABASE ZOEKEN (relevantiegestuurd) ─────────────────────────────────────
@@ -3003,6 +3018,6 @@ function showCopied(el, orig) {
 init();
 </script>
 
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 22:09</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 22:51</div>
 </body>
 </html>
