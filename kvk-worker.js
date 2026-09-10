@@ -12,9 +12,50 @@
  * Secrets    : KVK_API_KEY, NTFY_TOPIC
  */
 
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
 const KVK_BASE_V1 = 'https://api.kvk.nl/api/v1/zoeken';
 const KVK_BASE_V2 = 'https://api.kvk.nl/api/v2/zoeken';
 const DREMPEL  = 500;
+
+// De worker controleert zelf of de aanvrager door Cloudflare Access is gekomen. Tot
+// 10-09-2026 deed hij dat niet: de hele bescherming zat in de zoneroute en de Access-app,
+// dus in configuratie buiten Git. Verdwijnt die app, komt er een Bypass-policy op, of raakt
+// de route kwijt, dan staat KVK_API_KEY open zonder dat iets waarschuwt. Dat is hier geen
+// theorie: deze worker was op 15-07-2026 verwijderd en bleef 51 dagen weg zonder dat iemand
+// het merkte. Access blijft het eerste slot en dit is het tweede, in de code, waar het
+// meebeweegt met de repository.
+//
+// Zelfde opzet als access-beheer, dat de portaal- en beheer-JWT al zo controleert.
+const ACCESS_ISSUER = 'https://bouwman-tools.cloudflareaccess.com';
+
+// De AUD van de Access-app die `bouwman.tools/kvk-zoeker.html` en zijn kindpaden beschermt.
+// Publieke metadata, net als de portaal-AUD in access-beheer: Cloudflare zet deze waarde als
+// `kid` in de redirect naar de inlogpagina. Zo is zij ook gemeten, op 10-09-2026, met een
+// onaangemelde aanroep van het pad; `/kvk-zoeker.html` en `/kvk-zoeker.html/api/zoeken`
+// gaven dezelfde waarde en `portal.html` en `berekeningen.html` elk een andere, dus zij is
+// app-specifiek. Dit is niet het `access_app_id` uit tools.json: dat is de UUID van de app,
+// en de AUD is een ander kenmerk.
+const KVK_AUD = '120d05bf7e566c86eb3a02bf7f9067a569d5dad64c27c15fe26d577dcaf547a3';
+
+const ACCESS_KEYS = createRemoteJWKSet(new URL(`${ACCESS_ISSUER}/cdn-cgi/access/certs`));
+
+async function leesAccessToken(request) {
+  const token = request.headers.get('Cf-Access-Jwt-Assertion');
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, ACCESS_KEYS, {
+      issuer: ACCESS_ISSUER, audience: KVK_AUD, algorithms: ['RS256'],
+      requiredClaims: ['iss', 'aud', 'exp', 'sub'],
+    });
+    return payload.type === 'app' && typeof payload.sub === 'string' && payload.sub.length > 0 ? payload : null;
+  } catch {
+    // Ook bij een onbereikbare JWKS: geen toegang, en geen tokendetails in het antwoord
+    // of in de logs. Dichtvallen is hier de veilige kant, want achter deze poort zit een
+    // sleutel die geld kost.
+    return null;
+  }
+}
 
 export default {
   async fetch(request, env) {
@@ -23,6 +64,13 @@ export default {
     }
     if (request.method !== 'POST') {
       return json({ error: 'Method not allowed' }, 405, request);
+    }
+
+    // Vóór het lezen van de body, want zonder geldige Access-identiteit hoort er niets te
+    // gebeuren: geen KvK-aanroep, geen tellerverhoging. `login: true` laat de pagina
+    // "log opnieuw in" tonen in plaats van "fout" per regel.
+    if (!await leesAccessToken(request)) {
+      return json({ error: 'Niet ingelogd bij Cloudflare Access', login: true }, 401, request);
     }
 
     let body;

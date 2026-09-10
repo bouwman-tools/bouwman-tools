@@ -137,12 +137,30 @@ de code heeft is niet gemeten.
 Deze wijziging kan zonder, maar ze horen bij het onderwerp en niemand vindt ze terug als ze hier
 niet staan.
 
-1. **De worker controleert zelf niets.** De hele bescherming zit in configuratie buiten Git.
-   Verdwijnt de Access-app, komt er een Bypass-policy op, of raakt de route kwijt, dan staat de
-   sleutel open zonder signaal. Dat dit hier echt gebeurt is bekend: deze worker was 51 dagen weg
-   zonder dat iemand het merkte. De huisstandaard bestaat al: `access-beheer` valideert de
-   Access-JWT in de worker zelf, `jose` staat in `package.json` en er zijn tests. Access zet
-   `Cf-Access-Jwt-Assertion` op elk verzoek dat de worker bereikt.
+1. ~~De worker controleert zelf niets.~~ **Gebouwd op 10-09-2026, wacht op uitrol.** De worker
+   valideert nu zelf de Access-JWT, in dezelfde opzet als `access-beheer`: `jose`, uitgever
+   `https://bouwman-tools.cloudflareaccess.com`, AUD van de app die `kvk-zoeker.html` beschermt,
+   alleen RS256, en `type === 'app'` met een niet-leeg `sub`. De controle staat vóór het lezen van
+   de body, dus zonder geldige identiteit gebeurt er niets: geen KvK-aanroep en geen tellerstand.
+   Het antwoord is dan `401` met `login: true`, zodat de pagina "log opnieuw in" kan tonen.
+
+   Waarom dit ernaast staat en niet in plaats van Access: verdwijnt de Access-app, komt er een
+   Bypass-policy op, of raakt de route kwijt, dan zou de sleutel zonder dit slot open staan zonder
+   signaal. Deze worker was 51 dagen weg zonder dat iemand het merkte.
+
+   Bewijs: negen nieuwe tests in `tests/kvk-auth.test.mjs`, en de hele set staat op 141 groen
+   (132 ervoor). Getoetst dat het dichtvalt bij een andere ondertekenaar, de AUD van een andere
+   app, een verlopen token, `type` anders dan `app`, een ontbrekend subject, een andere uitgever,
+   losse tekst, een leeg token, een met de hand gemaakte `alg: none` zonder ondertekening, en bij
+   een onbereikbare sleutelbron. Dat laatste is de gevaarlijke kant: dichtvallen in plaats van
+   doorlaten.
+
+   **Twee dingen bij de uitrol.** De worker importeert nu `jose`, dus `npm install` moet in de map
+   staan waar je uitrolt, anders faalt het bundelen; nagemeten met `npx wrangler deploy --dry-run`,
+   40,5 KiB in plaats van 5,5. En dit gaat pas leven na een uitrol: doe daarna één ingelogde
+   zoekopdracht in de tool, want als Access de header om welke reden dan ook niet meestuurt, valt
+   deze poort dicht en werkt de tool niet meer. Terugrollen is `npx wrangler rollback --name
+   kvk-proxy`.
 2. **Access kan sinds 14-08-2026 op de worker zelf.** Dat dekt in één keer workers.dev, routes en
    previews, ongeacht welke vlaggen in `wrangler.toml` staan. De afwijzing van weg A hierboven
    blijft geldig voor een cross-origin aanroep naar workers.dev, maar niet voor weg A *naast* de
