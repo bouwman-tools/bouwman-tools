@@ -13,9 +13,9 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **Auditfile App**: Analyseert XAF-auditfiles en exporteert gestructureerde overzichten per grootboekrekening of kostensoort
 - **Jaarrekening review**: Toetst een jaarrekening aan de kantoorstandaard voordat die naar de klant gaat
@@ -35,7 +35,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **DBA Risicoscan**: Beoordeelt de arbeidsrelatie indicatief aan de negen gezichtspunten uit het Deliveroo/Uber-arrest
@@ -74,10 +74,10 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🔵 concept | Dividendscenario's | nog niet gepubliceerd | bouwman-tools/dividend-scenarios | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🔵 concept | Rente rekening-courant | nog niet gepubliceerd | bouwman-tools/rc-rente-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
 
 - **BV Ja/Nee**: Rekent door of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
 - **Belastinglatentie**: Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of doorschuiving: het gemis aan afschrijvingsbasis en de uitgestelde heffing, met het verloop per jaar
@@ -96,7 +96,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **Belastingtool JoinDK**: Bundelt zes tools in één app: betalingskenmerk decoderen, belastingrente IB en VpB, BTW-correctie en bijtelling auto, VIES en KvK/SBI
 - **Kennisgroepen-zoeker**: Zoekt en analyseert kennisgroepstandpunten van de Belastingdienst met AI
@@ -117,7 +117,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | ⚪ verborgen | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
 - **Prijsafspraken**: Toont per klant de geldende tariefafspraken, werkstatus en factuurhistorie uit een Excel-export
@@ -127,8 +127,8 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | n.v.t. |
+| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-07 |
 
 - **WKR Agent**: AI-assistent voor vragen over de werkkostenregeling
@@ -140,7 +140,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Berekeningen**: Rekent zeventien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente

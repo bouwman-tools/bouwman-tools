@@ -123,7 +123,7 @@ def beoordeling_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
     bij een wijziging.
 
     Retourneert (soort, tekst) met soort:
-      'nvt'          — ritme 'geen';
+      'nvt'          — de tool vraagt geen fiscaal oordeel, of ritme 'geen';
       'ok'           — geaccordeerd binnen het ritme;
       'onbeoordeeld' — nog nooit geaccordeerd;
       'verlopen'     — accordering valt buiten het ritme;
@@ -132,6 +132,14 @@ def beoordeling_status(tool: dict, vandaag: datetime.date) -> tuple[str, str]:
     ritme = tool.get("beoordelingsritme", "jaarlijks")
     if ritme not in ("belastingplan", "jaarlijks", "geen"):
         return "ongeldig", f"onbekend beoordelingsritme {ritme!r}"
+    # Twee vragen die op één veld lagen: heeft deze tool een fiscaal oordeel nodig, en hoe
+    # vaak moet zij worden onderhouden. Wie de ruis uit de kolom wilde halen door het ritme
+    # op 'geen' te zetten, zette daarmee ook het onderhoud uit; een KvK-zoeker hoeft niet te
+    # worden afgetekend maar zijn koppeling moet wel jaarlijks worden nagekeken. Sinds
+    # 10-09-2026 zegt fiscaal_oordeel het eerste. Het ritme telt nog mee zolang er tools zijn
+    # die het veld niet dragen; die uitzondering kan weg zodra alles is ingedeeld.
+    if not tool.get("fiscaal_oordeel", True):
+        return "nvt", "n.v.t."
     if ritme == "geen":
         return "nvt", "n.v.t."
     ruw = tool.get("laatst_beoordeeld")
@@ -515,8 +523,9 @@ def render_tools_md(bron: dict) -> str:
             eigenaar = tool.get("eigenaar") or ""
             eigenaar = "**tbd**" if eigenaar.lower() in ("", "tbd") else eigenaar
             ritme = tool.get("beoordelingsritme", "jaarlijks")
+            oordeel_nodig = tool.get("fiscaal_oordeel", True)
             akkoord = tool.get("laatst_beoordeeld") or (
-                "n.v.t." if ritme == "geen" else "**nooit**"
+                "n.v.t." if not oordeel_nodig or ritme == "geen" else "**nooit**"
             )
             regels.append(
                 f"| {status} | {tool['naam']} | {'' if concept else '`'}{doel}"
