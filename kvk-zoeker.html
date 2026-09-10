@@ -677,6 +677,18 @@ async function startVerwerking() {
       const data = await resp.json();
       const res  = resultaatVoorRij(rijIdx);
 
+      // De proxy controleert sinds 10-09-2026 zelf of de aanvrager door Access is gekomen
+      // en antwoordt anders met 401 en `login: true`. Dat is nette JSON, dus de controle
+      // hierboven op het antwoordtype ziet het niet; zonder dit geval eindigt elke rij op
+      // `fout` terwijl er alleen opnieuw ingelogd moet worden.
+      if (resp.status === 401 && data && data.login) {
+        res.status = 'sessie';
+        updateRij(rijIdx);
+        document.getElementById('progress-txt').textContent =
+          'Sessie verlopen — herlaad de pagina en log opnieuw in';
+        break;
+      }
+
       if (!resp.ok || !data.resultaten) {
         res.status = 'fout';
       } else {
@@ -998,6 +1010,6 @@ function escHtml(s) {
   return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 22:19</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 10 sep 2026, 23:53</div>
 </body>
 </html>
