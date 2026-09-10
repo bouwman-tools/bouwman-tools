@@ -151,9 +151,18 @@ async function stuurNtfy(env, count) {
 //
 // LET OP, dit dicht niet het hele gat: CORS werkt alleen tegen cross-site
 // browserverkeer. Een script of curl stuurt geen Origin mee en wordt hierdoor
-// niet geweerd, en de worker kent geen authenticatie. Wie het adres kent kan
-// dus nog steeds bevragen. Daarvoor is een gedeeld token of Cloudflare Access
-// nodig; dat staat als punt 25 in PostbusClaude/BESLISPUNTEN.md.
+// niet geweerd, en de worker kent geen authenticatie.
+//
+// Dat gat is per 09-09-2026 gedicht buiten deze code om, en het is nuttig te
+// weten waar: de worker hangt nu onder bouwman.tools/kvk-zoeker.html/api/*, een
+// kindpad van de pagina die Cloudflare Access al beschermt, en het openbare
+// workers.dev-adres staat uit. Zie wrangler.toml. Een verzoek dat hier
+// binnenkomt is dus al door Access gegaan.
+//
+// De CORS-poort blijft staan als tweede slot en niet als het enige. Zij kost
+// niets en vangt het geval dat de route ooit verandert of dat workers.dev weer
+// aangaat. Beschouw haar niet als de bescherming van de sleutel: dat is Access.
+// Achtergrond in PostbusClaude/BESLISPUNTEN.md punt 25.
 const TOEGESTANE_ORIGINS = ['https://bouwman.tools'];
 
 function cors(request) {
