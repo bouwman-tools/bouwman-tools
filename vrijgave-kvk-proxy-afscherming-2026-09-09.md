@@ -71,20 +71,11 @@ uitrolde stap 1 en stap 3 in één keer.
    sync-workflow zet `kvk-zoeker.html` in `bouwman-tools`. Doe hierna verificatie 1 en 2.
 3. **Sluit het oude adres.** Rol `claude/kvk-proxy-zoneroute` uit; daar staat
    `workers_dev = false`.
-4. **Zet de sluiting onder de buitencontrole.** Voeg pas ná stap 3 deze twee regels toe aan
-   `PORTAAL_PROEVEN` in `tools/check_admin_routes.py`. Eerder toevoegen laat de CI van deze
-   repository falen zolang het oude adres nog open staat, en dat is terecht maar hinderlijk voor
-   iedereen die intussen iets anders pusht.
-
-   ```python
-   ("bouwman.tools POST /kvk-zoeker.html/api/zoeken", "https://bouwman.tools/kvk-zoeker.html/api/zoeken", "POST", True, False),
-   ("workers.dev POST kvk-proxy", "https://kvk-proxy.s-bouwman.workers.dev", "POST", False, False),
-   ```
-
-   De tweede is de echte wachter: die faalt zodra workers.dev weer opengaat. De eerste toetst dat
-   Access het kindpad onderschept, en let op wat die niet kan zien: een inlogpagina komt er ook
-   wanneer de worker helemaal niet wordt bereikt. Voor "de keten werkt" blijft verificatie 1
-   hieronder nodig, en die vraagt een ingelogde gebruiker.
+4. **Zet de sluiting onder de buitencontrole.** Gedaan op 10-09-2026, ná stap 3: twee regels in
+   `PORTAAL_PROEVEN` in `tools/check_admin_routes.py`. De tweede is de echte wachter en faalt zodra
+   workers.dev weer opengaat. Gemeten na toevoegen: 22 buitenproeven, nul afwijkingen, exitcode 0.
+   Eerder toevoegen kon niet: dan faalt de CI van deze repository zolang het oude adres nog open
+   staat, terecht maar hinderlijk voor iedereen die intussen iets anders pusht.
 
 Wie stap 3 vóór stap 2 doet, haalt het adres weg dat de live pagina nog gebruikt. De stap-1-branch
 mag nooit naar `master` en is geen eindstand.
@@ -157,8 +148,26 @@ niet staan.
    blijft geldig voor een cross-origin aanroep naar workers.dev, maar niet voor weg A *naast* de
    zoneroute: de aanroep uit de pagina blijft dan same-origin en breekt niet. Dat is het echte
    tweede slot, in plaats van CORS. Niet gemeten of beide naast elkaar een bijwerking hebben.
-3. **De sluiting is nog niet regressie-getest.** Dat is geen open ontwerpvraag meer: de twee regels
-   voor `tools/check_admin_routes.py` staan uitgeschreven als stap 4 van de uitrol. Ze moeten er ná
-   stap 3 in, anders faalt de CI van deze repository terecht maar hinderlijk. Blijft dit liggen, dan
-   meldt niets het als de route of de Access-app ooit wegvalt, en dat is precies wat er in juli 51
-   dagen lang niet werd gemeld.
+3. ~~De sluiting is niet regressie-getest.~~ **Gedaan**, zie stap 4. De buitencontrole faalt nu
+   zodra workers.dev weer opengaat. Dat is geen theoretisch geval: het is op de avond van de uitrol
+   twee keer gebeurd, zie hieronder.
+
+## Wat er tijdens de uitrol misging, en waarom het hier staat
+
+De uitrol is op 10-09-2026 gedaan en de sluitstap is twee keer nodig geweest.
+
+Het commando voor stap 3 luidde `git switch claude/kvk-proxy-zoneroute; npx wrangler deploy`. Die
+`switch` faalde met `fatal: 'claude/kvk-proxy-zoneroute' is already used by worktree at ...`, omdat
+dezelfde branch in een werkkopie onder `_worktrees` was uitgechecked. In PowerShell scheidt `;`
+alleen commando's en stopt niet bij een fout, dus `wrangler deploy` liep daarna gewoon door, uit de
+hoofdcheckout die nog op de stap-1-branch stond. Daarmee ging workers.dev weer open: versie
+`9c7f9fd5`, met beide adressen in de triggerlijst.
+
+Hersteld door opnieuw uit te rollen uit de eindstaat, versie `d1a6fce8`, triggerlijst nog één regel.
+Nagemeten: workers.dev geeft 404 (Cloudflare-foutcode 1042) en het kindpad geeft 302 naar de
+Access-login.
+
+Twee dingen om over te nemen. **Een uitrolcommando mag niet met `;` aan een git-commando hangen**
+dat kan falen; gebruik `if ($?) { ... }`, want anders rolt de vorige staat opnieuw uit. En **houd de
+branch die je moet uitrollen vrij**: een werkkopie die hem vasthoudt maakt het commando dat je
+aanreikt onuitvoerbaar. De werkkopie is na deze uitrol opgeruimd.

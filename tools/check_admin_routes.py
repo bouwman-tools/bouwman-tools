@@ -22,6 +22,14 @@ PORTAAL_PROEVEN = (
     ("workers.dev POST /permissions", "https://access-beheer.s-bouwman.workers.dev/permissions", "POST", False, True),
     ("workers.dev OPTIONS /permissions", "https://access-beheer.s-bouwman.workers.dev/permissions", "OPTIONS", False, True),
     ("bouwman.tools GET /portal.html/api/permissions", "https://bouwman.tools/portal.html/api/permissions", "GET", True, False),
+    # kvk-proxy, sinds 10-09-2026 achter Access op een kindpad van de pagina. De tweede
+    # regel is de eigenlijke wachter: die faalt zodra workers.dev weer opengaat, en dat is
+    # die avond twee keer gebeurd door een uitrol van de verkeerde branch. De eerste toetst
+    # dat Access het kindpad onderschept; let op wat zij niet kan zien, want een
+    # inlogpagina komt er ook wanneer de worker helemaal niet wordt bereikt. Voor "de keten
+    # werkt" is een ingelogde proef nodig, en die staat in de vrijgavenotitie.
+    ("bouwman.tools POST /kvk-zoeker.html/api/zoeken", "https://bouwman.tools/kvk-zoeker.html/api/zoeken", "POST", True, False),
+    ("workers.dev POST kvk-proxy", "https://kvk-proxy.s-bouwman.workers.dev", "POST", False, False),
 )
 
 
