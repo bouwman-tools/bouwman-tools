@@ -109,6 +109,50 @@
   .apikey-hint a { color: var(--navy); font-weight: 700; text-decoration: none; }
   .apikey-hint a:hover { text-decoration: underline; }
 
+  /* GROOTTEKLASSE */
+  .grootte-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 28px 22px;
+    margin-bottom: 20px;
+  }
+  .grootte-card h2 {
+    font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 6px;
+  }
+  .grootte-uitleg { font-size: 12px; color: var(--muted); line-height: 1.55; margin-bottom: 14px; }
+  .grootte-velden {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 12px 18px;
+  }
+  .grootte-velden label {
+    display: flex; flex-direction: column;
+    font-size: 11px; font-weight: 700; color: var(--navy);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .grootte-velden label span {
+    font-size: 11px; font-weight: 400; color: var(--muted);
+    text-transform: none; letter-spacing: 0; margin-top: 2px;
+  }
+  .grootte-velden input, .grootte-velden select {
+    margin-top: 5px; padding: 9px 10px; font-size: 13px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text);
+  }
+  .grootte-velden input:focus, .grootte-velden select:focus {
+    outline: none; border-color: var(--navy-light);
+  }
+  .grootte-uitkomst, .grootte-result {
+    font-size: 12px; line-height: 1.6; border-left: 4px solid var(--border);
+    background: var(--navy-faint); color: var(--text);
+  }
+  .grootte-uitkomst { margin-top: 16px; padding: 12px 14px; border-radius: 6px; }
+  .grootte-result { padding: 14px 28px; border-bottom: 1px solid var(--border); }
+  .grootte-uitkomst.grootte-ok, .grootte-result.grootte-ok { border-left-color: var(--mint); }
+  .grootte-uitkomst.grootte-open, .grootte-result.grootte-open { border-left-color: var(--yellow); }
+  .grootte-uitkomst strong, .grootte-result strong { color: var(--navy); }
+  .grootte-uitkomst ul, .grootte-result ul { margin: 6px 0 0 18px; padding: 0; }
+  .grootte-uitkomst li, .grootte-result li { margin-bottom: 2px; }
+  .grootte-bron { display: block; margin-top: 8px; font-size: 11px; color: var(--muted); }
+
   /* UPLOAD CARD */
   .upload-card {
     background: #fff;
@@ -555,7 +599,7 @@
 
   /* PRINT-MODUS: alle drie modules schoon afdrukken */
   @media print {
-    header, .tab-bar, .upload-card, .loading-card, .upload-hint,
+    header, .tab-bar, .upload-card, .grootte-card, .loading-card, .upload-hint,
     .action-bar, .no-print, #printArea, .error-msg,
     .kosten-info, .badge-inhoudelijk, .badge-notitie { display: none !important; }
 
@@ -600,6 +644,37 @@
     <button class="tab-btn" id="tabBV" onclick="switchTab('BV')">
       BV
     </button>
+  </div>
+
+  <div class="grootte-card" id="grootteCard">
+    <h2>Grootteklasse rechtspersoon</h2>
+    <p class="grootte-uitleg">
+      Het verslaggevingsregime van een BV hangt af van de grootteklasse, en daarmee ook de
+      standaardtekst voor grondslag 5.1. Vul het boekjaar en de drie groottecriteria in:
+      balanstotaal, netto-omzet en gemiddeld aantal werknemers. Aan twee van de drie voldoen
+      is genoeg, en een klasse geldt pas na twee opeenvolgende balansdata. Daarvoor is de
+      laatste vraag. Zonder deze gegevens levert de tool geen grondslagtekst met een klasse
+      erin. Vul ze ook bij een IB-review in, want herkent de tool alsnog een BV, dan wordt
+      hiermee gerekend.
+    </p>
+    <div class="grootte-velden">
+      <label for="grootteBoekjaar">Boekjaar<span>jaar waarin het boekjaar is aangevangen</span>
+        <input type="text" inputmode="numeric" id="grootteBoekjaar" placeholder="2025" autocomplete="off" /></label>
+      <label for="grootteBalanstotaal">Balanstotaal<span>waarde van de activa, in euro</span>
+        <input type="text" inputmode="decimal" id="grootteBalanstotaal" placeholder="1.250.000" autocomplete="off" /></label>
+      <label for="grootteOmzet">Netto-omzet<span>over het boekjaar, in euro</span>
+        <input type="text" inputmode="decimal" id="grootteOmzet" placeholder="3.400.000" autocomplete="off" /></label>
+      <label for="grootteWerknemers">Gemiddeld aantal werknemers<span>over het boekjaar</span>
+        <input type="text" inputmode="decimal" id="grootteWerknemers" placeholder="12" autocomplete="off" /></label>
+      <label for="grootteVorig">Vorig boekjaar<span>toets op twee opeenvolgende balansdata</span>
+        <select id="grootteVorig">
+          <option value="">nog niet vastgesteld</option>
+          <option value="zelfde">viel in dezelfde klasse als dit boekjaar</option>
+          <option value="anders">viel in een andere klasse</option>
+          <option value="eerste">dit is het eerste boekjaar van de rechtspersoon</option>
+        </select></label>
+    </div>
+    <div class="grootte-uitkomst grootte-open" id="grootteUitkomst"></div>
   </div>
 
   <div class="apikey-card" id="apikeyCard">
@@ -668,6 +743,7 @@
       </div>
       <button class="btn-print no-print" onclick="printAllModules()">⎙ Afdrukken naar PDF</button>
     </div>
+    <div class="grootte-result" id="grootteResultCard" style="display:none"></div>
     <div class="detectie-card" id="detectieCard" style="display:none"></div>
     <div class="score-hero" id="scoreBadge"></div>
     <div class="result-body" id="resultBody"></div>
@@ -995,8 +1071,7 @@ De jaarrekening bestaat uit de balans per {{Einde boekjaar}}, de winst- en verli
 
 GRONDSLAGEN WAARDERING – STANDAARDTEKSTEN:
 
-5.1 Algemeen:
-De jaarrekening is opgesteld in overeenstemming met Titel 9 Boek 2 BW en de Richtlijnen voor de jaarverslaggeving voor kleine rechtspersonen (RJk). Activa en passiva worden in het algemeen gewaardeerd tegen verkrijgingsprijs of vervaardigingsprijs. Opbrengsten en kosten worden toegerekend aan het boekjaar waarop zij betrekking hebben.
+@@GRONDSLAG_ALGEMEEN@@
 
 5.2 Immateriële vaste activa:
 Immateriële vaste activa worden gewaardeerd tegen verkrijgingsprijs onder aftrek van cumulatieve afschrijvingen. Afschrijvingen worden lineair berekend over de verwachte economische gebruiksduur.
@@ -1421,6 +1496,79 @@ function updateReviewBtn() {
   btnReview.disabled = !(hasKey && hasFile);
 }
 
+// ─── GROOTTEKLASSE: INVOER EN UITKOMST ─────────────────────────────────────
+const GROOTTE_VELD_IDS = ['grootteBoekjaar', 'grootteBalanstotaal', 'grootteOmzet',
+  'grootteWerknemers', 'grootteVorig'];
+
+function grootteEscape(tekst) {
+  return String(tekst).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function leesGrootteInvoer() {
+  return {
+    boekjaar: document.getElementById('grootteBoekjaar').value,
+    balanstotaal: document.getElementById('grootteBalanstotaal').value,
+    omzet: document.getElementById('grootteOmzet').value,
+    werknemers: document.getElementById('grootteWerknemers').value,
+    vorigBoekjaar: document.getElementById('grootteVorig').value
+  };
+}
+
+// De uitkomst in beeld, met de toetsing en de vindplaats erbij, zodat een reviewer kan
+// narekenen waarom deze klasse is gekozen.
+function grootteUitkomstHtml(uitkomst) {
+  if (!uitkomst || uitkomst.status !== 'vastgesteld') {
+    const melding = uitkomst && uitkomst.melding
+      ? uitkomst.melding
+      : 'De grootteklasse is niet vastgesteld.';
+    return '<strong>Grootteklasse nog niet vastgesteld.</strong> ' + grootteEscape(melding);
+  }
+  const toetsen = uitkomst.toetsen.map(t =>
+    '<li>' + grootteEscape(t.omschrijving) + ': ingevuld ' + grootteEscape(t.waarde) +
+    ' (' + (t.gehaald ? 'voldoet' : 'voldoet niet') + ')</li>').join('');
+  const voorbehouden = uitkomst.voorbehouden.length
+    ? '<span class="grootte-bron">Voorbehoud: ' +
+      uitkomst.voorbehouden.map(grootteEscape).join(' ') + '</span>'
+    : '';
+  return '<strong>Grootteklasse: ' + grootteEscape(uitkomst.klasseLabel) + ' (' +
+    grootteEscape(uitkomst.artikel) + ').</strong> Vastgesteld op de criteria over boekjaar ' +
+    grootteEscape(uitkomst.boekjaar) + ', getoetst aan de ' + grootteEscape(uitkomst.reeksAanduiding) +
+    '. Aan twee van de drie criteria voldoen is genoeg; hier voldoet de rechtspersoon er aan ' +
+    grootteEscape(uitkomst.aantalGehaald) + '.' +
+    '<ul>' + toetsen + '</ul>' +
+    'Grond voor de tweejaarsregel: ' + grootteEscape(uitkomst.tweejaarsgrond) + '.<br>' +
+    'Verslaggevingsregime: Titel 9 Boek 2 BW met de ' + grootteEscape(uitkomst.bundel) + '.' +
+    '<span class="grootte-bron">Vindplaats: ' + grootteEscape(uitkomst.vindplaats) +
+    '. Wettekst gecontroleerd op 11-09-2026 in de geconsolideerde tekst van Boek 2 BW, versie 1 juli 2026.</span>' +
+    voorbehouden;
+}
+
+function toonGrootteUitkomst() {
+  const uitkomst = bepaalGrootteklasse(leesGrootteInvoer());
+  const vak = document.getElementById('grootteUitkomst');
+  vak.className = 'grootte-uitkomst ' + (uitkomst.status === 'vastgesteld' ? 'grootte-ok' : 'grootte-open');
+  vak.innerHTML = grootteUitkomstHtml(uitkomst);
+  return uitkomst;
+}
+
+function toonGrootteResultaat(uitkomst) {
+  const kaart = document.getElementById('grootteResultCard');
+  if (!uitkomst || uitkomst.status !== 'vastgesteld') {
+    kaart.style.display = 'none';
+    return;
+  }
+  kaart.className = 'grootte-result grootte-ok';
+  kaart.innerHTML = grootteUitkomstHtml(uitkomst);
+  kaart.style.display = 'block';
+}
+
+GROOTTE_VELD_IDS.forEach(id => {
+  const veld = document.getElementById(id);
+  veld.addEventListener('input', toonGrootteUitkomst);
+  veld.addEventListener('change', toonGrootteUitkomst);
+});
+toonGrootteUitkomst();
+
 // ─── DRAG & DROP ───────────────────────────────────────────────────────────
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -1540,6 +1688,332 @@ function validateReviewBC(raw) {
 }
 // RESPONSVALIDATIE — EINDE
 
+// GROOTTEKLASSE — BEGIN
+// Groottecriteria van de artikelen 2:395a, 2:396 en 2:397 BW.
+//
+// Wettekst: geconsolideerde tekst van Boek 2 van het Burgerlijk Wetboek (BWBR0003045),
+// versie 2026-07-01, opgehaald uit de KOOP-repository op 11-09-2026. De SHA-512 van het
+// gedownloade XML-bestand is gelijk aan de hashcode in het manifest
+// (627a84b43bfeb7463e337e3904f664ea80c0819f655fdeb34fec69aa8db244d4…), waarmee vaststaat
+// dat dit de onveranderde officiële tekst is.
+// Bedragen vanaf boekjaar 2024: Besluit van 5 maart 2024 tot verhoging van de
+// grensbedragen, genoemd in de artikelen 395a, 396 en 397 van Boek 2 van het Burgerlijk
+// Wetboek (Implementatiebesluit Richtlijn verhoging grensbedragen), Stb. 2024, 52,
+// artikelen 1 tot en met 4, ter uitvoering van Gedelegeerde Richtlijn (EU) 2023/2775.
+// Verslaggevingsregime per klasse: Raad voor de Jaarverslaggeving, rjnet.nl/richtlijnen,
+// met de RJ-bundel voor grote en middelgrote rechtspersonen en de RJk-bundel die voor
+// micro- en kleine rechtspersonen wordt uitgegeven.
+// Alle drie de bronnen zijn gecontroleerd op 11-09-2026. Op die datum was na Gedelegeerde
+// Richtlijn (EU) 2023/2775 geen nieuwe aanpassing van de grensbedragen vastgesteld.
+
+const GRONDSLAG_MARKER = '@@GRONDSLAG_ALGEMEEN@@';
+
+// Twee reeksen grensbedragen. Welke reeks geldt hangt af van het boekjaar en niet van de
+// balansdatum: het besluit van 5 maart 2024 geldt voor boekjaren die zijn aangevangen op
+// of na 1 januari 2024 (art. 4 lid 2) en mag worden toegepast op boekjaren die zijn
+// aangevangen op of na 1 januari 2023 (art. 4 lid 3).
+const GROOTTE_REEKSEN = [
+  {
+    id: 'vanaf-2024',
+    aanduiding: 'grensbedragen voor boekjaren aangevangen op of na 1 januari 2024',
+    vindplaats: 'art. 2:395a, 2:396 en 2:397 lid 1 BW, bedragen verhoogd bij Besluit van 5 maart 2024 (Stb. 2024, 52) art. 1 tot en met 3, van toepassing volgens art. 4 lid 2 van dat besluit',
+    grenzen: {
+      micro:       { balanstotaal: 450000,   omzet: 900000,   werknemers: 10 },
+      klein:       { balanstotaal: 7500000,  omzet: 15000000, werknemers: 50 },
+      middelgroot: { balanstotaal: 25000000, omzet: 50000000, werknemers: 250 }
+    }
+  },
+  {
+    id: 'tot-2024',
+    aanduiding: 'grensbedragen voor boekjaren aangevangen voor 1 januari 2024',
+    vindplaats: 'art. 2:395a, 2:396 en 2:397 lid 1 BW zoals die golden voor het Besluit van 5 maart 2024; de oude bedragen staan in de tabel in de nota van toelichting bij dat besluit (Stb. 2024, 52)',
+    grenzen: {
+      micro:       { balanstotaal: 350000,   omzet: 700000,   werknemers: 10 },
+      klein:       { balanstotaal: 6000000,  omzet: 12000000, werknemers: 50 },
+      middelgroot: { balanstotaal: 20000000, omzet: 40000000, werknemers: 250 }
+    }
+  }
+];
+
+// Het eerste boekjaar waarvoor deze tool de grensbedragen kent. Dat is een grens van de
+// tool en geen wettelijke grens; voor eerdere boekjaren wordt geen klasse bepaald.
+const GROOTTE_EERSTE_BOEKJAAR = 2016;
+
+// Verslaggevingsregime per klasse. De vrijstellingen van de artikelen 2:395a, 2:396 en
+// 2:397 BW gelden op grond van art. 2:398 lid 2 BW voor zover de algemene vergadering
+// niet uiterlijk zes maanden na het begin van het boekjaar anders heeft besloten.
+const GROOTTE_REGIMES = {
+  micro: {
+    label: 'micro-rechtspersoon',
+    artikel: 'art. 2:395a BW',
+    bundel: 'Richtlijnen voor de jaarverslaggeving voor kleine rechtspersonen (RJk-bundel)',
+    tekst: 'De jaarrekening is opgesteld in overeenstemming met Titel 9 Boek 2 BW, waarbij gebruik is gemaakt van de vrijstellingen voor micro-rechtspersonen van artikel 2:395a BW, en met de Richtlijnen voor de jaarverslaggeving voor kleine rechtspersonen (RJk-bundel). Activa en passiva worden in het algemeen gewaardeerd tegen verkrijgingsprijs of vervaardigingsprijs. Opbrengsten en kosten worden toegerekend aan het boekjaar waarop zij betrekking hebben.'
+  },
+  klein: {
+    label: 'kleine rechtspersoon',
+    artikel: 'art. 2:396 BW',
+    bundel: 'Richtlijnen voor de jaarverslaggeving voor kleine rechtspersonen (RJk-bundel)',
+    tekst: 'De jaarrekening is opgesteld in overeenstemming met Titel 9 Boek 2 BW, waarbij gebruik is gemaakt van de vrijstellingen voor kleine rechtspersonen van artikel 2:396 BW, en met de Richtlijnen voor de jaarverslaggeving voor kleine rechtspersonen (RJk-bundel). Activa en passiva worden in het algemeen gewaardeerd tegen verkrijgingsprijs of vervaardigingsprijs. Opbrengsten en kosten worden toegerekend aan het boekjaar waarop zij betrekking hebben.'
+  },
+  middelgroot: {
+    label: 'middelgrote rechtspersoon',
+    artikel: 'art. 2:397 BW',
+    bundel: 'Richtlijnen voor de jaarverslaggeving voor grote en middelgrote rechtspersonen (RJ-bundel)',
+    tekst: 'De jaarrekening is opgesteld in overeenstemming met Titel 9 Boek 2 BW, waarbij gebruik is gemaakt van de vrijstellingen voor middelgrote rechtspersonen van artikel 2:397 BW, en met de Richtlijnen voor de jaarverslaggeving voor grote en middelgrote rechtspersonen (RJ-bundel). Activa en passiva worden in het algemeen gewaardeerd tegen verkrijgingsprijs of vervaardigingsprijs. Opbrengsten en kosten worden toegerekend aan het boekjaar waarop zij betrekking hebben.'
+  },
+  groot: {
+    label: 'grote rechtspersoon',
+    artikel: 'art. 2:395a, 2:396 en 2:397 BW, geen van de vrijstellingen',
+    bundel: 'Richtlijnen voor de jaarverslaggeving voor grote en middelgrote rechtspersonen (RJ-bundel)',
+    tekst: 'De jaarrekening is opgesteld in overeenstemming met Titel 9 Boek 2 BW en met de Richtlijnen voor de jaarverslaggeving voor grote en middelgrote rechtspersonen (RJ-bundel). De vrijstellingen van de artikelen 2:395a, 2:396 en 2:397 BW zijn niet van toepassing. Activa en passiva worden in het algemeen gewaardeerd tegen verkrijgingsprijs of vervaardigingsprijs. Opbrengsten en kosten worden toegerekend aan het boekjaar waarop zij betrekking hebben.'
+  }
+};
+
+// Nederlandse invoer: de punt is duizendscheiding en de komma decimaalteken. Alles wat
+// niet eenduidig te lezen is wordt geweigerd; er wordt nooit stil een getal van gemaakt.
+function parseGrootteGetal(waarde) {
+  if (typeof waarde !== 'string' && typeof waarde !== 'number') return null;
+  // \s vangt in JavaScript ook de vaste spatie en de smalle vaste spatie.
+  let s = String(waarde).replace(/\s/g, '');
+  s = s.replace(/^(?:euro|eur)/i, '').replace(/^€/, '');
+  s = s.replace(/,--?$/, '');
+  if (!s) return null;
+  const punt = s.includes('.');
+  const komma = s.includes(',');
+  if (punt && komma) {
+    if (!/^\d{1,3}(?:\.\d{3})+,\d+$/.test(s)) return null;
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (punt) {
+    if (!/^\d{1,3}(?:\.\d{3})+$/.test(s)) return null;
+    s = s.replace(/\./g, '');
+  } else if (komma) {
+    if (!/^\d+,\d+$/.test(s)) return null;
+    s = s.replace(',', '.');
+  } else if (!/^\d+$/.test(s)) {
+    return null;
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatGrootteEuro(bedrag) {
+  return '€ ' + bedrag.toLocaleString('nl-NL');
+}
+
+function formatGrootteAantal(aantal) {
+  return aantal.toLocaleString('nl-NL');
+}
+
+// Welke reeksen grensbedragen kunnen op dit boekjaar van toepassing zijn? Voor boekjaar
+// 2023 zijn dat er twee, omdat de rechtspersoon de verhoogde bedragen over dat boekjaar
+// mag toepassen maar niet moet (art. 4 lid 3 Besluit van 5 maart 2024).
+function reeksenVoorBoekjaar(boekjaar) {
+  if (!Number.isInteger(boekjaar) || boekjaar < GROOTTE_EERSTE_BOEKJAAR) return null;
+  const nieuw = GROOTTE_REEKSEN.find(r => r.id === 'vanaf-2024');
+  const oud = GROOTTE_REEKSEN.find(r => r.id === 'tot-2024');
+  if (boekjaar >= 2024) return [nieuw];
+  if (boekjaar === 2023) return [nieuw, oud];
+  return [oud];
+}
+
+// Toets de drie criteria van een klasse. Balanstotaal en netto-omzet: niet meer dan het
+// grensbedrag. Gemiddeld aantal werknemers: minder dan het getal. Twee van de drie is
+// genoeg (art. 2:395a, 2:396 en 2:397 lid 1 BW).
+function toetsGrenzen(criteria, grenzen) {
+  const toetsen = [
+    {
+      criterium: 'balanstotaal',
+      omschrijving: 'balanstotaal niet meer dan ' + formatGrootteEuro(grenzen.balanstotaal),
+      waarde: formatGrootteEuro(criteria.balanstotaal),
+      gehaald: criteria.balanstotaal <= grenzen.balanstotaal
+    },
+    {
+      criterium: 'netto-omzet',
+      omschrijving: 'netto-omzet niet meer dan ' + formatGrootteEuro(grenzen.omzet),
+      waarde: formatGrootteEuro(criteria.omzet),
+      gehaald: criteria.omzet <= grenzen.omzet
+    },
+    {
+      criterium: 'werknemers',
+      omschrijving: 'gemiddeld aantal werknemers minder dan ' + formatGrootteAantal(grenzen.werknemers),
+      waarde: formatGrootteAantal(criteria.werknemers),
+      gehaald: criteria.werknemers < grenzen.werknemers
+    }
+  ];
+  return { toetsen, aantalGehaald: toetsen.filter(t => t.gehaald).length };
+}
+
+// De artikelen bouwen op elkaar: 2:396 geldt onverminderd 2:395a en 2:397 behoudens
+// 2:396. Vandaar de volgorde micro, klein, middelgroot en anders groot.
+function klasseUitCriteria(criteria, reeks) {
+  for (const klasse of ['micro', 'klein', 'middelgroot']) {
+    const uitkomst = toetsGrenzen(criteria, reeks.grenzen[klasse]);
+    if (uitkomst.aantalGehaald >= 2) {
+      return { klasse, toetsen: uitkomst.toetsen, aantalGehaald: uitkomst.aantalGehaald, reeks };
+    }
+  }
+  const uitkomst = toetsGrenzen(criteria, reeks.grenzen.middelgroot);
+  return { klasse: 'groot', toetsen: uitkomst.toetsen, aantalGehaald: uitkomst.aantalGehaald, reeks };
+}
+
+function grootteOpen(reden, melding) {
+  return { status: 'open', reden, melding, klasse: null };
+}
+
+// De tweejaarsregel: een klasse geldt voor een rechtspersoon die op twee opeenvolgende
+// balansdata aan twee van de drie vereisten heeft voldaan (art. 2:395a, 2:396 en 2:397
+// lid 1 BW). Voor het eerste en tweede boekjaar volstaat de balansdatum van het eerste
+// boekjaar (art. 2:398 lid 1 BW). De tool kent de cijfers van het vorige boekjaar niet en
+// vraagt daarom uit wat daar gold.
+const GROOTTE_VORIG_KEUZES = ['zelfde', 'anders', 'eerste'];
+
+function bepaalGrootteklasse(invoer) {
+  const inv = invoer || {};
+  const lees = sleutel => {
+    const waarde = inv[sleutel];
+    return waarde === undefined || waarde === null ? '' : String(waarde).trim();
+  };
+  const velden = [
+    ['boekjaar', lees('boekjaar')],
+    ['balanstotaal', lees('balanstotaal')],
+    ['netto-omzet', lees('omzet')],
+    ['gemiddeld aantal werknemers', lees('werknemers')],
+    ['toets vorig boekjaar', lees('vorigBoekjaar')]
+  ];
+  const leeg = velden.filter(v => !v[1]).map(v => v[0]);
+  if (leeg.length) {
+    return grootteOpen('onvolledig',
+      'De grootteklasse is niet vastgesteld, want deze gegevens ontbreken: ' + leeg.join(', ') +
+      '. Zonder grootteklasse levert de tool geen grondslagtekst, omdat het verslaggevingsregime dan niet vaststaat.');
+  }
+
+  const boekjaarRuw = velden[0][1];
+  const boekjaar = /^\d{4}$/.test(boekjaarRuw) ? Number(boekjaarRuw) : null;
+  const reeksen = boekjaar === null ? null : reeksenVoorBoekjaar(boekjaar);
+  if (!reeksen) {
+    return grootteOpen('boekjaar-buiten-bereik',
+      'De grootteklasse is niet vastgesteld: vul als boekjaar een jaartal in van ' +
+      GROOTTE_EERSTE_BOEKJAAR + ' of later. De tool kent de grensbedragen van eerdere boekjaren niet en vult geen klasse in.');
+  }
+
+  const balanstotaal = parseGrootteGetal(velden[1][1]);
+  const omzet = parseGrootteGetal(velden[2][1]);
+  const werknemers = parseGrootteGetal(velden[3][1]);
+  const onleesbaar = [];
+  if (balanstotaal === null) onleesbaar.push('balanstotaal');
+  if (omzet === null) onleesbaar.push('netto-omzet');
+  if (werknemers === null) onleesbaar.push('gemiddeld aantal werknemers');
+  if (onleesbaar.length) {
+    return grootteOpen('onleesbaar',
+      'De grootteklasse is niet vastgesteld: deze waarden zijn niet eenduidig te lezen: ' + onleesbaar.join(', ') +
+      '. Schrijf een bedrag voluit, met de punt als duizendscheiding en de komma als decimaalteken, bijvoorbeeld 7.500.000 of 12,5.');
+  }
+
+  const vorig = velden[4][1];
+  if (!GROOTTE_VORIG_KEUZES.includes(vorig)) {
+    return grootteOpen('vorig-onbekend',
+      'De grootteklasse is niet vastgesteld: de toets op het vorige boekjaar is niet ingevuld.');
+  }
+
+  const criteria = { balanstotaal, omzet, werknemers };
+  const uitkomsten = reeksen.map(reeks => klasseUitCriteria(criteria, reeks));
+  if (new Set(uitkomsten.map(u => u.klasse)).size > 1) {
+    return grootteOpen('keuze-boekjaar-2023',
+      'De grootteklasse is niet vastgesteld: over boekjaar ' + boekjaar + ' mag de rechtspersoon kiezen. ' +
+      'Met de verhoogde grensbedragen komt er ' + GROOTTE_REGIMES[uitkomsten[0].klasse].label +
+      ' uit, met de oude grensbedragen ' + GROOTTE_REGIMES[uitkomsten[1].klasse].label +
+      '. Stel eerst vast of de rechtspersoon de verhoogde bedragen over boekjaar ' + boekjaar +
+      ' toepast (art. 4 lid 3 Besluit van 5 maart 2024, Stb. 2024, 52).');
+  }
+
+  const gekozen = uitkomsten[0];
+  const regime = GROOTTE_REGIMES[gekozen.klasse];
+
+  if (vorig === 'anders') {
+    return grootteOpen('tweejaarsregel',
+      'De grootteklasse is niet vastgesteld: op de criteria van dit boekjaar komt er ' + regime.label +
+      ' uit, maar het vorige boekjaar viel in een andere klasse. Een klasse geldt pas na twee opeenvolgende ' +
+      'balansdata (art. 2:395a, 2:396 en 2:397 lid 1 BW), dus loopt de klasse van het vorige boekjaar door. ' +
+      'Die volgt niet uit deze gegevens: stel haar vast aan de hand van de voorgaande boekjaren.');
+  }
+
+  const voorbehouden = [];
+  if (vorig === 'eerste') {
+    voorbehouden.push('Dit is het eerste boekjaar van de rechtspersoon, dus volgt de klasse uit de balansdatum van dit boekjaar (art. 2:398 lid 1 BW). Diezelfde balansdatum blijft beslissend voor het tweede boekjaar.');
+  }
+  if (reeksen.length > 1) {
+    voorbehouden.push('Over boekjaar ' + boekjaar + ' mag de rechtspersoon kiezen tussen de verhoogde en de oude grensbedragen (art. 4 leden 2 en 3 Besluit van 5 maart 2024, Stb. 2024, 52). Beide reeksen geven hier dezelfde klasse, dus de keuze verandert de uitkomst niet.');
+  }
+  if (gekozen.klasse === 'micro') {
+    voorbehouden.push('De verhoging van de bedragen in art. 2:395a lid 1 BW staat in de geconsolideerde wettekst als redactionele aantekening bij de oude bedragen. De grondslag in art. 2:398 lid 4 BW noemt art. 2:395a nog niet; dat herstel loopt via wetsvoorstel 36678, dat op 11-09-2026 nog in behandeling was.');
+  }
+  voorbehouden.push('De tool toetst niet of de vrijstellingen buiten toepassing blijven op grond van art. 2:398 leden 2, 3, 6 en 7 BW, en telt de cijfers van groepsmaatschappijen niet mee (art. 2:395a lid 2, 2:396 lid 2 en 2:397 lid 2 BW).');
+
+  return {
+    status: 'vastgesteld',
+    reden: 'vastgesteld',
+    klasse: gekozen.klasse,
+    klasseLabel: regime.label,
+    artikel: regime.artikel,
+    bundel: regime.bundel,
+    boekjaar,
+    criteria,
+    toetsen: gekozen.toetsen,
+    aantalGehaald: gekozen.aantalGehaald,
+    reeksAanduiding: gekozen.reeks.aanduiding,
+    vindplaats: gekozen.reeks.vindplaats,
+    tweejaarsgrond: vorig === 'eerste'
+      ? 'eerste boekjaar van de rechtspersoon (art. 2:398 lid 1 BW)'
+      : 'dezelfde klasse op twee opeenvolgende balansdata (art. 2:395a, 2:396 en 2:397 lid 1 BW)',
+    grondslagtekst: regime.tekst,
+    voorbehouden,
+    melding: null
+  };
+}
+
+// Het blok dat in de BV-instructie de plaats van de vaste grondslagtekst inneemt.
+function bouwGrondslagBlok(uitkomst) {
+  if (!uitkomst || uitkomst.status !== 'vastgesteld') {
+    throw new Error('De grootteklasse is niet vastgesteld, dus er is geen grondslagtekst.');
+  }
+  const toetsregels = uitkomst.toetsen
+    .map(t => '- ' + t.omschrijving + ': ingevuld ' + t.waarde + (t.gehaald ? ' (voldoet)' : ' (voldoet niet)'))
+    .join('\n');
+  return [
+    '5.1 Algemeen:',
+    uitkomst.grondslagtekst,
+    '',
+    'GROOTTEKLASSE VAN DEZE RECHTSPERSOON: ' + uitkomst.klasseLabel + ' (' + uitkomst.artikel + ').',
+    'De klasse is buiten deze instructie vastgesteld op de door de gebruiker ingevoerde groottecriteria over',
+    'boekjaar ' + uitkomst.boekjaar + ', getoetst aan de ' + uitkomst.reeksAanduiding + ':',
+    toetsregels,
+    'Grond voor de tweejaarsregel: ' + uitkomst.tweejaarsgrond + '.',
+    'De standaardtekst voor 5.1 hierboven hoort bij deze klasse. Gebruik uitsluitend die tekst, noem geen andere',
+    'grootteklasse en geen andere bundel Richtlijnen voor de jaarverslaggeving, en bepaal de klasse niet zelf uit',
+    'de cijfers in de jaarrekening. Wijkt de grondslag in de jaarrekening af van deze klasse, dan is dat een',
+    'afwijking die je meldt.'
+  ].join('\n');
+}
+
+// Bouwt de BV-instructie met de grondslagtekst van de vastgestelde klasse. Zonder
+// vastgestelde klasse volgt een fout, zodat er nooit een instructie met een ander regime
+// of met de onvervangen markering naar het model gaat.
+function bouwPromptBV(basisprompt, uitkomst) {
+  if (!uitkomst || uitkomst.status !== 'vastgesteld') {
+    throw new Error((uitkomst && uitkomst.melding) ||
+      'De grootteklasse is niet vastgesteld. Vul het boekjaar, de drie groottecriteria en de toets op het vorige boekjaar in.');
+  }
+  if (typeof basisprompt !== 'string' || !basisprompt.includes(GRONDSLAG_MARKER)) {
+    throw new Error('De BV-instructie mist de plaats voor de grondslagtekst. Er is geen beoordeling beschikbaar.');
+  }
+  const prompt = basisprompt.split(GRONDSLAG_MARKER).join(bouwGrondslagBlok(uitkomst));
+  if (prompt.includes(GRONDSLAG_MARKER)) {
+    throw new Error('De grondslagtekst is niet ingevuld. Er is geen beoordeling beschikbaar.');
+  }
+  return prompt;
+}
+// GROOTTEKLASSE — EINDE
+
 // ─── API HELPER ────────────────────────────────────────────────────────────
 async function callClaude(apiKey, systemPrompt, userText, maxTokens) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1588,12 +2062,26 @@ btnReview.addEventListener('click', async () => {
   const apiKey = apiKeyInput.value.trim();
   let isBV     = activeTab === 'BV';
 
+  // Een BV-review levert een grondslagtekst met een grootteklasse erin. Zolang die klasse
+  // niet vaststaat wordt er niets aangeroepen en volgt alleen een melding.
+  let grootte = null;
+  if (isBV) {
+    grootte = toonGrootteUitkomst();
+    if (grootte.status !== 'vastgesteld') {
+      errorMsg.textContent = grootte.melding;
+      errorMsg.classList.add('visible');
+      document.getElementById('grootteCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+
   uploadCard.style.display = 'none';
   loadingCard.classList.add('visible');
   resultCard.classList.remove('visible');
   resultCardBC.style.display = 'none';
   resultCardNotitie.style.display = 'none';
   detectieCard.style.display = 'none';
+  document.getElementById('grootteResultCard').style.display = 'none';
   errorMsg.classList.remove('visible');
   startLoadingSteps();
 
@@ -1607,7 +2095,7 @@ btnReview.addEventListener('click', async () => {
 
   try {
     // ── Aanroep 1: Module A — kantoorstandaard
-    const promptA1   = isBV ? SYSTEM_PROMPT_BV : SYSTEM_PROMPT;
+    const promptA1   = isBV ? bouwPromptBV(SYSTEM_PROMPT_BV, grootte) : SYSTEM_PROMPT;
     const userTextA1 = `Voer de volledige jaarrekening review uit conform de instructie voor ${isBV ? 'BV' : 'IB-ondernemingen'}. Gebruik de exacte sectielabels (##SCORE## etc.) en markeer kopieerbare standaardteksten met <<<COPY>>> en <<<ENDCOPY>>>.`;
 
     let a = await callClaude(apiKey, promptA1, userTextA1, 4000);
@@ -1617,6 +2105,10 @@ btnReview.addEventListener('click', async () => {
     // BV-autodetectie: herkend in IB-modus → tab omzetten en opnieuw uitvoeren als BV
     if (a.rawText.includes('##BV_STOP##') && !isBV) {
       isBV = true;
+      grootte = toonGrootteUitkomst();
+      if (grootte.status !== 'vastgesteld') {
+        throw new Error('In deze IB-review is een BV herkend. ' + grootte.melding);
+      }
       switchTab('BV');
       loadingModuleLabel.textContent = 'BV herkend — opnieuw uitvoeren als BV';
       loadingTitle.textContent = 'BV gedetecteerd…';
@@ -1625,7 +2117,7 @@ btnReview.addEventListener('click', async () => {
       startLoadingSteps();
 
       const userTextA2 = 'Voer de volledige jaarrekening review uit conform de instructie voor BV. Gebruik de exacte sectielabels (##SCORE## etc.) en markeer kopieerbare standaardteksten met <<<COPY>>> en <<<ENDCOPY>>>.';
-      a = await callClaude(apiKey, SYSTEM_PROMPT_BV, userTextA2, 4000);
+      a = await callClaude(apiKey, bouwPromptBV(SYSTEM_PROMPT_BV, grootte), userTextA2, 4000);
       totalInput  += a.inputTokens;
       totalOutput += a.outputTokens;
     }
@@ -1657,6 +2149,7 @@ btnReview.addEventListener('click', async () => {
     resultBodyBC.innerHTML = '';
     renderResult(a.rawText, a.inputTokens, a.outputTokens, kostenA);
     renderModuleBC(bc.rawText);
+    if (isBV) toonGrootteResultaat(grootte);
     stopLoadingSteps();
     loadingCard.classList.remove('visible');
     resetLoading();
@@ -1673,6 +2166,7 @@ btnReview.addEventListener('click', async () => {
     resultCard.classList.remove('visible');
     resultCardNotitie.style.display = 'none';
     detectieCard.style.display = 'none';
+    document.getElementById('grootteResultCard').style.display = 'none';
     stopLoadingSteps();
     loadingCard.classList.remove('visible');
     resetLoading();
@@ -2005,12 +2499,13 @@ btnReset.addEventListener('click', () => {
   resultCardBC.style.display = 'none';
   resultCardNotitie.style.display = 'none';
   detectieCard.style.display = 'none';
+  document.getElementById('grootteResultCard').style.display = 'none';
   document.getElementById('printArea').style.display = 'none';
   uploadCard.style.display = 'block';
   document.getElementById('kostenInfo').style.display = 'none';
   steps.forEach(s => document.getElementById(s).classList.remove('active'));
 });
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 sep 2026, 00:56</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 sep 2026, 09:28</div>
 </body>
 </html>
