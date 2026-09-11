@@ -543,7 +543,7 @@ function vindplaatsen(jaar) {
 // hun getallen uit dezelfde functie halen.
 
 const TOOLNAAM = 'werkkostenregeling';
-const TOOLVERSIE = '2026-09-08';
+const TOOLVERSIE = '2026-09-11';
 const DOSSIER_VERSIE = 1;
 
 const euro = function (bedrag, decimalen) {
@@ -1014,7 +1014,12 @@ function bestandsnaam(kenmerk, datum, extensie) {
 
 const DOSSIERVELDEN = ['jaar', 'fiscaalLoon', 'loonVroeger', 'gage', 'aantalWerknemers'];
 
+// Een leeg gelaten veld wordt hier als `null` weggeschreven, niet als de 0 waarmee
+// `bereken()` intern rekent (`d.invoerLeeg`, `post.leeg`): anders staat er na heropenen
+// een 0 in een veld of een post die nooit is ingevuld. Een echte, bewust ingevulde 0
+// blijft gewoon een 0. Jaar kent geen "leeg": dat is een verplichte keuze op het scherm.
 function dossierNaarJson(d) {
+  const leeg = d.invoerLeeg || {};
   return JSON.stringify({
     tool: TOOLNAAM,
     versie: DOSSIER_VERSIE,
@@ -1023,17 +1028,20 @@ function dossierNaarJson(d) {
     kenmerk: d.kenmerk,
     invoer: {
       jaar: d.jaar,
-      fiscaalLoon: d.fiscaalLoon,
-      loonVroeger: d.loonVroeger,
-      gage: d.gage,
-      aantalWerknemers: d.aantalWerknemers,
-      posten: d.posten.map(function (post) { return post.bedrag; })
+      fiscaalLoon: leeg.fiscaalLoon ? null : d.fiscaalLoon,
+      loonVroeger: leeg.loonVroeger ? null : d.loonVroeger,
+      gage: leeg.gage ? null : d.gage,
+      aantalWerknemers: leeg.aantalWerknemers ? null : d.aantalWerknemers,
+      posten: d.posten.map(function (post) { return post.leeg ? null : post.bedrag; })
     }
   }, null, 2);
 }
 
 // Een onbekend veld wordt genegeerd. Een ontbrekend veld geeft een zichtbare
-// melding en blijft leeg; er komt nooit stilzwijgend een standaardwaarde in.
+// melding en blijft leeg; er komt nooit stilzwijgend een standaardwaarde in. Een veld
+// dat expliciet op `null` staat is iets anders dan ontbrekend: dat schrijft deze tool
+// zelf weg voor een bewust leeg gelaten veld (zie `dossierNaarJson`) en wordt bij het
+// lezen dan ook niet gemeld, in `jsonNaarDossier` hieronder.
 /**
  * Bepaalt of een waarde uit een dossierbestand als bedrag telt.
  *
@@ -1041,7 +1049,9 @@ function dossierNaarJson(d) {
  * blijft leeg en wordt gemeld. `Number()` alleen is hier te soepel: die maakt van
  * `true` een 1 en van `false`, `[]` of een enkele spatie een 0. Een veld dat leeg
  * oogt werd daardoor stil een bedrag, en bij het fiscaal loon is dat de grondslag
- * van de vrije ruimte.
+ * van de vrije ruimte. Deze functie behandelt `null` niet apart: dat is aan de
+ * aanroeper in `jsonNaarDossier`, die `null` als bewust leeg herkent vóór deze
+ * functie iets over "geen getal" kan melden.
  */
 function bedragUitDossier(waarde) {
   if (typeof waarde === 'number' && Number.isFinite(waarde)) return waarde;
@@ -1090,7 +1100,16 @@ function jsonNaarDossier(tekst, aantalPosten) {
 
   const invoer = {};
   DOSSIERVELDEN.forEach(function (veld) {
-    const bedrag = bedragUitDossier(bron[veld]);
+    const ruw = bron[veld];
+    // `null` is voor elk veld behalve jaar een bewust leeg gelaten veld (zie
+    // `dossierNaarJson`): geen fout, dus geen melding. Jaar is een verplichte keuze
+    // op het scherm en kent geen "bewust leeg"; een `null` daar loopt hieronder gewoon
+    // mee door `bedragUitDossier` en wordt, net als voorheen, gemeld als ontbrekend.
+    if (veld !== 'jaar' && ruw === null) {
+      invoer[veld] = null;
+      return;
+    }
+    const bedrag = bedragUitDossier(ruw);
     if (bedrag === null) {
       invoer[veld] = null;
       meldingen.push('Het veld "' + veld + '" ontbreekt in het bestand of is geen getal. '
@@ -1108,7 +1127,16 @@ function jsonNaarDossier(tekst, aantalPosten) {
   } else {
     posten = [];
     for (let i = 0; i < aantalPosten; i++) {
-      const bedrag = bedragUitDossier(bron.posten[i]);
+      const ruw = bron.posten[i];
+      // Zelfde onderscheid als hierboven: een post die in het bestand expliciet op
+      // `null` staat is bewust leeg gelaten bij het opslaan en wordt niet gemeld. Een
+      // post die in de array ontbreekt (index voorbij de lengte) is `undefined`, geen
+      // `null`, en loopt door naar de bestaande "ontbreekt"-afhandeling verderop.
+      if (ruw === null) {
+        posten.push(null);
+        continue;
+      }
+      const bedrag = bedragUitDossier(ruw);
       if (bedrag === null) {
         posten.push(null);
         if (i < bron.posten.length) {
@@ -1491,7 +1519,8 @@ function bereken() {
   notitieRegels(jaar, n).forEach(function (tekst) { notitie(tekst); });
   vulVindplaatsen(jaar);
 
-  const bedragen = postBedragen().map(function (waarde) {
+  const postWaarden = postBedragen();
+  const bedragen = postWaarden.map(function (waarde) {
     return waarde === '' ? 0 : Number(waarde);
   });
 
@@ -1530,8 +1559,19 @@ function bereken() {
     loonVroeger: els.loonVroeger.value === '' ? 0 : Number(els.loonVroeger.value),
     gage: els.gage.value === '' ? 0 : Number(els.gage.value),
     aantalWerknemers: els.aantalWerknemers.value === '' ? 0 : Number(els.aantalWerknemers.value),
+    // Welke van de vier velden hierboven leeg op het scherm stonden. `bereken()` rekent
+    // een leeg veld als 0 (dat blijft zo voor de uitkomst), maar het dossierbestand hoort
+    // dat niet als een ingevulde 0 vast te leggen: anders staat er na heropenen een 0 in
+    // een veld dat nooit is ingevuld. `dossierNaarJson` leest deze vlaggen om leeg als
+    // `null` weg te schrijven in plaats van als 0.
+    invoerLeeg: {
+      fiscaalLoon: els.fiscaalLoon.value === '',
+      loonVroeger: els.loonVroeger.value === '',
+      gage: els.gage.value === '',
+      aantalWerknemers: els.aantalWerknemers.value === ''
+    },
     posten: POSTEN.map(function (post, i) {
-      return { label: post.label(n), bedrag: bedragen[i] };
+      return { label: post.label(n), bedrag: bedragen[i], leeg: postWaarden[i] === '' };
     }),
     uitkomst: uitkomst,
     signaal: signaal,
