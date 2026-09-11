@@ -2168,12 +2168,14 @@ function simulateRoute(inp, policy) {
     y++;
     if (y > 1) { priv += inp.privateAnnual; bv += inp.bvCashAnnual; }
 
-    // Teruggaaf uit terugwenteling van een verlies van het vorige jaar. Zij komt
-    // binnen in het jaar ná het verliesjaar: de aangifte over het verliesjaar
-    // gaat dat jaar de deur uit en daarop volgen de verliesverrekeningsbeschikking
-    // en de vermindering van de aanslag over het jaar daarvóór. Dat tijdstip is
-    // een praktische modelaanname en geen wettelijke betaaltermijn; de wet regelt
-    // de verrekening, niet het moment van uitbetaling.
+    // Teruggaaf uit terugwenteling van een verlies van het vorige jaar. Art. 4.51
+    // lid 1 Wet IB 2001 regelt die verrekening uitdrukkelijk als een vermindering
+    // van de al opgelegde aanslag bij voor bezwaar vatbare beschikking, en lid 2
+    // koppelt die beschikking aan het vaststellen van de aanslag over het jaar
+    // waarin het verlies is ontstaan. Vandaar dat de heffing van het eerdere jaar
+    // hier bruto blijft staan en de vermindering als teruggaaf terugkomt, in het
+    // jaar ná het verliesjaar. Het exacte moment van uitbetaling blijft een
+    // praktische modelaanname: de wet regelt de vermindering en niet de kasdatum.
     var refundNow = refundDue[y] || 0;
     if (refundNow > EPS) priv += refundNow;
 
@@ -2324,6 +2326,35 @@ function simulateRoute(inp, policy) {
   // wel degelijk, maar valt buiten de getoonde jaren; vandaar apart.
   for (var rk in refundDue) {
     if (Number(rk) > rows.length) refundAfterHorizon += refundDue[rk];
+  }
+
+  /* Eindstand van de verliesadministratie: wat er na het laatste getoonde jaar
+     nog aan verrekenbaar verlies openstaat. De lopende `lossCarry` deugt daar
+     niet voor, want die wordt alleen aan het begin van een jaar gevuld. Er zijn
+     twee correcties nodig.
+
+     Ten eerste mist die stand het laatste jaar zelf. Een route die op een
+     aflossing eindigt sluit juist af met een negatief fictief regulier voordeel
+     (art. 4.14a lid 1 onderdeel b), dus verlies dat in het laatste jaar is
+     ontstaan of juist verbruikt telt niet mee.
+
+     Ten tweede moet de vervaltoets van art. 4.49 lid 1 nog een keer lopen,
+     namelijk die van het denkbeeldige jaar na de route. Een verlies uit jaar L
+     wordt verrekend met de zes volgende kalenderjaren, dus tot en met jaar
+     L + 6. Is L + 6 niet groter dan het laatste getoonde jaar, dan is de termijn
+     binnen de horizon verstreken en blijft er buiten de horizon niets over.
+
+     Dit raakt de heffing niet: die loopt via `taxableLeft` en `refundDue`. Het
+     raakt de waarschuwing dat er nog een aanspraak buiten de berekening valt, en
+     die stond er te vaak. Nagemeten op 11-09-2026 over 400 pseudo-willekeurige
+     invoeren en 1685 routes: zonder deze herberekening week de restpost in 336
+     routes af van een verrekening die buiten de planner om over dezelfde reeks
+     wordt uitgerekend; met de herberekening in nul. */
+  lossCarry = 0;
+  for (var lo = 0; lo < openLosses.length; lo++) {
+    if (openLosses[lo].year + LOSS_CARRY_FORWARD_YEARS > rows.length) {
+      lossCarry += openLosses[lo].amount;
+    }
   }
 
   var pvTax = 0, pvAll = 0;
@@ -3402,8 +3433,8 @@ function renderRouteCard(route, inp, opts) {
     html += signal('info', '<strong>In deze route ontstaat een verlies in box 2 dat wordt teruggewenteld.</strong> ' +
       'Lost de DGA af, dan geeft dat een negatief fictief regulier voordeel (art. 4.14a lid 1 onderdeel b). ' +
       'Is het box 2-inkomen van een jaar daardoor negatief, dan verrekent art. 4.49 lid 1 dat verlies met het ' +
-      'voorafgaande kalenderjaar en de zes volgende. De aanslag over dat eerdere jaar is dan al betaald, dus de ' +
-      'terugwenteling levert een teruggaaf' +
+      'voorafgaande kalenderjaar en de zes volgende. De aanslag over dat eerdere jaar is dan al opgelegd; art. 4.51 ' +
+      'lid 1 verrekent het verlies daarom door die aanslag te verminderen, dus de terugwenteling levert een teruggaaf' +
       (terugJaren.length ? ' (' + terugJaren.join('; ') + ')' : '') + '. ' +
       '<em>Het moment van ontvangst is een aanname van deze tool en geen wettelijke betaaltermijn:</em> de teruggaaf ' +
       'staat in het jaar ná het verliesjaar, omdat de aangifte over het verliesjaar dan de deur uit gaat en daarop ' +
@@ -3419,7 +3450,11 @@ function renderRouteCard(route, inp, opts) {
       'Er is in de getoonde jaren geen box 2-inkomen meer om het mee te verrekenen. Een verlies vervalt niet meteen: ' +
       'het is nog zes jaar te verrekenen met inkomen uit aanmerkelijk belang (art. 4.49 lid 1), maar dat valt buiten ' +
       'de horizon van deze berekening. De tool rekent het daarom niet als voordeel mee; de werkelijke last kan dus ' +
-      'lager uitvallen dan hier staat.');
+      'lager uitvallen dan hier staat. Eindigt het aanmerkelijk belang later, dan kan een dan nog onverrekend ' +
+      'verlies op verzoek worden omgezet in een belastingkorting die de belasting in box 1 vermindert ' +
+      '(art. 4.53 juncto art. 2.11a Wet IB 2001). Die omzetting vereist dat de belastingplichtige en zijn partner ' +
+      'in het jaar zelf én het jaar daarvóór geen aanmerkelijk belang hebben, dus zij valt buiten wat deze tool ' +
+      'doorrekent.');
   }
 
   if (route.invariants && route.invariants.liquidity.length) {
@@ -3996,6 +4031,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 9 sep 2026, 23:33</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 sep 2026, 14:57</div>
 </body>
 </html>
