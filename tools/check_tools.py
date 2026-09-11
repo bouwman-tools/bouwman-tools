@@ -30,6 +30,7 @@ import html
 import json
 import os
 import re
+import subprocess
 import sys
 from urllib.parse import quote, urlsplit
 
@@ -232,6 +233,39 @@ def valideer_schema(bron: dict) -> list[str]:
         "tools.json: " + "/".join(str(p) for p in f.absolute_path) + f": {f.message}"
         for f in sorted(validator.iter_errors(bron), key=lambda f: list(f.absolute_path))
     ]
+
+
+def stempel_status() -> tuple[str, str] | None:
+    """Kijkt of het veld bijgewerkt in tools.json nog klopt met de laatste wijziging.
+
+    Het veld wordt met de hand gezet en werd daarom vergeten: op 11-09-2026 stond het op
+    2026-09-09 terwijl er die dag en de dag ervoor inhoudelijk was gewijzigd, twee keer
+    door een andere schrijver. De pagina en TOOLS.md tonen dat veld, dus een achterlopende
+    stempel zegt de lezer dat hij naar oudere gegevens kijkt dan er staan.
+
+    Vergelijkt met de auteurdatum van de laatste commit die tools.json raakt. Buiten een
+    werkkopie, of zonder git, valt er niets te vergelijken en zwijgt deze controle.
+
+    Retourneert None als er niets te melden is, anders (veldwaarde, commitdatum).
+    """
+    try:
+        uit = subprocess.run(
+            ["git", "log", "-1", "--format=%ad", "--date=short", "--", "tools.json"],
+            cwd=WORTEL, capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    laatste = uit.stdout.strip()
+    if uit.returncode != 0 or not laatste:
+        return None
+    with open(os.path.join(WORTEL, "tools.json"), encoding="utf-8") as fh:
+        veld = json.load(fh).get("bijgewerkt") or ""
+    try:
+        if datetime.date.fromisoformat(veld) >= datetime.date.fromisoformat(laatste):
+            return None
+    except ValueError:
+        return veld or "(leeg)", laatste
+    return veld, laatste
 
 
 def main() -> int:
@@ -457,6 +491,16 @@ def main() -> int:
             print(f"  - {m}")
             if os.environ.get("GITHUB_ACTIONS"):
                 print(f"::warning::Beoordeling: {m}")
+        print()
+
+    stempel = stempel_status()
+    if stempel:
+        veld, laatste = stempel
+        print("STEMPEL LOOPT ACHTER:")
+        print(f"  - tools.json zegt bijgewerkt {veld}, maar is voor het laatst gewijzigd op {laatste}.")
+        print("    Zet het veld bijgewerkt gelijk aan de datum van je wijziging.")
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning::Stempel: tools.json zegt bijgewerkt {veld}, laatste wijziging {laatste}")
         print()
 
     if fouten:
