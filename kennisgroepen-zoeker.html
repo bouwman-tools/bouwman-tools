@@ -481,6 +481,47 @@
   .synthesis-text strong { color: var(--white); }
   .synthesis-text a { color: var(--mint); font-weight: 600; }
 
+  /* Concept: de tekst die binnenkomt terwijl de bronvermelding nog niet is gecontroleerd.
+     Bewust gedempt en met een eigen label, zodat niemand dit voor het eindresultaat
+     aanziet. Wordt na de controle vervangen door de gewone synthesekaart. */
+  .synthesis-card.is-concept { opacity: 0.75; }
+  .synthesis-card.is-concept .synthesis-text { color: rgba(255,255,255,0.72); }
+  .synthesis-concept-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Knippert rustig zolang er tekst binnenkomt. */
+  .synthesis-concept-label::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mint);
+    animation: conceptPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes conceptPulse {
+    0%, 100% { opacity: 0.25; }
+    50%      { opacity: 1; }
+  }
+  /* Cursor achter de laatst ontvangen letter, zodat zichtbaar is dat er nog tekst komt. */
+  .synthesis-text.is-typing::after {
+    content: '▋';
+    color: var(--mint);
+    animation: conceptPulse 1s steps(1) infinite;
+    margin-left: 1px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .synthesis-concept-label::before,
+    .synthesis-text.is-typing::after { animation: none; opacity: 0.8; }
+  }
+
   /* INVALID REF */
   .invalid-ref {
     background: rgba(185,28,28,0.12);
@@ -1897,15 +1938,22 @@ function buildAiContext(query, standpunten) {
 // De Anthropic-sleutel blijft server-side in de Worker. De client stuurt alleen
 // de zoekvraag, de opgebouwde context (publieke standpuntteksten) en de kenmerken.
 // Het systeemprompt, model en max_tokens staan vast in de Worker.
-async function callWorker(query, standpunten, strict, signal) {
+// Vraagt de synthese op. Is `onDelta` meegegeven, dan wordt om een stream gevraagd en
+// wordt elk stukje tekst doorgegeven zodra het binnenkomt; de volledige tekst komt als
+// retourwaarde. Geeft de Worker geen stream terug, dan valt dit terug op het gewone
+// JSON-antwoord. Die terugval is geen luxe: de tool wordt bij een push naar main
+// automatisch gepubliceerd, terwijl de Worker met de hand wordt gedeployd, dus er is
+// altijd een moment met een nieuwe pagina en een oude Worker.
+async function callWorker(query, standpunten, strict, signal, onDelta = null) {
   const context   = buildAiContext(query, standpunten);
   const kenmerken  = standpunten.map(s => s.kenmerk).filter(Boolean);
+  const wilStream = typeof onDelta === 'function';
 
   const r = await fetch(CONFIG.workerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ query, context, kenmerken, strict }),
+    body: JSON.stringify({ query, context, kenmerken, strict, stream: wilStream }),
     signal
   });
 
@@ -1915,29 +1963,91 @@ async function callWorker(query, standpunten, strict, signal) {
     throw new Error(msg);
   }
 
+  const soort = r.headers.get('Content-Type') || '';
+  if (wilStream && soort.includes('text/event-stream') && r.body) {
+    return leesSynthesestream(r.body, onDelta);
+  }
+
   const data = await r.json();
-  return (data && typeof data.text === 'string') ? data.text : '';
+  const text = (data && typeof data.text === 'string') ? data.text : '';
+  // Geen stream gekregen maar wel een tekst: geef die in één keer door, zodat de
+  // aanroeper niet twee gevallen hoeft te kennen.
+  if (wilStream && text) onDelta(text);
+  return text;
 }
 
-async function callClaude(query, standpunten, signal) {
-  return callWorker(query, standpunten, false, signal);
+// Leest de eigen SSE van de Worker: één JSON-object per `data:`-regel, met `delta`,
+// `fout` of `klaar`. Het formaat van de AI-dienst zelf komt hier nooit langs.
+async function leesSynthesestream(body, onDelta) {
+  const reader  = body.getReader();
+  const decoder = new TextDecoder();
+  let restant = '';
+  let volledig = '';
+
+  const verwerk = (blok) => {
+    for (const regel of blok.split('\n')) {
+      if (!regel.startsWith('data:')) continue;
+      const ruw = regel.slice(5).trim();
+      if (!ruw) continue;
+      let ev;
+      try { ev = JSON.parse(ruw); } catch { continue; }
+      if (!ev || typeof ev !== 'object') continue;
+      if (typeof ev.delta === 'string') {
+        volledig += ev.delta;
+        onDelta(volledig);
+      } else if (typeof ev.fout === 'string') {
+        // Halverwege afgebroken. De tekst tot hier is bruikbaar, dus die houden we;
+        // de aanroeper hoort wel dat het niet af is.
+        throw new Error(ev.fout);
+      }
+    }
+  };
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      restant += decoder.decode(value, { stream: true });
+      let grens;
+      while ((grens = restant.indexOf('\n\n')) !== -1) {
+        const blok = restant.slice(0, grens);
+        restant = restant.slice(grens + 2);
+        verwerk(blok);
+      }
+    }
+    if (restant.trim()) verwerk(restant);
+  } finally {
+    try { reader.releaseLock(); } catch { /* al vrijgegeven */ }
+  }
+
+  return volledig;
+}
+
+async function callClaude(query, standpunten, signal, onDelta = null) {
+  return callWorker(query, standpunten, false, signal, onDelta);
 }
 
 // Striktere variant: de Worker herhaalt de toegestane kenmerken expliciet in de prompt.
-async function callClaudeStrict(query, standpunten, signal) {
-  return callWorker(query, standpunten, true, signal);
+async function callClaudeStrict(query, standpunten, signal, onDelta = null) {
+  return callWorker(query, standpunten, true, signal, onDelta);
 }
 
 // Wrapper: één automatische herpoging bij gehallucineerde KG-verwijzingen.
 // Retourneert { text, retried, validationError } waar validationError null = OK.
-async function callClaudeWithRetry(query, standpunten, signal) {
+async function callClaudeWithRetry(query, standpunten, signal, onDelta = null) {
   const kenmerken = standpunten.map(s => s.kenmerk).filter(Boolean);
-  const text = await callClaude(query, standpunten, signal);
+  const text = await callClaude(query, standpunten, signal, onDelta);
   const v1 = validateSources(text, kenmerken);
   if (v1.valid) return { text, retried: false, validationError: null };
 
-  // Eerste poging had hallucinations — herpoging met striktere prompt
-  const retryText = await callClaudeStrict(query, standpunten, signal);
+  // Eerste poging had hallucinations — herpoging met striktere prompt.
+  // Bij streamen stond die eerste poging al als concept op het scherm. Melden dát er
+  // opnieuw wordt gevraagd en wissen wat er stond: het alternatief is een lezer die
+  // ongemerkt doorleest in een antwoord dat zo verdwijnt.
+  if (typeof onDelta === 'function') {
+    onDelta('', { opnieuw: true });
+  }
+  const retryText = await callClaudeStrict(query, standpunten, signal, onDelta);
   const v2 = validateSources(retryText, kenmerken);
   return {
     text: retryText,
@@ -2103,6 +2213,39 @@ function formatText(text) {
 
 // ─── RENDER: SYNTHESIS CARD ───────────────────────────────────────────────────
 // precomputedInvalid: null = nog niet gevalideerd; [] = OK; [...] = ongeldige kenmerken
+// Voorlopige kaart voor de tekst die binnenkomt terwijl de bronvermelding nog niet is
+// gecontroleerd. Geeft een element terug plus twee functies: `zet` voor de tekst tot nu
+// toe, en `opnieuw` voor het geval de eerste poging wordt weggegooid.
+// Bewust géén kenmerk-links en géén kopieerknop: dit is niet het eindresultaat, en een
+// halve verwijzing die nog gecontroleerd moet worden hoort niet klikbaar te zijn.
+function maakConceptKaart() {
+  const card = document.createElement('div');
+  card.className = 'synthesis-card is-concept';
+
+  const labelEl = document.createElement('div');
+  labelEl.className = 'synthesis-concept-label';
+  labelEl.textContent = 'AI schrijft — bronvermelding wordt nog gecontroleerd';
+  card.appendChild(labelEl);
+
+  const textEl = document.createElement('div');
+  textEl.className = 'synthesis-text is-typing';
+  // aria-live zodat een schermlezer de tekst meekrijgt zonder elke letter voor te lezen.
+  textEl.setAttribute('aria-live', 'polite');
+  textEl.setAttribute('aria-busy', 'true');
+  card.appendChild(textEl);
+
+  return {
+    card,
+    zet(tekst) {
+      textEl.textContent = tekst;
+    },
+    opnieuw() {
+      labelEl.textContent = 'Een bronverwijzing klopte niet — de analyse wordt opnieuw opgevraagd';
+      textEl.textContent = '';
+    },
+  };
+}
+
 function renderSynthesisCard(text, standpunten, precomputedInvalid = null) {
   const urlMap = {};
   const suppliedKenmerken = [];
@@ -2382,6 +2525,7 @@ async function doSearch() {
   startProgress('loadingBar', 'loadingMsg');
 
   let standpunten = [];
+  let concept = null;      // conceptkaart tijdens het streamen; moet ook bij een fout weg
 
   try {
     standpunten = await searchSupabase(query, signal);
@@ -2418,20 +2562,36 @@ async function doSearch() {
     const msgEl = document.getElementById('loadingMsg');
     if (msgEl) msgEl.textContent = 'AI analyseert de gevonden standpunten…';
 
-    const aiResult = await callClaudeWithRetry(query, standpunten, signal);
-    if (thisId !== _searchRequestId || signal.aborted) return;
-
-    // Voeg synthesis card toe bovenaan; geef pre-computed validatiefout door zodat
-    // renderSynthesisCard niet opnieuw hoeft te valideren
-    const fragment = renderSynthesisCard(aiResult.text, standpunten, aiResult.validationError);
-    const firstChild = container.firstChild;
-    if (firstChild) {
-      container.insertBefore(fragment, firstChild);
+    // Conceptkaart bovenaan, zodat de tekst zichtbaar opbouwt in plaats van dat er
+    // twintig seconden niets gebeurt. Wordt hieronder vervangen door de definitieve
+    // kaart, pas nadat de bronvermelding is gecontroleerd.
+    concept = maakConceptKaart();
+    if (container.firstChild) {
+      container.insertBefore(concept.card, container.firstChild);
     } else {
-      container.appendChild(fragment);
+      container.appendChild(concept.card);
     }
 
+    const aiResult = await callClaudeWithRetry(query, standpunten, signal, (tekst, opties) => {
+      // Een nieuwe zoekopdracht kan de oude inhalen; dan hoort er niets meer bijgewerkt.
+      if (thisId !== _searchRequestId || signal.aborted) return;
+      if (opties && opties.opnieuw) concept.opnieuw();
+      else concept.zet(tekst);
+    });
+    if (thisId !== _searchRequestId || signal.aborted) {
+      concept.card.remove();
+      return;
+    }
+
+    // Definitieve kaart; geef de pre-computed validatiefout door zodat
+    // renderSynthesisCard niet opnieuw hoeft te valideren
+    const fragment = renderSynthesisCard(aiResult.text, standpunten, aiResult.validationError);
+    concept.card.replaceWith(fragment);
+
   } catch (err) {
+    // Het concept is per definitie onvolledig en ongecontroleerd: weghalen, wat er ook
+    // misging. De foutmelding hieronder vertelt de gebruiker wat er aan de hand is.
+    if (concept) { concept.card.remove(); concept = null; }
     if (err.name === 'AbortError') return;
     if (thisId !== _searchRequestId) return;
 
