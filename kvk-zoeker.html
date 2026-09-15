@@ -716,8 +716,7 @@ async function startVerwerking() {
           const score = k => {
             const n = k.naam;
             let s = 0;
-            if (n.toLowerCase() === naam.toLowerCase())  s += 3; // exacte naam
-            else if (woordenGelijk(n, naam))             s += 2; // zelfde woorden, andere volgorde
+            if (woordenGelijk(n, naam))                  s += 3; // volledige naam, ook bij andere woordvolgorde
             else if (subsetMatch(naam, n))               s += 1; // KvK-naam is subverzameling van zoekterm
             else                                         s += woordScore(naam, n) * 0.5;
             s += geoScore(k, plaatsExcel, straatExcel);           // +1.0 plaats, +0.5 straat
@@ -730,7 +729,8 @@ async function startVerwerking() {
 
           // Ook één treffer moet de minimumscore halen: uniek is niet hetzelfde
           // als passend. De gewichten zijn heuristieken, geen zekerheidsscore.
-          if (top >= 2 && top - twee >= 0.4) {
+          if (top >= 2 && top - twee >= 0.4 &&
+              veiligeMatch(gesorteerd[0], naam, plaatsExcel, straatExcel)) {
             res.status    = 'gevonden';
             res.kvkNummer = gesorteerd[0].kvkNummer;
             res.kvkNaam   = gesorteerd[0].naam;
@@ -961,22 +961,26 @@ function kvkCelInhoud(res, rij) {
 
 // ── Match-helpers ─────────────────────────────────────────────────────────
 function normPlaats(s) {
-  return (s || '').toString().trim().toLowerCase().replace(/[-\s]+/g, ' ');
+  return (s || '').toString().normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-// Controleer of twee namen dezelfde woorden bevatten (volgorde-onafhankelijk)
-// B.V./V.O.F./N.V. worden genegeerd; woorden van ≤1 teken ook
+// Bewaar initialen, rechtsvormen, Unicode-letters en herhaalde woorden.
+// Alleen hoofdletters, woordvolgorde en scheidende leestekens worden genormaliseerd.
 function woordenGelijk(a, b) {
-  const norm = s => new Set(
-    s.toLowerCase()
-     .replace(/\b(b\.?v\.?|v\.?o\.?f\.?|n\.?v\.?)\b/gi, '')
-     .replace(/[^a-z0-9]/g, ' ')
-     .split(/\s+/)
-     .filter(w => w.length > 1)
-  );
+  const norm = s => ((s || '').toString().normalize('NFKC').toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) || []).sort();
   const wa = norm(a), wb = norm(b);
-  if (!wa.size || !wb.size) return false;
-  return [...wa].every(w => wb.has(w)) && [...wb].every(w => wa.has(w));
+  return wa.length > 0 && wa.length === wb.length && wa.every((w, i) => w === wb[i]);
+}
+
+// Een rangschikkingsscore alleen mag nooit de exportcel vullen.
+// Elk aangeleverd adresveld moet volledig bevestigd zijn, inclusief huisnummer
+// en toevoeging als die in de straatkolom staan. Ontbrekend bewijs blijft geel.
+function veiligeMatch(kandidaat, naam, plaats, straat) {
+  return /^\d{8}$/.test(String(kandidaat.kvkNummer || '')) &&
+    woordenGelijk(naam, kandidaat.naam) &&
+    (!normPlaats(plaats) || normPlaats(plaats) === normPlaats(kandidaat.plaats)) &&
+    (!normPlaats(straat) || normPlaats(straat) === normPlaats(kandidaat.straat));
 }
 
 // KvK-naam is subverzameling van zoekterm: "Figaro" ⊂ "Figaro Kapsalon" → true
@@ -1009,12 +1013,11 @@ function geoScore(kandidaat, plaatsExcel, straatExcel) {
   let score = 0;
   if (plaatsExcel && kandidaat.plaats) {
     const p = normPlaats(kandidaat.plaats);
-    if (p.includes(plaatsExcel) || plaatsExcel.includes(p)) score += 1;
+    if (p && p === normPlaats(plaatsExcel)) score += 1;
   }
   if (straatExcel) {
-    const straatWoord = straatExcel.split(/\s+/)[0];
-    if (straatWoord.length > 3 && kandidaat.straat &&
-        kandidaat.straat.toLowerCase().includes(straatWoord)) score += 0.5;
+    if (normPlaats(kandidaat.straat) &&
+        normPlaats(kandidaat.straat) === normPlaats(straatExcel)) score += 0.5;
   }
   return score;
 }
@@ -1024,6 +1027,6 @@ function escHtml(s) {
   return (s || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 15 sep 2026, 22:52</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 15 sep 2026, 23:04</div>
 </body>
 </html>
