@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hypotheek annuïtair — bouwman.tools</title>
+<style>
+:root{
+  --ink:#1c2430; --zacht:#5b6875; --lijn:#dde3ea; --vlak:#f6f8fa; --wit:#fff;
+  --accent:#1f5f8b; --accent-zacht:#e8f1f7; --warn:#b4531a; --warn-vlak:#fdf1e7;
+  --fout:#a02020; --fout-vlak:#fbecec; --ok:#1d6f42;
+  --v1:#1f5f8b; --v2:#2e8b74; --v3:#8b6b1f; --v4:#7a4b8b; --v5:#a05a2c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--vlak);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 80px}
+header h1{font-size:26px;margin:0 0 4px}
+header p.sub{margin:0 0 22px;color:var(--zacht)}
+.kaart{background:var(--wit);border:1px solid var(--lijn);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.kaart h2{font-size:17px;margin:0 0 14px}
+.kaart h3{font-size:14px;margin:18px 0 8px;color:var(--zacht);
+  text-transform:uppercase;letter-spacing:.04em}
+.rij{display:flex;flex-wrap:wrap;gap:16px}
+.veld{display:flex;flex-direction:column;gap:4px}
+.veld label{font-size:13px;color:var(--zacht)}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select{
+  border:1px solid var(--lijn);border-radius:6px;padding:7px 9px;background:var(--wit)}
+input[type=number]{width:140px}
+button{border:1px solid var(--lijn);background:var(--wit);border-radius:6px;
+  padding:8px 14px;cursor:pointer}
+button:hover{background:var(--accent-zacht);border-color:var(--accent)}
+button.primair{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primair:hover{filter:brightness(1.08)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--lijn);padding:5px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--zacht);font-size:12px;text-transform:uppercase;
+  letter-spacing:.03em}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.jaargrens td{border-bottom:2px solid var(--lijn)}
+.melding{border-radius:8px;padding:12px 14px;margin:10px 0;font-size:14px}
+.melding.fout{background:var(--fout-vlak);border:1px solid #eccaca;color:var(--fout)}
+.melding.waarschuwing{background:var(--warn-vlak);border:1px solid #f0d6bd;color:var(--warn)}
+.melding.info{background:var(--accent-zacht);border:1px solid #cfe0ec}
+.hulp{font-size:13px;color:var(--zacht);margin:6px 0 0}
+.tabelbak{overflow-x:auto}
+
+/* ── vergelijkingsbalken ──────────────────────────────────────────────── */
+.balken{display:flex;flex-direction:column;gap:10px;margin:6px 0 4px}
+.balk{display:grid;grid-template-columns:190px 1fr 130px;align-items:center;gap:12px}
+.balk .naam{font-size:14px}
+.balk .spoor{background:var(--vlak);border-radius:5px;height:22px;position:relative;
+  border:1px solid var(--lijn);overflow:hidden}
+/* display:block is hier geen opmaakdetail. De vulling is een span binnen een
+   span, en op een inline element doen width en height niets: gemeten op
+   8 september 2026 gaf de vulling 0 bij 0 pixels, met de kleur wel gezet. De
+   balken waren dus nooit gevuld, op geen enkel scherm. Gevonden doordat de
+   afdrukproef lege sporen liet zien; dat was geen printkwestie. */
+.balk .vul{display:block;height:100%;border-radius:0}
+.balk .bedrag{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.balk.beste .naam::after{content:" ← laagst";color:var(--ok);font-size:12px}
+.v-annuitair{background:var(--v1)} .v-vijftig{background:var(--v2)}
+.v-lineair{background:var(--v3)} .v-aflossingsvrij{background:var(--v4)}
+.v-holiday{background:var(--v5)}
+.stip{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+
+/* ── verloopgrafiek ───────────────────────────────────────────────────── */
+.grafiek{width:100%;height:280px}
+.grafiek .as{stroke:var(--lijn);stroke-width:1}
+.grafiek text{font-size:11px;fill:var(--zacht)}
+.grafiek path{fill:none;stroke-width:2}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button.actief{background:var(--accent);border-color:var(--accent);color:#fff}
+.knoppen{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.bron{font-size:12.5px;color:var(--zacht)}
+.bron li{margin-bottom:5px}
+details summary{cursor:pointer;font-size:14px;color:var(--accent)}
+
+/* Het dossierstuk komt in een klantmap, en dat is hier A4. Zonder deze regel
+   bepaalt de printer of de dialoog het formaat: een afdruk via Chrome headless
+   kwam op 8 september 2026 uit op US Letter, 215,9 bij 279,4 mm. Dat is gemeten
+   op een echte afdruk, niet aangenomen.
+
+   Liggend, en dat is geen smaakkwestie. Het jaarschema heeft dertien kolommen en
+   het maandschema acht; staand vielen Netto last en Schuld ultimo buiten de
+   pagina, met een afgedrukte schuifbalk erbij. Gemeten op de afdruk van
+   0b4a355. Uitvoer die van het papier valt is erger dan een liggend blad. */
+@page{size:A4 landscape}
+
+@media print{
+  body{background:#fff}
+  .noprint{display:none !important}
+  .wrap{max-width:none;padding:0}
+  .kaart{border:none;padding:0 0 10px;margin-bottom:10px;page-break-inside:avoid}
+  .kaart h2{border-bottom:1px solid #000;padding-bottom:3px}
+
+  /* Op het scherm mag een brede tabel schuiven; op papier bestaat schuiven niet
+     en kapt overflow de rechterkolommen af. De tabel schikt zich daarom naar de
+     pagina in plaats van zijn eigen breedte te houden. */
+  .tabelbak{overflow:visible !important;max-height:none !important}
+  table{font-size:9px;table-layout:fixed;width:100%}
+  th,td{padding:3px 4px;overflow-wrap:break-word}
+
+  /* Browsers laten achtergronden bij het afdrukken weg; dan blijven de sporen
+     van de vergelijkingsbalken leeg terwijl de bedragen er wel staan. */
+  .balk .spoor,.balk .vul{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  .grafiek{height:200px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Hypotheek annuïtair</h1>
+  <p class="sub">Vijf aflosvormen naast elkaar over de looptijd, met de netto last per jaar.
+    <span id="versieStempel"></span></p>
+</header>
+
+<div class="kaart">
+  <h2>Dossier</h2>
+  <div class="rij">
+    <div class="veld"><label for="kenmerk">Klantnaam of kenmerk</label>
+      <input type="text" id="kenmerk" style="width:260px" placeholder="bijv. dossier 2026-014" /></div>
+    <div class="veld"><label for="opsteller">Opgesteld door</label>
+      <input type="text" id="opsteller" style="width:200px" /></div>
+    <div class="veld"><label for="peildatum">Datum opstelling</label>
+      <input type="text" id="peildatum" style="width:140px" /></div>
+  </div>
+</div>
+
+<div class="kaart">
+  <h2>Invoer</h2>
+
+  <h3>Lening</h3>
+  <div class="rij">
+    <div class="veld"><label for="startjaar">Startjaar</label>
+      <input type="number" id="startjaar" value="2026" step="1" /></div>
+    <div class="veld"><label for="startmaand">Startmaand</label>
+      <select id="startmaand"></select></div>
+    <div class="veld"><label for="hoofdsom">Hoofdsom (€)</label>
+      <input type="number" id="hoofdsom" value="500000" step="1000" /></div>
+    <div class="veld"><label for="aantalBetalingen">Aantal maandbetalingen</label>
+      <input type="number" id="aantalBetalingen" value="360" step="12" /></div>
+  </div>
+  <div class="rij" style="margin-top:12px">
+    <div class="veld"><label for="renteBox1">Rente per jaar, aflossende vormen (%)</label>
+      <input type="number" id="renteBox1" value="4" step="0.01" /></div>
+    <div class="veld"><label for="renteVrij">Rente per jaar, aflossingsvrij (%)</label>
+      <input type="number" id="renteVrij" value="4.2" step="0.01" /></div>
+  </div>
+
+  <h3>Eigen woning en inkomen</h3>
+  <div class="rij">
+    <div class="veld"><label for="woz">WOZ-waarde (€)</label>
+      <input type="number" id="woz" value="600000" step="1000" /></div>
+    <div class="veld"><label for="inkomen">Box 1-inkomen exclusief eigen woning (€)</label>
+      <input type="number" id="inkomen" value="80000" step="1000" /></div>
+  </div>
+
+  <h3>Extra aflossing (alleen de vorm met aflossingsholiday)</h3>
+  <div class="rij">
+    <div class="veld"><label for="extraJaar">Jaar</label>
+      <input type="number" id="extraJaar" value="2027" step="1" /></div>
+    <div class="veld"><label for="extraMaand">Maand</label>
+      <select id="extraMaand"></select></div>
+    <div class="veld"><label for="extraBedrag">Bedrag (€)</label>
+      <input type="number" id="extraBedrag" value="75000" step="1000" /></div>
+  </div>
+  <p class="hulp">Door eerder af te lossen loopt de schuld vóór op het annuïtaire schema van
+    artikel 3.119c Wet IB 2001. Zolang die voorsprong duurt hoeft er niet te worden afgelost:
+    dat is de aflossingsholiday.</p>
+
+  <h3>Schenking</h3>
+  <div class="rij">
+    <div class="veld"><label for="schenking">Schenking per jaar (€)</label>
+      <input type="number" id="schenking" value="0" step="1000" /></div>
+  </div>
+  <p class="hulp" id="schenkHulp"></p>
+</div>
+
+<div id="dossierMelding"></div>
+<div id="meldingen"></div>
+
+<div class="kaart" id="kaartUitkomst">
+  <h2>Netto last over de hele looptijd</h2>
+  <div id="balken"></div>
+  <p class="hulp">Netto last is aflossing plus rente, vermeerderd met de belasting over het
+    eigenwoningforfait en verminderd met het belastingvoordeel van de renteaftrek en met de
+    netto schenking. Aflossing is geen kostenpost maar een vermogensverschuiving; bij de
+    aflossingsvrije vorm blijft de schuld daarom aan het eind staan.</p>
+  <div id="restschuld"></div>
+</div>
+
+<div class="kaart">
+  <h2>Netto last per jaar</h2>
+  <svg class="grafiek" id="grafiek" viewBox="0 0 900 280" preserveAspectRatio="none"></svg>
+  <p class="hulp" id="grafiekLegenda"></p>
+  <div class="tabelbak"><table id="overzichtTabel"></table></div>
+</div>
+
+<div class="kaart">
+  <h2>Schema per aflosvorm</h2>
+  <div class="tabs noprint" id="vormTabs"></div>
+  <div id="vormKop"></div>
+  <h3>Per jaar</h3>
+  <div class="tabelbak"><table id="jaarTabel"></table></div>
+  <details class="noprint" style="margin-top:14px">
+    <summary>Toon het maandschema van deze vorm</summary>
+    <div class="tabelbak" style="max-height:520px;overflow-y:auto;margin-top:10px">
+      <table id="maandTabel"></table></div>
+  </details>
+</div>
+
+<div class="kaart">
+  <h2>Toelichting, vindplaatsen en afbakening</h2>
+  <div id="afbakening" class="bron"></div>
+</div>
+
+<div class="kaart noprint">
+  <h2>Vastleggen</h2>
+  <div class="knoppen">
+    <button class="primair" id="btnPrint">Afdrukken of opslaan als pdf</button>
+    <button id="btnExcel">Exporteren naar Excel</button>
+    <button id="btnOpslaan">Opslaan als dossierbestand</button>
+    <button id="btnOpenen">Dossierbestand openen</button>
+    <input type="file" id="bestandInvoer" accept="application/json,.json" style="display:none" />
+  </div>
+  <p class="hulp">De tool bewaart niets en stuurt niets naar een server. Opslaan is een
+    handeling van u naar een plek die u zelf kiest.</p>
+</div>
+
+</div>
+
+<script>
+"use strict";
+
+// ==========================================================================
+// FISCALE KERN — BEGIN
+//
+// Alles tussen deze markering en "FISCALE KERN — EINDE" is pure rekencode
+// zonder DOM. tests/laad-kern.mjs snijdt dit blok uit het bestand, zodat wat
+// de browser uitvoert exact is wat wordt getest. Er komt later één gedeelde
+// tarievenbron; die wordt uit deze markers gelicht.
+// ==========================================================================
+
+const TOOL_ID = 'hypotheek-annuitair';
+const TOOL_VERSIE = '1.0.0';
+const DOSSIER_VERSIE = 3;
+
+/* ── Jaargebonden waarden ────────────────────────────────────────────────
+   Eén blok per jaar, met de vindplaats bij de waarde zelf. Alle waarden zijn
+   op 2026-09-06 gecontroleerd tegen de geldende tekst per 1 januari 2026.
+
+   Een jaar dat hier niet in staat levert een zichtbare melding op en nooit
+   een stille terugval op een ander jaar. Dat is bij dit onderwerp geen
+   formaliteit: een hypotheekprognose loopt dertig jaar vooruit, en een tabel
+   die stil het laatst bekende jaar hergebruikt geeft dan een uitkomst die
+   niemand meer kan narekenen. */
+const FISCAAL_PER_JAAR = {
+  2026: {
+    /* Art. 2.10 lid 1 Wet IB 2001, geldend 2026-01-01. Kolom I en II geven de
+       schijfgrenzen, kolom IV het belastingtarief. De premies volksverzekeringen
+       komen daar in de eerste schijf bovenop; samen 35,75%. */
+    box1Schijven: [
+      { tot: 38883, tarief: 0.0810, metPremie: true },
+      { tot: 78426, tarief: 0.3756, metPremie: false },
+      { tot: Infinity, tarief: 0.4950, metPremie: false }
+    ],
+
+    /* Art. 11 Wfsv; percentages vastgesteld bij ministeriële regeling voor 2026.
+       AOW 17,90% (art. 11 lid 1 stelt het maximum op 18,25), Anw 0,10%,
+       Wlz 9,65%. Samen 27,65%. Het gecombineerde tarief van de eerste schijf
+       van 35,75% dat hieruit volgt staat op belastingdienst.nl bij de tarieven
+       voor de voorlopige aanslag 2026. */
+    premies: { aow: 0.1790, anw: 0.0010, wlz: 0.0965 },
+
+    /* Art. 2.10 lid 2 Wet IB 2001: de tariefsaanpassing voor grondslag-
+       verminderende posten, waaronder de aftrekbare kosten eigen woning van
+       art. 3.120. Gelijk aan het verschil tussen 49,50% en 37,56%, en ten
+       hoogste over het bedrag van de aftrek zelf. */
+    tariefsaanpassing: 0.1194,
+
+    /* Art. 8.10 lid 2 Wet IB 2001. */
+    ahk: { max: 3115, afbouwVanaf: 29736, afbouwPercentage: 0.06398 },
+
+    /* Art. 3.112 lid 1 Wet IB 2001. Binnen elke schijf geldt het percentage
+       over de hele eigenwoningwaarde; alleen de hoogste schijf werkt met een
+       vast bedrag plus een percentage over het meerdere. Het vaste bedrag van
+       € 4.725 is 0,35% van € 1.350.000 en staat zo ook in de wettekst. */
+    ewfSchijven: [
+      { tot: 12500, vast: 0, percentage: 0, overMeerdere: false },
+      { tot: 25000, vast: 0, percentage: 0.0010, overMeerdere: false },
+      { tot: 50000, vast: 0, percentage: 0.0020, overMeerdere: false },
+      { tot: 75000, vast: 0, percentage: 0.0025, overMeerdere: false },
+      { tot: 1350000, vast: 0, percentage: 0.0035, overMeerdere: false },
+      { tot: Infinity, vast: 4725, percentage: 0.0235, overMeerdere: true }
+    ],
+
+    /* Art. 3.123a lid 2 Wet IB 2001: aftrek wegens geen of geringe
+       eigenwoningschuld, 71,867% van het verschil tussen het forfait en de
+       daarop drukkende aftrekbare kosten. */
+    hillenPercentage: 0.71867,
+
+    /* Art. 33 onder 5° Successiewet 1956: de jaarlijkse vrijstelling voor een
+       schenking van een ouder aan een kind. Dit is de enige vrijstelling die de
+       tool toepast, en zij is niet overschrijfbaar.
+
+       De eenmalig verhoogde vrijstellingen van art. 33 onder 5° sub a en sub b
+       zitten er met opzet niet in. Besluit van Sylvain, 7 september 2026: het
+       recht daarop hangt af van drie voorwaarden die deze tool niet kan
+       vaststellen — de leeftijd van het kind, of er niet eerder een verhoogde
+       vrijstelling is gebruikt, en of er in de aangifte een beroep op wordt
+       gedaan. Een keuzelijst zonder die toets maakt een fiscaal onjuiste
+       uitkomst te makkelijk. Wordt deze situatie later ondersteund, dan hoort
+       daar een expliciete bevestiging door de gebruiker bij. */
+    schenkVrijstellingKind: 6908,
+
+    /* Art. 24 lid 1 SW 1956, kolom I: partner en afstammelingen in de rechte
+       lijn. Voor afstammelingen in de tweede of verdere graad geldt een
+       verhoging met 80%; die blijft buiten deze tool. */
+    schenkSchijven: [
+      { tot: 158669, tarief: 0.10 },
+      { tot: Infinity, tarief: 0.20 }
+    ]
+  }
+};
+
+const FISCALE_JAREN = Object.keys(FISCAAL_PER_JAAR).map(Number).sort(function (a, b) { return a - b; });
+
+const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
+  'augustus', 'september', 'oktober', 'november', 'december'];
+
+/** De vijf aflosvormen, in de volgorde waarin ze op het scherm staan. */
+const VORMEN = [
+  { id: 'annuitair', naam: 'Annuïtair', kort: 'annuïtair',
+    uitleg: 'Elke maand hetzelfde bedrag aan rente en aflossing samen. De rente is aftrekbaar.' },
+  { id: 'vijftig', naam: '50% annuïtair, 50% aflossingsvrij', kort: '50/50',
+    uitleg: 'De helft annuïtair in box 1, de helft aflossingsvrij in box 3. Over het box 3-deel is de rente niet aftrekbaar.' },
+  { id: 'lineair', naam: 'Lineair', kort: 'lineair',
+    uitleg: 'Elke maand hetzelfde aflossingsbedrag; de rente daalt daardoor sneller dan bij annuïtair.' },
+  { id: 'aflossingsvrij', naam: 'Aflossingsvrij', kort: 'aflossingsvrij',
+    uitleg: 'Alleen rente, geen aflossing. De schuld blijft aan het eind van de looptijd staan.' },
+  { id: 'holiday', naam: 'Annuïtair met aflossingsholiday', kort: 'holiday',
+    uitleg: 'Annuïtair, met een extra aflossing die een voorsprong op het aflossingsschema geeft. Zolang die voorsprong duurt hoeft er niet te worden afgelost.' }
+];
+
+const MAX_JAREN = 31;
+const MAX_MAANDEN = MAX_JAREN * 12;
+const MIN_BETALINGEN = 1;
+const MAX_BETALINGEN = 360;
+
+/** Het deel van een bedrag dat tussen twee grenzen valt. */
+function inSchijf(bedrag, van, tot) {
+  return Math.min(Math.max(bedrag - van, 0), tot - van);
+}
+
+/**
+ * De jaarwaarden van een jaar. Een onbekend jaar gooit; er is geen terugval.
+ */
+function fiscaalJaar(jaar) {
+  const w = FISCAAL_PER_JAAR[Number(jaar)];
+  if (!w) {
+    throw new Error(
+      'Voor ' + (jaar === '' || jaar === null || jaar === undefined ? '(leeg)' : jaar) +
+      ' zijn de fiscale waarden niet vastgesteld; de tabel bevat ' +
+      FISCALE_JAREN.join(' en ') + '.');
+  }
+  return w;
+}
+
+/**
+ * Eigenwoningforfait volgens art. 3.112 lid 1 Wet IB 2001, bij een vol jaar
+ * eigenwoningbezit. Over hoeveel maanden het forfait loopt hangt aan de
+ * eigenwoningstatus en niet aan de schuld; dat zit in bouwJaren.
+ *
+ * De wet geeft per schijf een percentage van de héle eigenwoningwaarde, niet
+ * van het meerdere; alleen de hoogste schijf werkt met een vast bedrag plus
+ * een percentage over het deel boven de grens. Wie alleen de twee hoogste
+ * schijven aanhoudt, rekent onder € 75.000 een te hoog forfait.
+ */
+function eigenwoningforfait(jaar, woz) {
+  const w = fiscaalJaar(jaar);
+  const waarde = Math.max(Number(woz) || 0, 0);
+
+  let ondergrens = 0;
+  for (const s of w.ewfSchijven) {
+    if (waarde <= s.tot) {
+      return s.overMeerdere
+        ? s.vast + (waarde - ondergrens) * s.percentage
+        : waarde * s.percentage;
+    }
+    ondergrens = s.tot;
+  }
+  const laatste = w.ewfSchijven[w.ewfSchijven.length - 1];
+  return laatste.vast + (waarde - ondergrens) * laatste.percentage;
+}
+
+/**
+ * Inkomstenbelasting en premies volksverzekeringen over box 1, voor iemand die
+ * de AOW-leeftijd nog niet heeft bereikt.
+ *
+ * `aftrekbeperkt` is het bedrag aan grondslagverminderende posten dat al in
+ * `inkomen` is verwerkt; daarover volgt de tariefsaanpassing van art. 2.10
+ * lid 2. Die aanpassing bedraagt ten hoogste het percentage over de aftrek
+ * zelf, en dat volgt hier vanzelf uit de opzet.
+ */
+function inkomstenbelastingBox1(jaar, inkomen, aftrekbeperkt) {
+  const w = fiscaalJaar(jaar);
+  const y = Math.max(Number(inkomen) || 0, 0);
+  const aftrek = Math.max(Number(aftrekbeperkt) || 0, 0);
+  const premiePercentage = w.premies.aow + w.premies.anw + w.premies.wlz;
+
+  let belasting = 0;
+  let premie = 0;
+  let van = 0;
+  for (const s of w.box1Schijven) {
+    const deel = inSchijf(y, van, s.tot);
+    belasting += deel * s.tarief;
+    if (s.metPremie) {
+      premie += deel * premiePercentage;
+    }
+    van = s.tot;
+  }
+
+  // Tariefsaanpassing: het deel van de aftrek dat het inkomen uit de hoogste
+  // schijf heeft gehaald, wordt tegen het verschil van de twee hoogste
+  // tarieven bijgeheven.
+  const topGrens = w.box1Schijven[w.box1Schijven.length - 2].tot;
+  const boven = inSchijf(y + aftrek, topGrens, Infinity) - inSchijf(y, topGrens, Infinity);
+  const extra = boven * w.tariefsaanpassing;
+
+  return belasting + premie + extra;
+}
+
+/** Algemene heffingskorting, art. 8.10 lid 2 Wet IB 2001. */
+function algemeneHeffingskorting(jaar, verzamelinkomen) {
+  const w = fiscaalJaar(jaar);
+  const y = Math.max(Number(verzamelinkomen) || 0, 0);
+  const boven = Math.max(y - w.ahk.afbouwVanaf, 0);
+  const afbouw = boven * w.ahk.afbouwPercentage;
+  return Math.max(w.ahk.max - afbouw, 0);
+}
+
+/** De verschuldigde heffing na aftrek van de algemene heffingskorting. */
+function heffingNaKorting(jaar, inkomen, aftrekbeperkt) {
+  return Math.max(
+    inkomstenbelastingBox1(jaar, inkomen, aftrekbeperkt) -
+    algemeneHeffingskorting(jaar, inkomen), 0);
+}
+
+/**
+ * Aftrek wegens geen of geringe eigenwoningschuld, art. 3.123a Wet IB 2001.
+ * Van toepassing zodra het forfait hoger is dan de daarop drukkende aftrekbare
+ * kosten.
+ */
+function hillenAftrek(jaar, forfait, aftrekbareKosten) {
+  const w = fiscaalJaar(jaar);
+  const verschil = Number(forfait) - Number(aftrekbareKosten);
+  return verschil > 0 ? verschil * w.hillenPercentage : 0;
+}
+
+/**
+ * De wettelijke jaarlijkse vrijstelling voor een schenking van ouder aan kind.
+ *
+ * Er is geen invoerveld en geen keuzelijst: de tool vult de wettelijke waarde
+ * zelf in. Een vrij invulbare vrijstelling maakt het mogelijk om, zonder dat het
+ * ergens zichtbaar is, met een ander bedrag te rekenen dan de wet geeft.
+ */
+function vrijstellingSchenking(jaar) {
+  return fiscaalJaar(jaar).schenkVrijstellingKind;
+}
+
+/**
+ * Schenkbelasting over een schenking van een ouder aan een kind.
+ * Art. 24 lid 1 kolom I en art. 33 onder 5° SW 1956.
+
+ */
+function schenkbelasting(jaar, schenking) {
+  const w = fiscaalJaar(jaar);
+  const bedrag = Math.max(Number(schenking) || 0, 0);
+  const belast = Math.max(bedrag - vrijstellingSchenking(jaar), 0);
+  if (belast === 0) return 0;
+
+  let heffing = 0;
+  let van = 0;
+  for (const s of w.schenkSchijven) {
+    heffing += inSchijf(belast, van, s.tot) * s.tarief;
+    van = s.tot;
+  }
+  return heffing;
+}
+
+/** De schenking die na schenkbelasting overblijft. */
+function nettoSchenking(jaar, schenking) {
+  return Number(schenking) - schenkbelasting(jaar, schenking);
+}
+
+/**
+ * De maandelijkse annuïteit: rente en aflossing samen, gelijk over n termijnen.
+ * Bij een rente van nul is dat de hoofdsom gedeeld over de termijnen.
+ */
+function annuiteit(maandrente, aantalBetalingen, hoofdsom) {
+  const i = Number(maandrente);
+  const n = Number(aantalBetalingen);
+  const h = Number(hoofdsom);
+  if (n <= 0) return 0;
+  if (i === 0) return h / n;
+  return h * i / (1 - Math.pow(1 + i, -n));
+}
+
+// ── invoer ────────────────────────────────────────────────────────────────
+
+function schoneTekst(v) {
+  return String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+}
+
+function isGeheel(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n; }
+function isGetal(n) { return typeof n === 'number' && isFinite(n); }
+
+/** Normaliseert de ruwe invoer. Ontbrekende velden worden niet stil aangevuld. */
+function normaliseerInvoer(ruw) {
+  const r = ruw || {};
+  return {
+    kenmerk: schoneTekst(r.kenmerk),
+    opsteller: schoneTekst(r.opsteller),
+    peildatum: schoneTekst(r.peildatum),
+    startjaar: Number(r.startjaar),
+    startmaand: Number(r.startmaand),
+    hoofdsom: Number(r.hoofdsom),
+    aantalBetalingen: Number(r.aantalBetalingen),
+    renteBox1: Number(r.renteBox1),
+    renteVrij: Number(r.renteVrij),
+    woz: Number(r.woz),
+    inkomen: Number(r.inkomen),
+    extraJaar: Number(r.extraJaar),
+    extraMaand: Number(r.extraMaand),
+    extraBedrag: Number(r.extraBedrag),
+    schenking: Number(r.schenking)
+  };
+}
+
+/**
+ * Toetst de invoer. Hier zit het risico van dit onderwerp, niet in de formules:
+ * zonder controle geeft een negatieve hoofdsom of een WOZ van nul gewoon een
+ * schema, en dan rekent de tool door op iets wat niet kan.
+ */
+function valideerInvoer(inp) {
+  const fouten = [];
+  const waarschuwingen = [];
+
+  if (!isGeheel(inp.startjaar)) {
+    fouten.push('Vul een startjaar in als heel jaartal.');
+  } else if (!FISCAAL_PER_JAAR[inp.startjaar]) {
+    fouten.push('Voor startjaar ' + inp.startjaar + ' zijn de fiscale waarden niet ' +
+      'vastgesteld. Vastgesteld zijn: ' + FISCALE_JAREN.join(', ') + '. De tool rekent ' +
+      'niet stil door met de waarden van een ander jaar.');
+  }
+
+  if (!isGeheel(inp.startmaand) || inp.startmaand < 1 || inp.startmaand > 12) {
+    fouten.push('Kies een startmaand.');
+  }
+
+  if (!isGetal(inp.hoofdsom) || inp.hoofdsom <= 0) {
+    fouten.push('De hoofdsom moet groter dan nul zijn.');
+  }
+
+  if (!isGeheel(inp.aantalBetalingen) ||
+      inp.aantalBetalingen < MIN_BETALINGEN || inp.aantalBetalingen > MAX_BETALINGEN) {
+    fouten.push('Het aantal maandbetalingen moet een heel getal tussen ' + MIN_BETALINGEN +
+      ' en ' + MAX_BETALINGEN + ' zijn.');
+  }
+
+  [['renteBox1', 'De rente voor de aflossende vormen'],
+   ['renteVrij', 'De rente voor de aflossingsvrije vorm']].forEach(function (p) {
+    const v = inp[p[0]];
+    if (!isGetal(v)) fouten.push(p[1] + ' is geen getal.');
+    else if (v < 0) fouten.push(p[1] + ' mag niet negatief zijn.');
+    else if (v > 25) waarschuwingen.push(p[1] + ' is ' + v + '% per jaar. Controleer of dat klopt.');
+  });
+
+  if (!isGetal(inp.woz) || inp.woz < 0) {
+    fouten.push('De WOZ-waarde moet nul of hoger zijn.');
+  }
+  if (!isGetal(inp.inkomen) || inp.inkomen < 0) {
+    fouten.push('Het box 1-inkomen moet nul of hoger zijn.');
+  }
+
+  if (isGetal(inp.hoofdsom) && isGetal(inp.woz) && inp.woz > 0 && inp.hoofdsom > inp.woz) {
+    waarschuwingen.push('De hoofdsom is hoger dan de WOZ-waarde. Dat kan kloppen, maar het ' +
+      'raakt de maximale eigenwoningschuld; die toets doet deze tool niet.');
+  }
+
+  if (!isGetal(inp.extraBedrag) || inp.extraBedrag < 0) {
+    fouten.push('De extra aflossing moet nul of hoger zijn.');
+  } else if (inp.extraBedrag > 0) {
+    if (!isGeheel(inp.extraJaar)) {
+      fouten.push('Vul het jaar van de extra aflossing in als heel jaartal.');
+    } else if (isGeheel(inp.startjaar) &&
+        (inp.extraJaar < inp.startjaar || inp.extraJaar > inp.startjaar + MAX_JAREN - 1)) {
+      fouten.push('Het jaar van de extra aflossing valt buiten de looptijd van ' +
+        inp.startjaar + ' tot en met ' + (inp.startjaar + MAX_JAREN - 1) + '.');
+    }
+    if (!isGeheel(inp.extraMaand) || inp.extraMaand < 1 || inp.extraMaand > 12) {
+      fouten.push('Kies de maand van de extra aflossing.');
+    }
+    if (isGetal(inp.hoofdsom) && inp.extraBedrag > inp.hoofdsom) {
+      fouten.push('De extra aflossing is hoger dan de hoofdsom.');
+    }
+  }
+
+  if (!isGetal(inp.schenking) || inp.schenking < 0) {
+    fouten.push('De schenking per jaar moet nul of hoger zijn.');
+  }
+
+  return { ok: fouten.length === 0, fouten: fouten, waarschuwingen: waarschuwingen };
+}
+
+// ── de maandmotor ─────────────────────────────────────────────────────────
+
+/**
+ * Bouwt het maandschema van één aflosvorm.
+ *
+ * Alle vijf de vormen delen deze lus. Wat per vorm verschilt is de
+ * aflossingsregel, de rentevoet en de vraag of de rente aftrekbaar is. Het
+ * vormen delen daarom één lus: vijf keer dezelfde lus uitschrijven levert vijf
+ * plekken op waar een fout kan ontstaan.
+ *
+ * Het raster loopt altijd van januari van het startjaar tot en met december
+ * van het eenendertigste jaar. Vóór de startmaand en na de
+ * laatste termijn staan er nullen.
+ */
+function bouwSchema(vormId, inp) {
+  const nBet = inp.aantalBetalingen;
+  const startIndex = inp.startmaand - 1;
+  const iBox1 = inp.renteBox1 / 100 / 12;
+  const iVrij = inp.renteVrij / 100 / 12;
+  const h = inp.hoofdsom;
+
+  // Het annuïtaire referentieschema van art. 3.119c Wet IB 2001. De vorm met
+  // aflossingsholiday mag daar nooit boven uitkomen, maar wel eronder.
+  const referentie = [];
+
+  const rijen = [];
+  let schuldA = 0;      // annuïtair deel (of het hele bedrag)
+  let schuldV = 0;      // aflossingsvrij deel
+  let schuldH = 0;      // werkelijke schuld bij de aflossingsholiday
+  let gestart = false;
+  let refSchuld = 0;
+
+  const deelA = vormId === 'vijftig' ? h / 2 : h;
+  const deelV = vormId === 'vijftig' ? h / 2 : (vormId === 'aflossingsvrij' ? h : 0);
+  const annA = annuiteit(iBox1, nBet, deelA);
+  const annRef = annuiteit(iBox1, nBet, h);
+  const lineairAflossing = deelA / nBet;
+
+  for (let m = 0; m < MAX_MAANDEN; m++) {
+    const jaarIndex = Math.floor(m / 12);
+    const jaar = inp.startjaar + jaarIndex;
+    const maand = m % 12;
+    const termijn = m - startIndex + 1;
+    const actief = termijn >= 1 && termijn <= nBet;
+
+    if (actief && !gestart) {
+      gestart = true;
+      schuldA = deelA;
+      schuldV = deelV;
+      schuldH = h;
+      refSchuld = h;
+    }
+
+    let renteAftrekbaar = 0;
+    let renteNiet = 0;
+    let aflossing = 0;
+    let schuldAanvang = 0;
+
+    // Het referentieschema loopt mee zolang er termijnen zijn.
+    let refRente = 0, refAflossing = 0;
+    if (actief) {
+      refRente = iBox1 * refSchuld;
+      refAflossing = Math.min(refSchuld, annRef - refRente);
+    }
+
+    if (actief) {
+      if (vormId === 'annuitair' || vormId === 'vijftig') {
+        schuldAanvang = schuldA + schuldV;
+        const r = iBox1 * schuldA;
+        aflossing = Math.min(schuldA, annA - r);
+        renteAftrekbaar = r;
+        schuldA -= aflossing;
+        if (vormId === 'vijftig') renteNiet = iVrij * schuldV;
+      } else if (vormId === 'lineair') {
+        schuldAanvang = schuldA;
+        renteAftrekbaar = iBox1 * schuldA;
+        aflossing = Math.min(schuldA, lineairAflossing);
+        schuldA -= aflossing;
+      } else if (vormId === 'aflossingsvrij') {
+        schuldAanvang = schuldV;
+        renteAftrekbaar = iVrij * schuldV;
+        aflossing = 0;
+      } else if (vormId === 'holiday') {
+        schuldAanvang = schuldH;
+        renteAftrekbaar = iBox1 * schuldH;
+        // De fiscaal vereiste schuldstand na deze termijn.
+        const vereist = refSchuld - refAflossing;
+        const extra = (jaar === inp.extraJaar && maand === inp.extraMaand - 1)
+          ? inp.extraBedrag : 0;
+        if (schuldH > vereist) {
+          aflossing = Math.min(schuldH, schuldH - vereist + extra);
+        } else {
+          aflossing = Math.min(schuldH, extra);
+        }
+        schuldH -= aflossing;
+      }
+    }
+
+    if (actief) refSchuld -= refAflossing;
+    referentie.push(refSchuld);
+
+    const schuldUltimo = vormId === 'holiday' ? schuldH
+      : (vormId === 'aflossingsvrij' ? schuldV : schuldA + schuldV);
+
+    rijen.push({
+      index: m, jaar: jaar, maandNaam: MAANDEN[maand], maandNummer: maand + 1,
+      termijn: actief ? termijn : null,
+      schuldAanvang: gestart ? schuldAanvang : 0,
+      rente: renteAftrekbaar + renteNiet,
+      renteAftrekbaar: renteAftrekbaar,
+      renteNietAftrekbaar: renteNiet,
+      aflossing: aflossing,
+      schuldUltimo: gestart ? schuldUltimo : 0
+    });
+  }
+
+  return rijen;
+}
+
+/**
+ * Telt het maandschema op tot jaartotalen en bepaalt de fiscale gevolgen per
+ * jaar.
+ *
+ * Twee perioden die niet samenvallen en die hier daarom uit elkaar worden
+ * gehouden:
+ *
+ *   eigenwoningbezit en eigenwoningstatus  ->  eigenwoningforfait
+ *   de rentedragende eigenwoningschuld     ->  renteaftrek
+ *
+ * Het eigenwoningforfait is het voordeel uit de eigen woning van art. 3.112 lid
+ * 1 Wet IB 2001 en wordt op jaarbasis bepaald aan de hand van de
+ * eigenwoningwaarde. Houdt de rente op omdat de lening is afgelost, dan
+ * verdwijnt het forfait niet: zolang de woning het hoofdverblijf is, blijft het
+ * bestaan. Alleen bij koop, verkoop of een andere wijziging van de
+ * eigenwoningstatus wordt tijdsevenredig gerekend, en dat is hier het startjaar
+ * vanaf de maand waarin de woning wordt verworven. Art. 3.112 lid 6 hangt die
+ * aanvangs- en einddatum aan de inschrijving in de basisregistratie personen;
+ * die datum kent deze tool niet, dus de startmaand van de lening dient als
+ * benadering en er wordt in hele maanden gerekend. Dat staat in AFBAKENING.
+
+ *
+ * De schenking loopt wel met de termijnen mee: zij is bedoeld om de maandlast te
+ * dragen en niet om het bezit van de woning te financieren.
+ */
+function bouwJaren(vormId, rijen, inp, context) {
+  const jaren = [];
+
+  for (let j = 0; j < MAX_JAREN; j++) {
+    const deel = rijen.slice(j * 12, j * 12 + 12);
+    const jaar = inp.startjaar + j;
+
+    let aflossing = 0, rente = 0, renteAftrekbaar = 0, renteNiet = 0, maanden = 0;
+    deel.forEach(function (r) {
+      aflossing += r.aflossing;
+      rente += r.rente;
+      renteAftrekbaar += r.renteAftrekbaar;
+      renteNiet += r.renteNietAftrekbaar;
+      if (r.rente > 0) maanden++;
+    });
+
+    // De maanden waarin de woning een eigen woning is. Het eerste jaar loopt
+    // vanaf de startmaand; daarna is elk jaar vol, ook nadat de lening is
+    // afgelost. Een verkoop of statuswijziging tijdens de looptijd zit er niet
+    // in; dat staat in AFBAKENING.
+    const ewfMaanden = j === 0 ? 13 - inp.startmaand : 12;
+    const forfait = context.ewfVol * ewfMaanden / 12;
+
+    const schenking = context.nettoSchenkingVol * maanden / 12;
+
+    let belastingOverForfait, voordeelRente, hillen;
+    {
+      // Per jaar het werkelijke effect: het verschil tussen de heffing met en
+      // zonder eigen woning. Zo verspringt het marginale tarief vanzelf.
+      hillen = hillenAftrek(inp.startjaar, forfait, renteAftrekbaar);
+      const basis = context.heffingZonderWoning;
+      const metForfait = heffingNaKorting(inp.startjaar, inp.inkomen + forfait, 0);
+      // De tariefsaanpassing van art. 2.10 lid 2 geldt voor de aftrekbare kosten
+      // eigen woning van art. 3.120. De aftrek van art. 3.123a staat niet in de
+      // opsomming van lid 3 en telt daarvoor dus niet mee.
+      const grondslagAftrek = renteAftrekbaar + hillen;
+      const metAlles = heffingNaKorting(
+        inp.startjaar, inp.inkomen + forfait - grondslagAftrek, renteAftrekbaar);
+      belastingOverForfait = metForfait - basis;
+      voordeelRente = metForfait - metAlles;
+    }
+
+    const nettoLast = aflossing + rente + belastingOverForfait - voordeelRente - schenking;
+
+    jaren.push({
+      jaar: jaar, maanden: maanden, ewfMaanden: ewfMaanden,
+      aflossing: aflossing, rente: rente,
+      renteAftrekbaar: renteAftrekbaar, renteNietAftrekbaar: renteNiet,
+      forfait: forfait, hillenAftrek: hillen,
+      belastingOverForfait: belastingOverForfait, voordeelRente: voordeelRente,
+      nettoSchenking: schenking, nettoLast: nettoLast,
+      schuldUltimo: deel.length ? deel[deel.length - 1].schuldUltimo : 0
+    });
+  }
+
+  return jaren;
+}
+
+/**
+ * Hoofdingang. Rekent alle vijf de vormen door en levert het overzicht.
+ */
+function bouwBerekening(ruw) {
+  const inp = normaliseerInvoer(ruw);
+  const validatie = valideerInvoer(inp);
+  if (!validatie.ok) return { ok: false, invoer: inp, validatie: validatie };
+
+  const ewfVol = eigenwoningforfait(inp.startjaar, inp.woz);
+  const netto = nettoSchenking(inp.startjaar, inp.schenking);
+
+  const heffingZonderWoning = heffingNaKorting(inp.startjaar, inp.inkomen, 0);
+
+  const context = {
+    ewfVol: ewfVol,
+    nettoSchenkingVol: netto,
+    schenkVrijstelling: vrijstellingSchenking(inp.startjaar),
+    heffingZonderWoning: heffingZonderWoning
+  };
+
+  const vormen = {};
+  VORMEN.forEach(function (v) {
+    const rijen = bouwSchema(v.id, inp);
+    const jaren = bouwJaren(v.id, rijen, inp, context);
+    let totaalRente = 0, totaalAflossing = 0, totaalNetto = 0;
+    jaren.forEach(function (j) {
+      totaalRente += j.rente; totaalAflossing += j.aflossing; totaalNetto += j.nettoLast;
+    });
+    vormen[v.id] = {
+      id: v.id, naam: v.naam, maanden: rijen, jaren: jaren,
+      totaalRente: totaalRente, totaalAflossing: totaalAflossing,
+      totaalNettoLast: totaalNetto,
+      maandlast: v.id === 'aflossingsvrij'
+        ? (inp.hoofdsom * inp.renteVrij / 100 / 12)
+        : (v.id === 'lineair'
+            ? null
+            : annuiteit(inp.renteBox1 / 100 / 12, inp.aantalBetalingen,
+                v.id === 'vijftig' ? inp.hoofdsom / 2 : inp.hoofdsom)),
+      restschuld: rijen[MAX_MAANDEN - 1].schuldUltimo
+    };
+  });
+
+  // Het overzicht per jaar, opgeteld uit de vormen zelf, zodat er geen tweede
+  // plek is waar dezelfde getallen worden samengesteld.
+  const overzicht = [];
+  for (let j = 0; j < MAX_JAREN; j++) {
+    const regel = { jaar: inp.startjaar + j, perVorm: {}, totaal: 0 };
+    VORMEN.forEach(function (v) {
+      regel.perVorm[v.id] = vormen[v.id].jaren[j].nettoLast;
+    });
+    overzicht.push(regel);
+  }
+
+  const meldingen = [];
+  const laatsteTermijnJaar = inp.startjaar +
+    Math.floor((inp.startmaand - 1 + inp.aantalBetalingen - 1) / 12);
+  if (laatsteTermijnJaar < inp.startjaar + MAX_JAREN - 1) {
+    meldingen.push('De laatste termijn valt in ' + laatsteTermijnJaar + '. Het ' +
+      'eigenwoningforfait loopt daarna door tot en met ' + (inp.startjaar + MAX_JAREN - 1) +
+      ', want de woning blijft een eigen woning ook als er geen schuld meer op rust. De ' +
+      'renteaftrek stopt wel, en daardoor ontstaat vanaf dat moment de aftrek van art. ' +
+      '3.123a Wet IB 2001. Is de woning in werkelijkheid verkocht, dan klopt het forfait ' +
+      'van die jaren niet; de tool kent geen verkoop.');
+  }
+  meldingen.push('Alle ' + MAX_JAREN + ' jaren rekenen met de fiscale waarden van ' +
+    inp.startjaar + '. Voor latere jaren zijn die niet vastgesteld; de tool neemt ze ' +
+    'daarom niet aan, maar houdt het startjaar aan en zegt dat hier.');
+
+  return {
+    ok: true, invoer: inp, validatie: validatie, context: context,
+    vormen: vormen, volgorde: VORMEN.map(function (v) { return v.id; }),
+    overzicht: overzicht, meldingen: meldingen
+  };
+}
+
+// ==========================================================================
+// FISCALE KERN — EINDE
+// ==========================================================================
+
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. Overgenomen uit Berekeningen; zolang er geen
+// gedeelde engine.js is, staat deze schrijver in elke tool tussen deze
+// markers, zodat hij herkenbaar blijft als gedeelde code.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+
+// ==========================================================================
+// EXPORTINHOUD — wat er van deze berekening meegaat naar Excel.
+// Deze functies rekenen niet: zij lezen het resultaat dat het scherm toont.
+// ==========================================================================
+
+function bronregels(jaar) {
+  const w = FISCAAL_PER_JAAR[jaar];
+  if (!w) return ['Voor ' + jaar + ' zijn geen fiscale waarden vastgesteld.'];
+  return [
+    'Tarief box 1 ' + jaar + ': art. 2.10 lid 1 Wet IB 2001. Schijven tot € ' +
+      w.box1Schijven[0].tot.toLocaleString('nl-NL') + ' en € ' +
+      w.box1Schijven[1].tot.toLocaleString('nl-NL') + '; tarieven 8,10%, 37,56% en 49,50%.',
+    'Premies volksverzekeringen ' + jaar + ': art. 11 Wfsv en de vaststellingsregeling. ' +
+      'AOW 17,90%, Anw 0,10%, Wlz 9,65%; samen 27,65% over de eerste schijf, waarmee het ' +
+      'gecombineerde tarief van die schijf op 35,75% uitkomt.',
+    'Tariefsaanpassing aftrek eigen woning ' + jaar + ': art. 2.10 lid 2 Wet IB 2001, ' +
+      '11,94%, ten hoogste over het bedrag van de aftrek zelf.',
+    'Algemene heffingskorting ' + jaar + ': art. 8.10 lid 2 Wet IB 2001. € ' +
+      w.ahk.max.toLocaleString('nl-NL') + ', verminderd met ' +
+      String(w.ahk.afbouwPercentage * 100).replace('.', ',') + '% van het verzamelinkomen ' +
+      'boven € ' + w.ahk.afbouwVanaf.toLocaleString('nl-NL') + '.',
+    'Eigenwoningforfait ' + jaar + ': art. 3.112 lid 1 Wet IB 2001. Zes schijven, van nihil ' +
+      'tot € 12.500 tot 0,35% tot € 1.350.000 en € 4.725 vermeerderd met 2,35% daarboven.',
+    'Het forfait is het voordeel uit de eigen woning en wordt op jaarbasis bepaald aan de ' +
+      'hand van de eigenwoningwaarde. Het hangt aan de eigenwoningstatus en niet aan de ' +
+      'schuld: het loopt door nadat de hypotheek is afgelost, en gaat alleen tijdsevenredig ' +
+      'bij koop, verkoop of een andere wijziging van die status. De renteaftrek volgt de ' +
+      'periode van de rentedragende eigenwoningschuld, art. 3.120 Wet IB 2001.',
+    'Periode van het forfait: art. 3.112 lid 6 Wet IB 2001. De aanvangs- en einddatum ' +
+      'volgen de datum waarop het adres als woonadres in de basisregistratie personen is ' +
+      'opgenomen. Deze tool kent die datum niet en neemt daarvoor de startmaand van de ' +
+      'lening; zij rekent bovendien in hele maanden waar de wet met datums werkt. Wijkt de ' +
+      'inschrijving af van de leningstart, bijvoorbeeld bij nieuwbouw of een verbouwing, ' +
+      'dan klopt het forfait van het startjaar niet.',
+    'Aftrek wegens geen of geringe eigenwoningschuld ' + jaar + ': art. 3.123a lid 2 Wet IB ' +
+      '2001, ' + String(w.hillenPercentage * 100).replace('.', ',') + '% van het verschil.',
+    'Aflossingseis eigenwoningschuld: art. 3.119c Wet IB 2001; het annuïtaire schema waar de ' +
+      'vorm met aflossingsholiday tegen wordt afgezet.',
+    'Schenkbelasting ' + jaar + ': art. 24 lid 1 SW 1956, kolom I, 10% tot € ' +
+      w.schenkSchijven[0].tot.toLocaleString('nl-NL') + ' en 20% daarboven.',
+    'Vrijstelling schenkbelasting ' + jaar + ': art. 33 onder 5° SW 1956, de jaarlijkse ' +
+      'vrijstelling van € ' + w.schenkVrijstellingKind.toLocaleString('nl-NL') + ' voor een ' +
+      'kind. Dat bedrag komt uit de wet en is in deze tool geen invoerveld. De eenmalig ' +
+      'verhoogde vrijstellingen van datzelfde artikel worden niet toegepast; zie de ' +
+      'afbakening.',
+    'Alle waarden gecontroleerd op 2026-09-06 tegen de tekst zoals geldend per 1 januari 2026.'
+  ];
+}
+
+const AFBAKENING = [
+  'De tool rekent voor iemand die de AOW-leeftijd gedurende de hele looptijd nog niet heeft ' +
+    'bereikt. Voor wie vóór 1 januari 1946 is geboren geldt een andere tarieftabel (art. 2.10a ' +
+    'Wet IB 2001) en voor wie tijdens de looptijd de AOW-leeftijd bereikt verandert de ' +
+    'premieplicht. Geen van beide zit erin.',
+  'Alle jaren rekenen met de fiscale waarden van het startjaar. Latere jaren zijn niet ' +
+    'vastgesteld en worden daarom niet aangenomen. Bekend is wel dat het aftrektarief voor de ' +
+    'eigen woning per 2027 verandert door de reguliere compensatiesystematiek; zolang daar geen ' +
+    'wettekst voor is, staat die verandering hier niet in.',
+  'Het eigenwoningforfait loopt over de hele looptijd door, ook nadat de lening is afgelost, ' +
+    'omdat de woning dan nog steeds een eigen woning is. Alleen het startjaar gaat ' +
+    'tijdsevenredig. De wet hangt die aanvangsdatum aan de inschrijving in de ' +
+    'basisregistratie personen (art. 3.112 lid 6 Wet IB 2001); de tool kent die datum niet ' +
+    'en neemt de startmaand van de lening, in hele maanden. Bij nieuwbouw of een verbouwing ' +
+    'lopen die twee uiteen. Een verkoop, een verhuizing of een andere wijziging van de ' +
+    'eigenwoningstatus tijdens de looptijd zit er niet in; is die aan de orde, dan klopt het ' +
+    'forfait van dat jaar en van de jaren daarna niet.',
+  'De schenking is behandeld als een schenking van ouder aan kind, met uitsluitend de ' +
+    'jaarlijkse vrijstelling van art. 33 onder 5° SW 1956. De eenmalig verhoogde ' +
+    'vrijstellingen worden niet toegepast, ook niet als keuze. Het recht daarop hangt af van ' +
+    'drie voorwaarden die deze tool niet kan vaststellen: de leeftijd van het kind, of er ' +
+    'niet eerder een verhoogde vrijstelling is gebruikt en of er in de aangifte een beroep ' +
+    'op wordt gedaan. Is een verhoogde vrijstelling aan de orde, dan hoort de schenking ' +
+    'buiten deze tool te worden berekend. De verhoging voor kleinkinderen zit er evenmin in.',
+  'De schenking loopt met de termijnen mee en niet met het bezit van de woning: zij is ' +
+    'bedoeld om de maandlast te dragen. Loopt de lening af, dan stopt de schenking in deze ' +
+    'berekening mee.',
+  'Bij de vorm met een aflossingsvrij deel in box 3 rekent de tool geen box 3-heffing en geen ' +
+    'effect van de schuld op de rendementsgrondslag. Dat is een aparte berekening.',
+  'De tool toetst niet of de lening voldoet aan de maximale eigenwoningschuld, aan de ' +
+    'leennormen of aan het overgangsrecht voor bestaande leningen van vóór 2013.',
+  'Er wordt gerekend met vaste rente over de hele looptijd en met maanden van gelijke lengte. ' +
+    'Een rentewijziging, een boetevrije aflossing of een renteherziening zit er niet in.',
+  'De tool bepaalt geen advies. Zij zet de vormen naast elkaar; welke passend is, beoordeelt ' +
+    'de adviseur.',
+  'De tool bewaart niets en stuurt niets naar een server.'
+];
+
+const KOLOM_JAAR = [
+  ['jaar', 'Jaar', '0'],
+  ['maanden', 'Maanden rente', '0'],
+  ['ewfMaanden', 'Maanden eigen woning', '0'],
+  ['aflossing', 'Aflossing', '#,##0.00'],
+  ['rente', 'Rente', '#,##0.00'],
+  ['renteAftrekbaar', 'Waarvan aftrekbaar', '#,##0.00'],
+  ['forfait', 'Eigenwoningforfait', '#,##0.00'],
+  ['hillenAftrek', 'Aftrek art. 3.123a', '#,##0.00'],
+  ['belastingOverForfait', 'IB over forfait', '#,##0.00'],
+  ['voordeelRente', 'IB-voordeel rente', '#,##0.00'],
+  ['nettoSchenking', 'Netto schenking', '#,##0.00'],
+  ['nettoLast', 'Netto last', '#,##0.00'],
+  ['schuldUltimo', 'Schuld ultimo', '#,##0.00']
+];
+
+function exportBladen(res) {
+  const inp = res.invoer;
+  const nu = new Date();
+  const datum = nu.getFullYear() + '-' +
+    String(nu.getMonth() + 1).padStart(2, '0') + '-' + String(nu.getDate()).padStart(2, '0');
+  const bladen = [];
+
+  // ── blad 1: kop, invoer, overzicht, toelichting ────────────────────────
+  const r = [];
+  r.push([celTekst('Hypotheek annuïtair', true)]);
+  r.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  r.push([celTekst('Geëxporteerd op'), celTekst(datum)]);
+  r.push([celTekst('Kenmerk'), celTekst(inp.kenmerk || '—')]);
+  r.push([celTekst('Opgesteld door'), celTekst(inp.opsteller || '—')]);
+  r.push([celTekst('Datum opstelling'), celTekst(inp.peildatum || '—')]);
+  r.push([]);
+
+  r.push([celTekst('Invoer', true)]);
+  r.push([celTekst('Startjaar'), celGetal(inp.startjaar, '0')]);
+  r.push([celTekst('Startmaand'), celTekst(MAANDEN[inp.startmaand - 1])]);
+  r.push([celTekst('Hoofdsom'), celGetal(inp.hoofdsom, '#,##0.00')]);
+  r.push([celTekst('Aantal maandbetalingen'), celGetal(inp.aantalBetalingen, '0')]);
+  r.push([celTekst('Rente per jaar, aflossende vormen'), celGetal(inp.renteBox1 / 100, '0.000%')]);
+  r.push([celTekst('Rente per jaar, aflossingsvrij'), celGetal(inp.renteVrij / 100, '0.000%')]);
+  r.push([celTekst('WOZ-waarde'), celGetal(inp.woz, '#,##0.00')]);
+  r.push([celTekst('Box 1-inkomen exclusief eigen woning'), celGetal(inp.inkomen, '#,##0.00')]);
+  r.push([celTekst('Extra aflossing, jaar'), celGetal(inp.extraJaar, '0')]);
+  r.push([celTekst('Extra aflossing, maand'), celTekst(MAANDEN[inp.extraMaand - 1] || '—')]);
+  r.push([celTekst('Extra aflossing, bedrag'), celGetal(inp.extraBedrag, '#,##0.00')]);
+  r.push([celTekst('Schenking per jaar'), celGetal(inp.schenking, '#,##0.00')]);
+  r.push([celTekst('Vrijstelling schenkbelasting'),
+    celGetal(res.context.schenkVrijstelling, '#,##0.00')]);
+  r.push([]);
+
+  r.push([celTekst('Afgeleide grootheden', true)]);
+  r.push([celTekst('Eigenwoningforfait bij volledig jaar'),
+    celGetal(res.context.ewfVol, '#,##0.00')]);
+  r.push([celTekst('Netto schenking bij volledig jaar'),
+    celGetal(res.context.nettoSchenkingVol, '#,##0.00')]);
+  r.push([]);
+
+  r.push([celTekst('Totalen per aflosvorm', true)]);
+  r.push([celTekst('Vorm', true), celTekst('Maandlast', true), celTekst('Totale rente', true),
+    celTekst('Totale aflossing', true), celTekst('Netto last totaal', true),
+    celTekst('Restschuld', true)]);
+  res.volgorde.forEach(function (id) {
+    const v = res.vormen[id];
+    r.push([celTekst(v.naam),
+      v.maandlast === null ? celTekst('aflopend') : celGetal(v.maandlast, '#,##0.00'),
+      celGetal(v.totaalRente, '#,##0.00'), celGetal(v.totaalAflossing, '#,##0.00'),
+      celGetal(v.totaalNettoLast, '#,##0.00'), celGetal(v.restschuld, '#,##0.00')]);
+  });
+  r.push([]);
+
+  r.push([celTekst('Netto last per jaar', true)]);
+  const kop = [celTekst('Jaar', true)];
+  res.volgorde.forEach(function (id) { kop.push(celTekst(res.vormen[id].naam, true)); });
+  r.push(kop);
+  res.overzicht.forEach(function (o) {
+    const rij = [celGetal(o.jaar, '0')];
+    res.volgorde.forEach(function (id) { rij.push(celGetal(o.perVorm[id], '#,##0.00')); });
+    r.push(rij);
+  });
+  const totaalRij = [celTekst('Totaal', true)];
+  res.volgorde.forEach(function (id) {
+    totaalRij.push(celGetal(res.vormen[id].totaalNettoLast, '#,##0.00', true));
+  });
+  r.push(totaalRij);
+  r.push([]);
+
+  r.push([celTekst('Toelichting en vindplaatsen', true)]);
+  bronregels(inp.startjaar).forEach(function (b) { r.push([celTekst(b)]); });
+  r.push([]);
+  r.push([celTekst('Wat deze tool niet doet', true)]);
+  AFBAKENING.forEach(function (a) { r.push([celTekst(a)]); });
+  res.meldingen.forEach(function (m) { r.push([celTekst(m)]); });
+  res.validatie.waarschuwingen.forEach(function (m) { r.push([celTekst('Let op: ' + m)]); });
+
+  bladen.push({ naam: 'Overzicht', rijen: r, breedtes: [40, 20, 20, 20, 20, 20] });
+
+  // ── per vorm een blad: jaartotalen en daaronder het maandschema ────────
+  res.volgorde.forEach(function (id) {
+    const v = res.vormen[id];
+    const rr = [];
+    rr.push([celTekst(v.naam, true)]);
+    rr.push([celTekst('Kenmerk'), celTekst(inp.kenmerk || '—'),
+      celTekst('Geëxporteerd op'), celTekst(datum)]);
+    rr.push([]);
+    rr.push([celTekst('Per jaar', true)]);
+    rr.push(KOLOM_JAAR.map(function (k) { return celTekst(k[1], true); }));
+    v.jaren.forEach(function (j) {
+      rr.push(KOLOM_JAAR.map(function (k) { return celGetal(j[k[0]], k[2]); }));
+    });
+    rr.push([]);
+    rr.push([celTekst('Per maand', true)]);
+    rr.push([celTekst('Jaar', true), celTekst('Maand', true), celTekst('Termijn', true),
+      celTekst('Schuld aanvang', true), celTekst('Rente', true),
+      celTekst('Waarvan aftrekbaar', true), celTekst('Aflossing', true),
+      celTekst('Schuld ultimo', true)]);
+    v.maanden.forEach(function (m) {
+      rr.push([celGetal(m.jaar, '0'), celTekst(m.maandNaam),
+        m.termijn === null ? celTekst('—') : celGetal(m.termijn, '0'),
+        celGetal(m.schuldAanvang, '#,##0.00'), celGetal(m.rente, '#,##0.00'),
+        celGetal(m.renteAftrekbaar, '#,##0.00'), celGetal(m.aflossing, '#,##0.00'),
+        celGetal(m.schuldUltimo, '#,##0.00')]);
+    });
+    bladen.push({ naam: bladnaam(v.naam), rijen: rr,
+      breedtes: [10, 12, 10, 16, 14, 16, 14, 16, 14, 14, 14, 16] });
+  });
+
+  return bladen;
+}
+
+/** Excel staat maximaal 31 tekens toe in een bladnaam en geen : \ / ? * [ ] */
+function bladnaam(s) {
+  return String(s).replace(/[:\\\/\?\*\[\]]/g, ' ').slice(0, 31);
+}
+
+function slug(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+// ==========================================================================
+// AFDRUK — wat er op het dossierstuk hoort
+//
+// De afdruk is het dossierstuk: hij moet de uitkomst reproduceerbaar maken en
+// bevat daarom het kenmerk, de opsteller, de datum en alle invoer die aan de
+// berekening heeft meegedaan. Wat een knop, een tab of een hulpmiddel is,
+// draagt de klasse "noprint" en valt weg.
+//
+// Er hangt geen invoerveld aan een stand: deze versie rekent uitsluitend
+// volgens de wettekst. De functie blijft bestaan omdat de presentatielaag haar
+// aanroept; zij geeft niets terug om te verbergen.
+// ==========================================================================
+
+/** Id's van invoervelden die niet op de afdruk horen. Hier: geen. */
+function printVerbergen() {
+  return [];
+}
+
+// ==========================================================================
+// DOSSIERBESTAND — BEGIN
+//
+// Opslaan en openen van een casus. Deze functies raken de DOM niet en vallen
+// daarmee binnen het blok dat tests/laad-kern.mjs uitsnijdt: wat de browser
+// uitvoert is exact wat wordt getest.
+//
+// Twee regels dragen alles hieronder.
+//
+// Een dossier bevat alleen invoer en nooit een uitkomst; die wordt bij het
+// openen opnieuw berekend, met de dan geldende tool.
+//
+// En een bestand dat niet volledig, van het juiste formaat en geldig is,
+// wijzigt het formulier niet. Het wordt afgewezen met een melding die zegt
+// wat eraan schort. Een ontbrekende waarde stil aanvullen zou een dossier
+// openen met een ander uitgangspunt dan waarmee het is opgeslagen, en dat is
+// aan de uitkomst niet te zien: de tool rekent dan gewoon door.
+// ==========================================================================
+
+/** De getalvelden. Alle actieve invoer, op de tekstvelden, de rekenwijze en
+    het tarief schenkbelasting na; die drie hebben hun eigen toets. */
+const DOSSIER_GETALVELDEN = ['startjaar', 'startmaand', 'hoofdsom', 'aantalBetalingen',
+  'renteBox1', 'renteVrij', 'woz', 'inkomen', 'extraJaar', 'extraMaand', 'extraBedrag',
+  'schenking'];
+
+/** Tekstvelden. Zij dragen de berekening niet en mogen leeg zijn. */
+const DOSSIER_TEKSTVELDEN = ['kenmerk', 'opsteller', 'peildatum'];
+
+/** De velden die de presentatielaag rechtstreeks terugzet in het formulier.
+    Alleen velden die hier ook echt een invoerelement hebben. De rekenwijze staat
+    wel in het dossierbestand, maar heeft in deze versie geen keuzelijst; ernaar
+    schrijven zou op een ontbrekend element stuklopen. */
+const DOSSIER_VELDEN = DOSSIER_GETALVELDEN.slice();
+
+function dossierUitInvoer(inv, datum) {
+  const d = {
+    tool: TOOL_ID, toolVersie: TOOL_VERSIE, dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: String(datum === undefined || datum === null ? '' : datum)
+  };
+  DOSSIER_TEKSTVELDEN.forEach(function (v) { d[v] = inv[v]; });
+  DOSSIER_GETALVELDEN.forEach(function (v) { d[v] = inv[v]; });
+  // Blijft in het bestand staan zodat de werkversie dit dossier ook kan openen.
+  d.rekenwijze = 'bron';
+  return d;
+}
+
+function dossierAfwijzing(fouten) {
+  return { ok: false, fouten: fouten, fout: fouten.join(' ') };
+}
+
+/**
+ * Brengt een ouder bestand naar de huidige formaatversie, of wijst het af.
+ *
+ * Versie 1 kende een vrij invulbaar bedrag voor de vrijstelling schenkbelasting
+ * en versie 2 een keuze tussen de jaarlijkse en de eenmalig verhoogde
+ * vrijstelling. Besluit 2a van 7 september 2026 heeft die keuze geschrapt: de
+ * tool past uitsluitend de jaarlijkse vrijstelling van art. 33 onder 5° SW 1956
+ * toe en vult het wettelijke bedrag zelf in. Een bestand dat op een van beide
+ * leunt, kan daarom niet worden geopend zonder dat de uitkomst verandert; dat
+ * hoort de gebruiker te horen in plaats van te ondergaan.
+ */
+function migreerDossier(d, versie) {
+  const meldingen = [];
+  if (versie === DOSSIER_VERSIE) return { ok: true, dossier: d, meldingen: meldingen };
+
+  if (versie === 1) {
+    return dossierAfwijzing(['Dit dossierbestand heeft formaatversie 1. Daarin was de ' +
+      'vrijstelling schenkbelasting een vrij invulbaar bedrag. De tool vult die vrijstelling ' +
+      'sinds 7 september 2026 zelf in vanuit art. 33 onder 5° SW 1956 en zou het bewaarde ' +
+      'bedrag dus negeren. Dat verandert de uitkomst zonder dat u het ziet. Vul de gegevens ' +
+      'opnieuw in en sla het dossier opnieuw op.']);
+  }
+
+  if (versie === 2) {
+    const keuze = d.schenkVrijstellingType;
+    if (keuze !== undefined && keuze !== 'regulier') {
+      return dossierAfwijzing(['Dit dossierbestand heeft formaatversie 2 en is opgeslagen met ' +
+        'de eenmalig verhoogde vrijstelling schenkbelasting. Die keuze zit niet meer in de tool: ' +
+        'het recht erop hangt af van de leeftijd van het kind, van de vraag of er niet eerder een ' +
+        'verhoogde vrijstelling is gebruikt en van een beroep erop in de aangifte, en dat kan de ' +
+        'tool niet vaststellen. Is die vrijstelling aan de orde, bereken de schenking dan apart.']);
+    }
+    const uit = {};
+    Object.keys(d).forEach(function (k) {
+      if (k !== 'schenkVrijstellingType') uit[k] = d[k];
+    });
+    uit.dossierVersie = DOSSIER_VERSIE;
+    meldingen.push('Dit dossierbestand is opgeslagen met formaatversie 2 en is bijgewerkt naar ' +
+      'versie ' + DOSSIER_VERSIE + '. De keuze tussen vrijstellingen is vervallen; de tool past ' +
+      'de jaarlijkse vrijstelling van art. 33 onder 5° SW 1956 toe. Sla het dossier opnieuw op ' +
+      'om het in het nieuwe formaat te bewaren.');
+    return { ok: true, dossier: uit, meldingen: meldingen };
+  }
+
+  return dossierAfwijzing(['Voor formaatversie ' + versie + ' kent de tool geen migratiepad. ' +
+    'Vul de gegevens opnieuw in via het formulier en sla het dossier opnieuw op.']);
+}
+
+/**
+ * Leest een dossierbestand en toetst het volledig. Levert pas ok wanneer het
+ * bestand van deze tool is, een bekende formaatversie heeft, alle actieve
+ * invoer bevat, die invoer van het juiste type is en door valideerInvoer komt.
+ * Onbekende velden worden genegeerd: een oud of vooruitlopend veld hoort een
+ * bestand niet onbruikbaar te maken.
+ */
+function leesDossier(tekst) {
+  let d;
+  try { d = JSON.parse(String(tekst)); }
+  catch (e) {
+    return dossierAfwijzing(['Dit is geen geldig dossierbestand: de JSON kon niet worden gelezen. ' +
+      'Kies het oorspronkelijke .json-dossierbestand van deze tool, of vul de gegevens opnieuw ' +
+      'in via het formulier.']);
+  }
+  if (d === null || typeof d !== 'object' || Array.isArray(d)) {
+    return dossierAfwijzing(['Dit is geen geldig dossierbestand: het bestand bevat geen ' +
+      'JSON-object. Kies het oorspronkelijke .json-dossierbestand van deze tool, of vul de ' +
+      'gegevens opnieuw in via het formulier.']);
+  }
+  if (d.tool !== TOOL_ID) {
+    return dossierAfwijzing(['Dit dossierbestand hoort niet bij Hypotheek annuïtair (tool: ' +
+      (d.tool === undefined ? 'onbekend' : String(d.tool)) + '). Open het in de tool waarvoor ' +
+      'het is gemaakt, of vul de gegevens hier opnieuw in via het formulier.']);
+  }
+
+  const versie = d.dossierVersie;
+  if (versie === undefined) {
+    return dossierAfwijzing(['Het dossierbestand vermeldt geen formaatversie. De tool kan dan ' +
+      'niet vaststellen met welke veldindeling het is opgeslagen en neemt niets aan. Vul de ' +
+      'gegevens opnieuw in via het formulier en sla het dossier opnieuw op.']);
+  }
+  if (!isGeheel(versie) || versie < 1) {
+    return dossierAfwijzing(['De formaatversie van het dossierbestand is geen heel getal groter ' +
+      'dan nul (gelezen: ' + JSON.stringify(versie) + '). Vul de gegevens opnieuw in via het ' +
+      'formulier en sla het dossier opnieuw op.']);
+  }
+  if (versie > DOSSIER_VERSIE) {
+    return dossierAfwijzing(['Het dossierbestand is opgeslagen met formaatversie ' + versie +
+      ' en deze tool kent versie ' + DOSSIER_VERSIE + '. Het komt uit een nieuwere versie van de ' +
+      'tool en kan hier niet worden geopend zonder dat er velden verloren gaan. Open het met de ' +
+      'nieuwere versie van de tool waarmee het is opgeslagen.']);
+  }
+
+  const mig = migreerDossier(d, versie);
+  if (!mig.ok) return mig;
+  const bron = mig.dossier;
+  const meldingen = mig.meldingen.slice();
+
+  const ontbreekt = [];
+  const verkeerdType = [];
+  DOSSIER_GETALVELDEN.forEach(function (v) {
+    if (bron[v] === undefined) ontbreekt.push(v);
+    else if (!isGetal(bron[v])) verkeerdType.push(v);
+  });
+  DOSSIER_TEKSTVELDEN.forEach(function (v) {
+    if (bron[v] !== undefined && typeof bron[v] !== 'string') verkeerdType.push(v);
+  });
+
+  const fouten = [];
+  if (ontbreekt.length) {
+    fouten.push('Het dossierbestand mist ' + ontbreekt.join(', ') + '. De tool vult die niet ' +
+      'zelf in, want dan zou het dossier met een ander uitgangspunt opengaan dan waarmee het ' +
+      'is opgeslagen. Vul deze velden in het formulier in en sla het dossier opnieuw op.');
+  }
+
+  if (bron.rekenwijze === undefined) {
+    fouten.push('Het dossierbestand mist de rekenwijze. Zonder die vermelding staat niet vast ' +
+      'dat het volgens de wettekst is opgesteld, en dus ook niet dat de uitkomst gelijk blijft. ' +
+      'Vul de gegevens opnieuw in via het formulier en sla het dossier opnieuw op.');
+  } else if (bron.rekenwijze !== 'bron') {
+    fouten.push('Dit dossierbestand is opgeslagen met een andere rekenwijze dan de wettelijke ' +
+      '(gelezen: ' + JSON.stringify(bron.rekenwijze) + '). Deze versie van de tool rekent ' +
+      'uitsluitend volgens de wettekst en zou een andere uitkomst geven dan waarmee het ' +
+      'dossier is bewaard. Vul de gegevens opnieuw in via het formulier en sla het dossier ' +
+      'opnieuw op.');
+  }
+
+  if (verkeerdType.length) {
+    fouten.push('Deze velden hebben niet het verwachte type: ' + verkeerdType.join(', ') +
+      '. Vul deze velden in het formulier opnieuw in en sla het dossier opnieuw op.');
+  }
+  if (fouten.length) return dossierAfwijzing(fouten);
+
+  const ruw = {};
+  DOSSIER_TEKSTVELDEN.forEach(function (v) { ruw[v] = bron[v] === undefined ? '' : bron[v]; });
+  DOSSIER_GETALVELDEN.forEach(function (v) { ruw[v] = bron[v]; });
+
+  const inv = normaliseerInvoer(ruw);
+  const val = valideerInvoer(inv);
+  if (!val.ok) {
+    return dossierAfwijzing(['De invoer in het dossierbestand komt niet door de controle van de ' +
+      'tool. Herstel de velden hieronder in het formulier en sla het dossier opnieuw op.']
+      .concat(val.fouten));
+  }
+
+  return { ok: true, dossier: bron, invoer: inv, meldingen: meldingen,
+    waarschuwingen: val.waarschuwingen };
+}
+
+// ==========================================================================
+// DOSSIERBESTAND — EINDE
+// ==========================================================================
+
+
+// ==========================================================================
+// PRESENTATIELAAG — leest uitsluitend het resultaat van bouwBerekening().
+// Hier staat geen rekenlogica.
+// ==========================================================================
+
+const el = function (id) { return document.getElementById(id); };
+const esc = function (s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+const eur = function (n) {
+  return (Math.round(Number(n) * 100) / 100).toLocaleString('nl-NL',
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const eur0 = function (n) {
+  return Math.round(Number(n)).toLocaleString('nl-NL');
+};
+const pct = function (n) {
+  return (Number(n) * 100).toLocaleString('nl-NL',
+    { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + '%';
+};
+
+let LAATSTE = null;
+let ACTIEVE_VORM = 'annuitair';
+
+function leesInvoer() {
+  return {
+    kenmerk: el('kenmerk').value,
+    opsteller: el('opsteller').value,
+    peildatum: el('peildatum').value,
+    startjaar: el('startjaar').value,
+    startmaand: el('startmaand').value,
+    hoofdsom: el('hoofdsom').value,
+    aantalBetalingen: el('aantalBetalingen').value,
+    renteBox1: el('renteBox1').value,
+    renteVrij: el('renteVrij').value,
+    woz: el('woz').value,
+    inkomen: el('inkomen').value,
+    extraJaar: el('extraJaar').value,
+    extraMaand: el('extraMaand').value,
+    extraBedrag: el('extraBedrag').value,
+    schenking: el('schenking').value
+  };
+}
+
+function herbereken() {
+  let res;
+  try {
+    res = bouwBerekening(leesInvoer());
+  } catch (e) {
+    el('meldingen').innerHTML = '<div class="melding fout">' + esc(e.message) + '</div>';
+    return;
+  }
+  LAATSTE = res;
+  toonMeldingen(res);
+  if (!res.ok) {
+    ['balken', 'restschuld', 'overzichtTabel', 'jaarTabel', 'maandTabel', 'grafiek',
+      'vormKop', 'grafiekLegenda'].forEach(function (id) { el(id).innerHTML = ''; });
+    return;
+  }
+  tekenBalken(res);
+  tekenGrafiek(res);
+  tekenOverzicht(res);
+  tekenVorm(res);
+  tekenAfbakening(res);
+}
+
+function toonMeldingen(res) {
+  let h = '';
+  if (!res.ok) {
+    h += '<div class="melding fout"><strong>De invoer is nog niet compleet.</strong><ul>' +
+      res.validatie.fouten.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') +
+      '</ul></div>';
+  }
+  (res.validatie.waarschuwingen || []).forEach(function (w) {
+    h += '<div class="melding waarschuwing">' + esc(w) + '</div>';
+  });
+  el('meldingen').innerHTML = h;
+}
+
+function tekenBalken(res) {
+  const waarden = res.volgorde.map(function (id) { return res.vormen[id].totaalNettoLast; });
+  const hoogste = Math.max.apply(null, waarden.map(Math.abs));
+  const laagste = Math.min.apply(null, waarden);
+  el('balken').innerHTML = '<div class="balken">' + res.volgorde.map(function (id) {
+    const v = res.vormen[id];
+    const breedte = hoogste > 0 ? Math.max(Math.abs(v.totaalNettoLast) / hoogste * 100, 0.5) : 0;
+    return '<div class="balk' + (v.totaalNettoLast === laagste ? ' beste' : '') + '">' +
+      '<span class="naam"><span class="stip v-' + id + '"></span>' + esc(v.naam) + '</span>' +
+      '<span class="spoor"><span class="vul v-' + id + '" style="width:' +
+        breedte.toFixed(2) + '%"></span></span>' +
+      '<span class="bedrag">€ ' + eur0(v.totaalNettoLast) + '</span></div>';
+  }).join('') + '</div>';
+
+  const rest = res.volgorde.filter(function (id) { return res.vormen[id].restschuld > 0.5; });
+  el('restschuld').innerHTML = rest.length
+    ? '<div class="melding info">Aan het einde van de looptijd staat er nog schuld open: ' +
+      rest.map(function (id) {
+        return esc(res.vormen[id].naam) + ' € ' + eur0(res.vormen[id].restschuld);
+      }).join(', ') + '. Die schuld zit niet in de netto last hierboven, omdat zij nog moet ' +
+      'worden terugbetaald of geherfinancierd.</div>'
+    : '';
+}
+
+function tekenGrafiek(res) {
+  const B = 900, H = 280, mL = 62, mR = 12, mB = 26, mT = 10;
+  const alle = [];
+  res.overzicht.forEach(function (o) {
+    res.volgorde.forEach(function (id) { alle.push(o.perVorm[id]); });
+  });
+  const max = Math.max.apply(null, alle);
+  const min = Math.min.apply(null, alle.concat([0]));
+  const x = function (i) { return mL + i * (B - mL - mR) / Math.max(MAX_JAREN - 1, 1); };
+  const y = function (w) {
+    return H - mB - (w - min) / Math.max(max - min, 1) * (H - mB - mT);
+  };
+
+  let d = '<line class="as" x1="' + mL + '" y1="' + (H - mB) + '" x2="' + (B - mR) +
+    '" y2="' + (H - mB) + '"/>';
+  d += '<line class="as" x1="' + mL + '" y1="' + mT + '" x2="' + mL + '" y2="' + (H - mB) + '"/>';
+  for (let k = 0; k <= 4; k++) {
+    const w = min + (max - min) * k / 4;
+    d += '<line class="as" x1="' + mL + '" y1="' + y(w).toFixed(1) + '" x2="' + (B - mR) +
+      '" y2="' + y(w).toFixed(1) + '" opacity="0.5"/>';
+    d += '<text x="' + (mL - 6) + '" y="' + (y(w) + 4).toFixed(1) +
+      '" text-anchor="end">' + eur0(w) + '</text>';
+  }
+  [0, 10, 20, 30].forEach(function (i) {
+    d += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' +
+      (res.invoer.startjaar + i) + '</text>';
+  });
+  res.volgorde.forEach(function (id) {
+    const punten = res.overzicht.map(function (o, i) {
+      return (i === 0 ? 'M' : 'L') + x(i).toFixed(1) + ' ' + y(o.perVorm[id]).toFixed(1);
+    }).join(' ');
+    d += '<path d="' + punten + '" stroke="var(--' +
+      ({ annuitair: 'v1', vijftig: 'v2', lineair: 'v3', aflossingsvrij: 'v4', holiday: 'v5' })[id] +
+      ')"/>';
+  });
+  el('grafiek').innerHTML = d;
+  el('grafiekLegenda').innerHTML = res.volgorde.map(function (id) {
+    return '<span style="margin-right:16px"><span class="stip v-' + id + '"></span>' +
+      esc(res.vormen[id].naam) + '</span>';
+  }).join('');
+}
+
+function tekenOverzicht(res) {
+  let h = '<thead><tr><th class="num">Jaar</th>' +
+    res.volgorde.map(function (id) {
+      return '<th class="num">' + esc(res.vormen[id].naam) + '</th>';
+    }).join('') + '</tr></thead><tbody>';
+  res.overzicht.forEach(function (o) {
+    h += '<tr><td class="num">' + o.jaar + '</td>' +
+      res.volgorde.map(function (id) {
+        return '<td class="num">' + eur(o.perVorm[id]) + '</td>';
+      }).join('') + '</tr>';
+  });
+  h += '<tr class="jaargrens"><td><strong>Totaal</strong></td>' +
+    res.volgorde.map(function (id) {
+      return '<td class="num"><strong>' + eur(res.vormen[id].totaalNettoLast) +
+        '</strong></td>';
+    }).join('') + '</tr>';
+  el('overzichtTabel').innerHTML = h + '</tbody>';
+}
+
+function tekenVorm(res) {
+  el('vormTabs').innerHTML = res.volgorde.map(function (id) {
+    return '<button data-vorm="' + id + '"' + (id === ACTIEVE_VORM ? ' class="actief"' : '') +
+      '>' + esc(res.vormen[id].naam) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call(el('vormTabs').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () {
+      ACTIEVE_VORM = b.getAttribute('data-vorm');
+      tekenVorm(LAATSTE);
+    });
+  });
+
+  const v = res.vormen[ACTIEVE_VORM];
+  const meta = VORMEN.filter(function (x) { return x.id === ACTIEVE_VORM; })[0];
+  // De naam er expliciet bij: de keuzetabs staan op noprint, dus zonder deze
+  // regel staat er op papier een schema zonder te zeggen van welke vorm.
+  el('vormKop').innerHTML = '<p style="margin:0 0 6px;font-weight:600">' + esc(v.naam) +
+    '</p><p class="hulp" style="margin-bottom:10px">' + esc(meta.uitleg) +
+    ' Maandlast ' + (v.maandlast === null ? 'loopt af' : '€ ' + eur(v.maandlast)) +
+    '. Totale rente € ' + eur0(v.totaalRente) + ', totale aflossing € ' +
+    eur0(v.totaalAflossing) + ', restschuld € ' + eur0(v.restschuld) + '.</p>';
+
+  let h = '<thead><tr><th class="num">Jaar</th><th class="num">Mnd rente</th>' +
+    '<th class="num">Mnd EW</th>' +
+    '<th class="num">Aflossing</th><th class="num">Rente</th>' +
+    '<th class="num">Aftrekbaar</th><th class="num">Forfait</th>' +
+    '<th class="num">Art. 3.123a</th>' +
+    '<th class="num">IB forfait</th><th class="num">IB rente</th>' +
+    '<th class="num">Schenking</th><th class="num">Netto last</th>' +
+    '<th class="num">Schuld ultimo</th></tr></thead><tbody>';
+  v.jaren.forEach(function (j) {
+    h += '<tr><td class="num">' + j.jaar + '</td><td class="num">' + j.maanden + '</td>' +
+      '<td class="num">' + j.ewfMaanden + '</td>' +
+      '<td class="num">' + eur(j.aflossing) + '</td>' +
+      '<td class="num">' + eur(j.rente) + '</td>' +
+      '<td class="num">' + eur(j.renteAftrekbaar) + '</td>' +
+      '<td class="num">' + eur(j.forfait) + '</td>' +
+      '<td class="num">' + eur(j.hillenAftrek) + '</td>' +
+      '<td class="num">' + eur(j.belastingOverForfait) + '</td>' +
+      '<td class="num">' + eur(j.voordeelRente) + '</td>' +
+      '<td class="num">' + eur(j.nettoSchenking) + '</td>' +
+      '<td class="num">' + eur(j.nettoLast) + '</td>' +
+      '<td class="num">' + eur(j.schuldUltimo) + '</td></tr>';
+  });
+  el('jaarTabel').innerHTML = h + '</tbody>';
+
+  let m = '<thead><tr><th class="num">Jaar</th><th>Maand</th><th class="num">Termijn</th>' +
+    '<th class="num">Schuld aanvang</th><th class="num">Rente</th>' +
+    '<th class="num">Aflossing</th><th class="num">Schuld ultimo</th></tr></thead><tbody>';
+  v.maanden.forEach(function (r) {
+    m += '<tr' + (r.maandNummer === 12 ? ' class="jaargrens"' : '') + '>' +
+      '<td class="num">' + r.jaar + '</td><td>' + r.maandNaam + '</td>' +
+      '<td class="num">' + (r.termijn === null ? '—' : r.termijn) + '</td>' +
+      '<td class="num">' + eur(r.schuldAanvang) + '</td>' +
+      '<td class="num">' + eur(r.rente) + '</td>' +
+      '<td class="num">' + eur(r.aflossing) + '</td>' +
+      '<td class="num">' + eur(r.schuldUltimo) + '</td></tr>';
+  });
+  el('maandTabel').innerHTML = m + '</tbody>';
+}
+
+function tekenAfbakening(res) {
+  const c = res.context;
+  let h = '<p><strong>Uitgangspunten van deze berekening.</strong> Eigenwoningforfait bij een ' +
+    'volledig jaar € ' + eur(c.ewfVol) + '. Netto schenking bij een volledig jaar € ' +
+    eur(c.nettoSchenkingVol) + '.';
+  h += ' Het effect van forfait en renteaftrek wordt per jaar bepaald uit het verschil ' +
+    'tussen de heffing met en zonder eigen woning, zodat het marginale tarief meebeweegt.';
+  h += '</p>';
+  h += '<p><strong>Vindplaatsen.</strong></p><ul>' +
+    bronregels(res.invoer.startjaar).map(function (b) {
+      return '<li>' + esc(b) + '</li>';
+    }).join('') + '</ul>' +
+    '<p><strong>Wat deze tool niet doet.</strong></p><ul>' +
+    AFBAKENING.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+  if (res.meldingen.length) {
+    h += '<p><strong>Bij deze casus.</strong></p><ul>' +
+      res.meldingen.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>';
+  }
+  el('afbakening').innerHTML = h;
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+function datumStempel() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' +
+    String(n.getDate()).padStart(2, '0');
+}
+
+// ── opstarten ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  el('versieStempel').textContent = 'Versie ' + TOOL_VERSIE + '.';
+  el('peildatum').value = datumStempel();
+
+  ['startmaand', 'extraMaand'].forEach(function (id) {
+    el(id).innerHTML = MAANDEN.map(function (m, i) {
+      return '<option value="' + (i + 1) + '">' + m + '</option>';
+    }).join('');
+  });
+  el('startmaand').value = '6';
+  el('extraMaand').value = '6';
+
+  el('schenkHulp').textContent = 'De vrijstelling is geen invoerveld: de tool past de ' +
+    'jaarlijkse vrijstelling van art. 33 onder 5 SW 1956 toe en vult het wettelijke bedrag ' +
+    'zelf in. De eenmalig verhoogde vrijstellingen zitten er niet in, omdat de tool het recht ' +
+    'daarop niet kan vaststellen; is die aan de orde, bereken de schenking dan apart. Over ' +
+    'het belaste deel gelden beide schijven van art. 24 SW 1956.';
+
+  const velden = ['startjaar', 'startmaand', 'hoofdsom', 'aantalBetalingen', 'renteBox1',
+    'renteVrij', 'woz', 'inkomen', 'extraJaar', 'extraMaand', 'extraBedrag', 'schenking',
+    'kenmerk', 'opsteller', 'peildatum'];
+  velden.forEach(function (id) {
+    el(id).addEventListener('input', herbereken);
+    el(id).addEventListener('change', herbereken);
+  });
+
+  el('btnPrint').addEventListener('click', function () { window.print(); });
+
+  el('btnExcel').addEventListener('click', function () {
+    if (!LAATSTE || !LAATSTE.ok) { alert('Er is nog geen geldige berekening om te exporteren.'); return; }
+    const bytes = xlsxBytes(exportBladen(LAATSTE));
+    bewaarBestand(bytes,
+      'hypotheek-annuitair-' + slug(LAATSTE.invoer.kenmerk) + '-' + datumStempel() + '.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+
+  // Opslaan gebeurt uit de toestand die het scherm toont, en alleen wanneer die
+  // geldig is. Anders zou er een dossier ontstaan dat de tool zelf niet meer kan
+  // openen, en dat merkt de gebruiker pas volgend jaar.
+  el('btnOpslaan').addEventListener('click', function () {
+    if (!LAATSTE || !LAATSTE.ok) {
+      toonDossierMelding(['Er is nog geen geldige berekening om op te slaan. Herstel eerst de ' +
+        'invoer; de tool bewaart geen dossier dat zij zelf niet kan openen.'], 'fout');
+      return;
+    }
+    const d = dossierUitInvoer(LAATSTE.invoer, datumStempel());
+    bewaarBestand(new TextEncoder().encode(JSON.stringify(d, null, 2)),
+      'hypotheek-annuitair-' + slug(d.kenmerk) + '-' + datumStempel() + '.json',
+      'application/json');
+    toonDossierMelding(['Het dossier is opgeslagen als bestand.'], 'info noprint');
+  });
+
+  el('btnOpenen').addEventListener('click', function () { el('bestandInvoer').click(); });
+  el('bestandInvoer').addEventListener('change', function (ev) {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const lezer = new FileReader();
+    lezer.onload = function () {
+      const r = leesDossier(String(lezer.result));
+      // Wordt het bestand afgewezen, dan blijft het formulier staan zoals het
+      // stond en blijft ook de uitkomst op het scherm. Er is dan niets half
+      // ingelezen waar de gebruiker overheen kan kijken.
+      if (!r.ok) { toonDossierMelding(r.fouten, 'fout'); return; }
+      vulFormulier(r.invoer);
+      zetRekenwijze();
+      herbereken();
+      toonDossierMelding(r.meldingen.length ? r.meldingen
+        : ['Het dossierbestand is ingelezen. De uitkomst is opnieuw berekend met de tool van ' +
+          'vandaag.'], r.meldingen.length ? 'waarschuwing' : 'info noprint');
+    };
+    // Een bestand kan ook nooit binnenkomen: een netwerkschijf die wegvalt, een
+    // usb-stick die eruit gaat, een map waar de gebruiker geen rechten meer op
+    // heeft, of een keuze die hij zelf afbreekt. Zonder deze twee blijft het bij
+    // een stil niets, met de vorige melding nog in beeld; dan lijkt het alsof
+    // het dossier is ingelezen.
+    lezer.onerror = function () {
+      toonDossierMelding(['Het dossierbestand kon niet worden gelezen. Het bestand is niet ' +
+        'geopend en er is niets gewijzigd. Controleer of het er nog staat en of u het mag ' +
+        'openen, en probeer het opnieuw.'], 'fout');
+    };
+    lezer.onabort = function () {
+      toonDossierMelding(['Het openen van het dossierbestand is afgebroken. Er is niets ' +
+        'gewijzigd.'], 'fout');
+    };
+    // De melding van de vorige poging hoort niet te blijven staan terwijl deze
+    // loopt; invoer en uitkomst blijven wel.
+    toonDossierMelding([], 'info noprint');
+    lezer.readAsText(f);
+    ev.target.value = '';
+  });
+
+  zetRekenwijze();
+  herbereken();
+});
+
+/** Zet de invoer in het formulier. Alleen aanroepen met invoer die door
+    valideerInvoer is gekomen. */
+function vulFormulier(inv) {
+  DOSSIER_TEKSTVELDEN.forEach(function (v) { el(v).value = inv[v]; });
+  DOSSIER_VELDEN.forEach(function (v) { el(v).value = inv[v]; });
+}
+
+/** Meldingen over het dossierbestand staan apart van de rekenmeldingen, zodat
+    een afgewezen import de uitkomst op het scherm niet wist. */
+function toonDossierMelding(regels, soort) {
+  if (!regels || !regels.length) { el('dossierMelding').innerHTML = ''; return; }
+  el('dossierMelding').innerHTML = regels.map(function (m) {
+    return '<div class="melding ' + soort + '">' + esc(m) + '</div>';
+  }).join('');
+}
+
+/* Er is één rekenwijze, dus er valt niets te schakelen. De functie blijft
+   bestaan omdat het opstarten en de import haar aanroepen; zo blijft de
+   presentatielaag gelijk aan die van de werkversie. */
+function zetRekenwijze() {
+}
+</script>
+</body>
+</html>
