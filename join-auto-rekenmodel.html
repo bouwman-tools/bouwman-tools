@@ -379,7 +379,12 @@
         <div class="field">
           <label>Aandeel in bijtelling / forfait</label>
           <div class="sw"><input type="number" id="aandeel_pct" value="100" step="1" min="0" max="100"><span class="af">%</span></div>
-          <div class="field-note"><span class="bron bron-regel">rechtspraak</span> Staat de auto aan meer dan &eacute;&eacute;n persoon ter beschikking, bijvoorbeeld in een VOF, dan wordt het forfait over hen verdeeld en niet bij ieder volledig geteld (ECLI:NL:GHSHE:2004:AO4912). Maatstaf is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding. Vul dan ook de autokosten voor hetzelfde aandeel in</div>
+          <div class="field-note"><span class="bron bron-regel">rechtspraak</span> Staat de auto aan meer dan &eacute;&eacute;n persoon ter beschikking, bijvoorbeeld in een VOF, dan wordt het forfait over hen verdeeld en niet bij ieder volledig geteld (ECLI:NL:GHSHE:2004:AO4912). Maatstaf is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding. Vul dan ook de autokosten voor hetzelfde aandeel in. De 500-kilometergrens blijft wel per auto gelden: bij twee vennoten 500 kilometer samen, niet 250 per vennoot (art. 3.20 lid 1 en lid 3 Wet IB 2001)</div>
+        </div>
+        <div class="field">
+          <label>Aandeel in de autokosten</label>
+          <div class="sw"><input type="number" id="kosten_aandeel_pct" value="" step="1" min="0" max="100" placeholder="= aandeel"><span class="af">%</span></div>
+          <div class="field-note">Leeg laten als u de autokosten hierboven voor hetzelfde aandeel invult; dan maakt de volgorde van verdelen en begrenzen niets uit. Dragen de gerechtigden de kosten naar een andere sleutel dan de terbeschikkingstelling, bijvoorbeeld de winstverdeling van een VOF, vul dat aandeel hier dan in. De tool toont dan beide volgordes</div>
         </div>
         <div class="field">
           <label>Btw bij aanschaf afgetrokken</label>
@@ -533,6 +538,7 @@
           <div id="bijt_jaren" class="jaartabel" style="display:none;"></div>
           <div class="rrow" id="row_forf"><span class="rl">Autokostenforfait (catalogus × forfait%)</span><span class="rv muted" id="r_forfait_bedrag">—</span></div>
           <div class="rrow" id="row_forf_beperk"><span class="rl">Aftrekbeperking (min. forfait, werkelijke kosten)</span><span class="rv muted" id="r_forfait">—</span></div>
+          <div class="rrow" id="row_volgorde_alt" style="display:none;"><span class="rl">Andere volgorde: eerst begrenzen op autoniveau, dan verdelen</span><span class="rv muted" id="r_volgorde_alt">—</span></div>
           <div class="rrow" id="row_aftrekbaar"><span class="rl" id="lbl_aftrekbaar"><strong>Aftrekbaar ten laste van winst</strong></span><span class="rv mint" id="r_winst_z">—</span></div>
           <div class="rrow"><span class="rl" id="lbl_ib_z">Belastingeffect zakelijk</span><span class="rv mint" id="r_ib_z">—</span></div>
 
@@ -1181,6 +1187,12 @@ function berekenBelastingeffect(rol, i) {
   // Aandeel van deze belastingplichtige in bijtelling en forfait. Standaard 1.
   // Zie AANDEEL_ONTTREKKING voor waarom dit een invoerwaarde is en geen regel.
   const aandeel = (i.aandeel === undefined || i.aandeel === null) ? 1 : i.aandeel;
+  // Aandeel in de AUTOKOSTEN. De ingevulde kosten zijn die van deze
+  // belastingplichtige; dit zegt welk deel van de auto dat is. Standaard gelijk
+  // aan het aandeel in de onttrekking, want dan zijn beide volgordes hieronder
+  // gelijk. Zie VOLGORDE hieronder.
+  const kostenAandeel = (i.kostenAandeel === undefined || i.kostenAandeel === null)
+    ? aandeel : i.kostenAandeel;
   const bijtelling = verschuldigd ? (i.bijtelling || 0) * aandeel : 0;
   let   forfait    = verschuldigd ? (i.forfait || 0) * aandeel : 0;
 
@@ -1208,10 +1220,39 @@ function berekenBelastingeffect(rol, i) {
   //
   // Alleen voor de IB-ondernemer. Bij de DGA en de werknemer is de bijtelling
   // loon (art. 13bis Wet LB 1964) en kent zij deze begrenzing niet.
+  //
+  // VOLGORDE bij meerdere gerechtigden. Verdelen en begrenzen kunnen in twee
+  // volgordes, en geen bron zegt welke juist is:
+  //
+  //   'verdelen-dan-toetsen'    het eigen deel van het forfait wordt getoetst
+  //                             aan de eigen autokosten. Dit is de standaard.
+  //   'begrenzen-dan-verdelen'  het forfait van de AUTO wordt eerst afgetopt op
+  //                             de kosten van de auto, en het begrensde bedrag
+  //                             wordt daarna verdeeld.
+  //
+  // De kosten van de auto worden afgeleid uit de ingevulde eigen kosten en het
+  // kostenaandeel: kosten / kostenAandeel. Zijn het kostenaandeel en het aandeel
+  // in de onttrekking gelijk, dan geven beide volgordes hetzelfde bedrag —
+  // min(F, K) x a is dan gelijk aan min(F x a, K x a). Verschil ontstaat pas als
+  // de kosten naar een andere sleutel worden gedragen dan de onttrekking, zoals
+  // bij vennoten met een winstverdeling die afwijkt van de mate van
+  // terbeschikkingstelling. Zie volgordeMaaktVerschil.
+  //
+  // Keuze van de eigenaar op 16-09-2026: de tool schrijft geen volgorde voor en
+  // toont bij verschil beide uitkomsten.
   let forfaitBegrensd = false;
   if (rol !== 'dga' && rol !== 'werknemer') {
     const plafond = (i.kosten || 0) + (i.btwCorrectie || 0);
-    if (forfait > plafond) { forfait = Math.max(0, plafond); forfaitBegrensd = true; }
+    if (i.volgorde === 'begrenzen-dan-verdelen' && kostenAandeel > 0) {
+      const forfaitAuto = verschuldigd ? (i.forfait || 0) : 0;
+      const plafondAuto = plafond / kostenAandeel;
+      if (forfaitAuto > plafondAuto) {
+        forfait = Math.max(0, plafondAuto) * aandeel;
+        forfaitBegrensd = true;
+      }
+    } else if (forfait > plafond) {
+      forfait = Math.max(0, plafond); forfaitBegrensd = true;
+    }
   }
 
   let aftrekbaar, effect_z, effect_p;
@@ -1280,6 +1321,16 @@ function berekenBelastingeffect(rol, i) {
 // Gecontroleerd 09-09-2026.
 const AANDEEL_ONTTREKKING_STANDAARD = 1;
 
+// Kan de volgorde van verdelen en begrenzen hier tot een andere uitkomst leiden?
+// Alleen als de kosten naar een andere sleutel worden gedragen dan de
+// onttrekking. Zijn beide sleutels gelijk, dan zijn de twee volgordes
+// rekenkundig identiek en hoeft de tool er niets over te melden.
+function volgordeMaaktVerschil(aandeel, kostenAandeel) {
+  const a = (aandeel === undefined || aandeel === null) ? 1 : aandeel;
+  const w = (kostenAandeel === undefined || kostenAandeel === null) ? a : kostenAandeel;
+  return w > 0 && Math.abs(a - w) > 1e-9;
+}
+
 // Belastingeffect over de hele gebruiksduur, per gebruiksjaar gerekend.
 //
 // Dit MOET per jaar, want de IB-tak is niet lineair in het forfait: door
@@ -1305,6 +1356,8 @@ function berekenEffectOverPeriode(rol, i) {
       ibTarief:       i.ibTarief,
       bvTarief:       i.bvTarief,
       aandeel:        i.aandeel,
+      kostenAandeel:  i.kostenAandeel,
+      volgorde:       i.volgorde,
       // Jaarbedrag van de btw-correctie privégebruik; verhoogt het plafond
       // waartoe het forfait wordt begrensd.
       btwCorrectie:   i.btwCorrectieJr
@@ -1437,7 +1490,15 @@ function valideerInvoer(i) {
     waarschuwingen.push('Het autokostenforfait is afgetopt op de werkelijke autokosten inclusief de btw-correctie privégebruik; zonder die aftopping zou de onttrekking hoger uitkomen dan de kosten die ten laste van de winst zijn gebracht.');
   }
   if (i.aandeel !== undefined && i.aandeel < 1) {
-    waarschuwingen.push('U verdeelt de bijtelling of het forfait. De maatstaf daarvoor is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding en niet het aantal gereden kilometers (Hof Den Bosch 12-01-2004, ECLI:NL:GHSHE:2004:AO4912; KG:204:2025:3). Vul de autokosten voor hetzelfde aandeel in, anders grijpt de aftopping op de werkelijke kosten niet. Let ook op de 500-kilometergrens: de wettekst knoopt aan bij het privégebruik van de auto, terwijl de Belastingdienst die grens in de loonsfeer per gebruiker herrekent. Voor de IB-ondernemer is dat niet uitgemaakt.');
+    waarschuwingen.push('U verdeelt de bijtelling of het forfait. De maatstaf daarvoor is de mate waarin de auto aan ieder ter beschikking staat, niet de winstverhouding en niet het aantal gereden kilometers (Hof Den Bosch 12-01-2004, ECLI:NL:GHSHE:2004:AO4912; KG:204:2025:3). Vul de autokosten voor hetzelfde aandeel in, anders grijpt de aftopping op de werkelijke kosten niet. De 500-kilometergrens werkt hier per auto en niet per gerechtigde: art. 3.20 lid 1, slotzin, en lid 3, tweede volzin, Wet IB 2001 knopen aan bij het privégebruik van de auto zelf. Bij twee vennoten geldt dus 500 kilometer voor de auto samen en niet 250 per vennoot. In de loonsfeer herrekent de Belastingdienst die grens wél naar rato van de terbeschikkingstelling (KG:204:2025:3, paragraaf 3.1.2, voorbeeld 7); voor de IB-ondernemer volgt deze tool de wettekst.');
+  }
+  // Volgorde van verdelen en begrenzen. Geen bron zegt welke volgorde juist is,
+  // dus de tool kiest niet: zij rekent beide uit en laat de beoordeling aan de
+  // adviseur. De tekst is die van de eigenaar, vastgesteld op 16-09-2026.
+  // Verschijnt alleen als de twee volgordes hier daadwerkelijk uiteenlopen; bij
+  // gelijke sleutels zijn zij rekenkundig identiek.
+  if (i.volgordeVerschil) {
+    waarschuwingen.push('Bij meerdere gerechtigden is niet eenduidig vastgesteld of het kostenplafond vóór of ná verdeling moet worden toegepast. De gekozen volgorde kan bij ongelijke aandelen tot een andere uitkomst leiden. Beoordeel dit voor het concrete dossier.');
   }
   if (i.belastAandeel !== undefined && i.belastAandeel < 1) {
     const pct = Math.round(i.belastAandeel * 1000) / 10;
@@ -2057,6 +2118,26 @@ function leesGetal(ruw, opties) {
 //     deze grens helemaal niet en verdwijnt dus niet mee.
 // De bewijslast ligt bij de belastingplichtige ("tenzij blijkt dat"), in de
 // praktijk met een sluitende rittenregistratie.
+//
+// MEERDERE GERECHTIGDEN — de grens werkt PER AUTO, niet per gerechtigde. De
+// wettekst knoopt aan bij het gebruik van de auto zelf en niet bij dat van de
+// belastingplichtige: art. 3.20 lid 1, slotzin, Wet IB 2001 luidt "tenzij blijkt
+// dat de auto op jaarbasis voor niet meer dan 500 kilometer voor privédoeleinden
+// wordt gebruikt", en lid 3, tweede volzin, herhaalt dat voor het bewijs uit een
+// rittenregistratie. Bij een VOF met twee vennoten geldt dus 500 kilometer voor
+// de auto samen en niet 250 per vennoot.
+//
+// De Belastingdienst gaat in de LOONSFEER de andere kant op: KG:204:2025:3,
+// paragraaf 3.1.2, voorbeeld 7, herrekent de grens naar rato van de mate van
+// terbeschikkingstelling — bij 60% en 40% wordt dat 300 respectievelijk
+// 200 kilometer per werknemer. Dat standpunt gaat over art. 13bis Wet LB en
+// over ter beschikking gestelde auto's; voor art. 3.20 bestaat het niet.
+//
+// Keuze van de eigenaar op 16-09-2026: de wettekst is leidend, dus per auto.
+// Gevolg voor de tool: het aandeel (zie AANDEEL_ONTTREKKING_STANDAARD) verdeelt
+// alleen de bijtelling en het forfait; het raakt deze grens niet. De privé-
+// kilometers die de gebruiker invult zijn dan ook die van de auto, niet die van
+// één gerechtigde. Bronnen nagelezen op 16-09-2026.
 const PRIVE_KM_GRENS = 500;
 
 function bijtellingVerschuldigd(priveKmPerJaar) {
@@ -2348,6 +2429,10 @@ function bereken() {
   const aanschafBtwAfgetrokken = btw_a === 'ja';
   const btw_af   = veldWaarde('btw_aftrek_pct',  { standaard: 100, min: 0, max: 100 }) / 100;
   const aandeel_ont = veldWaarde('aandeel_pct', { standaard: 100, min: 0, max: 100 }) / 100;
+  // Aandeel in de AUTOKOSTEN. Leeg betekent: gelijk aan het aandeel hierboven,
+  // en dan geven beide volgordes van verdelen en begrenzen hetzelfde bedrag.
+  const kosten_aandeel = veldWaarde('kosten_aandeel_pct',
+    { standaard: aandeel_ont * 100, min: 0, max: 100 }) / 100;
   const btw_corr_methode = (document.querySelector('input[name="btw_correctie"]:checked') || {}).value || 'forfait';
 
   // Geen fallback: een stille 48 zou de validatie hieronder dode code maken.
@@ -2526,7 +2611,7 @@ function bereken() {
 
   // Belastingeffect per rol — zie FISCALE KERN. Per jaar gerekend, want de
   // IB-tak is niet lineair in het forfait.
-  const fisc = berekenEffectOverPeriode(rol, {
+  const fiscInvoer = {
     kostenJr:    k_totaal,
     kmVergoedJr: km_vergoed,
     // Aandeel van deze ondernemer in bijtelling en forfait (VOF).
@@ -2539,8 +2624,23 @@ function bereken() {
     priveKmPerJaar: kp,
     ibTarief:    ibt,
     bvTarief:    bvt,
-    perJaar:     perJaarBedragen
-  });
+    perJaar:     perJaarBedragen,
+    // Sleutel waarnaar de ingevulde autokosten worden gedragen. Zie VOLGORDE in
+    // de fiscale kern.
+    kostenAandeel: kosten_aandeel
+  };
+  const fisc = berekenEffectOverPeriode(rol, fiscInvoer);
+
+  // Tweede uitkomst: eerst begrenzen op het niveau van de auto, dan verdelen.
+  // Geen bron zegt welke volgorde juist is, dus de tool kiest niet maar toont
+  // beide — en alleen als zij werkelijk uiteenlopen. Bij gelijke sleutels zijn
+  // ze rekenkundig identiek en zou een tweede bedrag alleen ruis zijn.
+  // Alleen de IB-ondernemer kent deze begrenzing.
+  const fiscAlt = (rol === 'ondernemer' && volgordeMaaktVerschil(aandeel_ont, kosten_aandeel))
+    ? berekenEffectOverPeriode(rol, Object.assign({}, fiscInvoer, { volgorde: 'begrenzen-dan-verdelen' }))
+    : null;
+  const volgordeVerschil = !!(fiscAlt && Math.abs(fiscAlt.forfait - fisc.forfait) > 0.005);
+
   const bijtelling_bedrag = fisc.bijtellingJr;
   const forfait_bedrag    = fisc.forfaitJr;
   const aftrekbaar        = fisc.aftrekbaarJr;
@@ -2609,6 +2709,7 @@ function bereken() {
     raakt2027OfLater:    periodeRaaktJaarOfLater(start, mnd, 2027),
     youngtimerOvergangGekozen: !!(document.getElementById('youngtimer_overgang') || {}).checked,
     forfaitBegrensd:    fisc.forfaitBegrensd,
+    volgordeVerschil:   volgordeVerschil,
     belastAandeel:      btw_af,
     cataloguswaarde:        cat,
     bijtellingVerschuldigd: fisc.bijtellingVerschuldigd,
@@ -2673,6 +2774,16 @@ function bereken() {
   zichtbaar('row_forf_beperk', isOnd);
   zichtbaar('row_aftrekbaar',  !isWn);    // werknemer heeft geen kostenaftrek
   zichtbaar('veld_forfait',    isOnd);
+
+  // Tweede uitkomst bij een afwijkende kostensleutel: eerst begrenzen op het
+  // niveau van de auto, dan verdelen. Alleen tonen als zij van de eerste
+  // afwijkt; de melding in de validatie hoort erbij.
+  zichtbaar('row_volgorde_alt', isOnd && volgordeVerschil);
+  if (isOnd && volgordeVerschil) {
+    const totaalAlt = fiscAlt.verschil + btw_ef;
+    document.getElementById('r_volgorde_alt').textContent =
+      `${fmtE(fiscAlt.forfaitJr)}/jr forfait → totaal belastingverschil ${fmtE(totaalAlt)} (hierboven: ${fmtE(totaal)})`;
+  }
 
   document.getElementById('ttl_fisc').textContent = !fisc.bijtellingVerschuldigd
     ? `Geen bijtelling of forfait — privégebruik ≤ ${PRIVE_KM_GRENS} km`
@@ -2894,7 +3005,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 sep 2026, 18:30</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 16 sep 2026, 22:56</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
