@@ -36,6 +36,12 @@ API = "https://api.cloudflare.com/client/v4"
 # De eigenaar houdt altijd toegang; zelfde policy als bij de zes van 28-08.
 EIGENAAR = "s.bouwman@joinadministraties.nl"
 
+# Naam van de allow-policy die deze scripts aanmaken. Bewust niet "Eigenaar": zo'n
+# policy begint met alleen de eigenaar erop, maar krijgt er later collega's bij zonder
+# dat de naam meeverandert. Een lezer leidt dan uit de naam af dat niemand anders
+# toegang heeft. Deze naam beschrijft wat de policy doet en veroudert niet.
+POLICY_NAAM = "Toegestane gebruikers"
+
 # Aangemaakt op 28-08-2026; dit zijn de enige apps die --verwijder aanraakt.
 NIEUW_28_08 = {
     "62f3756e-4c80-4a07-b273-dae319c0515e": "gebruikelijk-loon.html",
@@ -114,7 +120,7 @@ def main() -> int:
             "app_launcher_visible": False,
         })["result"]
         api(token, f"/accounts/{acc}/access/apps/{app['id']}/policies", "POST", {
-            "name": "Eigenaar",
+            "name": POLICY_NAAM,
             "decision": "allow",
             "include": [{"email": {"email": EIGENAAR}}],
         })

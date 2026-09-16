@@ -38,6 +38,12 @@ DOMEIN = "bouwman.tools"
 # De eigenaar houdt altijd toegang, zodat een nieuwe app niemand buitensluit.
 EIGENAAR = "s.bouwman@joinadministraties.nl"
 
+# Naam van de allow-policy die deze scripts aanmaken. Bewust niet "Eigenaar": zo'n
+# policy begint met alleen de eigenaar erop, maar krijgt er later collega's bij zonder
+# dat de naam meeverandert. Een lezer leidt dan uit de naam af dat niemand anders
+# toegang heeft. Deze naam beschrijft wat de policy doet en veroudert niet.
+POLICY_NAAM = "Toegestane gebruikers"
+
 
 def account_id() -> str:
     """Leest het account-id uit de worker; het staat daar al en is geen secret."""
@@ -97,7 +103,7 @@ def zet_policy(token: str, acc: str, app_id: str, naam: str):
     if policies_van(token, acc, app_id):
         return True
     ok, _ = api_zacht(token, f"/accounts/{acc}/access/apps/{app_id}/policies", "POST", {
-        "name": "Eigenaar",
+        "name": POLICY_NAAM,
         "decision": "allow",
         "include": [{"email": {"email": EIGENAAR}}],
     })
