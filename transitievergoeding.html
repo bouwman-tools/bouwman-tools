@@ -199,12 +199,13 @@
       <p class="hint">
         <strong>Rekenhulp als het bedrag niet bekend is.</strong> Volle maanden in de
         restperiode krijgen het loon per maand; daar is geen verdeelsleutel voor nodig.
-        Voor de dagen van een aangebroken maand rekent de tool die dagen maal de
-        overeengekomen arbeidsduur per dag maal het brutouurloon. Dat is de vorm van het
-        officiële rekenvoorbeeld bij artikel 7:673 lid 2 BW en sluit aan op artikel 2
-        lid 1 Besluit loonbegrip. Het is een rekenhulp en geen wettelijke regel: voor een
-        gedeeltelijke maand kent de bron geen uniforme kalender- of werkdagenfactor.
-        Zonder deze twee velden en zonder bedrag hierboven rekent de tool niet door.
+        Voor de dagen van een aangebroken maand rekent de tool het aantal betaalde dagen
+        maal de overeengekomen arbeidsduur per dag maal het brutouurloon. Dat is de vorm
+        van het officiële rekenvoorbeeld bij artikel 7:673 lid 2 BW en sluit aan op
+        artikel 2 lid 1 Besluit loonbegrip. Het is een rekenhulp en geen wettelijke regel:
+        voor een gedeeltelijke maand kent de bron geen uniforme kalender- of
+        werkdagenfactor. Zonder deze velden en zonder bedrag hierboven rekent de tool
+        niet door.
       </p>
       <div class="rij">
         <div class="veld">
@@ -218,6 +219,13 @@
             <span class="hint">Het uurloon van art. 2 lid 1 Besluit loonbegrip. Staat op de loonstrook.</span>
           </label>
           <input type="number" id="uurloon" step="0.01" min="0" placeholder="alleen voor de rekenhulp">
+        </div>
+        <div class="veld">
+          <label for="betaaldedagen">Aantal betaalde dagen in de aangebroken maand
+            <span class="hint" id="betaaldedagen-hint">Voorstel op basis van een vijfdaagse werkweek. Pas het aan bij een ander rooster, weekendwerk of ploegendienst.</span>
+          </label>
+          <input type="number" id="betaaldedagen" step="1" min="0" placeholder="voorstel volgt uit de data">
+          <span class="hint">Corrigeer het aantal werkdagen voor dagen waarop geen loon verschuldigd is, zoals onbetaald verlof, een vaste onbetaalde vrije dag of een ADV-dag die niet als betaalde dag meetelt. Of zo'n dag meetelt hangt van de regeling af; trek hem alleen af als hij in deze situatie niet als betaalde dag geldt.</span>
         </div>
       </div>
     </fieldset>
@@ -318,6 +326,21 @@
           &ldquo;doet geen recht aan het feit dat dit in verschillende sectoren op
           verschillende wijzen wordt berekend&rdquo;.
         </li>
+        <li>
+          <strong>Het rooster van de werknemer.</strong> Het aantal betaalde dagen dat de
+          rekenhulp voorstelt gaat uit van een vijfdaagse werkweek, van maandag tot en met
+          vrijdag. Werkt de werknemer in ploegendienst, in het weekend, of in deeltijd met
+          vaste vrije dagen, dan klopt dat voorstel niet en past u het aantal zelf aan.
+        </li>
+        <li>
+          <strong>Dagen waarover geen loon verschuldigd is.</strong> Het voorstel telt elke
+          werkdag mee. Corrigeer het voor dagen waarop geen loon verschuldigd is, zoals
+          onbetaald verlof, een vaste onbetaalde vrije dag of een ADV-dag die niet als
+          betaalde dag meetelt. Of zo'n dag meetelt hangt van de regeling af, dus trek hem
+          alleen af als hij in dit geval niet als betaalde dag geldt. Feestdagen kent de
+          tool niet en hoeven doorgaans ook niet te worden afgetrokken: zij zijn meestal
+          doorbetaald en tellen dan terecht mee.
+        </li>
       </ul>
     </div>
   </details>
@@ -409,6 +432,18 @@ function verschuifMaanden({ jaar, maand, dag }, aantal) {
   return { jaar: nieuwJaar, maand: nieuwMaand, dag: Math.min(dag, dagenInMaand(nieuwJaar, nieuwMaand)) };
 }
 
+// Weekdag van een dagnummer, 0 is maandag tot en met 6 is zondag. De dagteller hierboven
+// draagt een vaste, betekenisloze offset, dus de reeks is gekalibreerd op bekende datums:
+// 1 januari 2020 viel op een woensdag en 11 juli 2026 op een zaterdag. De test legt die
+// ijkpunten vast, zodat een wijziging aan de dagteller hier niet stil doorwerkt.
+function weekdagVanDagnummer(nummer) {
+  return ((nummer % 7) + 2) % 7;
+}
+
+function isWerkdag(datum) {
+  return weekdagVanDagnummer(dagnummer(datum)) <= 4;
+}
+
 // Duur volgens art. 7:673 lid 2 BW: eerst de volle jaren, dan de rest naar rato.
 // De einddatum telt mee; hij is de laatste dag van de arbeidsovereenkomst.
 function duurArbeidsovereenkomst(aanvang, einde) {
@@ -423,13 +458,23 @@ function duurArbeidsovereenkomst(aanvang, einde) {
 
   const restBegin = verschuifMaanden(aanvang, 12 * volleJaren + volleMaanden);
   const restEinde = verschuifMaanden(aanvang, 12 * volleJaren + volleMaanden + 1);
-  const lengteAangebrokenMaand = dagnummer(restEinde) - dagnummer(restBegin);
-  const losseDagen = eindeNr + 1 - dagnummer(restBegin);
+  const restBeginNr = dagnummer(restBegin);
+  const lengteAangebrokenMaand = dagnummer(restEinde) - restBeginNr;
+  const losseDagen = eindeNr + 1 - restBeginNr;
+
+  // Werkdagen binnen de losse dagen, maandag tot en met vrijdag. Dit is uitsluitend het
+  // voorstel van de rekenhulp en geen wettelijke maatstaf: de wet vraagt om het loon dat
+  // feitelijk verschuldigd was. Zie het commentaar bij de rekenhulp hieronder.
+  let werkdagenLosseDagen = 0;
+  for (let i = 0; i < losseDagen; i++) {
+    if (weekdagVanDagnummer(restBeginNr + i) <= 4) werkdagenLosseDagen++;
+  }
 
   return {
     volleJaren,
     volleMaanden,
     losseDagen,
+    werkdagenLosseDagen,
     lengteAangebrokenMaand,
     dagenTotaal: eindeNr + 1 - dagnummer(aanvang),
   };
@@ -482,6 +527,7 @@ function berekenTransitievergoeding({
   restloonHandmatig = null,
   urenPerDag = null,
   uurloon = null,
+  betaaldeDagen = null,
   nietVerschuldigd = null,
 }) {
   const start = typeof aanvang === 'string' ? ontleedDatum(aanvang) : aanvang;
@@ -518,6 +564,8 @@ function berekenTransitievergoeding({
       verschuldigd: false, grond: uitsluiting, duur,
       loonPerMaand: loon, vergoedingVolleJaren: 0, vergoedingRest: 0,
       restloon: 0, restloonBron: 'geen', loonOverLosseDagen: 0, korterDanEenMaand: false,
+      betaaldeDagenVoorstel: duur.werkdagenLosseDagen, betaaldeDagenGebruikt: 0,
+      betaaldeDagenOverschreven: false,
       bruto: 0, maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: loon * 12,
       maximum: Math.max(maximumWettelijk, loon * 12), afgetopt: false, uitkomst: 0,
     };
@@ -542,6 +590,16 @@ function berekenTransitievergoeding({
   const heeftRekenhulp = Number.isFinite(urenPerDag) && urenPerDag > 0
     && Number.isFinite(uurloon) && uurloon > 0;
 
+  // Het voorstel van de rekenhulp: de werkdagen in de aangebroken maand. De gebruiker
+  // mag het overschrijven, ook met nul, dus alleen een echt getal telt als overschrijving.
+  const betaaldeDagenVoorstel = duur.werkdagenLosseDagen;
+  const betaaldeDagenOverschreven = Number.isFinite(betaaldeDagen) && betaaldeDagen >= 0;
+  const betaaldeDagenGebruikt = betaaldeDagenOverschreven ? betaaldeDagen : betaaldeDagenVoorstel;
+
+  if (betaaldeDagen !== null && betaaldeDagen !== undefined && !betaaldeDagenOverschreven) {
+    throw new Error('Het aantal betaalde dagen is geen getal van nul of hoger.');
+  }
+
   let restloon;
   let restloonBron;
   let loonOverLosseDagen = 0;
@@ -559,7 +617,13 @@ function berekenTransitievergoeding({
     // art. 7:673 lid 2 BW — vijf dagen maal acht uur maal het uurloon — en sluit aan op
     // art. 2 lid 1 Besluit loonbegrip, dat het loon bepaalt als het brutouurloon maal de
     // overeengekomen arbeidsduur.
-    loonOverLosseDagen = duur.losseDagen * urenPerDag * uurloon;
+    //
+    // Het aantal dagen is het aantal dagen waarover loon verschuldigd was, en dat is niet
+    // hetzelfde als het aantal kalenderdagen: bij een vijfdaagse werkweek valt er geen
+    // loon op een zaterdag of zondag. De tool stelt daarom de werkdagen voor en niet de
+    // kalenderdagen. Dat voorstel is een aanname over het rooster, geen wettelijke regel,
+    // dus het is overschrijfbaar voor ploegendienst, weekendwerk of een ander patroon.
+    loonOverLosseDagen = betaaldeDagenGebruikt * urenPerDag * uurloon;
     restloon = loon * duur.volleMaanden + loonOverLosseDagen;
     restloonBron = 'rekenhulp';
   } else if (korterDanEenMaand) {
@@ -599,6 +663,9 @@ function berekenTransitievergoeding({
     vergoedingRest: afrondenCent(vergoedingRest),
     restloon: afrondenCent(restloon),
     restloonBron, loonOverLosseDagen: afrondenCent(loonOverLosseDagen),
+    betaaldeDagenVoorstel,
+    betaaldeDagenGebruikt: restloonBron === 'rekenhulp' ? betaaldeDagenGebruikt : 0,
+    betaaldeDagenOverschreven: restloonBron === 'rekenhulp' && betaaldeDagenOverschreven,
     korterDanEenMaand,
     bruto: afrondenCent(bruto),
     maximumWettelijk, bronMaximumWettelijk, maximumJaarloon: afrondenCent(maximumJaarloon),
@@ -654,6 +721,17 @@ $('formulier').addEventListener('submit', (e) => {
     return toonFout('Het brutoloon over de restperiode is geen bedrag. Laat het veld leeg om de rekenhulp te gebruiken.');
   }
 
+  // Het veld staat voorgevuld met het voorstel van de tool. Dat getal weer als opgave
+  // terugsturen zou de uitkomst niet veranderen, maar wel "zelf opgegeven" opleveren bij
+  // iets waar de gebruiker niets aan heeft gedaan. Alleen een aangeraakt veld telt dus.
+  const ruwBetaaldeDagen = String($('betaaldedagen').value).trim();
+  const betaaldeDagen = (!betaaldeDagenAangeraakt || ruwBetaaldeDagen === '')
+    ? null
+    : parseFloat(ruwBetaaldeDagen.replace(',', '.'));
+  if (betaaldeDagen !== null && !(Number.isFinite(betaaldeDagen) && betaaldeDagen >= 0)) {
+    return toonFout('Het aantal betaalde dagen is geen getal van nul of hoger. Laat het veld leeg om het voorstel van de tool te gebruiken.');
+  }
+
   let r;
   try {
     r = berekenTransitievergoeding({
@@ -663,6 +741,7 @@ $('formulier').addEventListener('submit', (e) => {
       restloonHandmatig,
       urenPerDag: nummer('urenperdag'),
       uurloon: nummer('uurloon'),
+      betaaldeDagen,
       nietVerschuldigd: {
         jong: $('jong').checked,
         pensioen: $('pensioen').checked,
@@ -702,11 +781,15 @@ $('formulier').addEventListener('submit', (e) => {
     meldingen.push('<div class="melding vlak">Er is gerekend met het ingevulde brutoloon over de restperiode. Dat volgt de wettelijke formule letterlijk: er komt geen verdeelsleutel aan te pas.</div>');
   }
   if (r.restloonBron === 'rekenhulp') {
-    const perDag = `${d.losseDagen} ${d.losseDagen === 1 ? 'dag' : 'dagen'} maal de arbeidsduur per dag maal het brutouurloon (${euro(r.loonOverLosseDagen)})`;
+    const n = r.betaaldeDagenGebruikt;
+    const perDag = `${n} betaalde ${n === 1 ? 'dag' : 'dagen'} maal de arbeidsduur per dag maal het brutouurloon (${euro(r.loonOverLosseDagen)})`;
     const opbouw = d.volleMaanden === 0
       ? perDag
       : `${d.volleMaanden} volle ${d.volleMaanden === 1 ? 'maand' : 'maanden'} maal het loon per maand, plus ${perDag}`;
-    meldingen.push(`<div class="melding let-op">Het brutoloon over de restperiode is niet ingevuld en is met de rekenhulp voorgesteld: ${opbouw}. Bij een gedeeltelijke maand bestaat geen uniforme wettelijke kalender- of werkdagenfactor; controleer dit bedrag met de eindafrekening of de geldende loon- of cao-systematiek en vul het zo nodig zelf in.</div>`);
+    const herkomst = r.betaaldeDagenOverschreven
+      ? `Het aantal betaalde dagen is door u ingevuld; het voorstel van de tool was ${r.betaaldeDagenVoorstel}.`
+      : `Het aantal betaalde dagen is voorgesteld op basis van een vijfdaagse werkweek: van de ${d.losseDagen} ${d.losseDagen === 1 ? 'kalenderdag' : 'kalenderdagen'} in de aangebroken maand ${r.betaaldeDagenVoorstel === 1 ? 'is er één een werkdag' : `zijn er ${r.betaaldeDagenVoorstel} werkdagen`}. Wijkt het rooster af, door ploegendienst of weekendwerk, pas het dan aan.`;
+    meldingen.push(`<div class="melding let-op">Het brutoloon over de restperiode is niet ingevuld en is met de rekenhulp voorgesteld: ${opbouw}. ${herkomst} Bij een gedeeltelijke maand bestaat geen uniforme wettelijke kalender- of werkdagenfactor; controleer dit bedrag met de eindafrekening of de geldende loon- of cao-systematiek en vul het zo nodig zelf in.</div>`);
   }
 
   $('uitkomst').innerHTML = `
@@ -726,6 +809,9 @@ $('formulier').addEventListener('submit', (e) => {
       <tr><td>Loon per maand, art. 3 lid 1 Besluit loonbegrip</td><td class="getal">${euro(r.loonPerMaand)}</td></tr>
       <tr><td>Per vol jaar, een derde maandloon</td><td class="getal">${euro(afrondenCent(r.loonPerMaand / 3))}</td></tr>
       <tr><td>${d.volleJaren} volle ${d.volleJaren === 1 ? 'jaar' : 'jaren'}</td><td class="getal">${euro(r.vergoedingVolleJaren)}</td></tr>
+      ${r.restloonBron === 'rekenhulp' ? `
+      <tr><td>Betaalde dagen in de aangebroken maand${r.betaaldeDagenOverschreven ? ' (zelf opgegeven)' : ' (voorstel: werkdagen)'}<span class="hint">van ${d.losseDagen} ${d.losseDagen === 1 ? 'kalenderdag' : 'kalenderdagen'}</span></td><td class="getal">${r.betaaldeDagenGebruikt}</td></tr>
+      <tr><td>Loon over die dagen, dagen maal uren maal uurloon</td><td class="getal">${euro(r.loonOverLosseDagen)}</td></tr>` : ''}
       <tr><td>Brutoloon over de restperiode${HERKOMST_RESTLOON[r.restloonBron]}</td><td class="getal">${euro(r.restloon)}</td></tr>
       <tr><td>Restperiode, brutoloon gedeeld door 36</td><td class="getal">${euro(r.vergoedingRest)}</td></tr>
       <tr class="som"><td>Berekende vergoeding</td><td class="getal">${euro(r.bruto)}</td></tr>
@@ -813,6 +899,54 @@ function dossierstuk() {
     <p class="dossierdatum">${kop}.</p>
     <table>${invoerRegels()}</table>`;
 }
+
+// Het aantal betaalde dagen krijgt een voorstel zodra beide datums bekend zijn: de
+// werkdagen in de aangebroken maand. Raakt de gebruiker het veld zelf aan, dan blijft
+// zijn waarde staan, ook als de datums daarna nog wijzigen. Een voorstel dat je eigen
+// invoer overschrijft is erger dan geen voorstel.
+let betaaldeDagenAangeraakt = false;
+$('betaaldedagen').addEventListener('input', () => { betaaldeDagenAangeraakt = true; });
+
+function werkVoorstelBetaaldeDagenBij() {
+  const veld = $('betaaldedagen');
+  const hint = $('betaaldedagen-hint');
+  const standaardHint = 'Voorstel op basis van een vijfdaagse werkweek. Pas het aan bij een ander rooster, weekendwerk of ploegendienst.';
+
+  const start = ontleedDatum($('aanvang').value);
+  const stop = ontleedDatum($('einde').value);
+  if (!start || !stop || dagnummer(stop) < dagnummer(start)) {
+    if (!betaaldeDagenAangeraakt) veld.value = '';
+    hint.textContent = standaardHint;
+    return;
+  }
+
+  const duur = duurArbeidsovereenkomst(start, stop);
+  if (duur.losseDagen === 0) {
+    if (!betaaldeDagenAangeraakt) veld.value = '';
+    hint.textContent = 'Het dienstverband eindigt op een maandgrens, dus er is geen aangebroken maand en dit veld doet niets mee.';
+    return;
+  }
+
+  if (!betaaldeDagenAangeraakt) veld.value = duur.werkdagenLosseDagen;
+  const kalender = `${duur.losseDagen} ${duur.losseDagen === 1 ? 'kalenderdag' : 'kalenderdagen'}`;
+  const werk = duur.werkdagenLosseDagen === 1 ? 'één werkdag' : `${duur.werkdagenLosseDagen} werkdagen`;
+  hint.textContent = `De aangebroken maand telt ${kalender}, waarvan ${werk} bij een vijfdaagse werkweek. Pas het aan bij een ander rooster, weekendwerk of ploegendienst.`;
+}
+
+['aanvang', 'einde'].forEach((id) => $(id).addEventListener('change', werkVoorstelBetaaldeDagenBij));
+werkVoorstelBetaaldeDagenBij();
+
+// Een uitkomst hoort bij de invoer waarmee zij is berekend. Wijzigt er iets, dan
+// verdwijnt zij, samen met de afdrukknop. Dat is hier geen franje: de browser weigert
+// zelf te verzenden bij een waarde onder het minimum van een veld, en dan zou het oude
+// bedrag blijven staan terwijl het scherm andere invoer toont. Uit zo'n scherm rolt een
+// dossierstuk dat niet bij de zaak hoort.
+$('formulier').addEventListener('input', () => {
+  if (!$('afdrukken').hidden || $('uitkomst').innerHTML !== '') {
+    $('uitkomst').innerHTML = '';
+    $('afdrukken').hidden = true;
+  }
+});
 
 $('afdrukken').addEventListener('click', () => window.print());
 
