@@ -1777,14 +1777,28 @@ function meerDanJaarGeleden(datum, peildatum, jaren) {
 // werkt door in de tweede doorrekening onder het voorstel. In de uitkomst
 // volgens geldend recht heeft het niets te zoeken, want het is geen recht.
 //
-// Voorwaarde a betekent: het venster tussen de 15e en de 16e verjaardag
-// overlapt met kalenderjaar 2025.
+// Voorwaarde a betekent: het venster waarin de auto meer dan 15 maar minder dan
+// 16 jaar geleden in gebruik is genomen overlapt met kalenderjaar 2025. Beide
+// grenzen zijn EXCLUSIEF, dus dat venster loopt van de dag ná de 15e verjaardag
+// tot en met de dag vóór de 16e.
+//
+// GECORRIGEERD 17-09-2026. Hier stond `vijftien < 01-01-2026`, en dat is één dag
+// te ruim: een auto die op 31-12-2025 vijftien wordt is pas op 01-01-2026 "meer
+// dan 15 jaar geleden" in gebruik genomen, dus in heel 2025 niet. Zo'n auto
+// kreeg de keuze aangeboden terwijl het besluit haar niet geeft. Het raakt één
+// dag aan ingebruiknamedatums per jaar en alleen wie de keuze aanvinkt; er staat
+// nu een grensgevaltest op beide kanten van het venster.
 function youngtimerOvergang2026(datumToelating, start) {
   const d = parseDatum(datumToelating);
   if (!d) return false;
-  const vijftien = new Date(d.getFullYear() + 15, d.getMonth(), d.getDate());
-  const zestien  = new Date(d.getFullYear() + 16, d.getMonth(), d.getDate());
-  const overlaptMet2025 = vijftien < new Date(2026, 0, 1) && zestien > new Date(2025, 0, 1);
+  // Eerste dag "meer dan 15 jaar geleden": de dag ná de 15e verjaardag.
+  const eersteDag = new Date(d.getFullYear() + 15, d.getMonth(), d.getDate());
+  eersteDag.setDate(eersteDag.getDate() + 1);
+  // Laatste dag "minder dan 16 jaar geleden": de dag vóór de 16e verjaardag.
+  const laatsteDag = new Date(d.getFullYear() + 16, d.getMonth(), d.getDate());
+  laatsteDag.setDate(laatsteDag.getDate() - 1);
+  const overlaptMet2025 = eersteDag <= new Date(2025, 11, 31) &&
+                          laatsteDag >= new Date(2025, 0, 1);
   if (!overlaptMet2025) return false;
   // Voorwaarde b: de auto stond uiterlijk 31-12-2025 ter beschikking. In deze
   // tool is dat de start van de gebruiksduur.
