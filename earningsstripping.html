@@ -159,6 +159,50 @@
   }
 
   footer { text-align: center; font-size: 12px; color: var(--muted); padding: 0 20px 40px; line-height: 1.7; }
+
+  /* Fiscale eenheid: de vraag staat boven beide weergaven, want zij geldt voor allebei. */
+  .situatiebalk { max-width: 1160px; margin: 0 auto; padding: 14px 52px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .aanvink { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--dim); cursor: pointer; }
+  .aanvink b { color: var(--white); }
+  .aanvink input { accent-color: var(--mint); width: 15px; height: 15px; cursor: pointer; }
+  .fe-vraag { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; background: rgba(255,209,0,0.07); border: 1px solid rgba(255,209,0,0.22); border-radius: 9px; padding: 8px 14px; }
+  .fe-vraagtekst { font-size: 13px; font-weight: 700; color: var(--white); }
+  .fe-uitleg { font-size: 12px; color: var(--muted); flex: 1 1 260px; line-height: 1.5; }
+  @media (max-width: 900px) { .situatiebalk { padding: 12px 20px 0; } }
+
+  /* Geen uitkomst: sterker dan een waarschuwing, want er staat niets naast. */
+  .blokkade { background: rgba(255,107,107,0.10); border: 1px solid rgba(255,107,107,0.35); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); line-height: 1.7; }
+  .blokkade b { display: block; color: var(--red); font-size: 14px; margin-bottom: 4px; }
+
+  /* Afbakening direct bij het resultaat: wie niet doorscrollt naar de toelichting,
+     ziet hier toch waar de berekening ophoudt. */
+  .afbakening { font-size: 12px; color: var(--muted); line-height: 1.6; border-left: 2px solid rgba(255,209,0,0.35); padding: 2px 0 2px 11px; margin-bottom: 16px; }
+  .afbakening b { color: var(--yellow); }
+  .afbakening a { color: var(--mint); text-decoration: none; border-bottom: 1px dotted rgba(61,217,160,0.5); }
+
+  /* Afdrukblad: op het scherm verborgen. */
+  .afdrukblad { display: none; }
+
+  @media print {
+    /* Papier is wit; het donkere scherm is hier alleen maar duur en slecht leesbaar. */
+    body { background: #fff; color: #000; font-family: 'Nunito Sans', Arial, sans-serif; }
+    header, .hero, .tabs, .dossierbalk, .situatiebalk, .main, .main-breed, .onder, footer { display: none !important; }
+    .afdrukblad { display: block; padding: 0; }
+
+    .afdruk-kop { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; }
+    .afdruk-kop h1 { font-size: 16pt; font-weight: 800; letter-spacing: 0; }
+    .afdruk-kop .afdruk-sub { font-size: 9pt; margin-top: 4px; }
+    .afdrukblad h2 { font-size: 11pt; font-weight: 800; margin: 16px 0 6px; page-break-after: avoid; }
+    .afdrukblad table { width: 100%; border-collapse: collapse; font-size: 9.5pt; page-break-inside: avoid; }
+    .afdrukblad td, .afdrukblad th { border-bottom: 1px solid #bbb; padding: 4px 6px 4px 0; vertical-align: top; text-align: left; }
+    .afdrukblad td.bedrag, .afdrukblad th.bedrag { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .afdrukblad tr.nadruk td { font-weight: 800; }
+    .afdrukblad th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid #000; }
+    .afdrukblad .afdruk-klein { font-size: 8.5pt; line-height: 1.5; margin-top: 4px; }
+    .afdrukblad ul { margin: 4px 0 0 16px; font-size: 8.5pt; line-height: 1.5; }
+    .afdrukblad .afdruk-voet { margin-top: 16px; padding-top: 6px; border-top: 1px solid #000; font-size: 8pt; line-height: 1.5; }
+    .afdrukblad .afdruk-blokkade { border: 1.5px solid #000; padding: 8px 10px; font-size: 9.5pt; line-height: 1.6; }
+  }
 </style>
 </head>
 <body>
@@ -197,7 +241,18 @@
   <button type="button" class="knop" id="dossier-opslaan">Opslaan als bestand</button>
   <button type="button" class="knop knop-stil" id="dossier-openen">Bestand openen</button>
   <input type="file" id="dossier-bestand" accept="application/json,.json" hidden>
+  <button type="button" class="knop knop-stil" id="afdrukken">Afdrukken of opslaan als pdf</button>
   <span class="dossier-melding" id="dossier-melding">Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer. De tool bewaart zelf niets.</span>
+</div>
+
+<div class="situatiebalk">
+  <label class="aanvink"><input type="checkbox" id="fiscale-eenheid"> De belastingplichtige is een <b>fiscale eenheid</b></label>
+  <div class="fe-vraag" id="fe-vraag" hidden>
+    <span class="fe-vraagtekst">Zijn er saldi aan renten ontstaan <b>v&oacute;&oacute;r</b> het voegingstijdstip (voorvoegingssaldi)?</span>
+    <label class="aanvink"><input type="radio" name="voorvoeging" value="nee"> Nee</label>
+    <label class="aanvink"><input type="radio" name="voorvoeging" value="ja"> Ja</label>
+    <span class="fe-uitleg">Bij voorvoegingssaldi geldt een dubbele toets (art. 15aha lid 1) die niet in deze tool zit; de tool geeft dan geen uitkomst.</span>
+  </div>
 </div>
 
 <div class="main" id="weergave-jaar">
@@ -260,6 +315,14 @@
     <div class="card">
       <h2>Resultaat</h2>
       <p class="card-sub" id="resultaat-sub"></p>
+      <div class="afbakening">
+        <b>Wat deze tool niet doet.</b> Verval van voortgewentelde saldi bij een belangrijke
+        belangenwijziging (art. 15ba), de uitzondering voor aangewezen langlopende
+        openbare-infrastructuurprojecten, de minimumkapitaalregel voor banken en verzekeraars
+        (art. 15be&ndash;15bh) en geactiveerde bouwrente (art. 15b lid 6 onderdeel d en lid 7).
+        Bij een fiscale eenheid ook niet: de dubbele toets voor voorvoegingssaldi (art. 15aha lid 1)
+        en de ontvoegingsregel (art. 15ahb). <a href="#toelichting">Volledige afbakening en bronnen</a>.
+      </div>
       <div id="resultaat"></div>
     </div>
   </div>
@@ -308,13 +371,21 @@
   <div class="card">
     <h2>Resultaat per boekjaar</h2>
     <p class="card-sub" id="reeks-sub"></p>
+    <div class="afbakening">
+      <b>Wat deze tool niet doet.</b> Verval van voortgewentelde saldi bij een belangrijke
+      belangenwijziging (art. 15ba), de uitzondering voor aangewezen langlopende
+      openbare-infrastructuurprojecten, de minimumkapitaalregel voor banken en verzekeraars
+      (art. 15be&ndash;15bh) en geactiveerde bouwrente (art. 15b lid 6 onderdeel d en lid 7).
+      Bij een fiscale eenheid ook niet: de dubbele toets voor voorvoegingssaldi (art. 15aha lid 1)
+      en de ontvoegingsregel (art. 15ahb). <a href="#toelichting">Volledige afbakening en bronnen</a>.
+    </div>
     <div id="reeks-resultaat"></div>
   </div>
 
 </div>
 
 <div class="onder">
-  <div class="card toelichting">
+  <div class="card toelichting" id="toelichting">
     <h2>Toelichting en bronnen</h2>
 
     <h3>De regeling in het kort</h3>
@@ -403,6 +474,10 @@
 
 </div>
 
+<!-- Afdrukblad: op het scherm verborgen, op papier het enige wat er staat. Het wordt
+     gevuld met dezelfde uitkomst die op het scherm staat; er wordt niets herrekend. -->
+<div class="afdrukblad" id="afdrukblad" aria-hidden="true"></div>
+
 <footer>
   Voor eigen gebruik binnen kantoor &middot; er worden geen gegevens verzonden. De tool bewaart zelf niets:
   opslaan gebeurt alleen als je zelf een dossierbestand bewaart.<br>
@@ -443,6 +518,14 @@
 // De invoer `jaar` is daarom het AANVANGSJAAR van het boekjaar: een boekjaar van
 // 1 juli 2024 tot en met 30 juni 2025 rekent met 20%, niet met 24,5%.
 
+// Versiestempel van de tool. Staat op het afdrukblad, zodat een dossierstuk uit de
+// klantmap later te herleiden is tot de versie die het heeft gemaakt. Bijwerken bij
+// elke inhoudelijke wijziging van de rekenkern of van een jaargebonden waarde.
+const TOOL_VERSIE = '2026-09-15';
+
+// `vindplaats` staat als gegeven bij de waarde en niet alleen in commentaar, omdat het
+// afdrukblad de vindplaats meedrukt. Eén plek, zodat het dossierstuk niet uiteen kan
+// lopen met de waarde waar het over gaat.
 const FISCAAL_PER_JAAR = {
   2019: {
     // Art. 15b lid 1 onderdeel a Wet Vpb 1969, tekst geldend 01-01-2019:
@@ -450,36 +533,45 @@ const FISCAAL_PER_JAAR = {
     percentageGecorrigeerdeWinst: 0.30,
     // Art. 15b lid 1 onderdeel b Wet Vpb 1969, tekst geldend 01-01-2019: € 1.000.000.
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2019 ' +
+      '(BWBR0002672/2019-01-01); overgangsrecht Stb. 2018, 508, art. III',
   },
   2020: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2020:
     // 30% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2020-01-01
     percentageGecorrigeerdeWinst: 0.30,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2020 (BWBR0002672/2020-01-01)',
   },
   2021: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2021:
     // 30% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2021-01-01
     percentageGecorrigeerdeWinst: 0.30,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2021 (BWBR0002672/2021-01-01)',
   },
   2022: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2022:
     // 20% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2022-01-01
     percentageGecorrigeerdeWinst: 0.20,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2022 ' +
+      '(BWBR0002672/2022-01-01); overgangsrecht Belastingplan 2022, Stb. 2021, 651, ' +
+      'art. IX onderdeel Ha jo. art. XXVI lid 1 onder d',
   },
   2023: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2023:
     // 20% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2023-01-01
     percentageGecorrigeerdeWinst: 0.20,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2023 (BWBR0002672/2023-01-01)',
   },
   2024: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2024:
     // 20% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2024-01-01
     percentageGecorrigeerdeWinst: 0.20,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2024 (BWBR0002672/2024-01-01)',
   },
   2025: {
     // Art. 15b lid 1 onderdeel a Wet Vpb 1969, tekst geldend 01-01-2025:
@@ -487,6 +579,9 @@ const FISCAAL_PER_JAAR = {
     percentageGecorrigeerdeWinst: 0.245,
     // Art. 15b lid 1 onderdeel b: € 1.000.000 (ongewijzigd).
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2025 ' +
+      '(BWBR0002672/2025-01-01); overgangsrecht Belastingplan 2025, Stb. 2024, 434, ' +
+      'art. XV onderdeel K jo. art. LXV lid 1 onder e',
   },
   2026: {
     // Art. 15b lid 1 onderdelen a en b Wet Vpb 1969, tekst geldend 01-01-2026
@@ -494,6 +589,7 @@ const FISCAAL_PER_JAAR = {
     // 01-01-2025): 24,5% / € 1.000.000. https://wetten.overheid.nl/BWBR0002672/2026-01-01
     percentageGecorrigeerdeWinst: 0.245,
     drempel: 1_000_000,
+    vindplaats: 'art. 15b lid 1 Wet Vpb 1969, tekst geldend 01-01-2026 (BWBR0002672/2026-01-01)',
   },
 };
 
@@ -571,13 +667,67 @@ function ontbreekt(waarde) {
   return waarde === undefined || waarde === null;
 }
 
+// Fiscale eenheid en voorvoegingssaldi.
+//
+// De rekenkern hieronder rekent art. 15b op het niveau van de fiscale eenheid als geheel
+// en toetst de benutting van een voortgewenteld saldo alleen aan de ruimte van de eenheid.
+// Voor saldi aan renten die zijn ontstaan vóór het voegingstijdstip geldt echter een
+// dubbele toets: die komen op grond van art. 15aha lid 1 Wet Vpb 1969 alleen in aftrek
+// voor zover er ruimte is bij de eenheid én de maatschappij aannemelijk maakt dat zij die
+// ruimte zelfstandig ook zou hebben gehad. Bij ontvoeging blijft voor die zelfstandige
+// berekening bovendien de drempel van € 1.000.000 buiten beschouwing (art. 15ahb lid 1
+// onderdeel b). Beide regels zitten NIET in deze rekenkern; de uitkomst zou dan te veel
+// benutting kunnen tonen.
+//
+// Besluit van de eigenaar (15-09-2026): in dat geval geeft de tool geen uitkomst, in
+// plaats van een uitkomst met een waarschuwing eronder. Een waarschuwing wordt
+// overgeslagen, een ontbrekende uitkomst niet.
+//
+// `fiscaleEenheid` is waar of onwaar; `voorvoegingssaldi` is 'ja', 'nee' of onbeantwoord.
+const VOORVOEGING_ANTWOORDEN = ['ja', 'nee'];
+
+const MELDING_VOORVOEGING =
+  'Geen uitkomst. Bij een fiscale eenheid met saldi aan renten van vóór het ' +
+  'voegingstijdstip geldt een dubbele toets: die saldi komen op grond van art. 15aha ' +
+  'lid 1 Wet Vpb 1969 alleen in aftrek voor zover er ruimte is bij de eenheid én de ' +
+  'maatschappij aannemelijk maakt dat zij die ruimte zelfstandig ook zou hebben gehad. ' +
+  'Bij ontvoeging blijft voor die zelfstandige berekening de drempel van € 1.000.000 ' +
+  'buiten beschouwing (art. 15ahb lid 1 onderdeel b). Die dubbele toets zit niet in de ' +
+  'rekenkern van deze tool, die alleen aan de ruimte van de eenheid toetst en de ' +
+  'benutting dus te hoog zou kunnen berekenen. Reken dit geval met de hand door.';
+
+const MELDING_VOORVOEGING_ONBEANTWOORD =
+  'Beantwoord eerst de vraag of er saldi aan renten zijn ontstaan vóór het ' +
+  'voegingstijdstip. Bij een fiscale eenheid bepaalt dat antwoord of deze tool het ' +
+  'geval mag rekenen (art. 15aha lid 1 en art. 15ahb lid 1 onderdeel b Wet Vpb 1969).';
+
+// Retourneert { geblokkeerd: false } of { geblokkeerd: true, reden, melding }.
+function beoordeelVoorvoeging(invoer) {
+  const inv = invoer || {};
+  if (!inv.fiscaleEenheid) return { geblokkeerd: false };
+  if (inv.voorvoegingssaldi === 'nee') return { geblokkeerd: false };
+  if (inv.voorvoegingssaldi === 'ja') {
+    return { geblokkeerd: true, reden: 'voorvoegingssaldi', melding: MELDING_VOORVOEGING };
+  }
+  return { geblokkeerd: true, reden: 'onbeantwoord', melding: MELDING_VOORVOEGING_ONBEANTWOORD };
+}
+
 // Berekent de earningsstripping voor één boekjaar.
 // Invoer: { jaar, winst, rentelasten, rentebaten, afschrijvingen, afwaarderingen,
-//           voortgewenteldSaldo }. Alle bedragen in euro's.
-// Retourneert { ok: false, fouten: [...] } of { ok: true, ...uitkomsten }.
+//           voortgewenteldSaldo, fiscaleEenheid, voorvoegingssaldi }. Bedragen in euro's.
+// Retourneert { ok: false, fouten: [...] } of { ok: true, ...uitkomsten }. Bij een
+// fiscale eenheid met voorvoegingssaldi komt er geen uitkomst maar een blokkade:
+// { ok: false, geblokkeerd: true, reden, fouten: [melding] }.
 function berekenEarningsstripping(invoer) {
   const fouten = [];
   const inv = invoer || {};
+
+  // Vóór de keuring van de bedragen: bij voorvoegingssaldi helpt het invullen van de
+  // velden niet, want de tool rekent dit geval helemaal niet.
+  const voorvoeging = beoordeelVoorvoeging(inv);
+  if (voorvoeging.geblokkeerd) {
+    return { ok: false, geblokkeerd: true, reden: voorvoeging.reden, fouten: [voorvoeging.melding] };
+  }
 
   if (!Number.isInteger(inv.jaar) || !(inv.jaar in FISCAAL_PER_JAAR)) {
     fouten.push(`Boekjaar ${inv.jaar === undefined ? '(leeg)' : inv.jaar} wordt niet ondersteund. ` +
@@ -602,7 +752,7 @@ function berekenEarningsstripping(invoer) {
 
   if (fouten.length > 0) return { ok: false, fouten };
 
-  const { percentageGecorrigeerdeWinst: percentage, drempel } = FISCAAL_PER_JAAR[inv.jaar];
+  const { percentageGecorrigeerdeWinst: percentage, drempel, vindplaats } = FISCAAL_PER_JAAR[inv.jaar];
 
   // Art. 15b lid 2: "Het saldo aan renten bedraagt ten minste nihil."
   const saldoRenten = Math.max(0, inv.rentelasten - inv.rentebaten);
@@ -637,6 +787,8 @@ function berekenEarningsstripping(invoer) {
     jaar: inv.jaar,
     percentage,
     drempel,
+    vindplaats,
+    fiscaleEenheid: Boolean(inv.fiscaleEenheid),
     saldoRenten,
     gecorrigeerdeWinst,
     percentageRuimte,
@@ -659,12 +811,20 @@ function berekenEarningsstripping(invoer) {
 // (art. 15aha en 15ahb), want die veranderen welk deel van het saldo benut mag worden.
 //
 // Invoer: { beginsaldo, jaren: [{ jaar, winst, rentelasten, rentebaten, afschrijvingen,
-//           afwaarderingen }, ...] }. Het veld `jaar` is het aanvangsjaar (zie boven).
-// Retourneert { ok: false, fouten: [...] } of { ok: true, ... }.
+//           afwaarderingen }, ...], fiscaleEenheid, voorvoegingssaldi }. Het veld `jaar`
+// is het aanvangsjaar (zie boven).
+// Retourneert { ok: false, fouten: [...] } of { ok: true, ... }. De blokkade bij een
+// fiscale eenheid met voorvoegingssaldi geldt hier net zo goed: de reeks is niets anders
+// dan dezelfde jaarberekening met een gekoppeld saldo.
 function berekenReeks(invoer) {
   const inv = invoer || {};
   const jaren = Array.isArray(inv.jaren) ? inv.jaren : [];
   const fouten = [];
+
+  const voorvoeging = beoordeelVoorvoeging(inv);
+  if (voorvoeging.geblokkeerd) {
+    return { ok: false, geblokkeerd: true, reden: voorvoeging.reden, fouten: [voorvoeging.melding] };
+  }
 
   if (jaren.length === 0) fouten.push('Voeg ten minste een boekjaar toe.');
 
@@ -715,6 +875,7 @@ function berekenReeks(invoer) {
   return {
     ok: true,
     beginsaldo: inv.beginsaldo,
+    fiscaleEenheid: Boolean(inv.fiscaleEenheid),
     rijen,
     eindsaldo: saldo,
     totaalNietAftrekbaar: rijen.reduce((t, r) => t + r.nietAftrekbaar, 0),
@@ -732,7 +893,11 @@ function berekenReeks(invoer) {
 // wordt gelezen als gegeven, nooit als opdracht: alleen bekende velden worden gebruikt,
 // alles wordt begrensd en een niet-ondersteund boekjaar geeft een melding in plaats
 // van een stille terugval.
-const DOSSIER_FORMAATVERSIE = 1;
+// Formaat 2 (15-09-2026) voegt `fiscaleEenheid` en `voorvoegingssaldi` toe. Een dossier
+// van formaat 1 blijft leesbaar: die twee velden ontbreken daar en worden gelezen als
+// "geen fiscale eenheid, vraag onbeantwoord". Dat is geen stille terugval op een ander
+// uitgangspunt, want de vraag bestond in formaat 1 nog niet.
+const DOSSIER_FORMAATVERSIE = 2;
 const DOSSIER_MAX_RIJEN = 40;
 const DOSSIER_MAX_KENMERK = 60;
 const DOSSIER_MAX_BEDRAG = 32;
@@ -759,6 +924,8 @@ function maakDossierTekst(stand) {
     formaatversie: DOSSIER_FORMAATVERSIE,
     kenmerk: dossierTekst(s.kenmerk, DOSSIER_MAX_KENMERK),
     weergave: s.weergave === 'reeks' ? 'reeks' : 'jaar',
+    fiscaleEenheid: Boolean(s.fiscaleEenheid),
+    voorvoegingssaldi: VOORVOEGING_ANTWOORDEN.includes(s.voorvoegingssaldi) ? s.voorvoegingssaldi : null,
     jaar: DOSSIER_JAARVELDEN.reduce((o, naam) => {
       o[naam] = dossierTekst(jaar[naam], DOSSIER_MAX_BEDRAG);
       return o;
@@ -838,6 +1005,10 @@ function leesDossier(tekst) {
     dossier: {
       kenmerk: dossierTekst(rauw.kenmerk, DOSSIER_MAX_KENMERK),
       weergave: rauw.weergave === 'reeks' ? 'reeks' : 'jaar',
+      // Ontbreekt in een dossier van formaat 1; dan geen fiscale eenheid en geen antwoord.
+      fiscaleEenheid: rauw.fiscaleEenheid === true,
+      voorvoegingssaldi: VOORVOEGING_ANTWOORDEN.includes(rauw.voorvoegingssaldi)
+        ? rauw.voorvoegingssaldi : null,
       jaar,
       reeks: { beginsaldo: dossierTekst(reeksBron.beginsaldo, DOSSIER_MAX_BEDRAG), jaren },
     },
@@ -858,6 +1029,12 @@ function leesDossier(tekst) {
   const fmtPct = new Intl.NumberFormat('nl-NL', { style: 'percent', maximumFractionDigits: 1 });
   const el = (id) => document.getElementById(id);
 
+  // De laatst getoonde stand per weergave: invoer plus de uitkomst die op het scherm
+  // staat. Het afdrukblad leest hieruit en rekent zelf niets; anders zou er een tweede
+  // plek zijn waar hetzelfde getal ontstaat.
+  let laatsteJaar = { invoer: null, r: null };
+  let laatsteReeks = { invoer: null, r: null };
+
   // parseBedrag komt uit de fiscale kern hierboven, zodat de tests dezelfde
   // invoerinterpretatie toetsen als de tool gebruikt.
 
@@ -873,6 +1050,20 @@ function leesDossier(tekst) {
   const verplichteVelden = ['winst', 'rentelasten', 'rentebaten'];
   const optioneleVelden = ['afschrijvingen', 'afwaarderingen', 'voortgewenteld'];
 
+  // Fiscale eenheid: één vraag boven beide weergaven. Zolang zij bij een fiscale eenheid
+  // niet is beantwoord, geeft de tool geen uitkomst; dat oordeel zit in de kern.
+  const feVinkje = el('fiscale-eenheid');
+  const feVraag = el('fe-vraag');
+  const feKeuzes = () => [...document.querySelectorAll('input[name="voorvoeging"]')];
+
+  function leesSituatie() {
+    const gekozen = feKeuzes().find((k) => k.checked);
+    return {
+      fiscaleEenheid: feVinkje.checked,
+      voorvoegingssaldi: gekozen ? gekozen.value : null,
+    };
+  }
+
   function leesInvoer() {
     const jaar = Number(jaarSelect.value);
     const waarden = {};
@@ -884,7 +1075,7 @@ function leesDossier(tekst) {
     for (const naam of optioneleVelden) {
       if (waarden[naam] === null) waarden[naam] = 0; // leeg optioneel veld telt als 0
     }
-    return {
+    return Object.assign(leesSituatie(), {
       jaar,
       winst: waarden.winst === null ? undefined : waarden.winst,
       rentelasten: waarden.rentelasten === null ? undefined : waarden.rentelasten,
@@ -893,7 +1084,7 @@ function leesDossier(tekst) {
       afwaarderingen: waarden.afwaarderingen,
       voortgewenteldSaldo: waarden.voortgewenteld,
       onaangeraakt: verplichteVelden.every((n) => (el(n).value || '').trim() === ''),
-    };
+    });
   }
 
   function toonJaarinfo(jaar) {
@@ -913,25 +1104,47 @@ function leesDossier(tekst) {
     return `<tr${cls ? ` class="${cls}"` : ''}><td>${label}</td><td>${bedrag}</td></tr>`;
   }
 
+  // Een blokkade is geen invoerfout: er komt geen uitkomst, hoe je de velden ook invult.
+  function blokkadeHtml(r) {
+    const kop = r.reden === 'onbeantwoord' ? 'Nog geen uitkomst' : 'Deze tool rekent dit geval niet';
+    return `<div class="blokkade"><b>${kop}</b>${r.fouten.join(' ')}</div>`;
+  }
+
   function toon() {
     const invoer = leesInvoer();
     toonJaarinfo(invoer.jaar);
     const doel = el('resultaat');
     const sub = el('resultaat-sub');
 
+    const r = berekenEarningsstripping(invoer);
+
+    // Eerst de blokkade: invullen helpt hier niet, dus die melding gaat voor op de
+    // uitnodiging om te beginnen en op de keuring van de losse velden.
+    if (!r.ok && r.geblokkeerd) {
+      sub.textContent = 'Fiscale eenheid met voorvoegingssaldi';
+      doel.innerHTML = blokkadeHtml(r);
+      laatsteJaar = { invoer, r };
+      vernieuwAfdruk();
+      return;
+    }
+
     if (invoer.onaangeraakt) {
       sub.textContent = 'Vul links de gegevens in; het resultaat verschijnt direct.';
       doel.innerHTML = '';
+      laatsteJaar = { invoer, r: null };
+      vernieuwAfdruk();
       return;
     }
 
-    const r = berekenEarningsstripping(invoer);
     if (!r.ok) {
       sub.textContent = '';
       doel.innerHTML = `<div class="fouten"><ul>${r.fouten.map((f) => `<li>${f}</li>`).join('')}</ul></div>`;
+      laatsteJaar = { invoer, r: null };
+      vernieuwAfdruk();
       return;
     }
 
+    laatsteJaar = { invoer, r };
     sub.textContent = `Boekjaar ${r.jaar} · art. 15b Wet Vpb 1969`;
     const hoofdRood = r.nietAftrekbaar > 0;
     doel.innerHTML = `
@@ -950,12 +1163,25 @@ function leesDossier(tekst) {
         ${rij('Voort te wentelen naar volgend jaar (lid 5)', fmt.format(r.voortTeWentelen))}
         ${rij('Winst na toepassing art. 15b (informatief)', fmt.format(r.winstNaEarningsstripping))}
       </table>`;
+    vernieuwAfdruk();
   }
 
   jaarSelect.addEventListener('change', toon);
   for (const naam of [...verplichteVelden, ...optioneleVelden]) {
     el(naam).addEventListener('input', toon);
   }
+
+  function situatieGewijzigd() {
+    feVraag.hidden = !feVinkje.checked;
+    // Zonder fiscale eenheid heeft het antwoord geen betekenis; laat het niet stil
+    // meelopen naar een volgende berekening of naar het dossierbestand.
+    if (!feVinkje.checked) feKeuzes().forEach((k) => { k.checked = false; });
+    toon();
+    toonReeks();
+  }
+
+  feVinkje.addEventListener('change', situatieGewijzigd);
+  feKeuzes().forEach((k) => k.addEventListener('change', situatieGewijzigd));
   toon();
 
   // -------------------------------------------------------------------------
@@ -1086,7 +1312,8 @@ function leesDossier(tekst) {
     beginVeld.classList.toggle('ongeldig', Number.isNaN(begin));
     if ((beginVeld.value || '').trim() !== '') allesLeeg = false;
 
-    return { beginsaldo: begin === null ? 0 : begin, jaren, onaangeraakt: allesLeeg };
+    return Object.assign(leesSituatie(),
+      { beginsaldo: begin === null ? 0 : begin, jaren, onaangeraakt: allesLeeg });
   }
 
   function uitRij(cellen, cls) {
@@ -1098,19 +1325,38 @@ function leesDossier(tekst) {
     const doel = el('reeks-resultaat');
     const sub = el('reeks-sub');
 
+    const r = berekenReeks({
+      beginsaldo: invoer.beginsaldo,
+      jaren: invoer.jaren,
+      fiscaleEenheid: invoer.fiscaleEenheid,
+      voorvoegingssaldi: invoer.voorvoegingssaldi,
+    });
+
+    if (!r.ok && r.geblokkeerd) {
+      sub.textContent = 'Fiscale eenheid met voorvoegingssaldi';
+      doel.innerHTML = blokkadeHtml(r);
+      laatsteReeks = { invoer, r };
+      vernieuwAfdruk();
+      return;
+    }
+
     if (invoer.onaangeraakt) {
       sub.textContent = 'Vul de boekjaren in; het overzicht verschijnt direct.';
       doel.innerHTML = '';
+      laatsteReeks = { invoer, r: null };
+      vernieuwAfdruk();
       return;
     }
 
-    const r = berekenReeks({ beginsaldo: invoer.beginsaldo, jaren: invoer.jaren });
     if (!r.ok) {
       sub.textContent = '';
       doel.innerHTML = `<div class="fouten"><ul>${r.fouten.map((f) => `<li>${f}</li>`).join('')}</ul></div>`;
+      laatsteReeks = { invoer, r: null };
+      vernieuwAfdruk();
       return;
     }
 
+    laatsteReeks = { invoer, r };
     sub.textContent = `${r.rijen.length} ${r.rijen.length === 1 ? 'boekjaar' : 'boekjaren'} · ` +
       `beginsaldo ${fmt.format(r.beginsaldo)} · saldo aan het eind ${fmt.format(r.eindsaldo)}`;
 
@@ -1140,6 +1386,7 @@ function leesDossier(tekst) {
 
     doel.innerHTML = waarschuwing +
       `<div class="tabel-scroll"><table class="reeks-uit"><thead>${kop}</thead><tbody>${regels}${totaal}</tbody></table></div>`;
+    vernieuwAfdruk();
   }
 
   function kiesWeergave(modus) {
@@ -1148,6 +1395,7 @@ function leesDossier(tekst) {
     el('weergave-reeks').hidden = isJaar;
     el('tab-jaar').classList.toggle('actief', isJaar);
     el('tab-reeks').classList.toggle('actief', !isJaar);
+    vernieuwAfdruk();
   }
 
   el('tab-jaar').addEventListener('click', () => kiesWeergave('jaar'));
@@ -1166,12 +1414,189 @@ function leesDossier(tekst) {
   toonReeks();
 
   // -------------------------------------------------------------------------
+  // Afdrukblad: het dossierstuk. Het bevat de invoer, de uitkomst met de stappen die
+  // het oordeel dragen, de vindplaats van de gebruikte waarden, de afbakening en een
+  // tijdstempel. Het leest de uitkomst die op het scherm staat en rekent zelf niets:
+  // één plek waar de fiscale logica staat.
+  // -------------------------------------------------------------------------
+  const fmtMoment = new Intl.DateTimeFormat('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
+
+  // Kenmerk en meldingen komen van de gebruiker of uit een dossierbestand; die zijn
+  // gegeven en geen opmaak.
+  function ontsnap(tekst) {
+    return String(tekst === undefined || tekst === null ? '' : tekst)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function bedrag(x) {
+    return isBedrag(x) ? fmt.format(x) : '&ndash;';
+  }
+
+  function afdrukRij(label, waarde, cls) {
+    return `<tr${cls ? ` class="${cls}"` : ''}><td>${label}</td><td class="bedrag">${waarde}</td></tr>`;
+  }
+
+  const AFBAKENING_AFDRUK = [
+    'Verval van voortgewentelde saldi bij een belangrijke belangenwijziging (art. 15ba Wet Vpb 1969).',
+    'De uitzondering voor aangewezen langlopende openbare-infrastructuurprojecten.',
+    'De minimumkapitaalregel voor banken en verzekeraars (art. 15be tot en met 15bh).',
+    'Geactiveerde bouwrente (art. 15b lid 6 onderdeel d en lid 7).',
+    'Bij een fiscale eenheid: de dubbele toets voor saldi van v&oacute;&oacute;r het voegingstijdstip ' +
+      '(art. 15aha lid 1), de ontvoegingsregel (art. 15ahb) en de winstsplitsing van art. 15ah.',
+    'Welke rente fiscaal in aanmerking komt en wat onder de objectvrijstelling valt (art. 15b lid 2 en 4 ' +
+      'jo. art. 15e); dat bepaalt de gebruiker bij het invullen.',
+  ];
+
+  function afdrukSituatie(invoer) {
+    if (!invoer || !invoer.fiscaleEenheid) return afdrukRij('Fiscale eenheid', 'nee');
+    const antwoord = invoer.voorvoegingssaldi === 'ja' ? 'ja'
+      : (invoer.voorvoegingssaldi === 'nee' ? 'nee' : 'niet beantwoord');
+    return afdrukRij('Fiscale eenheid', 'ja') +
+      afdrukRij('Saldi ontstaan v&oacute;&oacute;r het voegingstijdstip', antwoord);
+  }
+
+  function afdrukJaar(stand) {
+    const inv = stand.invoer;
+    const r = stand.r;
+    return `
+      <h2>Invoer</h2>
+      <table>
+        ${afdrukRij('Boekjaar (jaar waarin het boekjaar aanvangt)', r.jaar)}
+        ${afdrukSituatie(inv)}
+        ${afdrukRij('Winst v&oacute;&oacute;r toepassing art. 15b', bedrag(inv.winst))}
+        ${afdrukRij('Rentelasten geldleningen', bedrag(inv.rentelasten))}
+        ${afdrukRij('Rentebaten geldleningen', bedrag(inv.rentebaten))}
+        ${afdrukRij('Afschrijvingen bedrijfsmiddelen', bedrag(inv.afschrijvingen))}
+        ${afdrukRij('Afwaarderingen minus terugnamen', bedrag(inv.afwaarderingen))}
+        ${afdrukRij('Voortgewenteld saldo uit voorgaande jaren', bedrag(inv.voortgewenteldSaldo))}
+      </table>
+
+      <h2>Uitkomst</h2>
+      <table>
+        ${afdrukRij('Saldo aan renten (lid 2, ten minste nihil)', bedrag(r.saldoRenten))}
+        ${afdrukRij('Gecorrigeerde winst / fiscale EBITDA (lid 3, ten minste nihil)', bedrag(r.gecorrigeerdeWinst))}
+        ${afdrukRij(`${fmtPct.format(r.percentage)} van de gecorrigeerde winst` +
+          `${r.drempelIsBepalend ? '' : ' (bepalend)'}`, bedrag(r.percentageRuimte))}
+        ${afdrukRij(`Drempel${r.drempelIsBepalend ? ' (bepalend)' : ''}`, bedrag(r.drempel))}
+        ${afdrukRij('Aftrekruimte (lid 1: het hoogste van beide)', bedrag(r.aftrekruimte), 'nadruk')}
+        ${afdrukRij('Niet-aftrekbaar saldo aan renten dit jaar (lid 1)', bedrag(r.nietAftrekbaar), 'nadruk')}
+        ${afdrukRij('Benut voortgewenteld saldo voorgaande jaren (lid 5)', bedrag(r.benutVoortgewenteld))}
+        ${afdrukRij('Voort te wentelen naar volgend jaar (lid 5)', bedrag(r.voortTeWentelen))}
+        ${afdrukRij('Winst na toepassing art. 15b (informatief)', bedrag(r.winstNaEarningsstripping))}
+      </table>
+
+      <h2>Vindplaatsen</h2>
+      <p class="afdruk-klein">Percentage en drempel: ${r.vindplaats}. Saldo aan renten: art. 15b lid 2.
+      Gecorrigeerde winst: lid 3. Voortwenteling en benutting: lid 5, zonder termijn en in de
+      volgorde waarin de saldi zijn ontstaan; het saldo moet bij beschikking zijn vastgesteld
+      (lid 5 jo. art. 15bb en 15bc).</p>`;
+  }
+
+  function afdrukReeks(stand) {
+    const r = stand.r;
+    const koppen = ['Boekjaar', 'Saldo aan renten', 'Gecorrigeerde winst', 'Aftrekruimte',
+      'Niet-aftrekbaar', 'Benut uit eerdere jaren', 'Saldo einde jaar'];
+    const kop = `<tr>${koppen.map((k, i) => `<th${i === 0 ? '' : ' class="bedrag"'}>${k}</th>`).join('')}</tr>`;
+    const regels = r.rijen.map((x) => `<tr>
+        <td>${x.jaar}</td>
+        <td class="bedrag">${bedrag(x.saldoRenten)}</td>
+        <td class="bedrag">${bedrag(x.gecorrigeerdeWinst)}</td>
+        <td class="bedrag">${bedrag(x.aftrekruimte)}</td>
+        <td class="bedrag">${bedrag(x.nietAftrekbaar)}</td>
+        <td class="bedrag">${bedrag(x.benutVoortgewenteld)}</td>
+        <td class="bedrag">${bedrag(x.voortTeWentelen)}</td>
+      </tr>`).join('');
+    const totaal = `<tr class="nadruk"><td>Totaal</td><td></td><td></td><td></td>` +
+      `<td class="bedrag">${bedrag(r.totaalNietAftrekbaar)}</td>` +
+      `<td class="bedrag">${bedrag(r.totaalBenut)}</td>` +
+      `<td class="bedrag">${bedrag(r.eindsaldo)}</td></tr>`;
+
+    const invoerRijen = stand.invoer.jaren.map((rij) => `<tr>
+        <td>${rij.jaar}</td>
+        <td class="bedrag">${bedrag(rij.winst)}</td>
+        <td class="bedrag">${bedrag(rij.rentelasten)}</td>
+        <td class="bedrag">${bedrag(rij.rentebaten)}</td>
+        <td class="bedrag">${bedrag(rij.afschrijvingen)}</td>
+        <td class="bedrag">${bedrag(rij.afwaarderingen)}</td>
+      </tr>`).join('');
+
+    const waarschuwing = r.waarschuwingen.length === 0 ? ''
+      : `<p class="afdruk-klein">Let op. ${r.waarschuwingen.map(ontsnap).join(' ')}</p>`;
+
+    const vindplaatsen = [...new Set(r.rijen.map((x) => `${x.jaar}: ${x.vindplaats}`))];
+
+    return `
+      <h2>Invoer</h2>
+      <table>
+        ${afdrukSituatie(stand.invoer)}
+        ${afdrukRij('Voortgewenteld saldo bij aanvang van het eerste boekjaar', bedrag(r.beginsaldo))}
+      </table>
+      <table>
+        <tr><th>Boekjaar</th><th class="bedrag">Winst v&oacute;&oacute;r art. 15b</th>
+        <th class="bedrag">Rentelasten</th><th class="bedrag">Rentebaten</th>
+        <th class="bedrag">Afschrijvingen</th><th class="bedrag">Afwaarderingen</th></tr>
+        ${invoerRijen}
+      </table>
+
+      <h2>Uitkomst per boekjaar</h2>
+      <table>${kop}${regels}${totaal}</table>
+      ${waarschuwing}
+      <p class="afdruk-klein">Het voort te wentelen saldo van een jaar is het beginsaldo van het
+      volgende jaar (art. 15b lid 5). De reeks veronderstelt dezelfde belastingplichtige in alle
+      jaren: geen verval bij een belangrijke belangenwijziging (art. 15ba) en geen voeging of
+      ontvoeging (art. 15aha en 15ahb).</p>
+
+      <h2>Vindplaatsen</h2>
+      <p class="afdruk-klein">Percentage en drempel per boekjaar &mdash; ${vindplaatsen.join('; ')}.
+      Saldo aan renten: art. 15b lid 2. Gecorrigeerde winst: lid 3. Voortwenteling en benutting: lid 5.</p>`;
+  }
+
+  function vernieuwAfdruk() {
+    const isJaar = el('weergave-reeks').hidden;
+    const stand = isJaar ? laatsteJaar : laatsteReeks;
+    const kenmerk = el('kenmerk').value.trim();
+
+    const kop = `<div class="afdruk-kop">
+        <h1>Earningsstripping &mdash; art. 15b Wet Vpb 1969</h1>
+        <div class="afdruk-sub">Kenmerk: ${kenmerk ? ontsnap(kenmerk) : '&ndash;'} &middot;
+        ${isJaar ? 'E&eacute;n boekjaar' : 'Meerdere boekjaren'} &middot;
+        Afgedrukt op ${fmtMoment.format(new Date())} &middot;
+        Tool earningsstripping, versie ${TOOL_VERSIE}</div>
+      </div>`;
+
+    let lijf;
+    if (stand.r && stand.r.ok) {
+      lijf = isJaar ? afdrukJaar(stand) : afdrukReeks(stand);
+    } else if (stand.r && stand.r.geblokkeerd) {
+      lijf = `<p class="afdruk-blokkade">Deze tool geeft voor dit geval geen uitkomst. ` +
+        `${stand.r.fouten.map(ontsnap).join(' ')}</p>`;
+    } else {
+      lijf = `<p class="afdruk-blokkade">Er staat op dit moment geen uitkomst op het scherm; ` +
+        `vul de gegevens aan en druk opnieuw af.</p>`;
+    }
+
+    const afbakening = `<h2>Wat deze tool niet doet</h2><ul>` +
+      AFBAKENING_AFDRUK.map((t) => `<li>${t}</li>`).join('') + '</ul>';
+
+    const voet = `<div class="afdruk-voet">Opgesteld met de lokale rekentool earningsstripping
+      (versie ${TOOL_VERSIE}); de tool bewaart niets en verstuurt niets. De uitkomst is een
+      berekening van art. 15b Wet Vpb 1969 op de ingevulde gegevens; de beoordeling van die
+      gegevens en van de afbakening hierboven blijft bij de gebruiker.</div>`;
+
+    el('afdrukblad').innerHTML = kop + lijf + afbakening + voet;
+  }
+
+  el('afdrukken').addEventListener('click', () => { vernieuwAfdruk(); window.print(); });
+  // Ook bij Ctrl+P: de tijdstempel op het blad moet het moment van afdrukken zijn.
+  window.addEventListener('beforeprint', vernieuwAfdruk);
+
+  // -------------------------------------------------------------------------
   // Dossier: de ingevulde gegevens als bestand bewaren en weer openen. De tool
   // bewaart zelf niets; het bestand komt op de plek die de gebruiker kiest, zodat
   // een klantdossier in de klantmap staat en meegaat in de back-up.
   // -------------------------------------------------------------------------
   function verzamelStand() {
-    return {
+    return Object.assign(leesSituatie(), {
       kenmerk: el('kenmerk').value,
       weergave: el('weergave-reeks').hidden ? 'jaar' : 'reeks',
       jaar: DOSSIER_JAARVELDEN.reduce((o, naam) => {
@@ -1186,11 +1611,15 @@ function leesDossier(tekst) {
           return rij;
         }),
       },
-    };
+    });
   }
 
   function pasStandToe(d) {
     el('kenmerk').value = d.kenmerk;
+
+    feVinkje.checked = d.fiscaleEenheid;
+    feVraag.hidden = !d.fiscaleEenheid;
+    feKeuzes().forEach((k) => { k.checked = d.fiscaleEenheid && k.value === d.voorvoegingssaldi; });
 
     jaarSelect.value = String(d.jaar.jaar);
     for (const naam of DOSSIER_JAARVELDEN) el(naam).value = d.jaar[naam];
@@ -1240,6 +1669,8 @@ function leesDossier(tekst) {
   });
 
   el('dossier-openen').addEventListener('click', () => el('dossier-bestand').click());
+  // Het kenmerk staat op het afdrukblad; dat moet meelopen met wat er is getypt.
+  el('kenmerk').addEventListener('input', vernieuwAfdruk);
 
   el('dossier-bestand').addEventListener('change', async (gebeurtenis) => {
     const bestanden = gebeurtenis.target.files;
