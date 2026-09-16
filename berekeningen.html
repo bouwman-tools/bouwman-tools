@@ -1226,10 +1226,23 @@ const REVISIERENTE_PERCENTAGE = 0.20;
 // wettelijk forfait en geen aanname over het marginale tarief.
 const REVISIERENTE_NAVORDERING_DEEL = 0.50;
 
-// Art. 30i lid 3 AWR, eerste volzin: de regeling staat alleen open als de
-// aanspraak is bedongen minder dan tien jaren voor het jaar waarin de negatieve
-// uitgaven worden genoten. Bedongen in jaarAfkoop - 10 is precies tien jaar en
-// valt er dus buiten.
+/* Art. 30i lid 3 AWR, eerste volzin: de regeling staat alleen open als de
+   aanspraak is bedongen minder dan tien jaren voor het jaar waarin de negatieve
+   uitgaven worden genoten. De volzin vergelijkt het moment van bedingen met een
+   jaargrens, en niet twee jaartallen met elkaar.
+
+   Toegepaste lezing, vastgesteld 16-09-2026: de regeling staat open als de
+   aanspraak is bedongen in een van de tien kalenderjaren voorafgaand aan het
+   jaar van de negatieve uitgaven, dus vanaf 1 januari van jaarAfkoop - 10.
+   Bedongen in jaarAfkoop - 10 valt er dus nog binnen; pas bij elf jaar of meer
+   sluit de regeling. Vindplaatsen in BRONNEN.md, met de resterende onzekerheid:
+   de dragende bron is voorlichting van de Belastingdienst en het Centraal
+   Aanspreekpunt Pensioenen, geen wettekst of rechterlijke uitspraak.
+
+   Een invoerveld met de dag van bedingen zou hier niets aan toevoegen: elke
+   datum in jaarAfkoop - 10 ligt op of na 1 januari van dat jaar, zodat de toets
+   op het jaartal samenvalt met de toets op de datum. Zie open punt 9 in
+   BRONNEN.md. */
 const REVISIERENTE_TEGENBEWIJS_JAREN = 10;
 
 /* Grens van art. 3.133 lid 2 onderdeel d Wet IB 2001. Wordt een aanspraak op
@@ -1482,10 +1495,12 @@ function revisierenteAfkoopLijfrente({
     };
   }
 
-  const tegenbewijsOpen = jaarBedongen > jaarAfkoop - REVISIERENTE_TEGENBEWIJS_JAREN;
+  // Bedongen in een van de tien kalenderjaren voor het jaar van afkoop, dus
+  // vanaf 1 januari van jaarAfkoop - 10. Zie de toelichting bij de constante.
+  const tegenbewijsOpen = jaarAfkoop - jaarBedongen <= REVISIERENTE_TEGENBEWIJS_JAREN;
   if (!tegenbewijsOpen) {
     meldingen.push({ soort: 'let', tekst:
-      'De aanspraak is bedongen in ' + jaarBedongen + ', tien jaar of langer voor ' +
+      'De aanspraak is bedongen in ' + jaarBedongen + ', meer dan tien jaar voor ' +
       jaarAfkoop + '. De tegenbewijsregeling van art. 30i lid 3 AWR staat dan niet open ' +
       'en de revisierente is de hoofdregel van lid 2.' });
     return {
@@ -1497,6 +1512,19 @@ function revisierenteAfkoopLijfrente({
       saldoVermindering, saldoBegrensd, grondslagBox1: negatieveUitgaven,
       regels: [], meldingen
     };
+  }
+
+  // Het grensjaar zelf rust op voorlichting van de Belastingdienst en het
+  // Centraal Aanspreekpunt Pensioenen; geen rechter heeft het beslecht.
+  // Benoem dat, zodat het dossierstuk de keuze draagt in plaats van haar te verbergen.
+  if (jaarAfkoop - jaarBedongen === REVISIERENTE_TEGENBEWIJS_JAREN) {
+    meldingen.push({ soort: 'let', tekst:
+      'De aanspraak is bedongen in ' + jaarBedongen + ', het tiende kalenderjaar voor ' +
+      jaarAfkoop + '. Dat is het grensgeval van art. 30i lid 3 AWR. De tool houdt de ' +
+      'tegenbewijsregeling hier open, in lijn met het voorbeeld op de publiekspagina ' +
+      'Revisierente van de Belastingdienst en met V&A 26-002 van het Centraal ' +
+      'Aanspreekpunt Pensioenen. Rechtspraak over dit grensjaar is er niet; leg de ' +
+      'onderbouwing bij een verzoek in het eigen dossier vast.' });
   }
 
   const gebruikt = premies
@@ -2324,6 +2352,15 @@ const ONDERWERPEN = [
       'bedongen minder dan tien jaren voor het jaar van de negatieve uitgaven. De bedragen ' +
       'van de veronderstelde navorderingsaanslagen worden gesteld op 50 percent van de ' +
       'premies, en het tijdvak eindigt op 31 december van dat jaar.',
+    'Die volzin vergelijkt het moment van bedingen met een jaargrens en niet twee ' +
+      'jaartallen. De tool leest haar zo dat de regeling openstaat bij bedingen in een ' +
+      'van de tien kalenderjaren voorafgaand aan het jaar van de negatieve uitgaven, dus ' +
+      'vanaf 1 januari van dat tiende jaar. Bron: het voorbeeld op de publiekspagina ' +
+      'Revisierente van de Belastingdienst (fiscale informatie 2026), waarin een op ' +
+      '1 januari 2016 afgesloten lijfrente bij afkoop in 2026 nog openstaat, en V&A 26-002 ' +
+      'van het Centraal Aanspreekpunt Pensioenen (13-03-2026), dat spreekt van de tien ' +
+      'kalenderjaren voorafgaand aan dat jaar. Rechtspraak over dit grensjaar is er niet; ' +
+      'de dragende bron is dus voorlichting en geen wettekst of uitspraak.',
     'Art. 30fc lid 1 en 2 AWR: het rentetijdvak vangt aan zes maanden na het einde van het ' +
       'premiejaar, dus op 1 juli daarna, en de rente is enkelvoudig.',
     'Art. 30hb AWR met art. 1 lid 1 Besluit belasting- en invorderingsrente: het percentage ' +
@@ -2360,7 +2397,8 @@ const ONDERWERPEN = [
              'belastingrente die in rekening zou zijn gebracht als de premieaftrek per ' +
              'jaar was teruggenomen, met de bedragen van die navorderingsaanslagen op ' +
              '50 percent van de premies. Dat verzoek staat alleen open als de aanspraak ' +
-             'is bedongen minder dan tien jaren voor het jaar van afkoop.',
+             'is bedongen minder dan tien jaren voor het jaar van afkoop, dus in een van ' +
+             'de tien kalenderjaren daaraan voorafgaand.',
   velden: [
     { k: 'jaarAfkoop', l: 'Jaar van afkoop', t: 'keuze', v: 2026, opties: [
       { w: 2020, l: '2020' }, { w: 2021, l: '2021' }, { w: 2022, l: '2022' },
@@ -2384,7 +2422,7 @@ const ONDERWERPEN = [
       { w: 'eigen', l: 'Zelf een tarief opgeven' }
     ] },
     { k: 'eigenTariefBox1', l: 'Eigen marginaal tarief', h: 'Alleen als hierboven een eigen tarief is gekozen', t: 'procent', v: 49.5 },
-    { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'Tien jaar of langer voor het jaar van afkoop sluit de tegenbewijsregeling af', t: 'geheel', v: 2019 },
+    { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'De tegenbewijsregeling staat open tot en met het tiende kalenderjaar voor het jaar van afkoop; meer dan tien jaar ervoor sluit haar af', t: 'geheel', v: 2019 },
     { k: 'premie0', l: 'Premie in het jaar van afkoop', h: 'In aftrek gebracht; over dit jaar loopt geen rente', t: 'euro', v: 3000 },
     { k: 'premie1', l: 'Premie 1 jaar eerder', t: 'euro', v: 7200 },
     { k: 'premie2', l: 'Premie 2 jaar eerder', t: 'euro', v: 7200 },
