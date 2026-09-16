@@ -186,6 +186,36 @@
       padding: 10px 14px; line-height: 1.6;
     }
 
+    /* Een waarschuwing bij een invoerveld: geel, want zij vraagt een oordeel van
+       de gebruiker en meldt geen fout van de tool. */
+    .waarschuwing-box {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+      padding: 12px 14px; font-size: 12px; color: #854d0e; line-height: 1.6;
+      margin-top: 12px;
+    }
+    .waarschuwing-box strong { color: #713f12; }
+
+    /* De afroommethode staat sinds 15-09-2026 in een eigen inklapbaar blok en
+       niet meer op hetzelfde niveau als de hoofdmaatstaven: sinds de
+       wetswijziging van 2015 gaat zij nog maar in bijzondere gevallen op. */
+    details.afroom-blok {
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    details.afroom-blok > summary {
+      font-size: 13px; font-weight: 700; color: var(--navy);
+      cursor: pointer; list-style: none; display: inline-flex; align-items: center;
+      gap: 8px; padding: 4px 0; user-select: none;
+    }
+    details.afroom-blok > summary::before {
+      content: '▸'; font-size: 11px; color: var(--muted); transition: transform .15s;
+    }
+    details.afroom-blok[open] > summary::before { transform: rotate(90deg); }
+    details.afroom-blok > summary::-webkit-details-marker { display: none; }
+    .afroom-blok-inleiding {
+      font-size: 12px; color: var(--muted); line-height: 1.6;
+      margin: 8px 0 4px 20px; max-width: 70ch;
+    }
+
     .hidden { display: none; }
 
     #resultSection { display: none; }
@@ -339,9 +369,36 @@
           <input type="number" id="hoogsteWerknemerVerbonden" value="0" min="0" step="1000" oninput="bereken()" />
         </label>
       </div>
+      <div>
+        <label for="tegenbewijsLoon">Onderbouwd loon meest vergelijkbare dienstbetrekking
+          <span class="sub">Optioneel, art. 12a lid 2: het loon dat u aannemelijk maakt</span>
+          <input type="number" id="tegenbewijsLoon" value="0" min="0" step="1000" oninput="bereken()" />
+        </label>
+      </div>
     </div>
 
-    <!-- Afroommethode -->
+    <div class="waarschuwing-box" id="tegenbewijsWaarschuwing">
+      <strong>Alleen invullen indien aannemelijk kan worden gemaakt dat het volgens de
+      hoofdregel berekende loon te hoog is. Leg de vergelijking en onderbouwing in het
+      dossier vast.</strong><br><br>
+      De tool neemt dit bedrag over zonder het te toetsen en zet er in elke uitgang bij dat
+      het van u komt. Zij gebruikt het alleen als het <em>lager</em> is dan de norm van
+      artikel 12a, eerste lid: het tweede lid kan de norm verlagen en nooit verhogen. Vult u
+      een hoger of gelijk bedrag in, dan blijft de gewone norm staan.
+    </div>
+
+    <!-- Afroommethode. Staat sinds 15-09-2026 in een eigen inklapbaar blok en niet
+         meer als gelijkwaardige optie naast de hoofdmaatstaven. De rekenregel is
+         niet gewijzigd; alleen de plaats in het scherm. -->
+    <details class="afroom-blok" id="afroomBlok">
+      <summary>Afroommethode — alleen als aanvullende indicatie</summary>
+
+      <p class="afroom-blok-inleiding">
+        Sinds 2015 staat de meest vergelijkbare dienstbetrekking centraal. De afroommethode
+        kan in bijzondere situaties nog als hulp- of controlemiddel worden gebruikt, met name
+        wanneer de meest vergelijkbare dienstbetrekking onvoldoende houvast biedt.
+      </p>
+
     <label class="toggle-row" for="afroomCheck">
       <input type="checkbox" id="afroomCheck" onchange="toggleAfroom()" />
       <span>Afroommethode van toepassing</span>
@@ -366,7 +423,7 @@
             <li>De BV heeft meerdere medewerkers die zelfstandig significante omzet genereren</li>
             <li>Omzet vloeit voort uit kapitaalinvesteringen, handelsactiviteiten of een substantieel klantenbestand los van de DGA</li>
             <li>De omzet bestaat uit dividend of ander beleggingsresultaat en niet uit arbeid</li>
-            <li><strong>Let op bij een holding:</strong> een managementfee is geen opbrengst in de zin van het arrest. Zij is een prijs die het concern zelf vaststelt, terwijl de afroommethode kijkt naar de opbrengsten die uit de arbeid voortvloeien. Wordt de norm op concernniveau bepaald (art. 12a lid 3), vul dan de opbrengsten en kosten van het concern in, niet de fee.</li>
+            <li><strong>Let op bij een holding:</strong> een managementfee kán als opbrengst dienen, maar alleen als die vergoeding (nagenoeg) geheel uit de arbeid van de DGA voortvloeit. Bevat de fee mede een vergoeding voor vermogen, voor andere prestaties of voor het werk van anderen, dan valt zij hier af. Vink hieronder aan dat het om een fee gaat en bevestig het oordeel; wordt de norm op concernniveau bepaald (art. 12a lid 3), overweeg dan de opbrengsten en kosten van het concern in te vullen in plaats van de fee.</li>
             <li>Er is een vergelijkingsloon ingevuld: dan gebruikt de tool dat loon in plaats van de afroomuitkomst, ook als het lager is (zie hieronder)</li>
           </ul>
         </div>
@@ -393,7 +450,30 @@
           </label>
         </div>
       </div>
+
+      <!-- Managementfee als opbrengst. Tot 15-09-2026 sloot de toelichting dit
+           categorisch uit; nu is het een waarschuwing met een bevestiging die de
+           gebruiker moet geven voordat de tool met deze opbrengst doorrekent. -->
+      <label class="toggle-row" for="feeCheck">
+        <input type="checkbox" id="feeCheck" onchange="toggleFee()" />
+        <span>De opbrengsten bestaan geheel of gedeeltelijk uit een managementfee</span>
+      </label>
+
+      <div class="methode-section" id="feeSection">
+        <div class="waarschuwing-box" id="feeWaarschuwing">
+          Managementfee kan als opbrengst worden gebruikt indien aannemelijk is dat deze
+          vergoeding (nagenoeg) geheel voortvloeit uit de arbeid van de DGA. Controleer of
+          de fee geen materiële vergoeding bevat voor andere prestaties, vermogen of
+          werkzaamheden van anderen.
+        </div>
+        <label class="toggle-row" for="feeBevestigdCheck">
+          <input type="checkbox" id="feeBevestigdCheck" onchange="bereken()" />
+          <span>Ik heb gecontroleerd dat deze fee overeenkomt met de beschrijving hierboven</span>
+        </label>
+        <div class="toggle-note">Zonder deze bevestiging rekent de tool de afroommethode niet door. De maatstaven van onderdeel b en c blijven wel gelden.</div>
+      </div>
     </div>
+    </details>
   </div>
 
   <!-- Persoonlijke holding: meer dan een eigen lichaam -->
@@ -452,7 +532,8 @@
         <strong>Artikel 12a gaat voor.</strong> Is het gebruikelijk loon hoger dan dat doelloon, dan loopt het inkomen onvermijdelijk in het toptarief en is er niets te volmaken. De tool zegt dat dan ook, met het bedrag dat boven de grens uitkomt.<br><br>
         <strong>De grens geldt voor het hele box 1-inkomen</strong>, niet voor het loon alleen. Overige box 1-inkomsten — eigenwoningforfait, terbeschikkingstelling, winst uit onderneming — verkleinen de ruimte voor loon; aftrekbare kosten eigen woning en andere box 1-aftrekposten vergroten haar.<br><br>
         <strong>De bijtelling voor de auto vult de schijf mee</strong>, want dat voordeel is loon (art. 13bis, eerste lid, Wet LB 1964). Het salaris in geld is het doelloon minus die bijtelling. Vul de bijtelling in ná de eigen bijdrage voor privégebruik: het voordeel wordt in aanmerking genomen voor zover het die vergoeding overtreft (art. 13bis, vierde lid).<br><br>
-        <strong>Niet meegerekend:</strong> aftrekbare pensioeninleg van de werknemer, heffingskortingen, de aanvullende heffing over grondslagverminderende posten van art. 2.10, tweede lid, en het effect op de vennootschapsbelasting. Voor wie vóór 1 januari 1946 is geboren geldt art. 2.10a; die tabel heeft dezelfde grens voor het toptarief, dus de uitkomst verandert daar niet door.
+        <strong>De pensioen- of werknemersbijdrage werkt de andere kant op.</strong> Bedragen die worden ingehouden als bijdrage ingevolge een pensioenregeling behoren niet tot het loon (art. 11, eerste lid, onderdeel j, onder 1°, Wet LB 1964). Zij verlagen dus het fiscale loon, en daarom moet het brutoloon juist hóger zijn om de schijf nog vol te maken. Vul hier de ingehouden werknemersbijdrage in, niet de aanspraak en niet de werkgeverslast. De toets aan artikel 12a verandert er niet door: die norm is het fiscale loon, dus ná de inhouding.<br><br>
+        <strong>Niet meegerekend:</strong> heffingskortingen, de aanvullende heffing over grondslagverminderende posten van art. 2.10, tweede lid, en het effect op de vennootschapsbelasting. Voor wie vóór 1 januari 1946 is geboren geldt art. 2.10a; die tabel heeft dezelfde grens voor het toptarief, dus de uitkomst verandert daar niet door.
       </div>
     </details>
 
@@ -476,6 +557,12 @@
             <input type="number" id="bijtellingAuto" value="0" min="0" step="1000" oninput="bereken()" />
           </label>
         </div>
+        <div>
+          <label>Aftrekbare pensioen- of werknemersbijdrage
+            <span class="sub">Jaarbedrag dat op het loon wordt ingehouden; verhoogt het benodigde brutoloon</span>
+            <input type="number" id="pensioenbijdrage" value="0" min="0" step="1000" oninput="bereken()" />
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -493,6 +580,8 @@
       <table id="normenTabel"></table>
       <div class="info-box" id="wetsgrondslag"></div>
     </div>
+
+    <div id="tegenbewijsCard"></div>
 
     <div id="concernCard"></div>
 
@@ -557,12 +646,37 @@
 //          c. het normbedrag.
 //   lid 2  Tegenbewijs: maakt de inhoudingsplichtige aannemelijk dat het hoogste
 //          bedrag uit lid 1 hoger is dan het loon uit de meest vergelijkbare
-//          dienstbetrekking, dan geldt dat laatste. Deze tool past lid 2 niet toe.
+//          dienstbetrekking, dan geldt dat laatste.
 //   lid 4  Lid 1 en 2 gelden niet als het vast te stellen loon niet hoger is dan
-//          EUR 5.000. Dat is alleen via lid 2 te bereiken: zonder lid 2 is de
-//          uitkomst altijd ten minste het normbedrag van lid 1 onderdeel c en
-//          daarmee ruim boven EUR 5.000. Lid 4 is in deze tool dus onbereikbaar
-//          en bewust niet geimplementeerd; zie de afbakening in VERGELIJKING.md.
+//          EUR 5.000.
+//
+// LID 2 IS SINDS 15-09-2026 EEN OPTIONEEL INVOERVELD EN GEEN REKENREGEL. Het
+// blijft een bewijsoordeel: de tool kan niet vaststellen of het tegenbewijs
+// slaagt en doet dat ook niet. Zij neemt alleen een door de gebruiker onderbouwd
+// bedrag over, en uitsluitend in de richting die lid 2 toestaat, namelijk
+// omlaag. De tekst van lid 2 luidt voluit (jaarversie 2026-01-01, gelezen in de
+// geconsolideerde XML van de KOOP-repository BWBR0002471 op 16-09-2026, met de
+// SHA-512 uit het manifest nagerekend):
+//
+//   "Indien de inhoudingsplichtige aannemelijk maakt dat het hoogste bedrag,
+//    bedoeld in het eerste lid, hoger is dan het loon uit de meest
+//    vergelijkbare dienstbetrekking, wordt het loon in afwijking van het eerste
+//    lid gesteld op het loon uit de meest vergelijkbare dienstbetrekking."
+//
+// De voorwaarde is dus dat het bedrag van lid 1 HOGER is. Is het onderbouwde
+// bedrag gelijk aan of hoger dan de norm van lid 1, dan is aan die voorwaarde
+// niet voldaan, verandert lid 2 niets en blijft lid 1 gelden. Verhogen kan lid 2
+// nooit. Elke uitgang draagt de aantekening dat dit bedrag van de gebruiker komt
+// en niet van de tool; zie TEGENBEWIJS_AANTEKENING hieronder.
+//
+// Lid 4 blijft bewust buiten de tool. Langs lid 2 is de drempel van EUR 5.000 nu
+// wel bereikbaar, maar of het loon daarmee onder de regeling uit valt is opnieuw
+// een bewijsoordeel over de feiten en geen rekenregel. Lid 4 toetst bovendien
+// het loon voor de arbeid in het lichaam EN de daarmee verbonden lichamen samen
+// in het kalenderjaar, dus per concern en niet per vennootschap; die optelling
+// vraagt gegevens die deze tool niet uitvraagt. De tool signaleert het geval en
+// rekent er niet mee; zie de melding in bouwToestand en de afbakening in
+// VERGELIJKING.md.
 //
 // GEEN DOELMATIGHEIDSMARGE MEER. Tot en met 2022 luidde lid 1 onderdeel a
 // "75% van het loon uit de meest vergelijkbare dienstbetrekking" (jaarversie
@@ -660,6 +774,22 @@ function afroombedrag(opbrengsten, toerekenbareKosten) {
  * dan kan de afroommethode niet worden toegepast (HR 2012:BW4167, r.o. 5.2). Dat
  * oordeel blijft bij de gebruiker; de vink in de tool is zijn verklaring.
  *
+ * MANAGEMENTFEE ALS OPBRENGST. Tot 15-09-2026 sloot de toelichting van de tool
+ * een managementfee als opbrengst categorisch uit. Die uitsluiting was een eigen
+ * afleiding en geen vindplaats: HR 2012:BW4167, r.o. 5.2 spreekt van "de
+ * opbrengsten van de B.V." en sluit een fee nergens uit. Waar de afroommethode
+ * wel op ziet is de herkomst van die opbrengst, namelijk de arbeid van de
+ * directeur. Een fee die (nagenoeg) geheel uit die arbeid voortvloeit voldoet
+ * daaraan; een fee die mede een vergoeding is voor vermogen, voor andere
+ * prestaties of voor de arbeid van anderen niet, en dan geldt dezelfde
+ * uitsluiting als bij een aandeel in het resultaat van een samenwerkingsverband.
+ * Dat onderscheid is een feitelijk oordeel dat de tool niet kan maken. Zij
+ * weigert de invoer daarom niet meer, maar vraagt de gebruiker het oordeel
+ * uitdrukkelijk te bevestigen. Zonder bevestiging blijft de afroomuitkomst
+ * achterwege: geen stille doorrekening van een grondslag waarvan niemand heeft
+ * verklaard dat zij klopt. De maatstaven van onderdeel b en c blijven dan gewoon
+ * gelden, want die staan los van de afroommethode.
+ *
  * MEER DAN EEN EIGEN LICHAAM (persoonlijke holding). Art. 12a lid 1 geldt per
  * lichaam waarin de werknemer een aanmerkelijk belang heeft. Werkt hij voor een
  * persoonlijke holding en voor een of meer werkmaatschappijen, dan zijn dat
@@ -702,6 +832,13 @@ function afroombedrag(opbrengsten, toerekenbareKosten) {
  * @param {number} invoer.opbrengsten         Opbrengsten van de BV.
  * @param {number} invoer.toerekenbareKosten  Toerekenbare kosten, lasten en
  *                                            afschrijvingen, excl. DGA-loon.
+ * @param {boolean} invoer.feeAlsOpbrengst    Bestaan die opbrengsten geheel of
+ *                                            gedeeltelijk uit een managementfee?
+ * @param {boolean} invoer.feeBevestigd       Heeft de gebruiker bevestigd dat de
+ *                                            fee aan de voorwaarde voldoet?
+ * @param {number} invoer.tegenbewijsLoon     Onderbouwd loon uit de meest
+ *                                            vergelijkbare dienstbetrekking
+ *                                            (art. 12a lid 2); 0 = niet ingevuld.
  * @returns {object|null} null als het jaar niet is vastgelegd.
  */
 function bepaalGebruikelijkLoon(invoer) {
@@ -716,7 +853,15 @@ function bepaalGebruikelijkLoon(invoer) {
   const opbrengsten        = Math.max(0, invoer.opbrengsten        || 0);
   const toerekenbareKosten = Math.max(0, invoer.toerekenbareKosten || 0);
 
-  const afroomGevraagd = !!invoer.afroomAan && opbrengsten > 0;
+  // Managementfee als opbrengst: de bevestiging is de poort. Is aangevinkt dat
+  // de opbrengsten (mede) een managementfee zijn en ontbreekt de bevestiging,
+  // dan levert de afroommethode niets op. Zie het commentaar hierboven; de tool
+  // vervangt haar eigen oordeel niet door dat van de gebruiker, zij vraagt erom.
+  const feeAlsOpbrengst = !!invoer.afroomAan && !!invoer.feeAlsOpbrengst;
+  const feeBevestigd = feeAlsOpbrengst && !!invoer.feeBevestigd;
+  const feeOnbevestigd = feeAlsOpbrengst && !feeBevestigd && opbrengsten > 0;
+
+  const afroomGevraagd = !!invoer.afroomAan && opbrengsten > 0 && !feeOnbevestigd;
   const afroom = afroomGevraagd ? afroombedrag(opbrengsten, toerekenbareKosten) : null;
 
   // Onderdeel a. Een ingevuld vergelijkingsloon gaat voor: dan is de
@@ -751,7 +896,10 @@ function bepaalGebruikelijkLoon(invoer) {
 
   const onderdeelC = normbedrag;
 
-  const maatgevend = Math.max(
+  // De norm van lid 1: het hoogste van de drie onderdelen. Dit is de uitkomst
+  // van de hoofdregel en blijft apart bewaard, ook als lid 2 haar verlaagt: de
+  // lezer hoort te zien waar het tegenbewijs vandaan komt en wat het scheelt.
+  const normLid1 = Math.max(
     onderdeelA === null ? 0 : onderdeelA,
     onderdeelB === null ? 0 : onderdeelB,
     onderdeelC
@@ -760,8 +908,23 @@ function bepaalGebruikelijkLoon(invoer) {
   // Bij een gelijkspel wint het onderdeel dat het hoogst in lid 1 staat: dat is
   // de maatstaf waaruit het bedrag rechtstreeks volgt.
   let maatgevendOnderdeel = 'c';
-  if (onderdeelB !== null && onderdeelB === maatgevend) maatgevendOnderdeel = 'b';
-  if (onderdeelA !== null && onderdeelA === maatgevend) maatgevendOnderdeel = 'a';
+  if (onderdeelB !== null && onderdeelB === normLid1) maatgevendOnderdeel = 'b';
+  if (onderdeelA !== null && onderdeelA === normLid1) maatgevendOnderdeel = 'a';
+
+  // Tegenbewijs van art. 12a lid 2. De tool toetst het bewijs niet en kan dat
+  // ook niet: zij neemt een door de gebruiker onderbouwd bedrag over en alleen
+  // in de richting die lid 2 toestaat. Lid 2 stelt het loon "op dat lagere
+  // loon" wanneer aannemelijk is dat het hoogste bedrag van lid 1 hoger is dan
+  // het loon uit de meest vergelijkbare dienstbetrekking. Een bedrag gelijk aan
+  // of hoger dan de norm van lid 1 valt daar per definitie buiten: dan is er
+  // niets aannemelijk gemaakt en blijft lid 1 gelden. Zo'n bedrag wordt daarom
+  // genegeerd en nooit als verhoging doorgevoerd.
+  const tegenbewijsLoon = Math.max(0, invoer.tegenbewijsLoon || 0);
+  const tegenbewijsIngevuld = tegenbewijsLoon > 0;
+  const tegenbewijsToegepast = tegenbewijsIngevuld && tegenbewijsLoon < normLid1;
+  const tegenbewijsGenegeerd = tegenbewijsIngevuld && !tegenbewijsToegepast;
+
+  const maatgevend = tegenbewijsToegepast ? tegenbewijsLoon : normLid1;
 
   // Concern. Zonder doorbetaaldloonregeling geldt art. 12a per lichaam; met de
   // regeling wordt het eerste lid toegepast alsof alle arbeid voor een
@@ -778,8 +941,9 @@ function bepaalGebruikelijkLoon(invoer) {
   // ten minste het normbedrag van onderdeel c is. De som daarvan is dus een
   // ondergrens en geen uitkomst: de norm bij die andere lichamen kan hoger
   // liggen. Zij kan ook lager uitkomen langs de tegenbewijsregeling van lid 2 of
-  // langs de drempel van lid 4, en die past deze tool niet toe (zie de
-  // afbakening in VERGELIJKING.md).
+  // langs de drempel van lid 4. Een ingevuld tegenbewijs werkt alleen door in de
+  // norm van het doorgerekende lichaam, want daarover gaat de onderbouwing; voor
+  // de andere lichamen blijft het normbedrag staan (zie VERGELIJKING.md).
   const ondergrensSamen = perLichaam
     ? maatgevend + (aantalLichamen - 1) * normbedrag
     : maatgevend;
@@ -796,6 +960,14 @@ function bepaalGebruikelijkLoon(invoer) {
     hoogsteWerknemerVerbonden: hoogsteVerbonden,
     afroom,
     afroomTerzijde,
+    feeAlsOpbrengst,
+    feeBevestigd,
+    feeOnbevestigd,
+    normLid1,
+    tegenbewijsLoon,
+    tegenbewijsIngevuld,
+    tegenbewijsToegepast,
+    tegenbewijsGenegeerd,
     maatgevend,
     maatgevendOnderdeel,
     concernAan,
@@ -846,6 +1018,34 @@ function toetsLoon(uitkomst, huidigLoon) {
  * het gebruik voor privé-doeleinden is verschuldigd", dus hier hoort de
  * bijtelling na aftrek van de eigen bijdrage.
  *
+ * DE PENSIOEN- OF WERKNEMERSBIJDRAGE WERKT DE ANDERE KANT OP DAN DE BIJTELLING,
+ * en dat is de reden dat zij hier apart staat. Art. 11 lid 1 onderdeel j, onder
+ * 1°, Wet LB 1964: tot het loon behoren niet "bedragen die worden ingehouden:
+ * 1°. als bijdrage ingevolge een pensioenregeling" (geconsolideerde tekst,
+ * jaarversie 2026-01-01, KOOP-repository BWBR0002471, gecontroleerd 16-09-2026
+ * met de SHA-512 uit het manifest). Zij verlagen dus het fiscale loon en
+ * daarmee het belastbare inkomen uit werk en woning. Wie de schijf wil volmaken
+ * heeft daarom een HOGER brutoloon nodig: het deel dat door de inhouding uit het
+ * loonbegrip verdwijnt moet er bovenop, anders raakt het inkomen de schijfgrens
+ * niet. De bijtelling doet het omgekeerde: die vult de schijf mee zonder dat er
+ * geld wordt betaald, en gaat er dus juist af.
+ *
+ * Twee dingen om niet te verwarren. Onderdeel j onder 1° gaat over de INGEHOUDEN
+ * werknemersbijdrage en dat is het bedrag dat hier gevraagd wordt. Onderdeel c
+ * van hetzelfde lid stelt de AANSPRAAK vrij, dus het recht op het toekomstige
+ * pensioen; dat is geen bedrag op de loonstrook en hoort hier niet in. En
+ * "pensioenregeling" is het begrip van hoofdstuk IIB Wet LB 1964: een
+ * bovenmatige regeling is er geen, en dan valt de bijdrage ook niet onder
+ * onderdeel j. Of de regeling binnen die normering blijft toetst de tool niet.
+ *
+ * Wat hier NIET verandert is de toets aan artikel 12a. De norm van art. 12a is
+ * een loonbegrip in de zin van de Wet LB 1964 en dus het fiscale loon, gemeten
+ * NA de inhouding van de pensioenbijdrage. De haalbaarheidstoets vergelijkt de
+ * norm daarom met het doelloon en niet met het brutoloon; die twee lopen alleen
+ * uiteen doordat de bijdrage ertussen zit. Een andere lezing zou de norm stil
+ * verhogen met de pensioeninleg, en dat is precies de soort stille aanname die
+ * in VERGELIJKING.md bij het vervangen model als oorzaak C is aangewezen.
+ *
  * @param {object} invoer
  * @param {number} invoer.jaar              Kalenderjaar.
  * @param {number} invoer.overigeInkomsten  Overige box 1-inkomsten naast het
@@ -855,6 +1055,9 @@ function toetsLoon(uitkomst, huidigLoon) {
  *                                          andere box 1-aftrekposten.
  * @param {number} invoer.bijtellingAuto    Bijtelling privegebruik auto na
  *                                          eigen bijdrage.
+ * @param {number} invoer.pensioenbijdrage  Aftrekbare pensioen- of
+ *                                          werknemersbijdrage per jaar, die op
+ *                                          het loon wordt ingehouden.
  * @param {number} invoer.norm              Het maatgevende gebruikelijk loon
  *                                          uit bepaalGebruikelijkLoon.
  * @returns {object|null} null als voor het jaar geen tarieftabel is vastgelegd.
@@ -866,20 +1069,34 @@ function volmakenSchijf(invoer) {
   // het vervangen model maakt (oorzaak E in VERGELIJKING.md).
   if (grens === undefined) return null;
 
-  const overigeInkomsten = Math.max(0, invoer.overigeInkomsten || 0);
-  const aftrekposten     = Math.max(0, invoer.aftrekposten     || 0);
-  const bijtellingAuto   = Math.max(0, invoer.bijtellingAuto   || 0);
-  const norm             = Math.max(0, invoer.norm             || 0);
+  const overigeInkomsten  = Math.max(0, invoer.overigeInkomsten  || 0);
+  const aftrekposten      = Math.max(0, invoer.aftrekposten      || 0);
+  const bijtellingAuto    = Math.max(0, invoer.bijtellingAuto    || 0);
+  const pensioenbijdrage  = Math.max(0, invoer.pensioenbijdrage  || 0);
+  const norm              = Math.max(0, invoer.norm              || 0);
 
   const saldoOverig = overigeInkomsten - aftrekposten;
 
-  // Het loon waarmee het belastbare inkomen precies op de grens uitkomt. Onder
-  // nihil bestaat geen loon: bij overig inkomen boven de grens is er geen ruimte.
+  // Het FISCALE loon waarmee het belastbare inkomen precies op de grens uitkomt.
+  // Onder nihil bestaat geen loon: bij overig inkomen boven de grens is er geen
+  // ruimte.
   const doelloon = Math.max(0, grens - saldoOverig);
-  const salarisInGeld = Math.max(0, doelloon - bijtellingAuto);
+
+  // Het loon vóór de inhouding van de pensioenbijdrage. De bijdrage behoort niet
+  // tot het loon (art. 11 lid 1 onderdeel j Wet LB 1964), dus moet zij er bovenop
+  // om hetzelfde fiscale loon over te houden. Zonder bijdrage is dit het doelloon
+  // zelf en verandert er niets aan de uitkomst van vóór 15-09-2026.
+  const brutoloon = doelloon + pensioenbijdrage;
+
+  // Het salaris in geld: van het brutoloon gaat de bijtelling af, want dat deel
+  // van het loon wordt niet in geld genoten (art. 13bis lid 1 Wet LB 1964).
+  const salarisInGeld = Math.max(0, brutoloon - bijtellingAuto);
 
   // Precies op de grens is de schijf nog vol en het toptarief nog niet geraakt:
   // art. 2.10 lid 1 belast pas het deel dat de grens "te boven gaat".
+  //
+  // De norm wordt met het doelloon vergeleken en niet met het brutoloon: beide
+  // zijn fiscaal loon. Zie de toelichting boven deze functie.
   const haalbaar = norm <= doelloon;
 
   return {
@@ -887,6 +1104,8 @@ function volmakenSchijf(invoer) {
     grens,
     saldoOverig,
     doelloon,
+    pensioenbijdrage,
+    brutoloon,
     bijtellingAuto,
     salarisInGeld,
     norm,
@@ -906,8 +1125,16 @@ function volmakenSchijf(invoer) {
 // dossierbestand. Er wordt hier niets opnieuw uitgerekend; alles komt uit de kern.
 
 const TOOL_ID = 'gebruikelijk-loon';
-const TOOL_VERSIE = '1.1.0';
-const DOSSIER_VERSIE = 1;
+const TOOL_VERSIE = '1.2.0';
+
+// Formaatversie 2 sinds 15-09-2026: er zijn vier invoervelden bijgekomen (het
+// tegenbewijs van art. 12a lid 2, de twee vinken bij de managementfee en de
+// pensioenbijdrage). Een bestand van versie 1 kon die velden niet bevatten en
+// gaat daarom gewoon open: bij een veld met een hogere 'sinds' dan de versie van
+// het bestand neemt de tool de neutrale waarde, en zegt zij dat er bij het
+// openen. Dat is geen stille standaardwaarde maar het uitgangspunt waarmee dat
+// bestand is opgeslagen: die velden bestonden toen niet.
+const DOSSIER_VERSIE = 2;
 
 // De jaren die de tool kent, in de vorm waarin de keuzelijst ze gebruikt.
 const JAREN = Object.keys(NORMBEDRAGEN).sort();
@@ -923,8 +1150,11 @@ const JAREN = Object.keys(NORMBEDRAGEN).sort();
 //         'aantal' geheel getal van ten minste 1
 //         'vink'   aan of uit
 //         'tekst'  vrije tekst; dossiergegeven dat niet meerekent
-// sectie  de vink die dit veld actief maakt; leeg is altijd actief
+// sectie  de vink die dit veld actief maakt; leeg is altijd actief. Een sectie
+//         mag zelf onder een andere sectie hangen; veldActief loopt de keten af
 // dom     het id in de pagina, als dat afwijkt van het id in de toestand
+// sinds   de formaatversie van het dossierbestand waarin dit veld voor het eerst
+//         voorkomt; ontbreekt hij, dan is het veld er vanaf versie 1
 const INVOERVELDEN = [
   { id: 'kenmerk',   soort: 'tekst', sectie: '', label: 'Klantnaam of kenmerk' },
   { id: 'opsteller', soort: 'tekst', sectie: '', label: 'Opgesteld door' },
@@ -938,12 +1168,19 @@ const INVOERVELDEN = [
     label: 'Hoogste werknemer van dit lichaam' },
   { id: 'hoogsteWerknemerVerbonden', soort: 'bedrag', sectie: '',
     label: 'Hoogste werknemer van een verbonden lichaam' },
+  { id: 'tegenbewijsLoon', soort: 'bedrag', sectie: '', sinds: 2,
+    label: 'Onderbouwd loon meest vergelijkbare dienstbetrekking (art. 12a lid 2)' },
   { id: 'afroomAan', soort: 'vink', sectie: '', dom: 'afroomCheck',
     label: 'Afroommethode van toepassing' },
   { id: 'omzet', soort: 'bedrag', sectie: 'afroomAan',
     label: 'Opbrengsten van de BV' },
   { id: 'overigeKosten', soort: 'bedrag', sectie: 'afroomAan',
     label: 'Toerekenbare kosten, lasten en afschrijvingen (excl. DGA-loon)' },
+  { id: 'feeAlsOpbrengst', soort: 'vink', sectie: 'afroomAan', dom: 'feeCheck', sinds: 2,
+    label: 'De opbrengsten bestaan geheel of gedeeltelijk uit een managementfee' },
+  { id: 'feeBevestigd', soort: 'vink', sectie: 'feeAlsOpbrengst',
+    dom: 'feeBevestigdCheck', sinds: 2,
+    label: 'Bevestigd: de fee vloeit (nagenoeg) geheel voort uit de arbeid van de DGA' },
   { id: 'concernAan', soort: 'vink', sectie: '', dom: 'concernCheck',
     label: 'De DGA werkt voor meer dan een eigen lichaam' },
   { id: 'aantalLichamen', soort: 'aantal', sectie: 'concernAan',
@@ -958,11 +1195,29 @@ const INVOERVELDEN = [
     label: 'Box 1-aftrekposten' },
   { id: 'bijtellingAuto', soort: 'bedrag', sectie: 'schijfAan',
     label: 'Bijtelling privegebruik auto (na eigen bijdrage)' },
+  { id: 'pensioenbijdrage', soort: 'bedrag', sectie: 'schijfAan', sinds: 2,
+    label: 'Aftrekbare pensioen- of werknemersbijdrage (per jaar)' },
 ];
 
-/** Is dit veld in de huidige invoer actief, of hangt het onder een uitgezette vink? */
+/**
+ * Is dit veld in de huidige invoer actief, of hangt het onder een uitgezette vink?
+ *
+ * De keten wordt helemaal afgelopen. De bevestiging bij de managementfee hangt
+ * onder de vink die de fee aanmeldt, en die hangt zelf onder de afroommethode;
+ * staat de afroommethode uit, dan is de bevestiging ook niet actief, ook al
+ * stond haar eigen vink nog aan van een eerdere invoer.
+ */
 function veldActief(inv, veld) {
-  return veld.sectie === '' || !!inv[veld.sectie];
+  let sectie = veld.sectie;
+  const gezien = {};
+  while (sectie !== '' && sectie !== undefined) {
+    if (!inv[sectie]) return false;
+    if (gezien[sectie]) return true;        // nooit blijven rondlopen
+    gezien[sectie] = true;
+    const ouder = INVOERVELDEN.filter(function (v) { return v.id === sectie; })[0];
+    sectie = ouder ? ouder.sectie : '';
+  }
+  return true;
 }
 
 /**
@@ -994,6 +1249,31 @@ function normaliseerInvoer(ruw) {
   return inv;
 }
 
+// ── Vaste teksten die in meer dan een uitgang moeten staan ─────────────────
+// Een tekst die op het scherm, op de afdruk en in de export hetzelfde hoort te
+// luiden staat hier een keer. Twee kopieen lopen uiteen zonder dat iemand het
+// merkt, en juist bij deze twee teksten is dat het probleem: de ene zegt dat de
+// tool iets NIET heeft vastgesteld, de andere vraagt de gebruiker om een
+// verklaring. Beide staan ook letterlijk in de pagina zelf, bij het veld waar
+// zij horen; een test bewaakt dat die twee gelijk blijven.
+
+// De aantekening bij een toegepast tegenbewijs. Zij is permanent: zij staat in
+// de uitkomstregels (afdruk en export), in de meldingen (afdruk, export en
+// scherm), op een eigen kaart op het scherm en in het dossierbestand.
+const TEGENBEWIJS_AANTEKENING =
+  'Let op: dit bedrag is door de gebruiker vastgesteld op grond van de ' +
+  'tegenbewijsregeling van art. 12a lid 2 Wet LB 1964. Het is niet door de tool ' +
+  'berekend en niet door de tool getoetst. Of aannemelijk is gemaakt dat het loon ' +
+  'uit de meest vergelijkbare dienstbetrekking lager is, is een bewijsoordeel; de ' +
+  'vergelijking en de onderbouwing horen in het dossier.';
+
+// De waarschuwing bij een managementfee als opbrengst voor de afroommethode.
+const FEE_WAARSCHUWING =
+  'Managementfee kan als opbrengst worden gebruikt indien aannemelijk is dat deze ' +
+  'vergoeding (nagenoeg) geheel voortvloeit uit de arbeid van de DGA. Controleer of ' +
+  'de fee geen materiële vergoeding bevat voor andere prestaties, vermogen of ' +
+  'werkzaamheden van anderen.';
+
 /**
  * De volledige toestand van een berekening: invoer, uitkomst, toets, de rijen
  * van de normentabel, het volmaken van de schijf en de meldingen.
@@ -1011,6 +1291,9 @@ function bouwToestand(inv, vandaag) {
     afroomAan: inv.afroomAan,
     opbrengsten: inv.omzet,
     toerekenbareKosten: inv.overigeKosten,
+    feeAlsOpbrengst: inv.feeAlsOpbrengst,
+    feeBevestigd: inv.feeBevestigd,
+    tegenbewijsLoon: inv.tegenbewijsLoon,
     concernAan: inv.concernAan,
     doorbetaaldLoon: inv.doorbetaaldLoon,
     aantalLichamen: inv.aantalLichamen,
@@ -1042,11 +1325,50 @@ function bouwToestand(inv, vandaag) {
         overigeInkomsten: inv.overigeInkomsten,
         aftrekposten: inv.aftrekposten,
         bijtellingAuto: inv.bijtellingAuto,
+        pensioenbijdrage: inv.pensioenbijdrage,
         norm: uitkomst.maatgevend,
       })
     : null;
 
   const meldingen = [];
+
+  // De aantekening bij het tegenbewijs staat vooraan: zij bepaalt hoe alles
+  // eronder gelezen moet worden.
+  if (uitkomst.tegenbewijsToegepast) {
+    meldingen.push(TEGENBEWIJS_AANTEKENING);
+  }
+
+  if (uitkomst.tegenbewijsGenegeerd) {
+    meldingen.push('Het onderbouwde loon uit de meest vergelijkbare dienstbetrekking is ' +
+      'niet lager dan de norm van art. 12a lid 1, en is daarom buiten beschouwing ' +
+      'gelaten. De tegenbewijsregeling van lid 2 komt alleen in beeld als het hoogste ' +
+      'bedrag van lid 1 hoger is dan dat loon; zij kan de norm verlagen en nooit ' +
+      'verhogen. De uitkomst is de gewone norm van lid 1.');
+  }
+
+  // Signalering, geen rekenregel: langs lid 2 is de drempel van lid 4 bereikbaar
+  // geworden. De tool rekent er niet mee, want lid 4 toetst het loon over het
+  // lichaam en de verbonden lichamen samen en die gegevens vraagt zij niet uit.
+  if (uitkomst.tegenbewijsToegepast && uitkomst.maatgevend <= 5000) {
+    meldingen.push('Het vastgestelde loon is niet hoger dan EUR 5.000. Art. 12a lid 4 ' +
+      'Wet LB 1964 sluit het eerste en tweede lid dan uit, maar toetst dat aan het loon ' +
+      'voor de arbeid in dit lichaam en de daarmee verbonden lichamen samen in het ' +
+      'kalenderjaar. Die optelling vraagt deze tool niet uit en zij past lid 4 daarom ' +
+      'niet toe. Beoordeel dat zelf.');
+  }
+
+  if (uitkomst.feeOnbevestigd) {
+    meldingen.push('De opbrengsten bestaan geheel of gedeeltelijk uit een managementfee ' +
+      'en de bevestiging daarbij ontbreekt. De afroommethode is daarom niet ' +
+      'doorgerekend. ' + FEE_WAARSCHUWING);
+  }
+
+  if (uitkomst.feeBevestigd && uitkomst.herkomstA === 'afroommethode') {
+    meldingen.push('De opbrengsten bestaan geheel of gedeeltelijk uit een managementfee. ' +
+      'De gebruiker heeft bevestigd dat die vergoeding (nagenoeg) geheel voortvloeit uit ' +
+      'de arbeid van de DGA. Dat oordeel is niet door de tool getoetst. ' +
+      FEE_WAARSCHUWING);
+  }
 
   if (!toets.voldoet) {
     meldingen.push('Het huidige loon ligt onder de norm: de inspecteur kan het loon ' +
@@ -1156,9 +1478,34 @@ function uitkomstregels(t) {
       bron: r.toelichting + (r.telt ? '' : ' — telt niet mee in het maximum') });
   });
 
+  // Bij een toegepast tegenbewijs staat eerst wat de hoofdregel zou geven, dan
+  // het onderbouwde bedrag met de aantekening eraan vast. Zo is op de afdruk en
+  // in de export te zien waar het verschil vandaan komt en van wie het komt.
+  if (u.tegenbewijsToegepast) {
+    uit.push({ label: 'Norm volgens de hoofdregel van art. 12a lid 1', getal: u.normLid1,
+      formaat: '#,##0.00',
+      bron: 'het hoogste van onderdeel a, b en c; onderdeel ' + u.maatgevendOnderdeel +
+        ' is hier het hoogste' });
+    uit.push({ label: 'Onderbouwd loon meest vergelijkbare dienstbetrekking',
+      getal: u.tegenbewijsLoon, formaat: '#,##0.00',
+      bron: TEGENBEWIJS_AANTEKENING });
+    uit.push(bedragRegel('Verlaging op grond van het tegenbewijs',
+      u.normLid1 - u.tegenbewijsLoon));
+  } else if (u.tegenbewijsGenegeerd) {
+    uit.push({ label: 'Onderbouwd loon meest vergelijkbare dienstbetrekking',
+      getal: u.tegenbewijsLoon, formaat: '#,##0.00',
+      bron: 'ingevuld maar niet lager dan de norm van lid 1, daarom buiten beschouwing ' +
+        'gelaten — art. 12a lid 2 kan de norm alleen verlagen' });
+  }
+
   uit.push(bedragRegel('Maatgevend gebruikelijk loon', u.maatgevend));
   uit.push({ label: 'Maatgevende maatstaf',
-    tekst: 'art. 12a lid 1 onderdeel ' + u.maatgevendOnderdeel });
+    tekst: u.tegenbewijsToegepast
+      ? 'art. 12a lid 2 — tegenbewijs, door de gebruiker onderbouwd'
+      : 'art. 12a lid 1 onderdeel ' + u.maatgevendOnderdeel });
+  if (u.tegenbewijsToegepast) {
+    uit.push({ label: 'Vastgesteld door', tekst: TEGENBEWIJS_AANTEKENING });
+  }
   uit.push(bedragRegel('Huidig DGA-loon', t.invoer.huidigLoon));
 
   if (t.toets.voldoet) {
@@ -1187,6 +1534,13 @@ function uitkomstregels(t) {
     uit.push(bedragRegel('Grens van het toptarief ' + v.jaar, v.grens));
     uit.push(bedragRegel('Overige box 1-inkomsten minus aftrekposten', v.saldoOverig));
     uit.push(bedragRegel('Doelloon: hiermee is de tweede schijf precies vol', v.doelloon));
+    if (v.pensioenbijdrage > 0) {
+      uit.push({ label: 'Aftrekbare pensioen- of werknemersbijdrage',
+        getal: v.pensioenbijdrage, formaat: '#,##0.00',
+        bron: 'wordt ingehouden en behoort niet tot het loon, dus moet het brutoloon met ' +
+          'dit bedrag omhoog om hetzelfde fiscale loon over te houden' });
+      uit.push(bedragRegel('Brutoloon voor inhouding van de bijdrage', v.brutoloon));
+    }
     uit.push(bedragRegel('Bijtelling privegebruik auto', v.bijtellingAuto));
     uit.push(bedragRegel('Salaris in geld', v.salarisInGeld));
     uit.push({ label: 'Is de schijf vol te maken?',
@@ -1255,6 +1609,23 @@ function bronregels(t) {
       bron: 'HR 24 juni 2016, nr. 15/02880, ECLI:NL:HR:2016:1269, r.o. 2.3.4' });
   }
 
+  if (inv.feeAlsOpbrengst) {
+    uit.push({ label: 'Een managementfee als opbrengst voor de afroommethode',
+      bron: 'HR 9 november 2012, ECLI:NL:HR:2012:BW4167, r.o. 5.2 spreekt van de ' +
+        'opbrengsten van de vennootschap en sluit een fee niet uit; waar het op aankomt ' +
+        'is of de opbrengst (nagenoeg) geheel uit de arbeid van de directeur voortvloeit. ' +
+        'Dat oordeel is feitelijk en komt van de gebruiker, die het met de vink bevestigt' });
+  }
+
+  if (inv.tegenbewijsLoon > 0) {
+    uit.push({ label: 'Tegenbewijs: het loon uit de meest vergelijkbare dienstbetrekking',
+      bron: 'art. 12a lid 2 Wet LB 1964, jaarversie 2026-01-01: maakt de ' +
+        'inhoudingsplichtige aannemelijk dat het hoogste bedrag van lid 1 hoger is dan ' +
+        'het loon uit de meest vergelijkbare dienstbetrekking, dan wordt het loon op dat ' +
+        'laatste gesteld. De bepaling kan de norm alleen verlagen. Het bewijsoordeel ' +
+        'zelf toetst de tool niet' });
+  }
+
   if (inv.concernAan) {
     uit.push({ label: 'Een norm bij toepassing van de doorbetaaldloonregeling',
       bron: 'art. 12a lid 3 jo. art. 32d Wet LB 1964, jaarversie 2026-01-01; ' +
@@ -1270,8 +1641,16 @@ function bronregels(t) {
       bron: BRON_TOPTARIEFGRENS[jaar] || 'niet in deze tool vastgelegd; de tool ' +
         'rekent het volmaken van de schijf daarom niet door voor dit jaar' });
     uit.push({ label: 'De bijtelling voor de auto is loon en vult de schijf mee',
-      bron: 'art. 13bis lid 1 Wet LB 1964; lid 4 neemt het voordeel in aanmerking voor ' +
-        'zover het de eigen bijdrage voor privegebruik overtreft' });
+      bron: 'art. 10 lid 1 jo. art. 13bis lid 1 Wet LB 1964; lid 4 neemt het voordeel in ' +
+        'aanmerking voor zover het de eigen bijdrage voor privegebruik overtreft' });
+    if (inv.pensioenbijdrage > 0) {
+      uit.push({ label: 'De pensioen- of werknemersbijdrage verlaagt het fiscale loon',
+        bron: 'art. 11 lid 1 onderdeel j, onder 1°, Wet LB 1964: tot het loon behoren ' +
+          'niet de bedragen die worden ingehouden als bijdrage ingevolge een ' +
+          'pensioenregeling. Het brutoloon moet daarom met dit bedrag hoger zijn om ' +
+          'hetzelfde belastbare inkomen te bereiken. Of de regeling binnen de normering ' +
+          'van hoofdstuk IIB blijft toetst de tool niet' });
+    }
   }
 
   if (t.ok && !t.toets.voldoet && t.toets.heffingsbelangIndicatief !== null) {
@@ -1288,23 +1667,31 @@ function bronregels(t) {
 // Wat de tool niet doet. Overgenomen uit de afbakening in VERGELIJKING.md; hier
 // staat zij op de afdruk en in de export, waar de lezer haar nodig heeft.
 const AFBAKENING = [
-  'De tegenbewijsregeling van art. 12a lid 2 is niet geimplementeerd: aannemelijk ' +
-    'maken dat het loon uit de meest vergelijkbare dienstbetrekking lager is, is een ' +
-    'bewijsoordeel en geen rekenregel. De uitkomst is daarom altijd ten minste het ' +
-    'normbedrag.',
+  'De tegenbewijsregeling van art. 12a lid 2 is een optioneel invoerveld en geen ' +
+    'rekenregel. Aannemelijk maken dat het loon uit de meest vergelijkbare ' +
+    'dienstbetrekking lager is, blijft een bewijsoordeel: de tool neemt het ingevulde ' +
+    'bedrag over zonder het te toetsen, en alleen als het lager is dan de norm van ' +
+    'lid 1. Een hoger of gelijk bedrag wordt genegeerd, want lid 2 kan de norm niet ' +
+    'verhogen. Blijft het veld leeg, dan is de uitkomst ten minste het normbedrag.',
   'Art. 12a lid 4 (de regeling geldt niet bij een vast te stellen loon van niet meer ' +
-    'dan EUR 5.000) blijft daardoor buiten bereik: die drempel is alleen via lid 2 te halen.',
+    'dan EUR 5.000) past de tool niet toe. Langs lid 2 is die drempel bereikbaar, maar ' +
+    'lid 4 toetst het loon voor de arbeid in dit lichaam en de daarmee verbonden ' +
+    'lichamen samen in het kalenderjaar, en die optelling vraagt de tool niet uit. Komt ' +
+    'de uitkomst niet boven EUR 5.000, dan meldt de tool dat en beoordeelt u het zelf.',
   'De toepassingsvoorwaarde van de afroommethode toetst de tool niet. De vink is de ' +
-    'verklaring van de gebruiker.',
+    'verklaring van de gebruiker. Dat geldt ook voor een managementfee als opbrengst: ' +
+    'of die vergoeding (nagenoeg) geheel uit de arbeid van de DGA voortvloeit is een ' +
+    'feitelijk oordeel, en de bevestiging in de tool is de verklaring daarover.',
   'Het vergelijkingsloon zelf wordt niet opgezocht. De tool rekent met het ingevulde ' +
     'bedrag; het onderbouwen daarvan is het eigenlijke werk.',
   'Een salaris afleiden uit een managementfee doet de tool niet. De persoonlijke ' +
     'holding wordt langs art. 12a behandeld: een norm met de doorbetaaldloonregeling, ' +
     'een norm per lichaam zonder haar.',
   'Het volmaken van de tweede schijf is tariefplanning op grond van art. 2.10 Wet IB ' +
-    '2001 en geen norm. De aanvullende heffing van art. 2.10 lid 2, aftrekbare ' +
-    'pensioeninleg van de werknemer en de heffingskortingen zitten er niet in; de ' +
-    'uitkomst is geen netto-uitkomst.',
+    '2001 en geen norm. De aftrekbare pensioen- of werknemersbijdrage zit er sinds ' +
+    '15-09-2026 wel in, als optioneel invoerveld dat het benodigde brutoloon verhoogt. ' +
+    'De aanvullende heffing van art. 2.10 lid 2 en de heffingskortingen zitten er niet ' +
+    'in; de uitkomst is geen netto-uitkomst.',
   'Het heffingsbelang in de conclusie is een bovengrens tegen het toptarief van box 1. ' +
     'Het VPB-effect van de hogere loonkosten en de werkelijke tariefschijf van de DGA ' +
     'rekent de tool niet uit.',
@@ -1324,6 +1711,15 @@ function dossierUitInvoer(inv, vandaag) {
     opgeslagen: vandaag,
   };
   INVOERVELDEN.forEach(function (v) { d[v.id] = inv[v.id]; });
+
+  // De aantekening bij het tegenbewijs hoort ook in het dossierbestand, want dat
+  // gaat naar de klantmap en wordt later door iemand anders geopend. Zij hangt
+  // alleen aan de invoer en niet aan de uitkomst: is het veld ingevuld, dan is
+  // dat een keuze van de gebruiker geweest, ongeacht of het bedrag uiteindelijk
+  // lager uitviel dan de norm. Het is het enige niet-invoerveld in het bestand
+  // en het rekent nergens in mee; bij het openen wordt het genegeerd.
+  if (inv.tegenbewijsLoon > 0) d.aantekening = TEGENBEWIJS_AANTEKENING;
+
   return d;
 }
 
@@ -1343,7 +1739,14 @@ function invoerUitDossier(d) {
  * dossier opengaan met een ander uitgangspunt dan waarmee het is opgeslagen.
  * Een nieuwer formaat wordt geweigerd in plaats van gedeeltelijk gelezen.
  *
- * @returns {{ok: true, dossier: object, invoer: object} | {ok: false, fout: string}}
+ * Een veld dat pas in een latere formaatversie bestaat is de ene uitzondering,
+ * en zij is geen stille standaardwaarde: zo'n veld kon in dat bestand niet
+ * voorkomen, de neutrale waarde is dus het uitgangspunt waarmee het is
+ * opgeslagen, en welke velden zijn aangevuld staat in 'aangevuld' zodat de
+ * gebruiker het bij het openen te zien krijgt.
+ *
+ * @returns {{ok: true, dossier: object, invoer: object, aangevuld: string[]}
+ *          | {ok: false, fout: string}}
  */
 function leesDossier(tekst) {
   let d;
@@ -1389,9 +1792,27 @@ function leesDossier(tekst) {
   }
 
   const fouten = [];
+
+  // Velden die pas in een latere formaatversie zijn ontstaan. Ontbreken ze in
+  // een bestand van een oudere versie, dan is dat geen gebrek: ze konden er niet
+  // in staan. De tool neemt dan de neutrale waarde - nul bij een bedrag, uit bij
+  // een vink - en dat is precies het uitgangspunt waarmee dat bestand is
+  // opgeslagen. Het wordt bij het openen wel gezegd, want stil is stil.
+  //
+  // Staat zo'n veld er toch in, bijvoorbeeld omdat iemand het bestand met de
+  // hand heeft aangevuld, dan wordt het gewoon gevalideerd als elk ander veld.
+  const aangevuld = [];
+  const nieuwerDanBestand = function (v) {
+    return (v.sinds || 1) > d.dossierVersie;
+  };
+
   INVOERVELDEN.forEach(function (v) {
     const w = d[v.id];
     if (w === undefined || w === null) {
+      if (nieuwerDanBestand(v)) {
+        aangevuld.push(v.label);
+        return;
+      }
       fouten.push(v.label + ' ontbreekt');
       return;
     }
@@ -1428,7 +1849,7 @@ function leesDossier(tekst) {
       'vult niets zelf in: ' + fouten.join('; ') + '. Er is niets gewijzigd.' };
   }
 
-  return { ok: true, dossier: d, invoer: invoerUitDossier(d) };
+  return { ok: true, dossier: d, invoer: invoerUitDossier(d), aangevuld: aangevuld };
 }
 
 /** Bestandsnaam-vriendelijke vorm van het kenmerk. */
@@ -1491,6 +1912,28 @@ function normenrijen(u) {
     toelichting: `Art. 12a lid 1 onderdeel c — vaste ondergrens ${u.jaar}`,
     telt: true,
   });
+
+  // Het tegenbewijs staat als laatste rij, want het werkt op de uitkomst van de
+  // drie hierboven. De vlag tegenbewijs zorgt dat het scherm de maatgevende rij
+  // hier legt en niet bij een onderdeel van lid 1 dat toevallig even hoog is.
+  if (u.tegenbewijsToegepast) {
+    rijen.push({
+      label: 'Onderbouwd loon (tegenbewijs)',
+      bedrag: u.tegenbewijsLoon,
+      toelichting: 'Art. 12a lid 2 — door de gebruiker onderbouwd, niet door de tool berekend of getoetst',
+      telt: true,
+      tegenbewijs: true,
+    });
+  }
+
+  if (u.tegenbewijsGenegeerd) {
+    rijen.push({
+      label: 'Onderbouwd loon (telt niet mee)',
+      bedrag: u.tegenbewijsLoon,
+      toelichting: 'Niet lager dan de norm van lid 1; art. 12a lid 2 kan de norm alleen verlagen',
+      telt: false,
+    });
+  }
 
   return rijen;
 }
@@ -1825,6 +2268,8 @@ function toonJaarfout(toestand) {
   document.getElementById('concernCard').className = '';
   document.getElementById('schijfCard').innerHTML = '';
   document.getElementById('schijfCard').className = '';
+  document.getElementById('tegenbewijsCard').innerHTML = '';
+  document.getElementById('tegenbewijsCard').className = '';
   toonDossierstuk(toestand);
   document.getElementById('resultSection').style.display = 'block';
 }
@@ -1832,6 +2277,12 @@ function toonJaarfout(toestand) {
 function toggleAfroom() {
   const s = document.getElementById('afroomSection');
   s.classList.toggle('active', document.getElementById('afroomCheck').checked);
+  bereken();
+}
+
+function toggleFee() {
+  const s = document.getElementById('feeSection');
+  s.classList.toggle('active', document.getElementById('feeCheck').checked);
   bereken();
 }
 
@@ -1865,9 +2316,14 @@ function bereken() {
   const rijen = toestand.rijen;
   const maatgevend = uitkomst.maatgevend;
 
-  // Normenkaarten
+  // Normenkaarten. Is het tegenbewijs toegepast, dan is de maatgevende rij die
+  // van het tegenbewijs en niet een onderdeel van lid 1 dat toevallig even hoog
+  // uitkomt; vandaar de vlag in plaats van een vergelijking op bedrag alleen.
+  const winnaar = (r) => r.telt && r.bedrag === maatgevend &&
+    (!uitkomst.tegenbewijsToegepast || !!r.tegenbewijs);
+
   document.getElementById('normenGrid').innerHTML = rijen.map(r => {
-    const isWinner = r.telt && r.bedrag === maatgevend;
+    const isWinner = winnaar(r);
     return `<div class="result-card ${isWinner ? 'winner' : ''}${r.telt ? '' : ' terzijde'}">
       <div class="rc-label">${r.label}${isWinner ? '<span class="winner-badge">Maatgevend</span>' : ''}</div>
       <div class="rc-amount">${fmt(r.bedrag)}</div>
@@ -1879,7 +2335,7 @@ function bereken() {
   document.getElementById('normenTabel').innerHTML = `<tr>
     <th>Maatstaf</th><th>Bedrag</th><th>Huidig loon</th><th>Verschil</th><th>Status</th>
   </tr>` + rijen.map(r => {
-    const isWinner = r.telt && r.bedrag === maatgevend;
+    const isWinner = winnaar(r);
     const diff = huidigLoon - r.bedrag;
     let status;
     if (!r.telt) status = '<span class="badge yellow">Telt niet mee</span>';
@@ -1931,11 +2387,54 @@ function bereken() {
       </div>`;
   }
 
+  toonTegenbewijs(uitkomst);
   toonConcern(uitkomst);
   toonSchijf(toestand);
   toonDossierstuk(toestand);
 
   document.getElementById('resultSection').style.display = 'block';
+}
+
+// De aantekening bij het tegenbewijs van art. 12a lid 2. Zij staat permanent op
+// het scherm zolang het veld is ingevuld, en niet als een melding die wegklikt:
+// wie deze uitkomst leest moet zien dat het bedrag van de gebruiker komt en niet
+// van de tool.
+function toonTegenbewijs(u) {
+  const kaart = document.getElementById('tegenbewijsCard');
+
+  if (!u.tegenbewijsIngevuld) {
+    kaart.className = '';
+    kaart.innerHTML = '';
+    return;
+  }
+
+  if (u.tegenbewijsGenegeerd) {
+    kaart.className = 'conclusie-card info';
+    kaart.innerHTML = `
+      <div class="c-header"><div class="c-icon">ℹ️</div><div class="c-title">Het onderbouwde loon telt niet mee</div></div>
+      <div class="c-body">
+        U hebt <strong>${fmt(u.tegenbewijsLoon)}</strong> ingevuld als onderbouwd loon uit de meest vergelijkbare
+        dienstbetrekking, maar dat is niet lager dan de norm van artikel 12a, eerste lid, van <strong>${fmt(u.normLid1)}</strong>.<br><br>
+        Het tweede lid komt alleen in beeld wanneer het hoogste bedrag van het eerste lid <em>hoger</em> is dan het loon
+        uit de meest vergelijkbare dienstbetrekking; het loon wordt dan op dat lagere loon gesteld. De regeling kan de
+        norm dus verlagen en nooit verhogen. De uitkomst hierboven is de gewone norm van het eerste lid.
+      </div>`;
+    return;
+  }
+
+  kaart.className = 'conclusie-card warn';
+  kaart.innerHTML = `
+    <div class="c-header"><div class="c-icon">⚠️</div><div class="c-title">Uitkomst op grond van tegenbewijs, door u vastgesteld</div></div>
+    <div class="c-body">
+      De norm volgens de hoofdregel van artikel 12a, eerste lid, is <strong>${fmt(u.normLid1)}</strong>. U hebt het loon uit de
+      meest vergelijkbare dienstbetrekking onderbouwd op <strong>${fmt(u.tegenbewijsLoon)}</strong>, en dat is
+      <strong>${fmt(u.normLid1 - u.tegenbewijsLoon)}</strong> lager. De tool gebruikt daarom uw bedrag als uitkomst
+      (art. 12a, tweede lid, Wet LB 1964).<br><br>
+      <strong>Dit bedrag is niet door de tool berekend en niet door de tool getoetst.</strong> Of aannemelijk is gemaakt
+      dat het loon uit de meest vergelijkbare dienstbetrekking lager is, is een bewijsoordeel en de bewijslast ligt bij
+      de inhoudingsplichtige. Leg de vergelijking en de onderbouwing in het dossier vast. Deze aantekening staat ook op
+      de afdruk, in de Excel-export en in het dossierbestand.
+    </div>`;
 }
 
 // Werkt de directeur voor meer dan een eigen lichaam, dan hangt van de
@@ -2025,7 +2524,10 @@ function toonSchijf(t) {
       <tr><td>Grens van het toptarief ${v.jaar} <span style="color:var(--muted)">— art. 2.10 lid 1 Wet IB 2001</span></td><td>${fmt(v.grens)}</td></tr>
       <tr><td>Overige box 1-inkomsten minus aftrekposten</td><td>${v.saldoOverig >= 0 ? '−' : '+'} ${fmt(Math.abs(v.saldoOverig))}</td></tr>
       <tr class="highlight"><td>Doelloon: hiermee is de tweede schijf precies vol</td><td>${fmt(v.doelloon)}</td></tr>
-      <tr><td>Bijtelling privégebruik auto <span style="color:var(--muted)">— loon op grond van art. 13bis lid 1 Wet LB 1964</span></td><td>− ${fmt(v.bijtellingAuto)}</td></tr>
+      ${v.pensioenbijdrage > 0 ? `
+      <tr><td>Aftrekbare pensioen- of werknemersbijdrage <span style="color:var(--muted)">— behoort niet tot het loon, art. 11 lid 1 onderdeel j, onder 1°, Wet LB 1964</span></td><td>+ ${fmt(v.pensioenbijdrage)}</td></tr>
+      <tr><td>Brutoloon vóór inhouding van de bijdrage</td><td>${fmt(v.brutoloon)}</td></tr>` : ''}
+      <tr><td>Bijtelling privégebruik auto <span style="color:var(--muted)">— loon op grond van art. 10 lid 1 jo. art. 13bis lid 1 Wet LB 1964</span></td><td>− ${fmt(v.bijtellingAuto)}</td></tr>
       <tr><td><strong>Salaris in geld</strong></td><td><strong>${fmt(v.salarisInGeld)}</strong></td></tr>
     </table>`;
 
@@ -2087,8 +2589,14 @@ function zetInvoer(inv) {
   // Rechtstreeks, niet via de toggles: die roepen bereken() aan en dan zou de
   // pagina tussentijds met een halve invoer worden hertekend.
   el('afroomSection').classList.toggle('active', !!inv.afroomAan);
+  el('feeSection').classList.toggle('active', !!inv.feeAlsOpbrengst);
   el('concernSection').classList.toggle('active', !!inv.concernAan);
   el('schijfSection').classList.toggle('active', !!inv.schijfAan);
+
+  // De afroommethode zit in een inklapbaar blok. Staat zij in het dossier aan,
+  // dan moet dat blok open: anders neemt de tool een rekenwijze over die de
+  // gebruiker niet ziet staan.
+  if (inv.afroomAan) el('afroomBlok').open = true;
 }
 
 function datumStempel() {
@@ -2192,7 +2700,12 @@ function neemDossierOver(tekst) {
     (r.dossier.opgeslagen ? ', opgeslagen op ' + r.dossier.opgeslagen : '') +
     ' met tool-versie ' + (r.dossier.toolVersie || 'onbekend') +
     '. De uitkomst is opnieuw berekend met de huidige tool, versie ' +
-    TOOL_VERSIE + '.', false);
+    TOOL_VERSIE + '.' +
+    (r.aangevuld && r.aangevuld.length
+      ? ' Dit bestand is van formaatversie ' + r.dossier.dossierVersie +
+        ' en kende deze velden nog niet; zij staan op hun neutrale waarde: ' +
+        r.aangevuld.join('; ') + '.'
+      : ''), false);
   return true;
 }
 
@@ -2283,7 +2796,7 @@ bereken();
        ophalen, dus de claim "geen data verlaat uw browser" zou onjuist zijn. -->
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw ingevulde gegevens verlaten uw browser niet</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 8 sep 2026, 14:15</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 00:11</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Berekening blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>

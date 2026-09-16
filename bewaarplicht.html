@@ -124,6 +124,19 @@
     .field-error { font-size: 0.74rem; color: #9B1C1C; margin-top: 5px; line-height: 1.4; }
     .field-error:empty { display: none; }
 
+    /* Aandacht bij het invoerveld zelf, voor het geval waarin een leeg optioneel
+       veld de uitkomst blokkeert. Bewust opvallender dan .field-note en rustiger
+       dan .field-error: er is niets fout ingevuld. */
+    .field-let-op {
+      font-size: 0.74rem; color: #8A3B12; line-height: 1.5;
+      margin: 0 0 8px; padding: 8px 10px;
+      background: #FDEBD8; border: 1px solid #F0B27A;
+      border-left: 3px solid #C0522A; border-radius: 6px;
+    }
+    .field-let-op[hidden] { display: none; }
+    .field-let-op strong { color: #7A2F0B; }
+    label.is-dringend { color: #C0522A; }
+
     .result-box {
       background: #FEF3E7;
       border: 1px solid #F4C9A0;
@@ -339,8 +352,9 @@
       <div>
         <label for="datum2" id="datum2-label">Tweede datum</label>
         <span class="field-note" id="datum2-note"></span>
+        <p class="field-let-op" id="datum2-alert" role="status" hidden></p>
         <input type="date" id="datum2" min="1900-01-01" max="2099-12-31"
-               aria-describedby="datum2-note datum2-error">
+               aria-describedby="datum2-note datum2-alert datum2-error">
         <p class="field-error" id="datum2-error" role="alert"></p>
       </div>
       <div></div>
@@ -1762,6 +1776,20 @@ const TEKSTEN = {
     `De termijn van ${primair} is voorbij. Op dit stuk kan daarnaast ${tweede} rusten, en zonder de ` +
     'tweede datum kan de tool niet vaststellen of die nog loopt. Vul het tweede veld in — zonder dat ' +
     'gegeven is dit géén volledige uitkomst.',
+  // Dezelfde boodschap, maar dan bij het invoerveld zelf. De melding in de
+  // uitkomst komt pas in beeld nadat de gebruiker daarheen kijkt; wie het
+  // tweede veld overslaat leest haar mogelijk niet. Zolang de eerste termijn
+  // nog loopt is dit veld werkelijk bijzaak en blijft het label rustig; is die
+  // termijn voorbij, dan hangt de hele uitkomst aan dit ene veld.
+  // Het veld wordt daarmee niet verplicht: wie de datum niet kent, kan hem niet
+  // verzinnen, en een verzonnen datum zou een onjuiste einddatum opleveren.
+  tweedeVeldLabelDringend: (label) =>
+    String(label || '').replace(/\s*\(optioneel\)\s*$/i, '') + ' (optioneel, maar nu wel van belang)',
+  tweedeVeldDringend: (primair, tweede) =>
+    `De termijn van ${primair} is op de ingevulde datum al verstreken. Juist daarom telt dit veld nu: ` +
+    `zonder deze datum kan de tool ${tweede} niet doorrekenen en toont zij geen einddatum, alleen de ` +
+    'melding dat de uitkomst onvolledig is. Kent u de datum niet, laat het veld dan leeg; invullen is ' +
+    'niet verplicht.',
   verstrekenLetOp:
     '<strong>Verstreken is niet hetzelfde als vernietigen.</strong> Alleen de fiscale termijn volgens ' +
     'deze berekening is voorbij. Ga vóór vernietiging na of de zevenjaarstermijn van ' +
@@ -1913,6 +1941,42 @@ function berekenBewaarplicht(docId, invoer, vandaag) {
   };
 }
 
+// Hoe het tweede datumveld erbij staat, gegeven de stand van de eerste termijn.
+// De UI leest dit; de kern bepaalt het, zodat het te toetsen valt zonder DOM.
+//
+//   null      dit documenttype kent geen tweede termijn
+//   dringend  false zolang de eerste termijn nog loopt of er nog niets valt te
+//             rekenen; true zodra die termijn is verstreken terwijl het tweede
+//             veld leeg is — precies het geval waarin de uitkomst "onvolledig"
+//             heet en de gebruiker anders over het veld heen leest
+//
+// Het veld blijft in beide gevallen optioneel. Dit verandert het label en zet er
+// een melding bij; het dwingt geen invoer af.
+function tweedeVeldPresentatie(resultaat) {
+  const doc = resultaat && resultaat.doc;
+  if (!doc || !doc.tweedeTermijn) return null;
+
+  const rustig = {
+    dringend: false,
+    label: doc.tweedeTermijn.datumLabel,
+    hint: doc.tweedeTermijn.datumHint,
+    melding: '',
+  };
+  if (resultaat.status !== 'ok' || resultaat.onvolledig !== true) return rustig;
+
+  const primair = TEKSTEN.kortGrondslag(resultaat.bepalend.grondslag);
+  const tweede = TEKSTEN.kortGrondslag(doc.tweedeTermijn.grondslag);
+  // Bij het assurancedossier dragen beide termijnen dezelfde grondslag; die twee
+  // keer noemen leest als een fout in plaats van als twee klokken.
+  const tweedeNaam = tweede && tweede !== primair ? tweede : 'de tweede termijn';
+  return {
+    dringend: true,
+    label: TEKSTEN.tweedeVeldLabelDringend(doc.tweedeTermijn.datumLabel),
+    hint: doc.tweedeTermijn.datumHint,
+    melding: TEKSTEN.tweedeVeldDringend(primair, tweedeNaam),
+  };
+}
+
 // De configuratie is gedeelde, levende state: OG_TWEEDE_TERMIJN hangt aan vier
 // documenttypen tegelijk en berekenBewaarplicht geeft het documentobject zelf
 // terug. Bevriezen houdt de belofte "geen globale state" waar: een schrijfactie
@@ -1936,6 +2000,7 @@ if (typeof module !== 'undefined' && module.exports) {
     JAARWAARDEN, BRONNEN, CATEGORIEEN, DOCUMENT_TYPES, AANDACHTSPUNTEN, TEKSTEN,
     OG_TWEEDE_TERMIJN, OG_PRIMAIRE_GRONDSLAG,
     vindDocumentType, documentenInCategorie, termijnOmschrijving, berekenBewaarplicht,
+    tweedeVeldPresentatie,
   };
 }
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2086,8 +2151,38 @@ function verbergTweedeRij() {
   rij2.hidden = true;
   $('datum2').value = '';
   $('datum2-label').textContent = 'Tweede datum';
+  $('datum2-label').classList.remove('is-dringend');
   $('datum2-note').textContent = '';
   $('datum2-error').textContent = '';
+  wisTweedeVeldMelding();
+}
+
+function wisTweedeVeldMelding() {
+  const melding = $('datum2-alert');
+  melding.hidden = true;
+  melding.textContent = '';
+}
+
+// Het tweede veld blijft optioneel, maar het label en de melding volgen de stand
+// van de eerste termijn: zie tweedeVeldPresentatie in de kern.
+function updateTweedeVeld(r) {
+  const p = tweedeVeldPresentatie(r);
+  if (!p) {
+    $('datum2-label').classList.remove('is-dringend');
+    wisTweedeVeldMelding();
+    return;
+  }
+  const label = $('datum2-label');
+  label.textContent = p.label;
+  label.classList.toggle('is-dringend', p.dringend);
+  $('datum2-note').textContent = p.hint;
+  if (p.dringend) {
+    const melding = $('datum2-alert');
+    melding.innerHTML = '<strong>Let op.</strong> ' + esc(p.melding);
+    melding.hidden = false;
+  } else {
+    wisTweedeVeldMelding();
+  }
 }
 
 function updateVelden() {
@@ -2133,6 +2228,10 @@ function bereken() {
 
   $('datum-error').textContent = '';
   $('datum2-error').textContent = '';
+
+  // Vóór elke vroege return: ook bij een leeg of ongeldig eerste veld hoort het
+  // tweede veld het label te tonen dat bij de huidige stand past.
+  updateTweedeVeld(r);
 
   const zet = function (klasse, label, hoofd, chip, meta) {
     box.className = 'result-box ' + klasse;
