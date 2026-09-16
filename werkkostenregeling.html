@@ -188,9 +188,10 @@
       Heeft u meerdere subnummers onder hetzelfde loonheffingennummer, dan telt u die bij elkaar op.
       Wordt u in de loop van het jaar werkgever, dan mag u het loon niet herrekenen naar een vol jaar.
       Is het loon uit vroegere dienstbetrekking ten hoogste 10% van het totale fiscale loon, dan telt het mee
-      voor de vrije ruimte; is het meer, dan telt alleen het loon uit tegenwoordige dienstbetrekking mee. Die
-      10%-grens is beleid en staat niet als zodanig in de wettekst.
-      <span class="bron">Handboek Loonheffingen 2026, paragraaf 10.1.4 (beleid, geen wettekst).</span>
+      voor de vrije ruimte; is het meer, dan telt alleen het loon uit tegenwoordige dienstbetrekking mee.
+      Voor deze toets rekent de tool met het loon na aftrek van de hierboven ingevulde gage.
+      De wettelijke uitsluiting bij verstrekking in meer dan bijkomstige mate is uitgewerkt als een 10%-grens.
+      <span class="bron">Art. 31a lid 15 onderdeel a Wet LB 1964; Handboek Loonheffingen, paragraaf 10.1.4.</span>
     </p>
   </section>
 
@@ -353,7 +354,10 @@ const NORMEN_PER_JAAR = {
 };
 
 // Aandeel loon uit vroegere dienstbetrekking waarboven dat loon buiten de grondslag blijft.
-// Bron: Handboek Loonheffingen 2026, par. 10.1.4 (beleid, geen wettekst).
+// Wettelijke grondslag: art. 31a lid 15 onderdeel a Wet LB 1964 (2024-2026):
+// "in meer dan bijkomstige mate". Uitwerking 10%: Handboek Loonheffingen, par. 10.1.4;
+// bevestigd door KG:204:2024:12 (03-07-2024),
+// https://kennisgroepen.belastingdienst.nl/publicaties/kg204202412-concernregeling/
 const DREMPEL_LOON_VROEGERE_DIENSTBETREKKING = 0.10;
 
 // Alle geldbedragen worden op centen afgerond. Zonder deze afronding leveren
@@ -406,6 +410,10 @@ function grondslagVrijeRuimte(invoer) {
   }
 
   const naGage = centen(fiscaalLoon - gage);
+  // Systematische lezing van het loonbegrip: gage onder de aparte artiesten- en
+  // beroepssportersregeling is geen loon. Handboek 2026 (maart), par. 1.2.6 en
+  // 10.1.4. De bron schrijft deze noemer niet expliciet uit; zie de vrijgavenotitie
+  // van 16-09-2026, aanvulling vraag 2. Geen wijziging van de bestaande berekening.
   const aandeelVroeger = naGage > 0 ? loonVroeger / naGage : 0;
   const vroegereUitgesloten = loonVroeger > 0 && aandeelVroeger > DREMPEL_LOON_VROEGERE_DIENSTBETREKKING;
 
@@ -515,7 +523,8 @@ function vindplaatsen(jaar) {
       handboek + ', par. 4.2 en kennisgroepstandpunt KG:204:2025:11. Beleid voor '
       + 'risicogerichte handhaving, geen wettelijke grens'],
     ['Aandeel loon uit vroegere dienstbetrekking', DREMPEL_LOON_VROEGERE_DIENSTBETREKKING, 'procent2',
-      handboek + ', par. 10.1.4. Beleid, geen wettekst'],
+      'Art. 31a lid 15 onderdeel a ' + wet + ': meer dan bijkomstige mate; '
+      + '10%-grens uitgewerkt in ' + handboek + ', par. 10.1.4; KG:204:2024:12'],
     ['Kilometervergoeding', n.kilometervergoeding, 'euro', n.kilometerBron === 'besluit'
       ? 'Besluit van de Staatssecretaris van Financien van 17 mei 2026, Stcrt. 2026, 18302, '
         + 'onderdeel 2.1: goedkeuring vooruitlopend op wetgeving, structureel en met '
@@ -549,7 +558,7 @@ function vindplaatsen(jaar) {
 // hun getallen uit dezelfde functie halen.
 
 const TOOLNAAM = 'werkkostenregeling';
-const TOOLVERSIE = '2026-09-16';
+const TOOLVERSIE = '2026-09-16.1';
 const DOSSIER_VERSIE = 1;
 
 const euro = function (bedrag, decimalen) {
@@ -656,10 +665,11 @@ function meldingRegels(u, signaal) {
   if (u.vroegereUitgesloten) {
     meldingen.push({
       soort: '',
-      tekst: 'Loon uit vroegere dienstbetrekking is ' + procent(u.aandeelVroeger, 1) + ' van het fiscale loon, '
+      tekst: 'Loon uit vroegere dienstbetrekking is ' + procent(u.aandeelVroeger, 1)
+        + ' van het fiscale loon' + (u.gageAfgetrokken ? ' na aftrek van de gage' : '') + ', '
         + 'dus meer dan 10%. De vrije ruimte is daarom berekend over het loon uit tegenwoordige '
-        + 'dienstbetrekking. Die 10%-grens staat niet als zodanig in art. 31a Wet LB 1964: het is beleid uit '
-        + 'het Handboek Loonheffingen, par. 10.1.4.'
+        + 'dienstbetrekking. Wettelijke grondslag: art. 31a lid 15 onderdeel a Wet LB 1964 '
+        + '(meer dan bijkomstige mate), uitgewerkt als 10%-grens in het Handboek Loonheffingen, par. 10.1.4.'
     });
   }
 
