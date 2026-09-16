@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-16
+Bijgewerkt: 2026-09-17
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -37,9 +37,11 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **DBA Risicoscan**: Beoordeelt de arbeidsrelatie indicatief aan de negen gezichtspunten uit het Deliveroo/Uber-arrest
 - **Transitievergoeding**: Berekent de transitievergoeding van art. 7:673 lid 2 BW voor een arbeidsovereenkomst die op of na 1 januari 2020 eindigt, met een afdrukbaar dossierstuk
+- **Werkgeversverklaring NHG**: Vult een NHG-werkgeversverklaring stap voor stap in via een wizard
 
 ## Auto & Mobiliteit
 
@@ -71,7 +73,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-08 |
 | 🔵 concept | DCF-rekenmodel | nog niet gepubliceerd | bouwman-tools/dcf-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🔵 concept | Dividendscenario's | nog niet gepubliceerd | bouwman-tools/dividend-scenarios | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
@@ -128,11 +130,9 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | n.v.t. |
-| 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-16 |
 
 - **WKR Agent**: AI-assistent voor vragen over de werkkostenregeling
-- **Werkgeversverklaring NHG**: Vult een NHG-werkgeversverklaring stap voor stap in via een wizard
 - **Werkkostenregeling**: Berekent de vrije ruimte en de eindheffing per inhoudingsplichtige (2024–2026), met de normbedragen van het jaar als naslag
 
 ## Overig
