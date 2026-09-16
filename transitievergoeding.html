@@ -70,9 +70,30 @@
   .afdrukknop:hover { background: var(--vlak); }
   .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
 
+  /* De invoer is gewijzigd na deze berekening. Het bedrag blijft leesbaar zodat je
+     tijdens het corrigeren nog ziet waar je vandaan kwam, maar het is zichtbaar niet
+     meer geldig en de afdrukknop is weg. */
+  #uitkomst.verouderd::before {
+    content: "De invoer is gewijzigd na deze berekening. Klik opnieuw op Bereken; tot die tijd hoort dit bedrag niet meer bij wat er hierboven staat.";
+    display: block;
+    margin-bottom: 1rem;
+    padding: .7rem .9rem;
+    border-radius: 4px;
+    border-left: 3px solid var(--waarschuwing);
+    background: var(--waarschuwing-vlak);
+    color: var(--waarschuwing);
+    font-size: .88rem;
+    font-weight: 600;
+  }
+  #uitkomst.verouderd > * { opacity: .45; }
+
   @media print {
     body { padding: 0; font-size: 10.5pt; }
     form, p.intro, .afdrukknop { display: none; }
+    /* Een verouderde uitkomst komt niet op papier. De afdrukknop is dan verborgen,
+       maar Ctrl+P werkt altijd; alleen de waarschuwing mag dan meegaan. */
+    #uitkomst.verouderd > * { display: none; }
+    #uitkomst.verouderd::before { border: 1px solid var(--lijn); color: var(--inkt); }
     main { max-width: none; }
     #uitkomst { margin-top: 0; }
     h1 { font-size: 1.35rem; }
@@ -707,6 +728,11 @@ function toonFout(bericht) {
 $('formulier').addEventListener('submit', (e) => {
   e.preventDefault();
 
+  // Wat hierna verschijnt hoort bij de invoer van dit moment, of het nu een bedrag of
+  // een foutmelding is. Blokkeert de browser het verzenden zelf, dan komt de handler
+  // hier niet en blijft de demping terecht staan.
+  $('uitkomst').classList.remove('verouderd');
+
   const loon = loonPerMaand({
     maandloon: nummer('maandloon'),
     vakantiebijslagPerJaar: nummer('vakantiebijslag'),
@@ -936,14 +962,15 @@ function werkVoorstelBetaaldeDagenBij() {
 ['aanvang', 'einde'].forEach((id) => $(id).addEventListener('change', werkVoorstelBetaaldeDagenBij));
 werkVoorstelBetaaldeDagenBij();
 
-// Een uitkomst hoort bij de invoer waarmee zij is berekend. Wijzigt er iets, dan
-// verdwijnt zij, samen met de afdrukknop. Dat is hier geen franje: de browser weigert
-// zelf te verzenden bij een waarde onder het minimum van een veld, en dan zou het oude
-// bedrag blijven staan terwijl het scherm andere invoer toont. Uit zo'n scherm rolt een
+// Een uitkomst hoort bij de invoer waarmee zij is berekend. Wijzigt er iets, dan wordt
+// zij gedempt en verdwijnt de afdrukknop, zodat het vorige bedrag nog te zien is terwijl
+// je corrigeert maar er niets mee gedaan kan worden. Dat is hier geen franje: de browser
+// weigert zelf te verzenden bij een waarde onder het minimum van een veld, en dan zou het
+// oude bedrag onopgemerkt blijven staan bij andere invoer. Uit zo'n scherm rolt een
 // dossierstuk dat niet bij de zaak hoort.
 $('formulier').addEventListener('input', () => {
   if (!$('afdrukken').hidden || $('uitkomst').innerHTML !== '') {
-    $('uitkomst').innerHTML = '';
+    $('uitkomst').classList.add('verouderd');
     $('afdrukken').hidden = true;
   }
 });
