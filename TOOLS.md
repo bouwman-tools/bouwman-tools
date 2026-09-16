@@ -141,11 +141,9 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **Berekeningen**: Rekent zeventien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
-- **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
 ### Wettelijke verwijzingen: Berekeningen
 
@@ -153,6 +151,14 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 17b \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel17b)
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 18, leden 1-2 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel18)
 - [Uitvoeringsbesluit inkomstenbelasting 2001, Artikel 19, leden 1-8 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel19)
+
+## Vastgoed
+
+| | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
+|---|---|---|---|---|---|---|---|---|
+| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+
+- **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
 ## Workers
 
