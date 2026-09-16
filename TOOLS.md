@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-11
+Bijgewerkt: 2026-09-16
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -129,7 +129,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | WKR Agent | `/join-wkr-agent.html` | bouwman-tools/WKR_agent | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | n.v.t. |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| 🟢 live | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-07 |
+| 🟡 beta | Werkkostenregeling | `/werkkostenregeling.html` | bouwman-tools/werkkostenregeling | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-16 |
 
 - **WKR Agent**: AI-assistent voor vragen over de werkkostenregeling
 - **Werkgeversverklaring NHG**: Vult een NHG-werkgeversverklaring stap voor stap in via een wizard
