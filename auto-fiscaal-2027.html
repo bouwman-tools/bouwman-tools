@@ -1007,9 +1007,42 @@ const TARIEVEN = {
     2027: 'wet (25 jaar), wijziging naar 17 jaar voorgesteld in Belastingplan 2027, in behandeling',
     2028: 'wijziging naar 20 jaar voorgesteld in Belastingplan 2027, in behandeling',
   },
-  // De voorgestelde grenzen, uitsluitend voor de meldteksten. De tool rekent er
-  // niet mee zolang het voorstel niet is aangenomen.
+  // De voorgestelde grenzen. Deze sturen de uitkomst NIET: `youngtimerGrens()`
+  // blijft geldend recht volgen en daarmee wordt het bedrag bepaald dat de tool
+  // als uitkomst toont. Ze voeden twee andere dingen: de meldteksten, en sinds
+  // 17-09-2026 een tweede, informatieve doorrekening naast de officiële
+  // (`bijtellingVolgensVoorstel()`), zodat de adviseur ziet wat de klant onder
+  // het voorstel zou betalen. Besluit van Sylvain, 16-09-2026: beide uitkomsten
+  // naast elkaar tonen, in deze tool en in auto-van-de-zaak. Er wordt daarbij
+  // nooit een van de twee "gekozen" zoals bij de keuzeregeling van 2026; er valt
+  // hier niets te kiezen, want welke grens geldt hangt af van de stemming.
   youngtimerGrensVoorstel:   { 2027: 17, 2028: 20 },
+  // Overgangsrecht 2027 uit hetzelfde voorstel: Belastingplan 2027, artikel
+  // XLVII, leden 3 en 4. Voor een auto die uiterlijk 31-12-2025 ter beschikking
+  // stond én in de loop van 2026 meer dan 16 maar niet meer dan 17 jaar geleden
+  // voor het eerst in gebruik is genomen, blijft de regeling zoals die op
+  // 31-12-2026 luidde heel 2027 gelden. Die regeling heeft grens 16, dus zo'n
+  // auto is in 2027 het hele jaar youngtimer.
+  //
+  // TWEE VALKUILEN. Ten eerste is dit GEEN keuzeregeling: de leden 3 en 4 missen
+  // de aanhef "naar keuze van" die de leden 1 en 2 wel hebben, en de memorie van
+  // toelichting legt uit waarom (die keuzevorm bestaat alleen omdat de leden 1
+  // en 2 een goedkeurend beleidsbesluit codificeren). Reken hier dus nooit twee
+  // routes door om de gunstigste te kiezen, zoals bij `youngtimerOvergang2026`.
+  // Ten tweede is de bovengrens hier inclusief ("niet meer dan 17"), terwijl die
+  // bij de goedkeuring 2026 exclusief is ("minder dan 16"). Dat scheelt één dag
+  // in de vensterberekening; zie `voldoetOvergangsrecht2027()`.
+  //
+  // De wettekst van lid 3 knoopt aan "in de loop van het jaar 2026"; de
+  // artikelsgewijze toelichting schrijft 2027 en het algemeen deel beschrijft de
+  // groep als auto's die in 2027 de grens van 17 passeren. Voor de praktisch
+  // relevante groep komt dat op hetzelfde neer. De wettekst is leidend, dus het
+  // venster hieronder is 2026.
+  youngtimerVoorstelOvergang2027: {
+    jaar: 2027, minLeeftijd: 16, maxLeeftijd: 17,
+    vensterVan: '2026-01-01', vensterTot: '2026-12-31',
+    regimeGrens: 16, keuzeregeling: false,
+  },
   // Overgangsrecht 2026: goedkeuring vooruitlopend op wetgeving, geen wet.
   // Besluit van de Staatssecretaris van Financiën van 12 februari 2026,
   // nr. 2026-2493, Stcrt. 2026, 6596. Artikel 2.2 geldt voor de ter beschikking
@@ -1171,6 +1204,31 @@ function voldoetOvergangsrecht2026(datumToelating) {
   // geeft de verjaardag + 1, dus twee dagen terug.
   const laatsteDag = omslagdatumMeerDan(datumToelating, o.maxLeeftijd);
   laatsteDag.setDate(laatsteDag.getDate() - 2);
+  return eersteDag <= parseDatum(o.vensterTot) && laatsteDag >= parseDatum(o.vensterVan);
+}
+
+// De grens die zou gelden als het Belastingplan 2027 wordt aangenomen, of null
+// voor een jaar waarvoor het voorstel niets regelt. Uitsluitend voor de
+// informatieve tweede doorrekening; `youngtimerGrens()` blijft de rekenwaarde.
+function voorgesteldeGrens(jaar) {
+  return TARIEVEN.youngtimerGrensVoorstel[jaar] ?? null;
+}
+
+// Toetst voorwaarde a van het overgangsrecht uit het voorstel (artikel XLVII
+// lid 3): de auto is "in de loop van het jaar 2026 meer dan 16 jaar maar niet
+// meer dan 17 jaar geleden voor het eerst in gebruik genomen".
+//
+// LET OP het verschil met `voldoetOvergangsrecht2026`. Daar is de bovengrens
+// exclusief ("minder dan 16"), dus loopt het venster tot de dag vóór de
+// verjaardag en gaat er twee dagen af. Hier is hij inclusief ("niet meer dan
+// 17"), dus loopt het venster tot en met de verjaardag zelf en gaat er één dag
+// af. Wie dat gelijktrekt, verschuift het venster een dag.
+function voldoetOvergangsrecht2027(datumToelating) {
+  const o = TARIEVEN.youngtimerVoorstelOvergang2027;
+  if (!parseDatum(datumToelating)) return false;
+  const eersteDag = omslagdatumMeerDan(datumToelating, o.minLeeftijd);
+  const laatsteDag = omslagdatumMeerDan(datumToelating, o.maxLeeftijd);
+  laatsteDag.setDate(laatsteDag.getDate() - 1);
   return eersteDag <= parseDatum(o.vensterTot) && laatsteDag >= parseDatum(o.vensterVan);
 }
 
@@ -1384,7 +1442,7 @@ function omschrijfBijtelling(res, viaOvergangsrecht) {
 // besluit zegt "mag worden toegepast" en de toelichting motiveert uitdrukkelijk
 // dat toepassen niet altijd voordelig is. `keuze` bevat dan beide uitkomsten en
 // `bedrag` volgt de laagste, want een lagere onttrekking is gunstiger.
-function bepaalBijtelling(jaar, auto) {
+function bepaalBijtellingGeldendRecht(jaar, auto) {
   const yt = bepaalYoungtimer(jaar, auto.datumToelating, auto.terBeschikking2025);
   if (!yt) return { fout: 'ongeldige-datum' };
 
@@ -1420,6 +1478,53 @@ function bepaalBijtelling(jaar, auto) {
 
   if (wettelijk.fout) return { ...yt, fout: wettelijk.fout };
   return { ...yt, ...wettelijk, ...omschrijfBijtelling(wettelijk, false), keuze: null };
+}
+
+// Tweede, informatieve doorrekening: wat zou de bijtelling zijn als het
+// Belastingplan 2027 wordt aangenomen? Geeft null voor een jaar waarvoor het
+// voorstel niets regelt. Voor de auto die onder het overgangsrecht van artikel
+// XLVII lid 3 valt, geldt niet de voorgestelde grens maar de regeling zoals die
+// op 31-12-2026 luidde, dus grens 16.
+function bijtellingVolgensVoorstel(jaar, auto) {
+  const grens = voorgesteldeGrens(jaar);
+  if (grens === null) return null;
+
+  const o = TARIEVEN.youngtimerVoorstelOvergang2027;
+  const viaOvergangsrecht = jaar === o.jaar && auto.terBeschikking2025 === true &&
+    voldoetOvergangsrecht2027(auto.datumToelating);
+  const gebruikteGrens = viaOvergangsrecht ? o.regimeGrens : grens;
+
+  const res = bijtellingPerioden(jaar, auto, gebruikteGrens);
+  if (res.fout) return { fout: res.fout, grens: gebruikteGrens, viaOvergangsrecht };
+  // Bewust `false` als tweede argument: die vlag zet er "overgangsrecht 2026"
+  // bij, en dat is hier een ander overgangsrecht. De vlag gaat apart mee.
+  return {
+    grens: gebruikteGrens, voorgesteldeGrens: grens, viaOvergangsrecht,
+    isYoungtimer: res.perioden.some(p => p.isYoungtimer),
+    ...res, ...omschrijfBijtelling(res, false),
+  };
+}
+
+// De uitkomst volgens geldend recht, met de uitkomst onder het voorstel ernaast.
+//
+// Dit is nadrukkelijk géén keuzeregeling zoals die van 2026: welke van de twee
+// straks geldt hangt af van de stemming in de Kamer en niet van wat de
+// belastingplichtige het gunstigst vindt. Er wordt hier dus niet de laagste
+// gekozen. `bedrag` blijft altijd de uitkomst volgens geldend recht; `voorstel`
+// is informatie ernaast en is null zodra het voorstel voor dat jaar niets
+// verandert of niet te berekenen is.
+function bepaalBijtelling(jaar, auto) {
+  const officieel = bepaalBijtellingGeldendRecht(jaar, auto);
+  if (officieel.fout) return officieel;
+
+  const v = bijtellingVolgensVoorstel(jaar, auto);
+  if (!v || v.fout) return { ...officieel, voorstel: null };
+
+  const verschil = v.bedrag - officieel.bedrag;
+  return {
+    ...officieel,
+    voorstel: { ...v, verschil, gelijk: Math.abs(verschil) < 0.005 },
+  };
 }
 
 // ─── Heffing box 1 ────────────────────────────────────────────────────────────
@@ -1718,7 +1823,9 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     TARIEVEN, parseDatum, parseRdwDatum, formatDatumNl, leeftijdOp, isPre2017,
     youngtimerGrens, bepaalYoungtimer, regulierBijtellingPct, bepaalBijtelling,
+    bepaalBijtellingGeldendRecht, bijtellingVolgensVoorstel, voorgesteldeGrens,
     omslagdatumMeerDan, dagenTussen, voldoetOvergangsrecht2026,
+    voldoetOvergangsrecht2027,
     bijtellingPerioden, omschrijfBijtelling,
     schijventarief, algemeneHeffingskorting, arbeidskorting, tariefsaanpassing,
     berekenJaarIB, berekenJaarDGA, maandenTerBeschikking, bepaalPseudoEindheffing,
@@ -2250,13 +2357,30 @@ function bereken() {
       ? ` De goedkeuring voor 2026 is een keuzeregeling. Toepassen levert ${fmtE(k.metGoedkeuring.bedrag)} op tegen ${fmtE(k.zonderGoedkeuring.bedrag)} zonder, dus ${fmtE(k.verschil)} voordeliger; de berekening gaat daarvan uit.`
       : ` Let op: de goedkeuring voor 2026 is een keuzeregeling en pakt hier ongunstig uit. Toepassen zou ${fmtE(k.metGoedkeuring.bedrag)} geven tegen ${fmtE(k.zonderGoedkeuring.bedrag)} zonder. De berekening gaat uit van niet toepassen, wat ${fmtE(k.verschil)} scheelt.`;
   }
+  // De uitkomst onder het wetsvoorstel komt ernaast te staan, niet in plaats
+  // van. Er valt hier niets te kiezen: welke grens straks geldt hangt af van de
+  // stemming en niet van de belastingplichtige. Daarom wordt niet de laagste
+  // genomen, zoals bij de keuzeregeling van 2026 hierboven wel gebeurt.
+  if (b27.voorstel && !b27.voorstel.gelijk) {
+    const v = b27.voorstel;
+    conclusie += ` Wordt het Belastingplan 2027 aangenomen, dan geldt voor 2027 een grens van ${v.voorgesteldeGrens} jaar in plaats van 25. De bijtelling komt dan uit op ${fmtE(v.bedrag)} in plaats van ${fmtE(b27.bedrag)}, dus ${fmtE(Math.abs(v.verschil))} ${v.verschil < 0 ? 'lager' : 'hoger'}.`;
+    if (v.viaOvergangsrecht) {
+      conclusie += ` Deze auto valt onder het overgangsrecht van dat voorstel: hij stond uiterlijk 31-12-2025 al ter beschikking en werd in de loop van 2026 ouder dan 16 jaar, zodat de regeling van 2026 heel 2027 blijft gelden. Anders dan bij de goedkeuring voor 2026 is dat geen keuze.`;
+    }
+    // Officieel valt de auto uit de regeling en onder het voorstel niet. Dan
+    // staat hierboven het advies om heretikettering te overwegen, en dat is een
+    // onomkeerbare stap op grond van een grens die vermoedelijk vervalt.
+    if (!b27.isYoungtimer && v.isYoungtimer) {
+      conclusie += ` Let op wat dat betekent voor de overweging hierboven: onder het voorstel blijft deze auto in 2027 gewoon youngtimer, zodat de aanleiding voor heretikettering vervalt. Neem die stap daarom niet voordat er is gestemd.`;
+    }
+  }
   [[2026, b26], [2027, b27]].forEach(([jaar, b]) => {
     if (b.gesplitst) {
       conclusie += ` In ${jaar} passeert de auto de leeftijdsgrens op ${formatDatumNl(b.perioden[1].van)}; de bijtelling is daarom tijdsevenredig over ${b.perioden[0].dagen} en ${b.perioden[1].dagen} dagen berekend.`;
     }
   });
 
-  const voorbehoud = ' De grens van 25 jaar per 2027 staat in de wet, maar is politiek niet afgerond: de Tweede Kamer nam op 31-03-2026 een motie aan om ervan af te zien en het kabinet heeft alternatieve afbouwpaden geschetst zonder er al een te kiezen. Zolang de wet niet is gewijzigd rekent deze tool met 25 jaar; controleer de stand van zaken vóór je hierop een onomkeerbare keuze baseert. De berekening gaat verder uit van uitsluitend de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden.';
+  const voorbehoud = ' De grens van 25 jaar per 2027 staat in de wet, maar gaat vermoedelijk niet in werking. Op Prinsjesdag 2026 is het Belastingplan 2027 ingediend (Kamerstukken II 2026/27, 37 022), dat die grens vervangt door 17 jaar per 01-01-2027 en 20 jaar per 01-01-2028. Dat voorstel is nog niet aangenomen; de Tweede en Eerste Kamer stemmen er naar verwachting in november of december 2026 over. Deze tool rekent daarom met de wet zoals die er nu staat en zet de uitkomst onder het voorstel ernaast, zodat beide zichtbaar zijn. Baseer geen onomkeerbare keuze op een van de twee zonder de stand van zaken te controleren. De berekening gaat verder uit van uitsluitend de ingevoerde inkomensgegevens; andere box 1-componenten kunnen de uiteindelijke heffing beïnvloeden.';
   conclusie += voorbehoud;
 
   $('verd').className = 'verdict ' + vClass;
@@ -2713,6 +2837,6 @@ setBrief('signaal');
 setEhCatalogusprijsStatus('-', 'We proberen de catalogusprijs automatisch op te halen via RDW.', 'leeg', 'Nog niet bepaald');
 berekenEindheffing();
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 16 sep 2026, 23:10</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 00:42</div>
 </body>
 </html>
