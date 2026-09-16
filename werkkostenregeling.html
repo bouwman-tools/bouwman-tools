@@ -119,6 +119,9 @@
     input::-webkit-inner-spin-button, input::-webkit-outer-spin-button,
     input::-webkit-calendar-picker-indicator { display: none; }
     .uitkomst { background: #fff; }
+    .vindplaatsen th, .vindplaatsen td { padding-top: .2rem; padding-bottom: .2rem; line-height: 1.4; }
+    footer { margin-top: .75rem; padding: .5rem 0 0; }
+    footer p { margin: 0; }
   }
 </style>
 </head>
@@ -500,6 +503,11 @@ function berekenWkr(invoer) {
     overschrijding: overschrijding,
     eindheffingstarief: waarden.eindheffingstarief,
     eindheffing: eindheffing,
+    // Handboek Loonheffingen 2024 (oktober, 2e uitgave), 2025 (oktober) en
+    // 2026 (maart), par. 13.2.6: collectieve rubrieken in hele euro's,
+    // afronden in het voordeel van de werkgever toegestaan. Positief: omlaag.
+    // https://download.belastingdienst.nl/belastingdienst/docs/handboek-loonheffingen-lh0221t61fd.pdf#page=233
+    eindheffingHeleEuros: Math.floor(eindheffing),
     benutting: ruimte.totaal > 0 ? totaalAangewezen / ruimte.totaal : null
   };
 }
@@ -558,7 +566,7 @@ function vindplaatsen(jaar) {
 // hun getallen uit dezelfde functie halen.
 
 const TOOLNAAM = 'werkkostenregeling';
-const TOOLVERSIE = '2026-09-16.2';
+const TOOLVERSIE = '2026-09-16.3';
 const DOSSIER_VERSIE = 1;
 
 const euro = function (bedrag, decimalen) {
@@ -585,6 +593,7 @@ const procent = function (deel, decimalen) {
 // ---------------------------------------------------------------------------
 
 function weergave(regel) {
+  if (regel.soort === 'euro0') return euro(regel.waarde, 0);
   if (regel.soort === 'procent') return procent(regel.waarde, 1);
   if (regel.soort === 'procent2') return procent(regel.waarde, 2);
   if (regel.soort === 'geheel') return String(regel.waarde);
@@ -613,12 +622,16 @@ function uitkomstRegels(u) {
     regels.push({ label: 'Overschrijding vrije ruimte', waarde: u.overschrijding, soort: 'euro', klasse: 'hoofd' });
     regels.push({
       label: 'Eindheffing ' + procent(u.eindheffingstarief, 0) + ' over de overschrijding',
-      waarde: u.eindheffing, soort: 'euro', klasse: 'slot'
+      waarde: u.eindheffing, soort: 'euro', klasse: 'hoofd'
     });
   } else {
     regels.push({ label: 'Onbenutte vrije ruimte', waarde: u.onbenutteRuimte, soort: 'euro', klasse: 'hoofd' });
-    regels.push({ label: 'Eindheffing werkkostenregeling', waarde: 0, soort: 'euro', klasse: 'slot' });
+    regels.push({ label: 'Eindheffing werkkostenregeling', waarde: 0, soort: 'euro', klasse: 'hoofd' });
   }
+  regels.push({
+    label: 'Eindheffing in hele euro’s — naar beneden afgerond (jaarbedrag)',
+    waarde: u.eindheffingHeleEuros, soort: 'euro0', klasse: 'slot'
+  });
   return regels;
 }
 
@@ -679,6 +692,14 @@ function meldingRegels(u, signaal) {
 // Vaste toelichting die niet van de uitkomst afhangt.
 function notitieRegels(jaar, n) {
   const notities = [];
+  notities.push(
+    'De berekening toont bedragen op centen. Voor de aangifte is daarnaast de eindheffing '
+    + 'naar beneden afgerond op hele euro’s, in het voordeel van de werkgever. '
+    + 'Dit is het jaarbedrag. U kunt dit volledig overnemen als u de eindheffing in één keer '
+    + 'aangeeft en voor dit jaar nog niets hebt aangegeven. Houd anders rekening met eerder '
+    + 'aangegeven eindheffing; deze tool registreert die niet en berekent geen restant per tijdvak. '
+    + 'Handboek Loonheffingen ' + jaar + ', par. 13.2.6 (afronding) en 10.1.6 (verrekening).'
+  );
   const grens = euro(jaarwaarden(jaar).doelmatigheidsgrens, 0);
   // KG:204:2025:11, 27-06-2025: grens per persoon per jaar, niet per gemiddeld
   // personeelslid; gebruikelijke vergoedingen vallen buiten deze doelmatigheidsgrens.
@@ -998,7 +1019,11 @@ function dossierBladen(d) {
   rijen.push([celTekst('Uitkomst', true)]);
   uitkomstRegels(d.uitkomst).forEach(function (regel) {
     const vet = regel.klasse === 'hoofd' || regel.klasse === 'slot';
-    rijen.push([celTekst(regel.label, vet), celUitRegel(regel, vet)]);
+    // Opmaak van deze dossierregel; de gedeelde xlsx-schrijver blijft ongewijzigd.
+    const cel = regel.soort === 'euro0'
+      ? celGetal(regel.waarde, '"€ "#,##0;"€ "-#,##0', vet)
+      : celUitRegel(regel, vet);
+    rijen.push([celTekst(regel.label, vet), cel]);
   });
   rijen.push([]);
 
