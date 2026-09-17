@@ -1,0 +1,3633 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCF-rekentool</title>
+<style>
+:root{
+  --inkt:#1b1f23; --gedempt:#5a636c; --lijn:#d7dce1; --lijn-zwaar:#aab3bc;
+  --vlak:#ffffff; --vlak-2:#f5f7f9; --vlak-3:#eceff2;
+  --accent:#1f5c8b; --accent-zacht:#e7f0f7;
+  --waarschuwing:#8a5a00; --waarschuwing-vlak:#fdf4e3;
+  --fout:#9b2226; --fout-vlak:#fbeced;
+  --goed:#1f6f4a; --goed-vlak:#e8f4ee;
+  --hand:#7a4b00; --hand-vlak:#fff6e6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--vlak-2); color:var(--inkt);
+  font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;
+}
+header.kop{
+  background:var(--vlak); border-bottom:1px solid var(--lijn);
+  padding:14px 20px; position:sticky; top:0; z-index:20;
+  display:flex; gap:20px; align-items:center; flex-wrap:wrap;
+}
+header.kop h1{font-size:17px; margin:0; font-weight:600; letter-spacing:-.01em}
+header.kop .rest{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.modus{display:flex; border:1px solid var(--lijn-zwaar); border-radius:6px; overflow:hidden}
+.modus button{
+  border:0; background:var(--vlak); padding:7px 14px; cursor:pointer;
+  font:inherit; color:var(--gedempt); border-right:1px solid var(--lijn);
+}
+.modus button:last-child{border-right:0}
+.modus button[aria-pressed="true"]{background:var(--accent); color:#fff; font-weight:600}
+main{max-width:1500px; margin:0 auto; padding:18px 20px 80px}
+.paneel{
+  background:var(--vlak); border:1px solid var(--lijn); border-radius:8px;
+  margin-bottom:16px; overflow:hidden;
+}
+.paneel > h2{
+  margin:0; padding:11px 16px; font-size:14px; font-weight:600;
+  background:var(--vlak-3); border-bottom:1px solid var(--lijn);
+  display:flex; align-items:center; gap:10px;
+}
+.paneel > h2 .toelichting{font-weight:400; color:var(--gedempt); font-size:12.5px}
+.paneel-inhoud{padding:14px 16px}
+.raster{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px 18px}
+label.veld{display:flex; flex-direction:column; gap:3px; font-size:12.5px; color:var(--gedempt)}
+label.veld > span.naam{color:var(--inkt); font-weight:500}
+input,select,textarea{
+  font:inherit; padding:6px 8px; border:1px solid var(--lijn-zwaar);
+  border-radius:4px; background:var(--vlak); color:var(--inkt); width:100%;
+}
+input[type=number]{text-align:right; font-variant-numeric:tabular-nums}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent)}
+input.ongeldig{border-color:var(--fout); background:var(--fout-vlak)}
+button.actie{
+  font:inherit; padding:7px 13px; border:1px solid var(--lijn-zwaar);
+  border-radius:5px; background:var(--vlak); cursor:pointer; color:var(--inkt);
+}
+button.actie:hover{background:var(--vlak-3)}
+button.actie.primair{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600}
+.melding{
+  padding:9px 12px; border-radius:5px; margin:8px 0; font-size:13px;
+  border:1px solid transparent; display:flex; gap:9px; align-items:flex-start;
+}
+.melding.fout{background:var(--fout-vlak); border-color:#e6b8ba; color:var(--fout)}
+.melding.waarschuwing{background:var(--waarschuwing-vlak); border-color:#e8d5a8; color:var(--waarschuwing)}
+.melding.info{background:var(--accent-zacht); border-color:#bcd6e8; color:var(--accent)}
+.melding.goed{background:var(--goed-vlak); border-color:#b3d9c5; color:var(--goed)}
+.melding b{font-weight:600}
+table.cijfers{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; font-size:13px}
+table.cijfers th,table.cijfers td{
+  border:1px solid var(--lijn); padding:4px 8px; text-align:right; white-space:nowrap;
+}
+table.cijfers th{background:var(--vlak-3); font-weight:600; text-align:right}
+table.cijfers th.regel,table.cijfers td.regel{text-align:left; white-space:normal; min-width:230px}
+table.cijfers tr.kop-groep td{
+  background:var(--vlak-3); font-weight:600; text-align:left; letter-spacing:.02em;
+}
+table.cijfers tr.afgeleid{background:var(--vlak-2)}
+table.cijfers tr.totaal td{border-top:2px solid var(--lijn-zwaar); font-weight:600}
+table.cijfers td.uitkomst{font-weight:600}
+.scroll{overflow-x:auto}
+.rasterinvoer input{padding:3px 5px; min-width:88px; border-color:var(--lijn)}
+.rasterinvoer input.hand{background:var(--hand-vlak); border-color:#e0c391; color:var(--hand); font-weight:600}
+.rasterinvoer input.kengetal{background:var(--vlak-2); color:var(--gedempt)}
+button.modusknop{
+  border:1px solid var(--lijn); background:var(--vlak-2); border-radius:3px;
+  font-size:10.5px; padding:1px 5px; cursor:pointer; color:var(--gedempt); line-height:1.5;
+}
+button.modusknop.hand{background:var(--hand-vlak); border-color:#e0c391; color:var(--hand); font-weight:600}
+.bronregel{font-size:11.5px; color:var(--gedempt); margin-top:3px}
+.bronregel.verouderd{color:var(--waarschuwing); font-weight:500}
+.uitkomst-groot{
+  display:flex; gap:26px; flex-wrap:wrap; padding:14px 16px;
+  background:var(--accent-zacht); border-bottom:1px solid var(--lijn);
+}
+.uitkomst-groot div{display:flex; flex-direction:column; gap:2px}
+.uitkomst-groot .etiket{font-size:12px; color:var(--gedempt)}
+.uitkomst-groot .bedrag{font-size:21px; font-weight:600; font-variant-numeric:tabular-nums}
+.verborgen{display:none !important}
+.tabs{display:flex; gap:2px; border-bottom:1px solid var(--lijn); padding:0 16px; background:var(--vlak-3); flex-wrap:wrap}
+.tabs button{
+  border:1px solid transparent; border-bottom:0; background:transparent; padding:7px 13px;
+  font:inherit; cursor:pointer; color:var(--gedempt); border-radius:5px 5px 0 0; margin-bottom:-1px;
+}
+.tabs button[aria-selected="true"]{background:var(--vlak); border-color:var(--lijn); color:var(--inkt); font-weight:600}
+details.uitleg{margin-top:10px; font-size:12.5px; color:var(--gedempt)}
+details.uitleg summary{cursor:pointer; color:var(--accent)}
+details.uitleg p{margin:6px 0}
+.rij{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+.klein{font-size:12px; color:var(--gedempt)}
+.legenda{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--gedempt); margin-bottom:8px}
+.legenda span.staal{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px; border:1px solid var(--lijn-zwaar)}
+</style>
+</head>
+<body>
+<header class="kop">
+  <h1>DCF-rekentool</h1>
+  <div class="modus" role="group" aria-label="Modus">
+    <button type="button" id="modus-eenvoudig" aria-pressed="true">Snelle scan</button>
+    <button type="button" id="modus-uitgebreid" aria-pressed="false">Uitgebreid</button>
+  </div>
+  <div class="rest">
+    <label class="veld" style="min-width:150px">
+      <span class="naam">Bedragen in</span>
+      <select id="eenheid">
+        <option value="euro">hele euro's</option>
+        <option value="duizend">duizenden euro's</option>
+        <option value="miljoen">miljoenen euro's</option>
+      </select>
+    </label>
+    <button type="button" class="actie" id="knop-opslaan">Casus opslaan</button>
+    <button type="button" class="actie" id="knop-laden">Casus laden</button>
+    <input type="file" id="bestand-laden" accept="application/json" class="verborgen">
+  </div>
+</header>
+
+<main>
+  <div id="meldingen"></div>
+
+  <section class="paneel">
+    <div class="uitkomst-groot" id="uitkomstbalk"></div>
+    <div class="tabs" id="uitkomst-tabs" role="tablist">
+      <button type="button" role="tab" data-uittab="samenvatting" aria-selected="true">Samenvatting</button>
+      <button type="button" role="tab" data-uittab="kasstroom" aria-selected="false">Vrije kasstroom</button>
+      <button type="button" role="tab" data-uittab="waardering" aria-selected="false">Waardering</button>
+      <button type="button" role="tab" data-uittab="brug" aria-selected="false">Waardebrug</button>
+      <button type="button" role="tab" data-uittab="iteratie" aria-selected="false">Convergentie</button>
+      <button type="button" role="tab" data-uittab="exploitatie" aria-selected="false" data-alleen="uitgebreid">Exploitatie</button>
+      <button type="button" role="tab" data-uittab="balans" aria-selected="false" data-alleen="uitgebreid">Balans</button>
+      <button type="button" role="tab" data-uittab="financiering" aria-selected="false" data-alleen="uitgebreid">Financieringstoets</button>
+      <button type="button" role="tab" data-uittab="illiquiditeit" aria-selected="false" data-alleen="uitgebreid">Illiquiditeit</button>
+      <button type="button" role="tab" data-uittab="activadeal" aria-selected="false">Activadeal</button>
+      <button type="button" role="tab" data-uittab="verantwoording" aria-selected="false">Verantwoording</button>
+    </div>
+    <div class="paneel-inhoud" id="uitkomst-inhoud"></div>
+  </section>
+
+  <section class="paneel">
+    <h2>Algemeen <span class="toelichting">peiljaar, horizon en groei na de prognose</span></h2>
+    <div class="paneel-inhoud">
+      <div class="raster" id="algemeen-velden"></div>
+    </div>
+  </section>
+
+  <section class="paneel">
+    <h2>Rendementseis <span class="toelichting">drie routes, dezelfde uitkomst-interface</span></h2>
+    <div class="tabs" id="eis-tabs" role="tablist">
+      <button type="button" role="tab" data-eistab="buildup" data-alleen="uitgebreid" aria-selected="false">Eigen build-up</button>
+      <button type="button" role="tab" data-eistab="referentie" aria-selected="false">Referentie-invoer</button>
+      <button type="button" role="tab" data-eistab="direct" aria-selected="true">Directe invoer</button>
+    </div>
+    <div class="paneel-inhoud">
+      <div id="eis-buildup" class="verborgen"></div>
+      <div id="eis-referentie" class="verborgen"></div>
+      <div id="eis-direct"></div>
+      <div id="eis-uitkomst"></div>
+    </div>
+  </section>
+
+  <section class="paneel" id="paneel-eenvoudig">
+    <h2>Kasstroom, snelle scan <span class="toelichting">bedrijfsresultaat als vertrekpunt</span></h2>
+    <div class="paneel-inhoud">
+      <div class="raster" id="eenvoudig-velden"></div>
+      <div class="scroll" id="eenvoudig-groei"></div>
+      <details class="uitleg">
+        <summary>Wat deze modus veronderstelt</summary>
+        <div id="eenvoudig-uitleg"></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="paneel verborgen" id="paneel-uitgebreid">
+    <h2>Prognose, uitgebreid
+      <span class="toelichting">per regel zichtbaar of hij het kengetal volgt of op handinvoer staat</span>
+    </h2>
+    <div class="tabs" id="invoer-tabs" role="tablist">
+      <button type="button" role="tab" data-invtab="uitgangspunten" aria-selected="true">Uitgangspunten</button>
+      <button type="button" role="tab" data-invtab="exploitatie" aria-selected="false">Exploitatie</button>
+      <button type="button" role="tab" data-invtab="werkkapitaal" aria-selected="false">Werkkapitaal en balans</button>
+      <button type="button" role="tab" data-invtab="financiering" aria-selected="false">Financiering</button>
+      <button type="button" role="tab" data-invtab="plakken" aria-selected="false">Plakken uit spreadsheet</button>
+    </div>
+    <div class="paneel-inhoud">
+      <div class="legenda">
+        <span><span class="staal" style="background:var(--vlak-2)"></span>volgt het kengetal</span>
+        <span><span class="staal" style="background:var(--hand-vlak);border-color:#e0c391"></span>handinvoer, wijkt af van het kengetal</span>
+        <span>Klik op <b>kengetal</b> of <b>hand</b> naast de regel om te wisselen.</span>
+      </div>
+      <div id="inv-uitgangspunten"></div>
+      <div id="inv-exploitatie" class="verborgen scroll"></div>
+      <div id="inv-werkkapitaal" class="verborgen scroll"></div>
+      <div id="inv-financiering" class="verborgen scroll"></div>
+      <div id="inv-plakken" class="verborgen"></div>
+    </div>
+  </section>
+
+  <section class="paneel">
+    <h2>Waardebrug <span class="toelichting">van ondernemingswaarde naar waarde van de aandelen</span></h2>
+    <div class="paneel-inhoud">
+      <div class="raster" id="brug-velden"></div>
+    </div>
+  </section>
+
+  <section class="paneel">
+    <h2>Aanvullende berekeningen <span class="toelichting">rekenen door op de berekende waarde, niet op een overgetypt bedrag</span></h2>
+    <div class="paneel-inhoud">
+      <div class="raster" id="aanvullend-velden"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+// Alle bedragen in deze kern zijn hele euro's. De notatiekeuze van de gebruiker
+// wordt aan de rand omgerekend (naarEuro/vanEuro) en raakt nooit een rekenregel.
+
+/* ---------------------------------------------------------------------------
+   0. Hulpfuncties
+   ------------------------------------------------------------------------ */
+
+function isGetal(x) {
+  return typeof x === 'number' && Number.isFinite(x);
+}
+
+function eisGetal(x, naam) {
+  if (!isGetal(x)) throw new Error('Ontbrekende of ongeldige invoer: ' + naam);
+  return x;
+}
+
+function som(reeks) {
+  return reeks.reduce(function (a, b) { return a + (isGetal(b) ? b : 0); }, 0);
+}
+
+function afronden(x, decimalen) {
+  if (!isGetal(x)) return x;
+  var f = Math.pow(10, decimalen || 0);
+  // Halve eenheden van de nul af, zodat -0,5 en 0,5 symmetrisch afronden.
+  return (x < 0 ? -1 : 1) * Math.round(Math.abs(x) * f) / f;
+}
+
+// Meldingen uit de kern gaan rechtstreeks naar de gebruiker, dus staan de getallen
+// daarin in Nederlandse notatie. Zonder dit toont een melding "3.59%" waar "3,59%"
+// hoort te staan.
+function getalTekst(x, decimalen) {
+  if (!isGetal(x)) return String(x);
+  var d = isGetal(decimalen) ? decimalen : 0;
+  return x.toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+function pctTekst(deel, decimalen) {
+  if (!isGetal(deel)) return String(deel);
+  return getalTekst(deel * 100, isGetal(decimalen) ? decimalen : 2) + '%';
+}
+
+// Elke invoer die in de bronmodellen onbegrensd is, loopt in deze tool langs
+// begrens(). Een overschrijding is een fout en geen waarschuwing: stil doorrekenen
+// met een opslag van 300% is precies het gedrag dat we willen uitsluiten.
+function begrens(waarde, min, max, naam) {
+  if (!isGetal(waarde)) throw new Error('Ontbrekende of ongeldige invoer: ' + naam);
+  if (waarde < min || waarde > max) {
+    // Grenzen tussen -1 en 1 zijn in deze tool percentages; die lezen als percentage.
+    var alsPct = Math.abs(min) <= 1 && Math.abs(max) <= 1;
+    throw new Error(naam + ' moet tussen ' + (alsPct ? pctTekst(min, 1) : getalTekst(min, 0)) +
+                    ' en ' + (alsPct ? pctTekst(max, 1) : getalTekst(max, 0)) +
+                    ' liggen; ingevoerd: ' + (alsPct ? pctTekst(waarde, 2) : getalTekst(waarde, 2)) + '.');
+  }
+  return waarde;
+}
+
+/* ---------------------------------------------------------------------------
+   1. Notatie: één keuze die alle bedragen en grenzen meeneemt
+   ------------------------------------------------------------------------ */
+
+var EENHEDEN = {
+  euro:    { factor: 1,       etiket: "hele euro's",      kort: '€' },
+  duizend: { factor: 1000,    etiket: "duizenden euro's", kort: '€ x 1.000' },
+  miljoen: { factor: 1000000, etiket: "miljoenen euro's", kort: '€ x 1 mln' }
+};
+
+// Van invoer in de gekozen notatie naar hele euro's.
+function naarEuro(bedrag, eenheid) {
+  var e = EENHEDEN[eenheid];
+  if (!e) throw new Error('Onbekende notatie: ' + eenheid);
+  if (!isGetal(bedrag)) return bedrag;
+  return bedrag * e.factor;
+}
+
+// Van hele euro's terug naar de gekozen notatie.
+function vanEuro(bedrag, eenheid) {
+  var e = EENHEDEN[eenheid];
+  if (!e) throw new Error('Onbekende notatie: ' + eenheid);
+  if (!isGetal(bedrag)) return bedrag;
+  return bedrag / e.factor;
+}
+
+// Een cel uit een spreadsheet naar een getal. De valkuil is de Nederlandse notatie:
+// JavaScript leest "1.250.000" als 1,25 en "120.000" als 120. Zo een lezing rekent
+// stil een factor duizend mis, dus wordt hier expliciet ontleed en wordt elke
+// dubbelzinnige lezing gemeld in plaats van stil gekozen.
+function getalUitCel(tekst) {
+  if (tekst === undefined || tekst === null) return null;
+  var ruw = String(tekst).replace(/ /g, ' ').trim();
+  if (ruw === '') return null;
+  var procent = /%/.test(ruw);
+  var s = ruw.replace(/[€$\s%]/g, '');
+  var haakjes = /^\(.*\)$/.test(s);
+  if (haakjes) s = s.slice(1, -1);
+  var negatief = haakjes || /^-/.test(s);
+  s = s.replace(/^[-+]/, '');
+  if (!/^[0-9.,]+$/.test(s)) return null;
+
+  var punten = (s.match(/\./g) || []).length;
+  var kommas = (s.match(/,/g) || []).length;
+  var dubbelzinnig = '';
+  var genormaliseerd;
+
+  if (kommas > 0 && punten > 0) {
+    // Beide aanwezig: het laatst voorkomende teken is het decimaalteken.
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      genormaliseerd = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      genormaliseerd = s.replace(/,/g, '');
+    }
+  } else if (kommas > 1) {
+    genormaliseerd = s.replace(/,/g, '');           // duizendtalscheiders
+  } else if (kommas === 1) {
+    genormaliseerd = s.replace(',', '.');           // decimaalkomma
+  } else if (punten > 1) {
+    genormaliseerd = s.replace(/\./g, '');          // duizendtalscheiders
+  } else if (punten === 1) {
+    var na = s.split('.')[1];
+    var voor = s.split('.')[0];
+    if (na.length === 3 && voor.length > 0) {
+      // "1.250" kan 1250 of 1,25 zijn. In Nederlandse notatie is het een
+      // duizendtalscheider; die lezing wordt gekozen en gemeld.
+      genormaliseerd = s.replace('.', '');
+      dubbelzinnig = ruw + ' gelezen als ' + genormaliseerd;
+    } else {
+      genormaliseerd = s;                            // decimale punt
+    }
+  } else {
+    genormaliseerd = s;
+  }
+
+  var g = Number(genormaliseerd);
+  if (!Number.isFinite(g)) return null;
+  if (negatief) g = -g;
+  return { getal: g, procent: procent, dubbelzinnig: dubbelzinnig };
+}
+
+// Een percentagewaarde zonder procentteken is dubbelzinnig: 35 betekent vrijwel zeker
+// 35%, maar 1,2 kan 1,2% of 120% zijn. De gekozen lezing wordt gemeld.
+function percentageUitCel(g) {
+  if (g.procent) return { waarde: g.getal / 100, melding: '' };
+  if (Math.abs(g.getal) > 1.5) return { waarde: g.getal / 100, melding: '' };
+  return {
+    waarde: g.getal,
+    melding: g.getal === 0 ? '' : getalTekst(g.getal, 2) + ' gelezen als ' +
+      pctTekst(g.getal) + '; zet er een procentteken bij als dat niet klopt'
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   2. Vennootschapsbelasting
+   ------------------------------------------------------------------------ */
+
+// Tarieftabel van artikel 22 Wet Vpb 1969.
+// Bron: https://wetten.overheid.nl/BWBR0002672 — artikel 22, per toestandsversie.
+// Kolom III van de wettelijke tabel staat hieronder als drempelbedrag; een test
+// toetst dat drempelbedrag gelijk is aan schijfgrens x tariefLaag.
+// Verliesverrekening: artikel 20, tweede lid Wet Vpb 1969 — verrekening in een jaar
+// tot 1.000.000 euro, vermeerderd met 50% van de winst boven 1.000.000 euro.
+// Alle waarden gecontroleerd op wetten.overheid.nl op 02-09-2026.
+var VPB_PER_JAAR = {
+  2022: {
+    // Geldend van 01-01-2022 t/m 31-12-2022.
+    schijfgrens: 395000, tariefLaag: 0.15, tariefHoog: 0.258, drempelbedrag: 59250,
+    verliesDrempel: 1000000, verliesPercentageBoven: 0.50
+  },
+  2023: {
+    // Geldend van 01-01-2023 t/m 31-12-2023.
+    schijfgrens: 200000, tariefLaag: 0.19, tariefHoog: 0.258, drempelbedrag: 38000,
+    verliesDrempel: 1000000, verliesPercentageBoven: 0.50
+  },
+  2024: {
+    schijfgrens: 200000, tariefLaag: 0.19, tariefHoog: 0.258, drempelbedrag: 38000,
+    verliesDrempel: 1000000, verliesPercentageBoven: 0.50
+  },
+  2025: {
+    schijfgrens: 200000, tariefLaag: 0.19, tariefHoog: 0.258, drempelbedrag: 38000,
+    verliesDrempel: 1000000, verliesPercentageBoven: 0.50
+  },
+  2026: {
+    // Geldend van 01-01-2026 t/m heden. De toestandsversie per 01-01-2029 kent
+    // dezelfde tabel; er is dus geen aangenomen tariefwijziging in zicht.
+    schijfgrens: 200000, tariefLaag: 0.19, tariefHoog: 0.258, drempelbedrag: 38000,
+    verliesDrempel: 1000000, verliesPercentageBoven: 0.50
+  }
+};
+
+var VPB_EERSTE_JAAR = 2022;
+var VPB_LAATST_VASTGESTELD = 2026;
+
+// Een DCF rekent per definitie over jaren waarvoor nog geen wet bestaat. Daarom
+// wordt geldend recht voortgezet, maar nooit stil: de status komt mee in elke
+// uitkomst en de tool toont haar per jaar. Een jaar vóór de tabel rekent niet door.
+function vpbJaarwaarden(jaar) {
+  eisGetal(jaar, 'belastingjaar');
+  if (jaar < VPB_EERSTE_JAAR) {
+    throw new Error('Voor ' + jaar + ' is geen tarieftabel opgenomen; de tool rekent ' +
+                    'niet terug vóór ' + VPB_EERSTE_JAAR + '.');
+  }
+  if (VPB_PER_JAAR[jaar]) {
+    return { waarden: VPB_PER_JAAR[jaar], status: 'vastgesteld', bronjaar: jaar };
+  }
+  return {
+    waarden: VPB_PER_JAAR[VPB_LAATST_VASTGESTELD],
+    status: 'voortgezet',
+    bronjaar: VPB_LAATST_VASTGESTELD
+  };
+}
+
+// Belasting over een belastbaar bedrag volgens de tabel van artikel 22.
+// Een belastbaar bedrag van nihil of lager geeft nihil belasting: de wet kent geen
+// negatieve aanslag. Een verlies loopt via de verliesverrekening hieronder.
+function vpbBedrag(belastbaarBedrag, jaar) {
+  eisGetal(belastbaarBedrag, 'belastbaar bedrag');
+  var j = vpbJaarwaarden(jaar);
+  var w = j.waarden;
+  var belasting;
+  if (belastbaarBedrag <= 0) {
+    belasting = 0;
+  } else if (belastbaarBedrag <= w.schijfgrens) {
+    belasting = belastbaarBedrag * w.tariefLaag;
+  } else {
+    belasting = w.drempelbedrag + (belastbaarBedrag - w.schijfgrens) * w.tariefHoog;
+  }
+  return { belasting: belasting, status: j.status, bronjaar: j.bronjaar, jaar: jaar };
+}
+
+// Artikel 20, tweede lid Wet Vpb 1969: hoeveel verlies mag dit jaar worden verrekend.
+function verrekenbaarVerlies(winst, verliesvoorraad, jaar) {
+  eisGetal(winst, 'winst');
+  eisGetal(verliesvoorraad, 'verliesvoorraad');
+  var w = vpbJaarwaarden(jaar).waarden;
+  if (winst <= 0 || verliesvoorraad <= 0) return 0;
+  var ruimte = winst <= w.verliesDrempel
+    ? winst
+    : w.verliesDrempel + (winst - w.verliesDrempel) * w.verliesPercentageBoven;
+  return Math.min(verliesvoorraad, ruimte);
+}
+
+// Belastingreeks over meerdere jaren, met voorwaartse verliesverrekening.
+// Achterwaartse verrekening blijft buiten de tool: die raakt een jaar dat op de
+// waarderingsdatum al is afgewikkeld. Zij loopt over één jaar en staat eveneens in
+// artikel 20, tweede lid ("het voorafgaande jaar"); het eerste lid merkt een negatief
+// bedrag alleen als verlies aan. Zie de verantwoording in de tool.
+function belastingReeks(grondslagen, jaren, opties) {
+  opties = opties || {};
+  var verrekenen = opties.verliesverrekening !== false;
+  var voorraad = isGetal(opties.beginvoorraadVerlies) ? opties.beginvoorraadVerlies : 0;
+  var uit = [];
+  for (var i = 0; i < grondslagen.length; i++) {
+    var grondslag = eisGetal(grondslagen[i], 'belastinggrondslag jaar ' + jaren[i]);
+    var verrekend = 0;
+    var belastbaar = grondslag;
+    if (verrekenen) {
+      if (grondslag > 0) {
+        verrekend = verrekenbaarVerlies(grondslag, voorraad, jaren[i]);
+        voorraad -= verrekend;
+        belastbaar = grondslag - verrekend;
+      } else {
+        voorraad += -grondslag;
+        belastbaar = 0;
+      }
+    }
+    var b = vpbBedrag(Math.max(0, belastbaar), jaren[i]);
+    uit.push({
+      jaar: jaren[i], grondslag: grondslag, verrekendVerlies: verrekend,
+      belastbaarBedrag: Math.max(0, belastbaar), belasting: b.belasting,
+      verliesvoorraadEind: voorraad, tariefstatus: b.status, tariefbronjaar: b.bronjaar,
+      effectiefTarief: grondslag > 0 ? b.belasting / grondslag : 0
+    });
+  }
+  return uit;
+}
+
+// Marginaal tarief. Nodig voor het herleveren van de beta en voor de brutering bij
+// een activadeal; voor de tax shield van de rente is het te grof. Zie taxShieldReeks.
+function marginaalTarief(jaar) {
+  var j = vpbJaarwaarden(jaar);
+  return { tarief: j.waarden.tariefHoog, status: j.status, bronjaar: j.bronjaar };
+}
+
+// Belastingvoordeel van de renteaftrek per jaar. De shield is niets anders dan het
+// bedrag waarmee de aanslag door de aftrek daalt: de aanslag zonder renteaftrek min
+// de aanslag met renteaftrek, over dezelfde reeks jaren en met dezelfde
+// verliesverrekening. Daarmee volgt de shield vanzelf de schijf waarin de rente valt.
+//
+// Rente maal het hoogste tarief klopt alleen zolang de hele rente in de tweede schijf
+// valt. Blijft de grondslag onder de schijfgrens, dan bespaart de aftrek 19% en geen
+// 25,8%; is er geen belastbare winst, dan bespaart zij dit jaar niets en komt het
+// voordeel pas in het jaar waarin het verlies wordt verrekend.
+// Bron: artikel 22 Wet Vpb 1969, tabel kolom I tot en met IV (geldend van 01-01-2026
+// t/m heden; de toestandsversie per 01-01-2029 kent dezelfde tabel) en artikel 20,
+// tweede lid Wet Vpb 1969. https://wetten.overheid.nl/BWBR0002672 — gecontroleerd op
+// 09-09-2026.
+//
+// `aandeelVanRente` is de shield gedeeld door de rente van hetzelfde jaar. Dat getal
+// maakt zichtbaar dat de besparing lang niet altijd tegen 25,8% loopt, maar het is
+// uitdrukkelijk géén tarief: door de verliesverrekening kan besparing die in een
+// eerder jaar is ontstaan later landen, en dan komt het aandeel boven elk tarief uit
+// de tabel uit. Het staat daarom als aandeel in de uitvoer en niet als tarief.
+function taxShieldReeks(grondslagen, rentes, jaren, opties) {
+  var metAftrek = grondslagen.map(function (g, i) {
+    var r = isGetal(rentes[i]) ? rentes[i] : 0;
+    return eisGetal(g, 'belastinggrondslag jaar ' + jaren[i]) - r;
+  });
+  var zonder = belastingReeks(grondslagen, jaren, opties);
+  var met = belastingReeks(metAftrek, jaren, opties);
+  return zonder.map(function (z, i) {
+    var rente = isGetal(rentes[i]) ? rentes[i] : 0;
+    var shield = z.belasting - met[i].belasting;
+    return {
+      jaar: jaren[i], rente: rente,
+      belastingZonderRenteaftrek: z.belasting, belastingMetRenteaftrek: met[i].belasting,
+      taxShield: shield,
+      // Nihil rente geeft nihil aandeel; delen door nul levert geen zinnig getal op.
+      aandeelVanRente: rente !== 0 ? shield / rente : 0,
+      tariefstatus: z.tariefstatus, tariefbronjaar: z.tariefbronjaar
+    };
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   3. Marktwaarden en branchewaarden
+   ------------------------------------------------------------------------ */
+
+// Marktwaarden lopen niet op de Belastingplan-klok: rentereeksen bewegen maandelijks,
+// de marktrisicopremie per kwartaal en het branchecijfer jaarlijks met vertraging.
+// Daarom per waarde een eigen peildatum, een bronregel en een uiterste houdbaarheid.
+// Een te oud of onbekend peilmoment geeft een melding en rekent nooit stil door.
+var MARKT = {
+  risicovrijeVoet: {
+    waarde: 0.03195,
+    etiket: 'Risicovrije voet, 10-jaars Nederland',
+    bron: 'ECB, Long-term interest rate for convergence purposes, Netherlands, monthly',
+    reeks: 'IRS.M.NL.L.L40.CI.0000.EUR.N',
+    vindplaats: 'https://data.ecb.europa.eu/data/datasets/IRS/IRS.M.NL.L.L40.CI.0000.EUR.N',
+    peildatum: '2026-07-31',
+    gepubliceerd: '2026-08-12',
+    houdbaarMaanden: 3
+  },
+  kostenvoetVreemdVermogen: {
+    // Nieuwe contracten, Nederland, ECB juli 2026. Geen uitsplitsing naar
+    // bedrijfsgrootte; de leningomvang is de gangbare benadering daarvan.
+    klassen: [
+      { sleutel: 'tot025', etiket: 'Lening tot en met 0,25 mln euro', waarde: 0.0482, reeks: 'MIR.M.NL.B.A2A.A.R.2.2240.EUR.N' },
+      { sleutel: '025tot1', etiket: 'Lening 0,25 tot 1 mln euro',     waarde: 0.0472, reeks: 'MIR.M.NL.B.A2A.A.R.3.2240.EUR.N' },
+      { sleutel: 'boven1',  etiket: 'Lening boven 1 mln euro',        waarde: 0.0310, reeks: 'MIR.M.NL.B.A2A.A.R.1.2240.EUR.N' },
+      { sleutel: 'uitstaand', etiket: 'Uitstaande bedragen, totaal',  waarde: 0.0340, reeks: 'MIR.M.NL.B.A20.A.R.A.2240.EUR.O' }
+    ],
+    bron: 'ECB, MFI interest rate statistics (MIR), nieuwe contracten Nederland',
+    vindplaats: 'https://data.ecb.europa.eu/data/datasets/MIR',
+    peildatum: '2026-07-31',
+    houdbaarMaanden: 3
+  },
+  marktrisicopremie: {
+    waarde: 0.0423,
+    etiket: 'Marktrisicopremie Nederland',
+    bron: 'Damodaran, Country Default Spreads and Risk Premiums; Nederland rating Aaa, landenrisicopremie 0,00%',
+    vindplaats: 'https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html',
+    peildatum: '2026-01-01',
+    houdbaarMaanden: 12,
+    voorbehoud: 'Op deze bron rust geen licentie en de auteur maakt uitdrukkelijk voorbehoud ' +
+      'bij gebruik in geschillen. Gebruik de waarde als voorgesteld startpunt, niet als ' +
+      'gezaghebbend bewijs. Overschrijf haar met een eigen onderbouwing waar dat telt.'
+  }
+};
+
+// Vreemd vermogen gedeeld door totaal vermogen, eigen berekening uit CBS-tabel 81837NED
+// (Financiën alle ondernemingen, niet-financiële sector), verslagjaar 2024, nader
+// voorlopig. Boekwaarden, geen marktwaarden. Waardegewogen aggregaten die door de
+// grootste ondernemingen worden gedomineerd, dus geen MKB-mediaan en zonder spreiding.
+// Vreemd vermogen is hier balanstotaal minus eigen vermogen en dus breder dan
+// rentedragend vreemd vermogen. Bedoeld als onderbouwd startpunt, altijd overschrijfbaar.
+var BRANCHE_VV = {
+  peiljaar: 2024,
+  bron: 'CBS, tabel 81837NED, eigen berekening (eigen vermogen gedeeld door balanstotaal)',
+  vindplaats: 'https://www.cbs.nl/nl-nl/cijfers/detail/81837NED',
+  licentie: 'CC BY 4.0',
+  houdbaarMaanden: 18,
+  waarden: [
+    { sleutel: 'totaal',      etiket: 'Totaal exclusief financiële sector', vvAandeel: 0.435 },
+    { sleutel: 'industrie',   etiket: 'Industrie',                          vvAandeel: 0.428 },
+    { sleutel: 'bouw',        etiket: 'Bouwnijverheid',                     vvAandeel: 0.481 },
+    { sleutel: 'detailhandel',etiket: "Detailhandel, niet in auto's",  vvAandeel: 0.368 },
+    { sleutel: 'it',          etiket: 'IT-dienstverlening',                 vvAandeel: 0.413 },
+    { sleutel: 'zorg',        etiket: 'Gezondheidszorg',                    vvAandeel: 0.536 }
+  ]
+};
+
+// Ouderdom van een peildatum ten opzichte van de rekendatum, in hele maanden.
+function ouderdomMaanden(peildatum, vandaag) {
+  var p = new Date(peildatum + 'T00:00:00Z');
+  var v = new Date(vandaag + 'T00:00:00Z');
+  if (isNaN(p.getTime()) || isNaN(v.getTime())) {
+    throw new Error('Onbruikbare datum bij de houdbaarheidstoets: ' + peildatum + ' / ' + vandaag);
+  }
+  var maanden = (v.getUTCFullYear() - p.getUTCFullYear()) * 12 + (v.getUTCMonth() - p.getUTCMonth());
+  if (v.getUTCDate() < p.getUTCDate()) maanden -= 1;
+  return maanden;
+}
+
+// Nooit stil doorrekenen met een verouderde marktwaarde.
+function toetsHoudbaarheid(blok, vandaag) {
+  var oud = ouderdomMaanden(blok.peildatum, vandaag);
+  return {
+    ouderdomMaanden: oud,
+    verouderd: oud > blok.houdbaarMaanden,
+    tekst: oud > blok.houdbaarMaanden
+      ? (blok.etiket || blok.bron) + ': peildatum ' + blok.peildatum + ' is ' + oud +
+        ' maanden oud, terwijl deze waarde binnen ' + blok.houdbaarMaanden +
+        ' maanden hoort te worden ververst. Controleer de bron of voer zelf een waarde in.'
+      : ''
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   4. Rendementseis: drie routes achter één interface
+   ------------------------------------------------------------------------ */
+
+// Deze grenzen zijn geen wettelijke normen maar bewuste vangnetten tegen invoerfouten.
+// De bronmodellen laten deze velden onbegrensd; daar rekent een typefout stil door.
+var GRENZEN = {
+  risicovrijeVoet:      [-0.02, 0.15],
+  betaUnlevered:        [0.10, 3.00],
+  marktrisicopremie:    [0.02, 0.12],
+  opslagKleinschaligheid: [0.00, 0.15],
+  opslagBedrijfsspecifiek: [0.00, 0.15],
+  opslagOverig:         [-0.05, 0.10],
+  kostenvoetEigenVermogen: [0.02, 0.60],
+  kostenvoetVreemdVermogen: [0.00, 0.25],
+  vvAandeel:            [0.00, 0.90],
+  groeiRestperiode:     [-0.05, 0.06],
+  illiquiditeitsopslag: [0.00, 0.15],
+  afschrijvingstermijn: [1, 40]
+};
+
+// Herleveren van een unlevered beta naar de eigen vermogensverhouding (Hamada).
+// vvEvVerhouding is vreemd vermogen gedeeld door eigen vermogen, niet door het totaal.
+function herleverdeBeta(betaUnlevered, vvEvVerhouding, tarief) {
+  begrens(betaUnlevered, GRENZEN.betaUnlevered[0], GRENZEN.betaUnlevered[1], 'unlevered beta');
+  eisGetal(vvEvVerhouding, 'verhouding vreemd vermogen tot eigen vermogen');
+  eisGetal(tarief, 'belastingtarief');
+  if (vvEvVerhouding < 0) throw new Error('De verhouding vreemd vermogen tot eigen vermogen kan niet negatief zijn.');
+  return betaUnlevered * (1 + (1 - tarief) * vvEvVerhouding);
+}
+
+// vvAandeel is vreemd vermogen gedeeld door totaal vermogen; hieruit volgt VV/EV.
+function vvEvUitAandeel(vvAandeel) {
+  begrens(vvAandeel, GRENZEN.vvAandeel[0], GRENZEN.vvAandeel[1], 'aandeel vreemd vermogen');
+  if (vvAandeel >= 1) throw new Error('Het aandeel vreemd vermogen kan niet 100% of meer zijn.');
+  return vvAandeel / (1 - vvAandeel);
+}
+
+// Route 1: eigen build-up. De risicovrije voet en de marktrisicopremie komen uit
+// meegeleverde bronnen; de opslagen zijn handinvoer met eigen onderbouwing, begrensd.
+function eisBuildUp(inv) {
+  var tarief = isGetal(inv.tarief) ? inv.tarief : marginaalTarief(inv.jaar).tarief;
+  var rf = begrens(inv.risicovrijeVoet, GRENZEN.risicovrijeVoet[0], GRENZEN.risicovrijeVoet[1], 'risicovrije voet');
+  var mrp = begrens(inv.marktrisicopremie, GRENZEN.marktrisicopremie[0], GRENZEN.marktrisicopremie[1], 'marktrisicopremie');
+  var vvEv = vvEvUitAandeel(inv.vvAandeel);
+  var beta = herleverdeBeta(inv.betaUnlevered, vvEv, tarief);
+  var kl = begrens(inv.opslagKleinschaligheid, GRENZEN.opslagKleinschaligheid[0], GRENZEN.opslagKleinschaligheid[1], 'opslag kleinschaligheid');
+  var bs = begrens(inv.opslagBedrijfsspecifiek, GRENZEN.opslagBedrijfsspecifiek[0], GRENZEN.opslagBedrijfsspecifiek[1], 'bedrijfsspecifieke opslag');
+  var ov = begrens(inv.opslagOverig, GRENZEN.opslagOverig[0], GRENZEN.opslagOverig[1], 'overige opslag');
+  var ke = rf + beta * mrp + kl + bs + ov;
+  begrens(ke, GRENZEN.kostenvoetEigenVermogen[0], GRENZEN.kostenvoetEigenVermogen[1], 'kostenvoet eigen vermogen');
+  return {
+    route: 'buildup',
+    kostenvoetEigenVermogen: ke,
+    herleverdeBeta: beta,
+    tarief: tarief,
+    opbouw: [
+      { etiket: 'Risicovrije voet', waarde: rf, herkomst: 'bron' },
+      { etiket: 'Herleverde beta maal marktrisicopremie', waarde: beta * mrp, herkomst: 'berekend',
+        detail: 'beta ' + getalTekst(beta, 2) + ' maal marktrisicopremie ' + pctTekst(mrp) },
+      { etiket: 'Opslag kleinschaligheid', waarde: kl, herkomst: 'handinvoer' },
+      { etiket: 'Bedrijfsspecifieke opslag', waarde: bs, herkomst: 'handinvoer' },
+      { etiket: 'Overige opslag', waarde: ov, herkomst: 'handinvoer' }
+    ],
+    meldingen: []
+  };
+}
+
+// Route 2: referentie-invoer. De gebruiker brengt zelf een bron mee en legt onder-,
+// midden- en bovenwaarde vast; de tool bewaart vindplaats, versie en peildatum en
+// toetst of de gekozen rendementseis binnen het opgegeven interval blijft.
+function eisReferentie(inv) {
+  var onder = eisGetal(inv.onder, 'ondergrens referentie');
+  var midden = eisGetal(inv.midden, 'middenwaarde referentie');
+  var boven = eisGetal(inv.boven, 'bovengrens referentie');
+  if (!(onder <= midden && midden <= boven)) {
+    throw new Error('De referentiewaarden moeten oplopen: ondergrens, midden, bovengrens.');
+  }
+  var gekozen = isGetal(inv.gekozen) ? inv.gekozen : midden;
+  begrens(gekozen, GRENZEN.kostenvoetEigenVermogen[0], GRENZEN.kostenvoetEigenVermogen[1], 'kostenvoet eigen vermogen');
+  var meldingen = [];
+  if (gekozen < onder || gekozen > boven) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'De gekozen rendementseis van ' + pctTekst(gekozen) + ' ligt buiten het ' +
+             'opgegeven interval van ' + pctTekst(onder) + ' tot ' +
+             pctTekst(boven) + '. Onderbouw de afwijking of pas het interval aan.'
+    });
+  }
+  if (!inv.bronVindplaats || !inv.bronPeildatum) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'Bij een referentiewaarde horen vindplaats, versie en peildatum. Zonder die ' +
+             'gegevens is de rendementseis niet herleidbaar.'
+    });
+  }
+  return {
+    route: 'referentie',
+    kostenvoetEigenVermogen: gekozen,
+    interval: { onder: onder, midden: midden, boven: boven },
+    herkomst: {
+      vindplaats: inv.bronVindplaats || '', versie: inv.bronVersie || '',
+      peildatum: inv.bronPeildatum || ''
+    },
+    opbouw: [{ etiket: 'Rendementseis uit eigen referentiebron', waarde: gekozen, herkomst: 'referentie' }],
+    meldingen: meldingen
+  };
+}
+
+// Route 3: directe invoer, voor wie de rendementseis al heeft bepaald.
+function eisDirect(inv) {
+  var ke = begrens(inv.kostenvoetEigenVermogen, GRENZEN.kostenvoetEigenVermogen[0],
+                   GRENZEN.kostenvoetEigenVermogen[1], 'kostenvoet eigen vermogen');
+  var meldingen = [];
+  if (!inv.onderbouwing) {
+    meldingen.push({
+      soort: 'info',
+      tekst: 'Leg vast waarop deze rendementseis is gebaseerd; de tool neemt de tekst mee in de verantwoording.'
+    });
+  }
+  return {
+    route: 'direct',
+    kostenvoetEigenVermogen: ke,
+    onderbouwing: inv.onderbouwing || '',
+    opbouw: [{ etiket: 'Rechtstreeks ingevoerde rendementseis', waarde: ke, herkomst: 'handinvoer' }],
+    meldingen: meldingen
+  };
+}
+
+// Eén interface over de drie routes. Een latere vierde route (bijvoorbeeld een
+// dataset waarvoor toestemming is verkregen) hangt hier zonder verdere aanpassing in.
+function rendementseis(inv) {
+  var basis;
+  if (inv.route === 'buildup') basis = eisBuildUp(inv);
+  else if (inv.route === 'referentie') basis = eisReferentie(inv);
+  else if (inv.route === 'direct') basis = eisDirect(inv);
+  else throw new Error('Onbekende route naar de rendementseis: ' + inv.route);
+
+  var tarief = isGetal(inv.tarief) ? inv.tarief : marginaalTarief(inv.jaar).tarief;
+  var kvv = begrens(inv.kostenvoetVreemdVermogen, GRENZEN.kostenvoetVreemdVermogen[0],
+                    GRENZEN.kostenvoetVreemdVermogen[1], 'kostenvoet vreemd vermogen');
+  var vvAandeel = begrens(inv.vvAandeel, GRENZEN.vvAandeel[0], GRENZEN.vvAandeel[1], 'aandeel vreemd vermogen');
+  var wacc = basis.kostenvoetEigenVermogen * (1 - vvAandeel) + kvv * (1 - tarief) * vvAandeel;
+
+  // Vermogenskostenvoet vóór het belastingvoordeel van de financiering: de gewogen
+  // voet zonder de belastingcorrectie op het vreemd vermogen. Dit is de voet waartegen
+  // de APV de kasstromen contant maakt; het belastingvoordeel wordt daar afzonderlijk
+  // gewaardeerd. Per constructie geldt wacc = kostenvoetUnlevered - kvv x tarief x vvAandeel,
+  // zodat beide methoden op dezelfde uitgangspunten rusten.
+  var unlevered = basis.kostenvoetEigenVermogen * (1 - vvAandeel) + kvv * vvAandeel;
+
+  return {
+    route: basis.route,
+    kostenvoetEigenVermogen: basis.kostenvoetEigenVermogen,
+    kostenvoetUnlevered: unlevered,
+    kostenvoetVreemdVermogen: kvv,
+    kostenvoetVreemdVermogenNaBelasting: kvv * (1 - tarief),
+    vvAandeel: vvAandeel,
+    tarief: tarief,
+    wacc: wacc,
+    opbouw: basis.opbouw,
+    interval: basis.interval || null,
+    herkomst: basis.herkomst || null,
+    herleverdeBeta: basis.herleverdeBeta || null,
+    meldingen: basis.meldingen
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   5. Contantmaking en restwaarde
+   ------------------------------------------------------------------------ */
+
+// moment 'ultimo': de kasstroom valt aan het einde van het jaar (t).
+// moment 'midden': de kasstroom valt gemiddeld halverwege het jaar (t - 0,5).
+// De keuze staat vast per berekening en is zichtbaar in de uitkomst; ultimo is de
+// standaard omdat de bronmodellen daarvan uitgaan en de vergelijking dan zuiver is.
+function disconteringsfactor(voet, periode, moment) {
+  eisGetal(voet, 'disconteringsvoet');
+  eisGetal(periode, 'periode');
+  if (voet <= -1) throw new Error('Een disconteringsvoet van -100% of lager is niet te gebruiken.');
+  var t = moment === 'midden' ? periode - 0.5 : periode;
+  return 1 / Math.pow(1 + voet, t);
+}
+
+// Kasstromen genummerd vanaf periode 1.
+function contantmaking(kasstromen, voet, opties) {
+  opties = opties || {};
+  var moment = opties.moment || 'ultimo';
+  var regels = kasstromen.map(function (ks, i) {
+    var periode = i + 1;
+    var f = disconteringsfactor(voet, periode, moment);
+    return { periode: periode, kasstroom: ks, factor: f, contant: ks * f };
+  });
+  return { regels: regels, totaal: som(regels.map(function (r) { return r.contant; })) };
+}
+
+// Eeuwigdurende reeks met groei (Gordon). De voet moet boven de groei liggen; anders
+// is er geen eindige waarde. Vlak onder die grens is de uitkomst extreem gevoelig,
+// dus daar volgt een melding in plaats van een schijnbaar nette uitkomst.
+function restwaarde(genormaliseerdeKasstroom, voet, groei) {
+  eisGetal(genormaliseerdeKasstroom, 'genormaliseerde kasstroom restperiode');
+  eisGetal(voet, 'disconteringsvoet');
+  begrens(groei, GRENZEN.groeiRestperiode[0], GRENZEN.groeiRestperiode[1], 'groei in de restperiode');
+  if (voet <= groei) {
+    throw new Error('De disconteringsvoet (' + pctTekst(voet) + ') moet boven de groei in ' +
+                    'de restperiode (' + pctTekst(groei) + ') liggen; anders bestaat er geen ' +
+                    'eindige restwaarde.');
+  }
+  var meldingen = [];
+  if (voet - groei < 0.02) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'Het verschil tussen disconteringsvoet en groei is ' + getalTekst((voet - groei) * 100, 2) +
+             ' procentpunt. Onder de twee procentpunt reageert de restwaarde zo sterk op kleine ' +
+             'wijzigingen dat de uitkomst geen betekenisvolle nauwkeurigheid meer heeft.'
+    });
+  }
+  return {
+    waardeEindeProgose: genormaliseerdeKasstroom / (voet - groei),
+    genormaliseerdeKasstroom: genormaliseerdeKasstroom,
+    voet: voet, groei: groei, meldingen: meldingen
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   6. De twee waarderingsmethoden
+   ------------------------------------------------------------------------ */
+
+// DCFM: alle kasstromen contant tegen een constante gewogen kostenvoet.
+function dcfm(inv) {
+  var kasstromen = inv.vrijeKasstromen;
+  if (!kasstromen || !kasstromen.length) throw new Error('Geen vrije kasstromen om contant te maken.');
+  var moment = inv.moment || 'ultimo';
+  var cw = contantmaking(kasstromen, inv.wacc, { moment: moment });
+  var rw = restwaarde(inv.restwaardeKasstroom, inv.wacc, inv.groeiRestperiode);
+  var n = kasstromen.length;
+  var factorRest = disconteringsfactor(inv.wacc, n, 'ultimo');
+  var contanteRestwaarde = rw.waardeEindeProgose * factorRest;
+  var ondernemingswaarde = cw.totaal + contanteRestwaarde;
+  var meldingen = rw.meldingen.slice();
+  var aandeelRest = ondernemingswaarde !== 0 ? contanteRestwaarde / ondernemingswaarde : 0;
+  if (aandeelRest > 0.75) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'De restwaarde is ' + pctTekst(aandeelRest, 1) + ' van de ondernemingswaarde. ' +
+             'De uitkomst leunt dan vooral op de aanname na de prognose en nauwelijks op de prognose zelf.'
+    });
+  }
+  return {
+    methode: 'DCFM', moment: moment, voet: inv.wacc,
+    contantePrognose: cw.totaal, regels: cw.regels,
+    restwaardeEindeProgose: rw.waardeEindeProgose,
+    contanteRestwaarde: contanteRestwaarde, aandeelRestwaarde: aandeelRest,
+    ondernemingswaarde: ondernemingswaarde, meldingen: meldingen
+  };
+}
+
+// APV: kasstromen contant tegen de vermogenskostenvoet vóór het belastingvoordeel van
+// de financiering, met de tax shield daarnaast afzonderlijk uit het financieringsschema.
+// Die voet is niet de herleverde kostenvoet eigen vermogen: disconteren tegen de
+// levered voet én de shield afzonderlijk waarderen zou het financieringsvoordeel twee
+// keer verwerken. Zie kostenvoetUnlevered bij de rendementseis.
+// De tax shield van elk jaar hoort bij dat jaar; een verschoven verwijzing hier is
+// precies de kopieerfout die in het uitgebreide bronmodel is aangetroffen.
+function apv(inv) {
+  var kasstromen = inv.vrijeKasstromen;
+  if (!kasstromen || !kasstromen.length) throw new Error('Geen vrije kasstromen om contant te maken.');
+  var moment = inv.moment || 'ultimo';
+  var ke = eisGetal(inv.voetUnlevered, 'vermogenskostenvoet vóór belastingvoordeel');
+  var cw = contantmaking(kasstromen, ke, { moment: moment });
+  var rw = restwaarde(inv.restwaardeKasstroom, ke, inv.groeiRestperiode);
+  var n = kasstromen.length;
+  var contanteRestwaarde = rw.waardeEindeProgose * disconteringsfactor(ke, n, 'ultimo');
+  var basiswaarde = cw.totaal + contanteRestwaarde;
+
+  var shields = inv.taxShields || [];
+  if (shields.length && shields.length !== kasstromen.length) {
+    throw new Error('Het aantal jaren met tax shield (' + shields.length + ') wijkt af van het aantal ' +
+                    'prognosejaren (' + kasstromen.length + '). Elke tax shield hoort bij zijn eigen jaar.');
+  }
+  var voetShield = isGetal(inv.voetTaxShield) ? inv.voetTaxShield : inv.kostenvoetVreemdVermogen;
+  var cwShield = shields.length
+    ? contantmaking(shields, voetShield, { moment: moment })
+    : { regels: [], totaal: 0 };
+
+  // Tax shield in de restperiode: alleen wanneer de gebruiker een blijvende
+  // financiering veronderstelt. Anders nihil; stil doorzetten van de laatste
+  // jaarshield tot in het oneindige is een aanname die niemand ziet.
+  var shieldRest = 0;
+  if (inv.taxShieldRestperiodeKasstroom) {
+    shieldRest = restwaarde(inv.taxShieldRestperiodeKasstroom, voetShield, inv.groeiRestperiode)
+                   .waardeEindeProgose * disconteringsfactor(voetShield, n, 'ultimo');
+  }
+  return {
+    methode: 'APV', moment: moment, voet: ke,
+    contantePrognose: cw.totaal, regels: cw.regels,
+    restwaardeEindeProgose: rw.waardeEindeProgose,
+    contanteRestwaarde: contanteRestwaarde,
+    basiswaarde: basiswaarde,
+    contanteTaxShield: cwShield.totaal + shieldRest,
+    taxShieldRegels: cwShield.regels,
+    ondernemingswaarde: basiswaarde + cwShield.totaal + shieldRest,
+    meldingen: rw.meldingen
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   7. Waardebrug
+   ------------------------------------------------------------------------ */
+
+// Van ondernemingswaarde naar de waarde van de aandelen. Elke post heeft een vast
+// teken, zodat een positief ingevoerd bedrag nooit per ongeluk de verkeerde kant op
+// werkt. Het teken staat bij de post en niet bij de invoer.
+var BRUGPOSTEN = [
+  { sleutel: 'rentedragendeSchulden',   etiket: 'Rentedragende schulden',                 teken: -1 },
+  { sleutel: 'liquideMiddelen',         etiket: 'Liquide middelen',                       teken: +1 },
+  { sleutel: 'overtolligeLiquiditeit',  etiket: 'Overtollige liquiditeit',                teken: +1 },
+  { sleutel: 'nietBedrijfsgebondenActiva', etiket: 'Niet-bedrijfsgebonden activa',        teken: +1 },
+  { sleutel: 'deelnemingen',            etiket: 'Deelnemingen buiten de waardering',      teken: +1 },
+  { sleutel: 'onroerendGoedBuitenExploitatie', etiket: 'Onroerend goed buiten exploitatie', teken: +1 },
+  { sleutel: 'rekeningCourantDga',      etiket: 'Rekening-courant met de aandeelhouder',  teken: +1 },
+  { sleutel: 'latenteBelasting',        etiket: 'Latente belastingverplichting',          teken: -1 },
+  { sleutel: 'voorzieningen',           etiket: 'Voorzieningen buiten de kasstroom',      teken: -1 },
+  { sleutel: 'pensioenEigenBeheer',     etiket: 'Pensioen- of stamrechtverplichting',     teken: -1 },
+  { sleutel: 'achtergesteldeLeningen',  etiket: 'Achtergestelde leningen',                teken: -1 },
+  { sleutel: 'overigeCorrecties',       etiket: 'Overige correcties',                     teken: +1 }
+];
+
+function waardebrug(ondernemingswaarde, posten) {
+  eisGetal(ondernemingswaarde, 'ondernemingswaarde');
+  posten = posten || {};
+  var regels = [{ etiket: 'Ondernemingswaarde', bedrag: ondernemingswaarde, soort: 'start' }];
+  var saldo = ondernemingswaarde;
+  for (var i = 0; i < BRUGPOSTEN.length; i++) {
+    var p = BRUGPOSTEN[i];
+    var ruw = posten[p.sleutel];
+    if (!isGetal(ruw) || ruw === 0) continue;
+    var effect = p.teken * ruw;
+    saldo += effect;
+    regels.push({ etiket: p.etiket, bedrag: effect, soort: 'post', sleutel: p.sleutel, teken: p.teken });
+  }
+  regels.push({ etiket: 'Waarde van de aandelen', bedrag: saldo, soort: 'slot' });
+  return { aandelenwaarde: saldo, regels: regels };
+}
+
+/* ---------------------------------------------------------------------------
+   8. Fiscale afschrijving en tax shield bij een activadeal
+   ------------------------------------------------------------------------ */
+
+// Artikel 3.30, tweede lid Wet IB 2001, via artikel 8, eerste lid Wet Vpb 1969 ook
+// voor de BV: afschrijving op jaarbasis ten hoogste 10% van de aanschaffingskosten
+// voor goodwill en ten hoogste 20% voor andere bedrijfsmiddelen. Daaruit volgt een
+// minimale afschrijvingstermijn van tien respectievelijk vijf jaar.
+// Gebouwen: artikel 3.30a, eerste en derde lid Wet IB 2001 — afschrijving alleen
+// voor zover de boekwaarde de bodemwaarde (de WOZ-waarde) te boven gaat.
+// Gecontroleerd op wetten.overheid.nl op 02-09-2026.
+var AFSCHRIJVING_MAXIMA = {
+  goodwill:        { maxPerJaar: 0.10, minTermijn: 10, vindplaats: 'art. 3.30 lid 2 Wet IB 2001' },
+  overigeActiva:   { maxPerJaar: 0.20, minTermijn: 5,  vindplaats: 'art. 3.30 lid 2 Wet IB 2001' },
+  gebouw:          { maxPerJaar: 0.20, minTermijn: 5,  vindplaats: 'art. 3.30 lid 2 en 3.30a Wet IB 2001' }
+};
+
+// Afschrijfbare basis van een gebouw: alleen het deel boven de WOZ-bodemwaarde.
+function afschrijfbareBasisGebouw(aanschafwaarde, wozBodemwaarde) {
+  eisGetal(aanschafwaarde, 'aanschafwaarde gebouw');
+  eisGetal(wozBodemwaarde, 'WOZ-bodemwaarde gebouw');
+  var basis = Math.max(0, aanschafwaarde - wozBodemwaarde);
+  return {
+    basis: basis,
+    volledigGeblokkeerd: basis === 0 && aanschafwaarde > 0,
+    melding: basis === 0 && aanschafwaarde > 0
+      ? 'De boekwaarde van het gebouw ligt niet boven de WOZ-bodemwaarde, dus is er over ' +
+        'het gebouw geen fiscale afschrijving mogelijk (art. 3.30a lid 1 en 3 Wet IB 2001).'
+      : ''
+  };
+}
+
+// Contante waarde van de belastingbesparing over een lineaire afschrijving.
+// Een termijn van nul of leeg geeft hier een melding en geen deling door nul; in de
+// bronmodellen is dit veld vrije invoer en levert een lege cel een rekenfout op.
+function taxShieldAfschrijving(inv) {
+  var soort = inv.soort || 'overigeActiva';
+  var max = AFSCHRIJVING_MAXIMA[soort];
+  if (!max) throw new Error('Onbekende activasoort voor de afschrijving: ' + soort);
+  var bedrag = eisGetal(inv.bedrag, 'af te schrijven bedrag (' + soort + ')');
+  var termijn = eisGetal(inv.termijnJaren, 'afschrijvingstermijn (' + soort + ')');
+  begrens(termijn, GRENZEN.afschrijvingstermijn[0], GRENZEN.afschrijvingstermijn[1],
+          'afschrijvingstermijn (' + soort + ')');
+  if (termijn < max.minTermijn) {
+    throw new Error('Een afschrijvingstermijn van ' + termijn + ' jaar voor ' + soort +
+                    ' is fiscaal niet mogelijk: ten hoogste ' + (max.maxPerJaar * 100) +
+                    '% per jaar, dus ten minste ' + max.minTermijn + ' jaar (' + max.vindplaats + ').');
+  }
+  var tarief = eisGetal(inv.tarief, 'belastingtarief');
+  var voet = eisGetal(inv.disconteringsvoet, 'disconteringsvoet tax shield');
+  var moment = inv.moment || 'ultimo';
+  var perJaar = bedrag / termijn;
+  var jaren = [];
+  for (var t = 0; t < Math.floor(termijn); t++) jaren.push(perJaar * tarief);
+  var rest = termijn - Math.floor(termijn);
+  if (rest > 0) jaren.push(perJaar * rest * tarief);
+  var cw = contantmaking(jaren, voet, { moment: moment });
+  return {
+    soort: soort, bedrag: bedrag, termijnJaren: termijn, afschrijvingPerJaar: perJaar,
+    tarief: tarief, disconteringsvoet: voet, regels: cw.regels, contanteWaarde: cw.totaal,
+    vindplaats: max.vindplaats
+  };
+}
+
+// Brutering: de koper is bereid extra te betalen omdat de hogere koopsom zelf ook
+// weer afschrijfbaar is. Die extra koopsom vergroot de afschrijvingsbasis, dus de
+// vergelijking is circulair en heeft een gesloten oplossing:
+//   gebruteerd = basis / (1 - factor), met factor = tarief x (1/termijn) x annuïteitsfactor.
+// Een factor van 1 of hoger betekent dat de reeks niet convergeert; dan geen uitkomst.
+function bruteringsfactor(termijnJaren, tarief, voet, moment) {
+  eisGetal(termijnJaren, 'afschrijvingstermijn');
+  if (termijnJaren <= 0) throw new Error('De afschrijvingstermijn moet groter dan nul zijn.');
+  eisGetal(tarief, 'belastingtarief');
+  eisGetal(voet, 'disconteringsvoet');
+  var jaren = [];
+  for (var t = 0; t < termijnJaren; t++) jaren.push(1 / termijnJaren);
+  var annuiteit = contantmaking(jaren, voet, { moment: moment || 'ultimo' }).totaal;
+  var factor = tarief * annuiteit;
+  if (factor >= 1) {
+    throw new Error('De brutering convergeert niet bij een tarief van ' + pctTekst(tarief, 1) +
+                    ' en een disconteringsvoet van ' + pctTekst(voet) + '.');
+  }
+  return { factor: factor, annuiteitsfactor: annuiteit, gebruteerdeFactor: 1 / (1 - factor) };
+}
+
+// Volledige activadeal. Rekent altijd door op de berekende aandelenwaarde en nooit
+// op een overgetypt bedrag; in het uitgebreide bronmodel is die koppeling los,
+// waardoor de activadeal stil verjaart zodra de prognose wijzigt.
+function activadeal(inv) {
+  var basiswaarde = eisGetal(inv.waardeAandelendeal, 'waarde bij een aandelendeal');
+  var tarief = eisGetal(inv.tarief, 'belastingtarief');
+  var voet = eisGetal(inv.disconteringsvoet, 'disconteringsvoet');
+  var verdeling = inv.verdeling || {};
+  var termijnen = inv.termijnen || {};
+  var delen = ['gebouw', 'overigeActiva', 'goodwill'];
+  var totaalAandeel = som(delen.map(function (d) { return verdeling[d]; }));
+  if (Math.abs(totaalAandeel - 1) > 0.0001) {
+    throw new Error('De verdeling van de koopsom over gebouw, overige activa en goodwill telt op tot ' +
+                    pctTekst(totaalAandeel) + ' in plaats van 100%.');
+  }
+  var onderdelen = [];
+  var meldingen = [];
+  var totaleShield = 0;
+  for (var i = 0; i < delen.length; i++) {
+    var d = delen[i];
+    var aandeel = verdeling[d];
+    if (!isGetal(aandeel) || aandeel === 0) continue;
+    var bedrag = basiswaarde * aandeel;
+    if (d === 'gebouw' && isGetal(inv.wozBodemwaarde)) {
+      var g = afschrijfbareBasisGebouw(bedrag, inv.wozBodemwaarde);
+      if (g.melding) meldingen.push({ soort: 'waarschuwing', tekst: g.melding });
+      bedrag = g.basis;
+      if (bedrag === 0) continue;
+    }
+    var ts = taxShieldAfschrijving({
+      soort: d, bedrag: bedrag, termijnJaren: termijnen[d],
+      tarief: tarief, disconteringsvoet: voet, moment: inv.moment
+    });
+    onderdelen.push(ts);
+    totaleShield += ts.contanteWaarde;
+  }
+  // Gewogen bruteringsfactor over de onderdelen die daadwerkelijk afschrijfbaar zijn.
+  var gewogenFactor = basiswaarde !== 0 ? totaleShield / basiswaarde : 0;
+  var gebruteerd = gewogenFactor < 1 ? basiswaarde / (1 - gewogenFactor) : null;
+  if (gebruteerd === null) {
+    meldingen.push({ soort: 'fout', tekst: 'De brutering convergeert niet met deze uitgangspunten.' });
+  }
+  return {
+    waardeAandelendeal: basiswaarde,
+    onderdelen: onderdelen,
+    contanteTaxShield: totaleShield,
+    bruteringsfactor: gewogenFactor,
+    gebruteerdeWaardeActivadeal: gebruteerd,
+    meldingen: meldingen
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   9. Illiquiditeit en financieringstoets
+   ------------------------------------------------------------------------ */
+
+// De illiquiditeitsopslag verlaagt de waarde; daartegenover staan de vaste kosten van
+// een transactie. De vergelijking maakt zichtbaar welke van de twee de doorslag geeft.
+// De waarde zonder opslag wordt met dezelfde reeks tax shields berekend als de waarde
+// met opslag: elke shield hoort bij zijn eigen jaar.
+function illiquiditeitsvergelijking(inv) {
+  var opslag = begrens(inv.illiquiditeitsopslag, GRENZEN.illiquiditeitsopslag[0],
+                       GRENZEN.illiquiditeitsopslag[1], 'illiquiditeitsopslag');
+  var transactiekosten = eisGetal(inv.vasteTransactiekosten, 'vaste transactiekosten');
+  var basis = {
+    vrijeKasstromen: inv.vrijeKasstromen,
+    restwaardeKasstroom: inv.restwaardeKasstroom,
+    groeiRestperiode: inv.groeiRestperiode,
+    moment: inv.moment,
+    taxShields: inv.taxShields,
+    kostenvoetVreemdVermogen: inv.kostenvoetVreemdVermogen,
+    voetTaxShield: inv.voetTaxShield,
+    taxShieldRestperiodeKasstroom: inv.taxShieldRestperiodeKasstroom
+  };
+  var voet = eisGetal(inv.voetUnlevered, 'vermogenskostenvoet vóór belastingvoordeel');
+  var zonder = apv(Object.assign({}, basis, { voetUnlevered: voet }));
+  var met = apv(Object.assign({}, basis, { voetUnlevered: voet + opslag }));
+  var korting = zonder.ondernemingswaarde - met.ondernemingswaarde;
+  return {
+    waardeZonderOpslag: zonder.ondernemingswaarde,
+    waardeMetOpslag: met.ondernemingswaarde,
+    kortingDoorOpslag: korting,
+    kortingAlsPercentage: zonder.ondernemingswaarde !== 0 ? korting / zonder.ondernemingswaarde : 0,
+    vasteTransactiekosten: transactiekosten,
+    verschil: korting - transactiekosten,
+    oordeel: korting > transactiekosten
+      ? 'De illiquiditeitsopslag kost meer waarde dan de vaste transactiekosten van een verkoop.'
+      : 'De vaste transactiekosten wegen zwaarder dan de illiquiditeitsopslag.'
+  };
+}
+
+// Bancaire normen. Dit zijn geen wettelijke waarden en geen overname uit een bronmodel,
+// maar instelbare uitgangspunten met een gangbare standaard. Ze staan hier expliciet
+// zodat een beoordelaar ziet waaraan wordt getoetst en de norm kan wijzigen.
+var FINANCIERINGSNORMEN_STANDAARD = {
+  maxNettoSchuldEbitda: 3.0,
+  minDebtServiceCoverage: 1.2,
+  minSolvabiliteitNaFinanciering: 0.25,
+  terugverdientermijnJaren: 7
+};
+
+function financieringstoets(inv) {
+  var normen = Object.assign({}, FINANCIERINGSNORMEN_STANDAARD, inv.normen || {});
+  var ebitda = eisGetal(inv.ebitda, 'EBITDA');
+  var nettoSchuld = eisGetal(inv.nettoSchuld, 'netto schuld na financiering');
+  var aflossingPerJaar = eisGetal(inv.aflossingPerJaar, 'aflossing per jaar');
+  var rentePerJaar = eisGetal(inv.rentePerJaar, 'rente per jaar');
+  var vrijeKasstroomVoorFinanciering = eisGetal(inv.vrijeKasstroomVoorFinanciering,
+                                                'vrije kasstroom vóór financiering');
+  var balanstotaal = eisGetal(inv.balanstotaalNaFinanciering, 'balanstotaal na financiering');
+  var eigenVermogen = eisGetal(inv.eigenVermogenNaFinanciering, 'eigen vermogen na financiering');
+
+  var schuldratio = ebitda !== 0 ? nettoSchuld / ebitda : Infinity;
+  var schuldenlast = aflossingPerJaar + rentePerJaar;
+  var dscr = schuldenlast !== 0 ? vrijeKasstroomVoorFinanciering / schuldenlast : Infinity;
+  var solvabiliteit = balanstotaal !== 0 ? eigenVermogen / balanstotaal : 0;
+  var terugverdientijd = vrijeKasstroomVoorFinanciering > 0
+    ? nettoSchuld / vrijeKasstroomVoorFinanciering : Infinity;
+
+  var toetsen = [
+    { etiket: 'Netto schuld gedeeld door EBITDA', waarde: schuldratio, norm: normen.maxNettoSchuldEbitda,
+      richting: 'max', gehaald: schuldratio <= normen.maxNettoSchuldEbitda, eenheid: 'x' },
+    { etiket: 'Dekking van rente en aflossing', waarde: dscr, norm: normen.minDebtServiceCoverage,
+      richting: 'min', gehaald: dscr >= normen.minDebtServiceCoverage, eenheid: 'x' },
+    { etiket: 'Solvabiliteit na financiering', waarde: solvabiliteit, norm: normen.minSolvabiliteitNaFinanciering,
+      richting: 'min', gehaald: solvabiliteit >= normen.minSolvabiliteitNaFinanciering, eenheid: '%' },
+    { etiket: 'Terugverdientijd van de financiering', waarde: terugverdientijd,
+      norm: normen.terugverdientermijnJaren, richting: 'max',
+      gehaald: terugverdientijd <= normen.terugverdientermijnJaren, eenheid: 'jaar' }
+  ];
+  return {
+    normen: normen, toetsen: toetsen,
+    aantalGehaald: toetsen.filter(function (t) { return t.gehaald; }).length,
+    financierbaar: toetsen.every(function (t) { return t.gehaald; })
+  };
+}
+
+// Samenhangtoets op het financieringsschema: de aflossingen mogen samen de
+// financiering niet overschrijden. Een negatieve aflossing blijft toegestaan (rente
+// die wordt bijgeschreven), maar het saldo mag niet onder nul zakken.
+function toetsFinancieringsschema(hoofdsom, aflossingen) {
+  eisGetal(hoofdsom, 'hoofdsom van de financiering');
+  var saldo = hoofdsom;
+  var meldingen = [];
+  var verloop = [];
+  for (var i = 0; i < aflossingen.length; i++) {
+    var a = isGetal(aflossingen[i]) ? aflossingen[i] : 0;
+    saldo -= a;
+    verloop.push({ jaar: i + 1, aflossing: a, restschuld: saldo });
+    if (saldo < -0.005) {
+      meldingen.push({
+        soort: 'fout',
+        tekst: 'In jaar ' + (i + 1) + ' lossen de bedragen samen meer af dan er aan financiering ' +
+               'uitstaat; de restschuld komt uit op ' + getalTekst(saldo, 0) + '.'
+      });
+      break;
+    }
+  }
+  return { verloop: verloop, restschuldEinde: saldo, meldingen: meldingen };
+}
+
+/* ---------------------------------------------------------------------------
+   10. Iteratie tussen rendementseis en waarde
+   ------------------------------------------------------------------------ */
+
+// De referentieroute vraagt een schatting van de ondernemingswaarde om de
+// omvangsklasse te bepalen, terwijl die waarde juist de uitkomst is. De bronmodellen
+// laten die spanning bij de gebruiker liggen. Hier wordt geïtereerd tot een vast punt
+// en zijn de stappen zichtbaar, zodat de lezer ziet dat en hoe het convergeert.
+function itereerNaarVastPunt(startwaarde, stap, opties) {
+  opties = opties || {};
+  var maxRondes = opties.maxRondes || 25;
+  var tolerantie = isGetal(opties.tolerantie) ? opties.tolerantie : 1;
+  var waarde = eisGetal(startwaarde, 'startwaarde van de iteratie');
+  var stappen = [];
+  var geconvergeerd = false;
+  for (var r = 1; r <= maxRondes; r++) {
+    var uit = stap(waarde, r);
+    var nieuw = eisGetal(uit.waarde, 'uitkomst van iteratieronde ' + r);
+    var verschil = Math.abs(nieuw - waarde);
+    stappen.push({
+      ronde: r, ingaandeWaarde: waarde, uitgaandeWaarde: nieuw, verschil: verschil,
+      rendementseis: uit.rendementseis
+    });
+    waarde = nieuw;
+    if (verschil <= tolerantie) { geconvergeerd = true; break; }
+  }
+  return {
+    waarde: waarde, stappen: stappen, geconvergeerd: geconvergeerd,
+    melding: geconvergeerd ? '' :
+      'De iteratie tussen rendementseis en waarde is na ' + maxRondes + ' rondes niet tot een vast ' +
+      'punt gekomen. De uitkomst is daarmee niet bruikbaar; controleer de uitgangspunten.'
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   11. Regels die het kengetal volgen of op handinvoer staan
+   ------------------------------------------------------------------------ */
+
+// In de bronmodellen zijn honderden prognosecellen voorgevuld met een formule die de
+// gebruiker mag overschrijven. Dat is bedoeld gedrag, maar achteraf is niet te zien
+// welke cel is overschreven, terwijl elk jaar naar het voorgaande verwijst. Hier
+// draagt elke regel per jaar zijn eigen stand: 'kengetal' of 'hand'. De stand is
+// zichtbaar in de weergave en gaat mee in het opgeslagen bestand.
+function standVanRegel(regels, sleutel, index) {
+  var r = regels && regels[sleutel];
+  if (!r || !r[index]) return { modus: 'kengetal', waarde: null };
+  var c = r[index];
+  return { modus: c.modus === 'hand' ? 'hand' : 'kengetal', waarde: c.waarde };
+}
+
+// Geeft de te gebruiken waarde: handinvoer wint, anders het berekende kengetal.
+function waardeVanRegel(regels, sleutel, index, kengetalwaarde) {
+  var s = standVanRegel(regels, sleutel, index);
+  if (s.modus === 'hand' && isGetal(s.waarde)) return s.waarde;
+  return kengetalwaarde;
+}
+
+// Telt hoeveel regels van het kengetal zijn losgekoppeld; die telling staat in de
+// uitkomst, zodat een beoordelaar in één oogopslag ziet hoeveel er met de hand is
+// gezet en waar.
+function telHandinvoer(regels) {
+  var lijst = [];
+  for (var sleutel in regels) {
+    if (!Object.prototype.hasOwnProperty.call(regels, sleutel)) continue;
+    var reeks = regels[sleutel] || [];
+    for (var i = 0; i < reeks.length; i++) {
+      if (reeks[i] && reeks[i].modus === 'hand' && isGetal(reeks[i].waarde)) {
+        lijst.push({ sleutel: sleutel, index: i, waarde: reeks[i].waarde });
+      }
+    }
+  }
+  return { aantal: lijst.length, regels: lijst };
+}
+
+/* ---------------------------------------------------------------------------
+   12. Prognose, snelle scan
+   ------------------------------------------------------------------------ */
+
+// Eenfasemodel: het bruto bedrijfsresultaat van het referentiejaar groeit per jaar met
+// een eigen percentage, waarna een restwaarde volgt die met de inflatie meegroeit.
+// Investeringen worden gelijkgesteld aan de afschrijvingen (ideaalcomplex), zodat
+// beide tegen elkaar wegvallen; de werkkapitaalmutatie speelt alleen in de restperiode.
+// Anders dan in het eenvoudige bronmodel wordt de belasting niet met één afgerond
+// effectief tarief uit het referentiejaar berekend, maar per jaar met de wettelijke
+// tabel van artikel 22 Wet Vpb 1969 over de grondslag van dat jaar.
+function prognoseEenvoudig(inv) {
+  var aantal = eisGetal(inv.aantalJaren, 'aantal prognosejaren');
+  if (aantal < 1 || aantal > 15) throw new Error('Het aantal prognosejaren moet tussen 1 en 15 liggen.');
+  var eersteJaar = eisGetal(inv.eersteJaar, 'eerste prognosejaar');
+  var basis = eisGetal(inv.bedrijfsresultaatBasis, 'bedrijfsresultaat referentiejaar');
+  var groei = inv.groeiPerJaar || [];
+  var inflatie = begrens(inv.inflatie, GRENZEN.groeiRestperiode[0], GRENZEN.groeiRestperiode[1],
+                         'inflatie in de restperiode');
+  var werkkapitaal = isGetal(inv.werkkapitaalNiveau) ? inv.werkkapitaalNiveau : 0;
+  var ideaalcomplex = inv.investeringenGelijkAanAfschrijvingen !== false;
+
+  var jaren = [], resultaten = [], grondslagen = [];
+  var lopend = basis;
+  for (var i = 0; i < aantal; i++) {
+    var g = isGetal(groei[i]) ? groei[i] : 0;
+    begrens(g, -0.50, 1.00, 'groei bedrijfsresultaat jaar ' + (i + 1));
+    lopend = lopend * (1 + g);
+    jaren.push(eersteJaar + i);
+    resultaten.push(lopend);
+    grondslagen.push(lopend);
+  }
+  var belastingen = belastingReeks(grondslagen, jaren, {
+    verliesverrekening: inv.verliesverrekening !== false,
+    beginvoorraadVerlies: inv.beginvoorraadVerlies
+  });
+
+  var regels = [];
+  for (var j = 0; j < aantal; j++) {
+    var afschrijving = isGetal((inv.afschrijvingen || [])[j]) ? inv.afschrijvingen[j] : 0;
+    var investering = ideaalcomplex ? afschrijving
+      : (isGetal((inv.investeringen || [])[j]) ? inv.investeringen[j] : 0);
+    var wk = isGetal((inv.werkkapitaalmutaties || [])[j]) ? inv.werkkapitaalmutaties[j] : 0;
+    var fcf = resultaten[j] - belastingen[j].belasting + afschrijving - investering - wk;
+    regels.push({
+      jaar: jaren[j], groei: isGetal(groei[j]) ? groei[j] : 0,
+      bedrijfsresultaat: resultaten[j],
+      belasting: belastingen[j].belasting,
+      effectiefTarief: belastingen[j].effectiefTarief,
+      tariefstatus: belastingen[j].tariefstatus,
+      tariefbronjaar: belastingen[j].tariefbronjaar,
+      verrekendVerlies: belastingen[j].verrekendVerlies,
+      afschrijving: afschrijving, investering: investering,
+      werkkapitaalmutatie: wk, vrijeKasstroom: fcf
+    });
+  }
+
+  // Restperiode: het laatste bedrijfsresultaat groeit met de inflatie door, de
+  // werkkapitaalmutatie is de inflatoire aangroei van het werkkapitaal en de
+  // investeringen zijn gelijk aan de afschrijvingen.
+  var restJaar = eersteJaar + aantal;
+  var restResultaat = resultaten[aantal - 1] * (1 + inflatie);
+  var restBelasting = belastingReeks([restResultaat], [restJaar], {
+    verliesverrekening: inv.verliesverrekening !== false,
+    beginvoorraadVerlies: belastingen[aantal - 1].verliesvoorraadEind
+  })[0];
+  var restWk = werkkapitaal * inflatie;
+  var restKasstroom = restResultaat - restBelasting.belasting - restWk;
+
+  return {
+    modus: 'eenvoudig',
+    jaren: jaren, regels: regels,
+    vrijeKasstromen: regels.map(function (r) { return r.vrijeKasstroom; }),
+    restperiode: {
+      jaar: restJaar, bedrijfsresultaat: restResultaat,
+      belasting: restBelasting.belasting, effectiefTarief: restBelasting.effectiefTarief,
+      tariefstatus: restBelasting.tariefstatus, tariefbronjaar: restBelasting.tariefbronjaar,
+      werkkapitaalmutatie: restWk, vrijeKasstroom: restKasstroom, groei: inflatie
+    },
+    restwaardeKasstroom: restKasstroom
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   13. Prognose, uitgebreid: exploitatie, balans en vrije kasstroom
+   ------------------------------------------------------------------------ */
+
+// Kengetallen die de prognose sturen. Elke regel kan per jaar op handinvoer worden
+// gezet; de stand staat in het invoerraster en in het opgeslagen bestand.
+var OMZETGROEPEN = [
+  { sleutel: 'a', etiket: 'Omzetgroep A' },
+  { sleutel: 'b', etiket: 'Omzetgroep B' },
+  { sleutel: 'c', etiket: 'Omzetgroep C' }
+];
+
+// Aangiftetijdvak omzetbelasting: het gemiddeld uitstaande saldo is ongeveer de helft
+// van het tijdvak plus de aangiftetermijn van één maand.
+// Artikel 19, eerste lid Algemene wet inzake rijksbelastingen: betaling binnen één
+// maand na afloop van het tijdvak. Gecontroleerd op wetten.overheid.nl op 02-09-2026.
+var BTW_TIJDVAKKEN = {
+  maand:    { etiket: 'per maand',    maandenUitstaand: 1.5 },
+  kwartaal: { etiket: 'per kwartaal', maandenUitstaand: 2.5 },
+  jaar:     { etiket: 'per jaar',     maandenUitstaand: 7.0 }
+};
+
+// Eén jaar exploitatie en balans. Alle kengetallen zijn overschrijfbaar per regel.
+function projecteerJaar(ctx) {
+  var i = ctx.index;
+  var regels = ctx.regels;
+  var u = ctx.uitgangspunten;
+  var vorig = ctx.vorigJaar;
+
+  // ---- Omzet en brutomarge ----
+  var omzetten = [], margeperc = [], inkopen = [];
+  for (var g = 0; g < OMZETGROEPEN.length; g++) {
+    var s = OMZETGROEPEN[g].sleutel;
+    var basisOmzet = vorig
+      ? vorig.omzetten[g] * (1 + waardeVanRegel(regels, 'omzetgroei_' + s, i, u.omzetgroei[g]))
+      : (u.beginOmzet[g] || 0);
+    var omzet = waardeVanRegel(regels, 'omzet_' + s, i, basisOmzet);
+    var marge = waardeVanRegel(regels, 'brutomarge_' + s, i,
+                               vorig ? vorig.margeperc[g] : u.brutomarge[g]);
+    begrens(marge, -1, 1, 'brutomarge ' + OMZETGROEPEN[g].etiket + ' jaar ' + ctx.jaar);
+    omzetten.push(omzet);
+    margeperc.push(marge);
+    inkopen.push(omzet * (1 - marge));
+  }
+  var omzet = som(omzetten);
+  var inkoopwaarde = som(inkopen);
+  var brutomarge = omzet - inkoopwaarde;
+
+  // ---- Kosten ----
+  var arbeidsquote = waardeVanRegel(regels, 'arbeidsquote', i,
+                                    vorig ? vorig.arbeidsquote : u.arbeidsquote);
+  begrens(arbeidsquote, 0, 1.5, 'arbeidsquote jaar ' + ctx.jaar);
+  var personeelskosten = waardeVanRegel(regels, 'personeelskosten', i, brutomarge * arbeidsquote);
+  var indexatie = waardeVanRegel(regels, 'indexatie', i, u.indexatie);
+  var huisvesting = waardeVanRegel(regels, 'huisvestingskosten', i,
+    vorig ? vorig.huisvesting * (1 + indexatie) : u.beginHuisvesting);
+  var overigeKosten = waardeVanRegel(regels, 'overigeKosten', i,
+    vorig ? vorig.overigeKosten * (1 + indexatie) : u.beginOverigeKosten);
+
+  // ---- Vaste activa en afschrijving ----
+  // Afschrijving over de openingsstand plus de helft van de investeringen van het
+  // jaar. Dat vermijdt de circulariteit met de eindstand en is te controleren.
+  var mvaBegin = vorig ? vorig.mvaEind : u.beginMva;
+  var investering = waardeVanRegel(regels, 'investeringen', i,
+    vorig ? vorig.investering * (1 + indexatie) : u.beginInvestering);
+  var afschrijvingsperc = waardeVanRegel(regels, 'afschrijvingspercentage', i,
+    vorig ? vorig.afschrijvingsperc : u.afschrijvingspercentage);
+  begrens(afschrijvingsperc, 0, 1, 'afschrijvingspercentage jaar ' + ctx.jaar);
+  var afschrijving = waardeVanRegel(regels, 'afschrijvingen', i,
+    afschrijvingsperc * (mvaBegin + investering / 2));
+  if (afschrijving > mvaBegin + investering) afschrijving = mvaBegin + investering;
+  var mvaEind = mvaBegin + investering - afschrijving;
+
+  // ---- Dotatie aan de voorzieningen ----
+  // Een dotatie is een last die geen uitgave is, net als een afschrijving, en hoort
+  // daarom in het bedrijfsresultaat en dus in de belastinggrondslag. Positief is een
+  // dotatie, negatief een vrijval. Bij de kasstroom wordt de post weer teruggeteld.
+  // Aftrekbaar is de dotatie zodra de voorziening voldoet aan de drie eisen van het
+  // Baksteenarrest: de toekomstige uitgaven vinden hun oorsprong in feiten of
+  // omstandigheden van vóór de balansdatum, zijn ook overigens aan die periode toe te
+  // rekenen en er bestaat een redelijke mate van zekerheid dat zij zich zullen
+  // voordoen. Bron: HR 26-08-1998, nr. 33417, ECLI:NL:HR:1998:AA2555 (BNB 1998/409),
+  // r.o. 3.6, langs artikel 3.25 Wet IB 2001 (jaarwinst naar goed koopmansgebruik,
+  // geldend van 21-02-2026 t/m heden) en artikel 8, eerste lid Wet Vpb 1969, dat de
+  // winst laat bepalen op de voet van een reeks bepalingen van de Wet IB 2001,
+  // waaronder de artikelen 3.21 tot en met 3.30. Dat er naast die drie eisen geen
+  // aanvullend piekvereiste geldt, is beslist in Hof 's-Hertogenbosch 24-12-2025,
+  // zaaknummer 23/551, ECLI:NL:GHSHE:2025:3707, r.o. 4.3 tot en met 4.6. Of daartegen
+  // cassatie is ingesteld, is niet uit een openbare bron vast te stellen; die uitspraak
+  // is dus hofrechtspraak en geen vaste leer. Zij draagt hier ook geen rekenregel: de
+  // grondslag volgt uit Baksteen zelf. Gecontroleerd op wetten.overheid.nl en
+  // uitspraken.rechtspraak.nl op 09-09-2026. Die toets is een oordeel over de feiten;
+  // de tool meldt haar en velt haar niet.
+  var mutatieVoorzieningen = waardeVanRegel(regels, 'mutatieVoorzieningen', i, 0);
+
+  var bedrijfsresultaat = brutomarge - personeelskosten - huisvesting - overigeKosten
+                        - afschrijving - mutatieVoorzieningen;
+
+  // ---- Werkkapitaal via termijnen in dagen ----
+  var btwTarief = waardeVanRegel(regels, 'btwTarief', i, u.btwTarief);
+  begrens(btwTarief, 0, 0.30, 'omzetbelastingtarief jaar ' + ctx.jaar);
+  var voorraaddagen = waardeVanRegel(regels, 'voorraaddagen', i, vorig ? vorig.voorraaddagen : u.voorraaddagen);
+  var ohwDagen = waardeVanRegel(regels, 'ohwDagen', i, vorig ? vorig.ohwDagen : u.ohwDagen);
+  var debiteurendagen = waardeVanRegel(regels, 'debiteurendagen', i, vorig ? vorig.debiteurendagen : u.debiteurendagen);
+  var crediteurendagen = waardeVanRegel(regels, 'crediteurendagen', i, vorig ? vorig.crediteurendagen : u.crediteurendagen);
+  [['voorraaddagen', voorraaddagen], ['ohwDagen', ohwDagen],
+   ['debiteurendagen', debiteurendagen], ['crediteurendagen', crediteurendagen]]
+    .forEach(function (p) { begrens(p[1], 0, 365, p[0] + ' jaar ' + ctx.jaar); });
+
+  var voorraad = voorraaddagen / 365 * inkoopwaarde;
+  // Onderhanden werk tegen de verkoopwaarde van de termijn, niet tegen de kostprijs.
+  // Artikel 3.29b, eerste lid Wet IB 2001, langs artikel 8, eerste lid Wet Vpb 1969:
+  // de waardering van onderhanden werk wordt gesteld op het gedeelte van de
+  // overeengekomen vergoeding voor het aangenomen werk dat aan dat onderhanden werk is
+  // toe te rekenen; het tweede lid verklaart dat van overeenkomstige toepassing op
+  // onderhanden opdrachten. Geldend van 21-02-2026 tot en met heden; gecontroleerd op
+  // wetten.overheid.nl/BWBR0011353 op 03-09-2026.
+  // De termijn in dagen is hier de maatstaf van de voortgang, dus staat er het naar
+  // voortgang toegerekende deel van de opbrengst. Dat is ook wat een kasstroommodel
+  // nodig heeft: de opbrengst is al in de omzet verantwoord en al belast, terwijl het
+  // geld nog niet binnen is, dus is het volle bedrag vastgelegd vermogen. Waarderen
+  // tegen kostprijs zou de winstmarge van het lopende werk stilzwijgend als ontvangen
+  // beschouwen. Halffabricaat zonder opdracht is geen onderhanden werk maar voorraad
+  // en hoort in de regel hierboven, die wel tegen inkoopwaarde rekent.
+  var onderhandenWerk = ohwDagen / 365 * omzet;
+  var debiteuren = debiteurendagen / 365 * omzet * (1 + btwTarief);
+  var crediteuren = crediteurendagen / 365 * (inkoopwaarde + overigeKosten) * (1 + btwTarief);
+  var overigeVorderingen = waardeVanRegel(regels, 'overigeVorderingen', i,
+    vorig ? vorig.overigeVorderingen : u.beginOverigeVorderingen);
+  var overigeSchulden = waardeVanRegel(regels, 'overigeSchulden', i,
+    vorig ? vorig.overigeSchulden : u.beginOverigeSchulden);
+
+  // Omzetbelasting: één post met één vast teken over alle jaren. Positief is een
+  // schuld aan de Belastingdienst, negatief een vordering. In het uitgebreide
+  // bronmodel draait dit teken in het laatste prognosejaar om, waardoor de
+  // werkkapitaalmutatie van dat jaar en dus de restwaarde vervuild raken.
+  var tijdvak = BTW_TIJDVAKKEN[u.btwTijdvak] || BTW_TIJDVAKKEN.kwartaal;
+  var btwOverOmzet = omzet * btwTarief;
+  var btwVoorbelasting = (inkoopwaarde + overigeKosten + investering) * btwTarief;
+  var btwPositie = (btwOverOmzet - btwVoorbelasting) * (tijdvak.maandenUitstaand / 12);
+
+  var nettoWerkkapitaal = voorraad + onderhandenWerk + debiteuren + overigeVorderingen
+                        - crediteuren - overigeSchulden - btwPositie;
+
+  // ---- Financiering en rente ----
+  // Rente over de stand van de rentedragende schulden aan het begin van het jaar.
+  // Daarmee is de circulariteit tussen rente, resultaat en balans vermeden; de prijs
+  // is dat de rentelast een jaar achterloopt op een sterk wijzigende financiering.
+  var schuldBegin = vorig ? vorig.schuldEind : u.beginRentedragendeSchuld;
+  var aflossing = waardeVanRegel(regels, 'aflossing', i, u.aflossingPerJaar);
+  var rentepercentage = waardeVanRegel(regels, 'rentepercentage', i, u.rentepercentage);
+  begrens(rentepercentage, 0, GRENZEN.kostenvoetVreemdVermogen[1], 'rentepercentage jaar ' + ctx.jaar);
+  var rente = schuldBegin * rentepercentage;
+  var schuldEind = schuldBegin - aflossing;
+
+  return {
+    jaar: ctx.jaar, index: i,
+    omzetten: omzetten, margeperc: margeperc, omzet: omzet, inkoopwaarde: inkoopwaarde,
+    brutomarge: brutomarge, arbeidsquote: arbeidsquote, personeelskosten: personeelskosten,
+    huisvesting: huisvesting, overigeKosten: overigeKosten, indexatie: indexatie,
+    investering: investering, afschrijving: afschrijving, afschrijvingsperc: afschrijvingsperc,
+    mvaBegin: mvaBegin, mvaEind: mvaEind, bedrijfsresultaat: bedrijfsresultaat,
+    voorraaddagen: voorraaddagen, ohwDagen: ohwDagen, debiteurendagen: debiteurendagen,
+    crediteurendagen: crediteurendagen, voorraad: voorraad, onderhandenWerk: onderhandenWerk,
+    debiteuren: debiteuren, crediteuren: crediteuren, overigeVorderingen: overigeVorderingen,
+    overigeSchulden: overigeSchulden, btwTarief: btwTarief, btwPositie: btwPositie,
+    nettoWerkkapitaal: nettoWerkkapitaal, schuldBegin: schuldBegin, aflossing: aflossing,
+    rentepercentage: rentepercentage, rente: rente, schuldEind: schuldEind,
+    mutatieVoorzieningen: mutatieVoorzieningen
+  };
+}
+
+// Volledige uitgebreide prognose met de vrije kasstroom per jaar en de restperiode.
+function prognoseUitgebreid(inv) {
+  var u = inv.uitgangspunten;
+  var regels = inv.regels || {};
+  var aantal = eisGetal(u.aantalPrognosejaren, 'aantal prognosejaren');
+  if (aantal < 1 || aantal > 12) throw new Error('Het aantal prognosejaren moet tussen 1 en 12 liggen.');
+  var eersteJaar = eisGetal(u.eersteJaar, 'eerste prognosejaar');
+
+  var jaren = [], vorig = null, projectie = [];
+  for (var i = 0; i < aantal; i++) {
+    var jaar = eersteJaar + i;
+    jaren.push(jaar);
+    vorig = projecteerJaar({ index: i, jaar: jaar, regels: regels, uitgangspunten: u, vorigJaar: vorig });
+    projectie.push(vorig);
+  }
+
+  // Belastinggrondslag voor de vrije kasstroom is unlevered: het bedrijfsresultaat,
+  // dus na de dotatie aan de voorzieningen en vóór de renteaftrek. De dotatie hoort
+  // in de grondslag omdat zij een last is (zie projecteerJaar voor de vindplaats) en
+  // komt alleen bij de kasstroom terug, omdat er geen geld mee gemoeid is. Voldoet de
+  // voorziening niet aan de criteria, of raakt zij een beperking van de artikelen 3.26
+  // tot en met 3.29 Wet IB 2001 (loon- en prijswijzigingen na afloop van het jaar,
+  // pensioenvoorzieningen), dan hoort de dotatie niet in de prognose thuis; de melding
+  // hieronder legt die toets bij de gebruiker. Dezelfde grondslag geldt in de
+  // restperiode; in het bronmodel wijkt die grondslag daar af van de prognosejaren.
+  var grondslagen = projectie.map(function (p) { return p.bedrijfsresultaat; });
+  var belastingopties = {
+    verliesverrekening: u.verliesverrekening !== false,
+    beginvoorraadVerlies: u.beginvoorraadVerlies
+  };
+  var belastingen = belastingReeks(grondslagen, jaren, belastingopties);
+  // De tax shield van de rente is het verschil tussen de aanslag zonder en met de
+  // renteaftrek over dezelfde reeks, dus tegen het tarief van de schijf waarin de
+  // rente werkelijk valt. Zie taxShieldReeks voor de vindplaats.
+  var shields = taxShieldReeks(grondslagen, projectie.map(function (p) { return p.rente; }),
+                               jaren, belastingopties);
+
+  var kasstromen = [], taxShields = [], meldingen = [];
+  var vorigNwk = isGetal(u.beginWerkkapitaal) ? u.beginWerkkapitaal : projectie[0].nettoWerkkapitaal;
+  for (var k = 0; k < aantal; k++) {
+    var p = projectie[k];
+    var mutatieNwk = p.nettoWerkkapitaal - vorigNwk;
+    vorigNwk = p.nettoWerkkapitaal;
+    // De dotatie zit in het bedrijfsresultaat en dus in de grondslag, maar is geen
+    // uitgave; net als de afschrijving wordt zij hier teruggeteld.
+    var fcf = p.bedrijfsresultaat - belastingen[k].belasting
+            + p.afschrijving + p.mutatieVoorzieningen - mutatieNwk - p.investering;
+    p.mutatieWerkkapitaal = mutatieNwk;
+    p.belasting = belastingen[k].belasting;
+    p.effectiefTarief = belastingen[k].effectiefTarief;
+    p.tariefstatus = belastingen[k].tariefstatus;
+    p.tariefbronjaar = belastingen[k].tariefbronjaar;
+    p.verrekendVerlies = belastingen[k].verrekendVerlies;
+    p.vrijeKasstroom = fcf;
+    // De shield van een jaar hoort bij dat jaar. De verschuiving met één jaar die in
+    // het bronmodel in het zesde jaar is aangetroffen, zit hier dus niet. Dat de shield
+    // van een verliesjaar pas landt in het jaar van verrekening is geen verschuiving
+    // maar de verliesverrekening zelf; zie taxShieldReeks.
+    p.taxShield = shields[k].taxShield;
+    // Het aandeel van de rente dat de shield beloopt. Geen tarief: zie taxShieldReeks.
+    p.taxShieldAandeel = shields[k].aandeelVanRente;
+    kasstromen.push(fcf);
+    taxShields.push(p.taxShield);
+  }
+
+  // Of een dotatie aftrekbaar is, hangt af van de feiten achter de voorziening. Die
+  // toets kan de tool niet maken, dus benoemt zij haar zodra er een dotatie staat.
+  if (projectie.some(function (p) { return p.mutatieVoorzieningen > 0; })) {
+    meldingen.push({
+      soort: 'info',
+      tekst: 'De dotatie aan de voorzieningen drukt het bedrijfsresultaat en dus de ' +
+             'belastinggrondslag; bij de kasstroom wordt zij teruggeteld omdat zij geen ' +
+             'uitgave is. Dat veronderstelt een fiscaal aanvaardbare voorziening: de ' +
+             'uitgaven vinden hun oorsprong in feiten of omstandigheden van vóór de ' +
+             'balansdatum, zijn ook overigens aan die periode toe te rekenen en er bestaat ' +
+             'een redelijke mate van zekerheid dat zij zich zullen voordoen (HR 26-08-1998, ' +
+             'ECLI:NL:HR:1998:AA2555, Baksteen). Voldoet de voorziening daar niet aan, of ' +
+             'geldt een beperking van de artikelen 3.26 tot en met 3.29 Wet IB 2001, laat de ' +
+             'dotatie dan buiten de prognose. In de restperiode loopt de dotatie mee als ' +
+             'blijvende last en wordt zij niet teruggeteld: daar wordt verondersteld dat de ' +
+             'dotatie en de onttrekking elkaar in evenwicht houden, net als de investeringen ' +
+             'en de afschrijvingen.'
+    });
+  }
+
+  // Het teken bepaalt de richting van het belastingeffect en is de meest waarschijnlijke
+  // invoerfout: in een exploitatieoverzicht staat een dotatie vaak juist met een minteken,
+  // omdat daar alle lasten negatief worden getoond. Wie zo'n regel overneemt, keert het
+  // effect om. Daarom wordt een negatieve mutatie niet stil verwerkt.
+  var vrijvallen = projectie.filter(function (p) { return p.mutatieVoorzieningen < 0; });
+  if (vrijvallen.length) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'In ' + (vrijvallen.length === 1
+               ? 'jaar ' + vrijvallen[0].jaar + ' staat'
+               : vrijvallen.length + ' jaren staat') +
+             ' een negatieve mutatie in de voorzieningen. Die wordt gelezen als vrijval: zij ' +
+             'verhoogt het bedrijfsresultaat en de belastinggrondslag en levert geen kasstroom ' +
+             'op. Bedoelde u een dotatie, voer die dan positief in; in een exploitatieoverzicht ' +
+             'staat een dotatie vaak met een minteken omdat daar alle lasten negatief worden ' +
+             'getoond, en dat teken hoort hier niet mee over te komen.'
+    });
+  }
+
+  // Aandachtspunten die de bronmodellen ook signaleren, hier met de grens erbij.
+  var laatste = projectie[aantal - 1];
+  var margeLaatste = laatste.omzet !== 0 ? laatste.brutomarge / laatste.omzet : 0;
+  var margeEerste = projectie[0].omzet !== 0 ? projectie[0].brutomarge / projectie[0].omzet : 0;
+  if (margeLaatste - margeEerste > 0.05) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'De brutomarge loopt in de prognose op van ' + pctTekst(margeEerste, 1) + ' naar ' +
+             pctTekst(margeLaatste, 1) + '. Een stijging van meer dan vijf procentpunt vraagt ' +
+             'een onderbouwing, want zij werkt volledig door in de restwaarde.'
+    });
+  }
+
+  var groei = begrens(u.groeiRestperiode, GRENZEN.groeiRestperiode[0], GRENZEN.groeiRestperiode[1],
+                      'groei in de restperiode');
+  var restJaar = eersteJaar + aantal;
+  var restBedrijfsresultaat = laatste.bedrijfsresultaat * (1 + groei);
+  var restBelasting = belastingReeks([restBedrijfsresultaat], [restJaar], {
+    verliesverrekening: u.verliesverrekening !== false,
+    beginvoorraadVerlies: belastingen[aantal - 1].verliesvoorraadEind
+  })[0];
+  var restMutatieNwk = laatste.nettoWerkkapitaal * groei;
+  // In de restperiode zijn de investeringen gelijk aan de afschrijvingen; de
+  // onderneming blijft dan op peil zonder uit te breiden.
+  var restKasstroom = restBedrijfsresultaat - restBelasting.belasting - restMutatieNwk;
+  if (Math.abs(restMutatieNwk) > 0.05 * Math.abs(restKasstroom) && restKasstroom !== 0) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'De werkkapitaalmutatie in de restperiode is meer dan vijf procent van de ' +
+             'genormaliseerde kasstroom. Controleer de termijnen in dagen; die werken hier ' +
+             'volledig door in de restwaarde.'
+    });
+  }
+
+  // De restperiode groeit het bedrijfsresultaat van het laatste prognosejaar door, dus
+  // loopt de dotatie van dát jaar mee als blijvende last en wordt zij gekapitaliseerd.
+  // Voor een structurele voorziening is dat juist; een eenmalige dotatie in het laatste
+  // jaar slaat daarmee een gat in de restwaarde dat vele malen groter is dan de dotatie
+  // zelf. De tool kan niet zien welke van de twee is bedoeld, dus meldt zij het zodra de
+  // post zwaar weegt. Dezelfde vijfprocentsgrens als bij de werkkapitaalmutatie hierboven.
+  var restDotatie = laatste.mutatieVoorzieningen * (1 + groei);
+  if (restDotatie !== 0 &&
+      (restKasstroom === 0 || Math.abs(restDotatie) > 0.05 * Math.abs(restKasstroom))) {
+    meldingen.push({
+      soort: 'waarschuwing',
+      tekst: 'De mutatie in de voorzieningen van het laatste prognosejaar loopt door in de ' +
+             'restperiode en wordt daar niet teruggeteld, dus werkt zij eeuwigdurend door in ' +
+             'de restwaarde: ' + getalTekst(restDotatie, 0) + ' op een genormaliseerde ' +
+             'kasstroom van ' + getalTekst(restKasstroom, 0) + '. Dat klopt alleen voor een ' +
+             'voorziening die ook na de prognose elk jaar wordt aangevuld. Gaat het om een ' +
+             'eenmalige of aflopende dotatie, zet de regel in het laatste prognosejaar dan op ' +
+             'nihil en houd haar in de jaren daarvóór.'
+    });
+  }
+
+  var schema = toetsFinancieringsschema(
+    isGetal(u.beginRentedragendeSchuld) ? u.beginRentedragendeSchuld : 0,
+    projectie.map(function (p) { return p.aflossing; })
+  );
+  meldingen = meldingen.concat(schema.meldingen);
+
+  return {
+    modus: 'uitgebreid',
+    jaren: jaren, projectie: projectie,
+    vrijeKasstromen: kasstromen, taxShields: taxShields,
+    restperiode: {
+      jaar: restJaar, bedrijfsresultaat: restBedrijfsresultaat,
+      belasting: restBelasting.belasting, effectiefTarief: restBelasting.effectiefTarief,
+      tariefstatus: restBelasting.tariefstatus, tariefbronjaar: restBelasting.tariefbronjaar,
+      werkkapitaalmutatie: restMutatieNwk, mutatieVoorzieningen: restDotatie,
+      vrijeKasstroom: restKasstroom, groei: groei
+    },
+    restwaardeKasstroom: restKasstroom,
+    financieringsschema: schema,
+    handinvoer: telHandinvoer(regels),
+    meldingen: meldingen
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   14. Het geheel: van invoer naar waarde
+   ------------------------------------------------------------------------ */
+
+// Eén ingang voor beide modi. De keten is in beide gevallen dezelfde: vrije kasstroom
+// per jaar, contant maken, restwaarde als eeuwigdurende reeks, waardebrug. Het
+// verschil zit uitsluitend in hoe de kasstroom tot stand komt.
+function bereken(invoer) {
+  var prognose = invoer.modus === 'uitgebreid'
+    ? prognoseUitgebreid(invoer.uitgebreid)
+    : prognoseEenvoudig(invoer.eenvoudig);
+
+  var eis = rendementseis(invoer.rendementseis);
+  var meldingen = (prognose.meldingen || []).concat(eis.meldingen || []);
+
+  var gemeenschappelijk = {
+    vrijeKasstromen: prognose.vrijeKasstromen,
+    restwaardeKasstroom: prognose.restwaardeKasstroom,
+    groeiRestperiode: prognose.restperiode.groei,
+    moment: invoer.moment || 'ultimo'
+  };
+
+  var dcf = dcfm(Object.assign({}, gemeenschappelijk, { wacc: eis.wacc }));
+  meldingen = meldingen.concat(dcf.meldingen || []);
+
+  var apvUitkomst = null;
+  if (invoer.modus === 'uitgebreid' && invoer.methodeApv !== false) {
+    apvUitkomst = apv(Object.assign({}, gemeenschappelijk, {
+      voetUnlevered: eis.kostenvoetUnlevered,
+      taxShields: prognose.taxShields,
+      kostenvoetVreemdVermogen: eis.kostenvoetVreemdVermogen,
+      voetTaxShield: invoer.voetTaxShield,
+      taxShieldRestperiodeKasstroom: invoer.taxShieldRestperiodeKasstroom
+    }));
+    meldingen = meldingen.concat(apvUitkomst.meldingen || []);
+  }
+
+  var gekozenOndernemingswaarde = (invoer.methode === 'apv' && apvUitkomst)
+    ? apvUitkomst.ondernemingswaarde : dcf.ondernemingswaarde;
+
+  // Afkappen van de restwaarde: wat blijft er over wanneer de eeuwigdurende reeks
+  // wordt vervangen door een eindige reeks van een gegeven aantal jaren?
+  var afkappen = null;
+  if (isGetal(invoer.afkappenNaJaren) && invoer.afkappenNaJaren > 0) {
+    var g = prognose.restperiode.groei;
+    var voet = (invoer.methode === 'apv' && apvUitkomst) ? eis.kostenvoetUnlevered : eis.wacc;
+    var reeks = [];
+    var ks = prognose.restwaardeKasstroom;
+    for (var t = 0; t < invoer.afkappenNaJaren; t++) { reeks.push(ks); ks = ks * (1 + g); }
+    var n = prognose.vrijeKasstromen.length;
+    var eindig = contantmaking(reeks, voet, { moment: 'ultimo' }).totaal *
+                 disconteringsfactor(voet, n, 'ultimo');
+    var eeuwig = (invoer.methode === 'apv' && apvUitkomst)
+      ? apvUitkomst.contanteRestwaarde : dcf.contanteRestwaarde;
+    afkappen = {
+      jaren: invoer.afkappenNaJaren, contanteRestwaardeEindig: eindig,
+      contanteRestwaardeEeuwig: eeuwig, verschil: eeuwig - eindig,
+      ondernemingswaardeAfgekapt: gekozenOndernemingswaarde - (eeuwig - eindig)
+    };
+  }
+
+  var brug = waardebrug(gekozenOndernemingswaarde, invoer.brugposten);
+
+  return {
+    modus: invoer.modus, prognose: prognose, rendementseis: eis,
+    dcfm: dcf, apv: apvUitkomst, methode: invoer.methode || 'dcfm',
+    ondernemingswaarde: gekozenOndernemingswaarde,
+    waardebrug: brug, aandelenwaarde: brug.aandelenwaarde,
+    afkappenRestwaarde: afkappen, meldingen: meldingen
+  };
+}
+
+// FISCALE KERN — EINDE
+
+/* ===========================================================================
+   Gebruikersinterface. Vanaf hier mag de code de DOM aanraken; de rekenkern
+   hierboven doet dat nooit.
+   ======================================================================== */
+
+var VANDAAG = new Date().toISOString().slice(0, 10);
+
+var staat = {
+  modus: 'eenvoudig',
+  eenheid: 'euro',
+  moment: 'ultimo',
+  methode: 'dcfm',
+  afkappenNaJaren: null,
+  // Moet hier staan: het laden neemt alleen sleutels over die de beginstaat kent.
+  iteratief: false,
+  algemeen: {
+    eersteJaar: new Date().getFullYear() + 1,
+    aantalJaren: 5,
+    inflatie: 0.02
+  },
+  eenvoudig: {
+    bedrijfsresultaatBasis: 250000,
+    groeiPerJaar: [0.03, 0.03, 0.02, 0.02, 0.02],
+    werkkapitaalNiveau: 300000,
+    afschrijvingen: [],
+    investeringen: [],
+    investeringenGelijkAanAfschrijvingen: true,
+    verliesverrekening: true,
+    beginvoorraadVerlies: 0
+  },
+  uitgebreid: {
+    uitgangspunten: {
+      eersteJaar: new Date().getFullYear() + 1,
+      aantalPrognosejaren: 6,
+      beginOmzet: [1200000, 600000, 200000],
+      omzetgroei: [0.03, 0.02, 0.02],
+      brutomarge: [0.35, 0.45, 0.60],
+      arbeidsquote: 0.45,
+      indexatie: 0.02,
+      beginHuisvesting: 60000,
+      beginOverigeKosten: 110000,
+      beginMva: 600000,
+      beginInvestering: 90000,
+      afschrijvingspercentage: 0.15,
+      voorraaddagen: 45, ohwDagen: 20, debiteurendagen: 40, crediteurendagen: 35,
+      beginOverigeVorderingen: 25000, beginOverigeSchulden: 60000,
+      btwTarief: 0.21, btwTijdvak: 'kwartaal',
+      beginRentedragendeSchuld: 700000, aflossingPerJaar: 100000, rentepercentage: 0.05,
+      beginWerkkapitaal: null,
+      groeiRestperiode: 0.02,
+      verliesverrekening: true,
+      beginvoorraadVerlies: 0
+    },
+    regels: {}
+  },
+  // Besluit van Sylvain, 17-09-2026. De snelle indicatie is de kern van de tool en
+  // werkt met directe invoer (route 3) als standaard, met referentie-invoer (route 2)
+  // ernaast; de eigen build-up (route 1) hoort bij de uitgebreide modus.
+  //
+  // Drie velden van de build-up hebben bewust géén standaardwaarde meer. Er stond een
+  // unlevered beta van 0,90, een opslag kleinschaligheid van 3% en een bedrijfsspecifieke
+  // opslag van 2%. Voor geen van die drie is een bron aan te wijzen: de beta is
+  // sectorafhankelijk, de kleinschaligheidsopslag hangt aan een omvangscategorie en de
+  // bedrijfsspecifieke opslag is per definitie de casus zelf. Een vooringevuld getal
+  // zonder vindplaats wordt overgenomen alsof het onderbouwd is, en dat is precies wat
+  // deze tool bij de bronmodellen aanwijst als gebrek (analyse-bronmodellen.md, 4.2).
+  // Zij zijn daarom null: het veld is leeg en begrens() weigert door te rekenen met een
+  // zichtbare melding in plaats van stil een nul of NaN mee te nemen. Een
+  // sectorafhankelijke bronwaarde voor de beta kan later worden toegevoegd; dat is
+  // vervolgwerk en staat als open punt in OPENSTAANDE-VRAGEN.md.
+  eis: {
+    route: 'direct',
+    risicovrijeVoet: MARKT.risicovrijeVoet.waarde,
+    marktrisicopremie: MARKT.marktrisicopremie.waarde,
+    betaUnlevered: null,
+    vvAandeel: BRANCHE_VV.waarden[0].vvAandeel,
+    branche: 'totaal',
+    kostenvoetVreemdVermogen: MARKT.kostenvoetVreemdVermogen.klassen[1].waarde,
+    leningklasse: '025tot1',
+    opslagKleinschaligheid: null,
+    opslagBedrijfsspecifiek: null,
+    opslagOverig: 0,
+    onder: 0.12, midden: 0.16, boven: 0.22, gekozen: 0.16,
+    bronVindplaats: '', bronVersie: '', bronPeildatum: '',
+    kostenvoetEigenVermogen: 0.16, onderbouwing: ''
+  },
+  brug: {},
+  aanvullend: {
+    activadealAan: false,
+    verdelingGebouw: 0, verdelingOverigeActiva: 0.30, verdelingGoodwill: 0.70,
+    termijnGebouw: 30, termijnOverigeActiva: 5, termijnGoodwill: 10,
+    wozBodemwaarde: null,
+    illiquiditeitsopslag: 0.02, vasteTransactiekosten: 50000,
+    normMaxNettoSchuldEbitda: 3.0, normMinDscr: 1.2, normMinSolvabiliteit: 0.25,
+    normTerugverdientermijn: 7
+  },
+  uittab: 'samenvatting',
+  invtab: 'uitgangspunten'
+};
+
+/* --- kleine hulpjes voor de weergave ------------------------------------ */
+
+function $(sel) { return document.querySelector(sel); }
+function maak(tag, klasse, tekst) {
+  var el = document.createElement(tag);
+  if (klasse) el.className = klasse;
+  if (tekst !== undefined && tekst !== null) el.textContent = String(tekst);
+  return el;
+}
+function leeg(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+function toonBedrag(euro, decimalen) {
+  if (!isGetal(euro)) return '';
+  var d = isGetal(decimalen) ? decimalen : (staat.eenheid === 'euro' ? 0 : 1);
+  return vanEuro(euro, staat.eenheid).toLocaleString('nl-NL',
+    { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function toonPercentage(deel, decimalen) {
+  if (!isGetal(deel)) return '';
+  return (deel * 100).toLocaleString('nl-NL', {
+    minimumFractionDigits: isGetal(decimalen) ? decimalen : 2,
+    maximumFractionDigits: isGetal(decimalen) ? decimalen : 2
+  }) + '%';
+}
+function toonGetal(x, decimalen) {
+  if (!isGetal(x)) return '';
+  return x.toLocaleString('nl-NL', {
+    minimumFractionDigits: isGetal(decimalen) ? decimalen : 2,
+    maximumFractionDigits: isGetal(decimalen) ? decimalen : 2
+  });
+}
+
+// Padgebaseerd lezen en schrijven, zodat de velddefinities kort blijven.
+function haal(pad) {
+  var delen = pad.split('.'), x = staat;
+  for (var i = 0; i < delen.length; i++) {
+    if (x === null || x === undefined) return undefined;
+    x = x[delen[i]];
+  }
+  return x;
+}
+function zet(pad, waarde) {
+  var delen = pad.split('.'), x = staat;
+  for (var i = 0; i < delen.length - 1; i++) x = x[delen[i]];
+  x[delen[delen.length - 1]] = waarde;
+}
+
+/* --- generieke veldbouwer ------------------------------------------------ */
+
+// type: bedrag (in de gekozen notatie), pct (invoer in procenten), getal, int,
+// dagen, keuze, tekst, aanvinken.
+function bouwVeld(def) {
+  var wrap = maak('label', 'veld');
+  wrap.appendChild(maak('span', 'naam', def.etiket));
+  var el;
+  if (def.type === 'keuze') {
+    el = maak('select');
+    def.opties.forEach(function (o) {
+      var opt = maak('option', null, o.etiket);
+      opt.value = o.waarde;
+      el.appendChild(opt);
+    });
+    el.value = haal(def.pad);
+  } else if (def.type === 'aanvinken') {
+    el = maak('input');
+    el.type = 'checkbox';
+    el.checked = !!haal(def.pad);
+    el.style.width = 'auto';
+  } else if (def.type === 'tekst') {
+    el = maak('input');
+    el.type = 'text';
+    el.value = haal(def.pad) || '';
+  } else {
+    el = maak('input');
+    el.type = 'number';
+    var w = haal(def.pad);
+    if (def.type === 'bedrag') el.value = isGetal(w) ? vanEuro(w, staat.eenheid) : '';
+    else if (def.type === 'pct') el.value = isGetal(w) ? afronden(w * 100, 4) : '';
+    else el.value = isGetal(w) ? w : '';
+    if (def.type === 'pct') el.step = '0.01';
+    else if (def.type === 'bedrag') el.step = staat.eenheid === 'euro' ? '1000' : '1';
+    else el.step = def.step || '1';
+    if (isGetal(def.min)) el.min = def.min;
+    if (isGetal(def.max)) el.max = def.max;
+  }
+  el.addEventListener('change', function () {
+    if (def.type === 'keuze') zet(def.pad, el.value);
+    else if (def.type === 'aanvinken') zet(def.pad, el.checked);
+    else if (def.type === 'tekst') zet(def.pad, el.value);
+    else {
+      var g = el.value === '' ? null : Number(el.value);
+      if (g !== null && !Number.isFinite(g)) g = null;
+      if (def.type === 'bedrag') zet(def.pad, g === null ? null : naarEuro(g, staat.eenheid));
+      else if (def.type === 'pct') zet(def.pad, g === null ? null : g / 100);
+      else zet(def.pad, g);
+    }
+    if (def.naWijziging) def.naWijziging();
+    tekenAlles();
+  });
+  wrap.appendChild(el);
+  if (def.suffix) {
+    var s = maak('span', 'klein', def.suffix);
+    wrap.appendChild(s);
+  }
+  if (def.bronregel) {
+    var b = maak('div', 'bronregel', def.bronregel.tekst);
+    if (def.bronregel.verouderd) b.classList.add('verouderd');
+    wrap.appendChild(b);
+  }
+  return wrap;
+}
+
+function bouwVelden(container, definities) {
+  leeg(container);
+  definities.forEach(function (d) { container.appendChild(bouwVeld(d)); });
+}
+
+/* --- invoerpanelen ------------------------------------------------------- */
+
+function bronregelVoor(blok) {
+  var t = toetsHoudbaarheid(blok, VANDAAG);
+  return {
+    tekst: (blok.bron || '') + ' — peildatum ' + blok.peildatum +
+           (t.verouderd ? ' (verouderd: ' + t.ouderdomMaanden + ' maanden)' : ''),
+    verouderd: t.verouderd
+  };
+}
+
+function tekenAlgemeen() {
+  var eersteJaarPad = staat.modus === 'uitgebreid'
+    ? 'uitgebreid.uitgangspunten.eersteJaar' : 'algemeen.eersteJaar';
+  var defs = [
+    { pad: eersteJaarPad, etiket: 'Eerste prognosejaar', type: 'int', min: VPB_EERSTE_JAAR, max: 2100,
+      naWijziging: function () { staat.algemeen.eersteJaar = haal(eersteJaarPad); } },
+    staat.modus === 'uitgebreid'
+      ? { pad: 'uitgebreid.uitgangspunten.aantalPrognosejaren', etiket: 'Aantal prognosejaren',
+          type: 'int', min: 1, max: 12, naWijziging: pasLengtesAan }
+      : { pad: 'algemeen.aantalJaren', etiket: 'Aantal prognosejaren', type: 'int', min: 1, max: 15,
+          naWijziging: pasLengtesAan },
+    staat.modus === 'uitgebreid'
+      ? { pad: 'uitgebreid.uitgangspunten.groeiRestperiode', etiket: 'Groei in de restperiode', type: 'pct',
+          suffix: 'moet onder de disconteringsvoet blijven' }
+      : { pad: 'algemeen.inflatie', etiket: 'Groei in de restperiode', type: 'pct',
+          suffix: 'moet onder de disconteringsvoet blijven' },
+    { pad: 'moment', etiket: 'Moment van de kasstroom', type: 'keuze', opties: [
+        { waarde: 'ultimo', etiket: 'einde van het jaar' },
+        { waarde: 'midden', etiket: 'halverwege het jaar' }] },
+    { pad: 'methode', etiket: 'Waarderingsmethode', type: 'keuze', opties: [
+        { waarde: 'dcfm', etiket: 'DCFM, constante gewogen kostenvoet' },
+        { waarde: 'apv', etiket: 'APV, tax shield afzonderlijk (alleen uitgebreid)' }] },
+    { pad: 'afkappenNaJaren', etiket: 'Restwaarde afkappen na (jaren)', type: 'int', min: 0, max: 100,
+      suffix: 'leeg laten voor een eeuwigdurende reeks' }
+  ];
+  bouwVelden($('#algemeen-velden'), defs);
+}
+
+function pasLengtesAan() {
+  var n = staat.modus === 'uitgebreid'
+    ? staat.uitgebreid.uitgangspunten.aantalPrognosejaren
+    : staat.algemeen.aantalJaren;
+  var g = staat.eenvoudig.groeiPerJaar;
+  while (g.length < n) g.push(g.length ? g[g.length - 1] : 0.02);
+  g.length = Math.max(n, 0);
+  for (var sleutel in staat.uitgebreid.regels) {
+    if (Object.prototype.hasOwnProperty.call(staat.uitgebreid.regels, sleutel)) {
+      staat.uitgebreid.regels[sleutel].length = n;
+    }
+  }
+}
+
+function tekenEenvoudig() {
+  bouwVelden($('#eenvoudig-velden'), [
+    { pad: 'eenvoudig.bedrijfsresultaatBasis', etiket: 'Bruto bedrijfsresultaat referentiejaar',
+      type: 'bedrag' },
+    { pad: 'eenvoudig.werkkapitaalNiveau', etiket: 'Netto werkkapitaal', type: 'bedrag',
+      suffix: 'groeit in de restperiode mee met de inflatie' },
+    { pad: 'eenvoudig.investeringenGelijkAanAfschrijvingen',
+      etiket: 'Investeringen gelijk aan afschrijvingen', type: 'aanvinken' },
+    { pad: 'eenvoudig.verliesverrekening', etiket: 'Voorwaartse verliesverrekening toepassen',
+      type: 'aanvinken' },
+    { pad: 'eenvoudig.beginvoorraadVerlies', etiket: 'Nog te verrekenen verlies', type: 'bedrag' }
+  ]);
+
+  var n = staat.algemeen.aantalJaren;
+  var doel = $('#eenvoudig-groei');
+  leeg(doel);
+  var tabel = maak('table', 'cijfers rasterinvoer');
+  var kop = maak('tr');
+  kop.appendChild(maak('th', 'regel', 'Per jaar'));
+  for (var i = 0; i < n; i++) kop.appendChild(maak('th', null, staat.algemeen.eersteJaar + i));
+  tabel.appendChild(kop);
+
+  var rijen = [
+    { sleutel: 'groeiPerJaar', etiket: 'Groei bedrijfsresultaat', type: 'pct' },
+    { sleutel: 'afschrijvingen', etiket: 'Afschrijvingen', type: 'bedrag' }
+  ];
+  if (!staat.eenvoudig.investeringenGelijkAanAfschrijvingen) {
+    rijen.push({ sleutel: 'investeringen', etiket: 'Investeringen', type: 'bedrag' });
+  }
+  rijen.forEach(function (r) {
+    var tr = maak('tr');
+    tr.appendChild(maak('td', 'regel', r.etiket));
+    for (var j = 0; j < n; j++) {
+      var td = maak('td');
+      var inp = maak('input');
+      inp.type = 'number';
+      var w = staat.eenvoudig[r.sleutel][j];
+      inp.value = !isGetal(w) ? '' : (r.type === 'pct' ? afronden(w * 100, 4) : vanEuro(w, staat.eenheid));
+      inp.step = r.type === 'pct' ? '0.1' : '1000';
+      (function (sleutel, index, type, invoerveld) {
+        invoerveld.addEventListener('change', function () {
+          var g = invoerveld.value === '' ? null : Number(invoerveld.value);
+          if (g !== null && !Number.isFinite(g)) g = null;
+          staat.eenvoudig[sleutel][index] = g === null ? null
+            : (type === 'pct' ? g / 100 : naarEuro(g, staat.eenheid));
+          tekenAlles();
+        });
+      })(r.sleutel, j, r.type, inp);
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    tabel.appendChild(tr);
+  });
+  doel.appendChild(tabel);
+
+  leeg($('#eenvoudig-uitleg'));
+  [
+    'Het bruto bedrijfsresultaat van het referentiejaar groeit per jaar met het ingevoerde ' +
+    'percentage; daarna volgt een restwaarde die met de opgegeven groei doorloopt.',
+    'Investeringen worden gelijkgesteld aan de afschrijvingen, zodat beide tegen elkaar ' +
+    'wegvallen. Zet het vinkje uit om ze apart in te voeren.',
+    'De werkkapitaalmutatie speelt alleen in de restperiode en is de inflatoire aangroei ' +
+    'van het ingevoerde werkkapitaal.',
+    'De belasting wordt per jaar berekend met de wettelijke tabel van artikel 22 Wet Vpb 1969 ' +
+    'over de grondslag van dat jaar, en niet met één afgerond effectief tarief uit het ' +
+    'referentiejaar. Bij een resultaat rond de schijfgrens scheelt dat.',
+    'De snelle scan kent geen financieringsschema en dus geen APV; die staat alleen in de ' +
+    'uitgebreide modus.'
+  ].forEach(function (t) { $('#eenvoudig-uitleg').appendChild(maak('p', null, t)); });
+}
+
+/* --- rendementseis ------------------------------------------------------- */
+
+function tekenEis() {
+  // Besluit 17-09-2026: de eigen build-up hoort bij de uitgebreide modus. Staat de
+  // route toch op build-up terwijl de snelle indicatie aan staat, bijvoorbeeld uit een
+  // eerder opgeslagen casus, dan valt zij terug op directe invoer. Dat wordt gemeld en
+  // niet stil gewisseld, want de rendementseis verandert er wél door.
+  var routeTeruggezet = false;
+  if (staat.modus !== 'uitgebreid' && staat.eis.route === 'buildup') {
+    staat.eis.route = 'direct';
+    routeTeruggezet = true;
+  }
+  document.querySelectorAll('#eis-tabs button').forEach(function (b) {
+    b.setAttribute('aria-selected', b.dataset.eistab === staat.eis.route ? 'true' : 'false');
+    if (b.dataset.alleen === 'uitgebreid') {
+      b.classList.toggle('verborgen', staat.modus !== 'uitgebreid');
+    }
+  });
+  ['buildup', 'referentie', 'direct'].forEach(function (r) {
+    $('#eis-' + r).classList.toggle('verborgen', staat.eis.route !== r);
+  });
+
+  var branchevelden = BRANCHE_VV.waarden.map(function (b) {
+    return { waarde: b.sleutel, etiket: b.etiket + ' (' + toonPercentage(b.vvAandeel, 1) + ')' };
+  });
+  branchevelden.push({ waarde: 'eigen', etiket: 'eigen verhouding invoeren' });
+  var leningklassen = MARKT.kostenvoetVreemdVermogen.klassen.map(function (k) {
+    return { waarde: k.sleutel, etiket: k.etiket + ' (' + toonPercentage(k.waarde, 2) + ')' };
+  });
+  leningklassen.push({ waarde: 'eigen', etiket: 'eigen percentage invoeren' });
+
+  var buildup = maak('div', 'raster');
+  [
+    { pad: 'eis.risicovrijeVoet', etiket: 'Risicovrije voet', type: 'pct',
+      bronregel: bronregelVoor(MARKT.risicovrijeVoet) },
+    { pad: 'eis.marktrisicopremie', etiket: 'Marktrisicopremie', type: 'pct',
+      bronregel: bronregelVoor(MARKT.marktrisicopremie) },
+    { pad: 'eis.betaUnlevered', etiket: 'Unlevered beta', type: 'getal', step: '0.05',
+      min: GRENZEN.betaUnlevered[0], max: GRENZEN.betaUnlevered[1],
+      suffix: 'vereiste invoer, geen standaardwaarde; branchebeta, gecorrigeerd voor kas' },
+    { pad: 'eis.branche', etiket: 'Vermogensverhouding', type: 'keuze', opties: branchevelden,
+      naWijziging: function () {
+        var b = BRANCHE_VV.waarden.filter(function (x) { return x.sleutel === staat.eis.branche; })[0];
+        if (b) staat.eis.vvAandeel = b.vvAandeel;
+      } },
+    { pad: 'eis.vvAandeel', etiket: 'Aandeel vreemd vermogen', type: 'pct',
+      bronregel: { tekst: BRANCHE_VV.bron + ' — verslagjaar ' + BRANCHE_VV.peiljaar +
+                   '; boekwaarden, geen MKB-mediaan', verouderd: false } },
+    { pad: 'eis.leningklasse', etiket: 'Kostenvoet vreemd vermogen', type: 'keuze',
+      opties: leningklassen, naWijziging: function () {
+        var k = MARKT.kostenvoetVreemdVermogen.klassen.filter(
+          function (x) { return x.sleutel === staat.eis.leningklasse; })[0];
+        if (k) staat.eis.kostenvoetVreemdVermogen = k.waarde;
+      } },
+    { pad: 'eis.kostenvoetVreemdVermogen', etiket: 'Rente vreemd vermogen', type: 'pct',
+      bronregel: bronregelVoor(MARKT.kostenvoetVreemdVermogen) },
+    { pad: 'eis.opslagKleinschaligheid', etiket: 'Opslag kleinschaligheid', type: 'pct',
+      suffix: 'vereiste invoer, geen standaardwaarde; maximaal ' +
+              toonPercentage(GRENZEN.opslagKleinschaligheid[1], 0) },
+    { pad: 'eis.opslagBedrijfsspecifiek', etiket: 'Bedrijfsspecifieke opslag', type: 'pct',
+      suffix: 'vereiste invoer, geen standaardwaarde; maximaal ' +
+              toonPercentage(GRENZEN.opslagBedrijfsspecifiek[1], 0) },
+    { pad: 'eis.opslagOverig', etiket: 'Overige opslag', type: 'pct',
+      suffix: toonPercentage(GRENZEN.opslagOverig[0], 0) + ' tot ' +
+              toonPercentage(GRENZEN.opslagOverig[1], 0) }
+  ].forEach(function (d) { buildup.appendChild(bouwVeld(d)); });
+  leeg($('#eis-buildup'));
+  $('#eis-buildup').appendChild(buildup);
+  var geenStandaard = maak('div', 'melding info');
+  geenStandaard.appendChild(maak('span', null,
+    'Drie velden hebben bewust geen standaardwaarde: de unlevered beta, de opslag ' +
+    'kleinschaligheid en de bedrijfsspecifieke opslag. Voor geen van die drie is een ' +
+    'bron aan te wijzen die zonder sector- of omvangskeuze geldt, en een vooringevuld ' +
+    'getal zonder vindplaats wordt overgenomen alsof het onderbouwd is. Voer ze zelf in ' +
+    'met uw eigen onderbouwing; zolang een van de drie leeg is rekent de tool niet door.'));
+  $('#eis-buildup').appendChild(geenStandaard);
+  var voorbehoud = maak('div', 'melding info');
+  voorbehoud.appendChild(maak('span', null, MARKT.marktrisicopremie.voorbehoud));
+  $('#eis-buildup').appendChild(voorbehoud);
+
+  var ref = maak('div', 'raster');
+  [
+    { pad: 'eis.onder', etiket: 'Ondergrens van het interval', type: 'pct' },
+    { pad: 'eis.midden', etiket: 'Middenwaarde', type: 'pct' },
+    { pad: 'eis.boven', etiket: 'Bovengrens van het interval', type: 'pct' },
+    { pad: 'eis.gekozen', etiket: 'Gekozen rendementseis', type: 'pct' },
+    { pad: 'eis.bronVindplaats', etiket: 'Vindplaats van de bron', type: 'tekst' },
+    { pad: 'eis.bronVersie', etiket: 'Versie of editie', type: 'tekst' },
+    { pad: 'eis.bronPeildatum', etiket: 'Peildatum (jjjj-mm-dd)', type: 'tekst' },
+    { pad: 'eis.vvAandeel', etiket: 'Aandeel vreemd vermogen', type: 'pct' },
+    { pad: 'eis.kostenvoetVreemdVermogen', etiket: 'Rente vreemd vermogen', type: 'pct' }
+  ].forEach(function (d) { ref.appendChild(bouwVeld(d)); });
+  leeg($('#eis-referentie'));
+  $('#eis-referentie').appendChild(ref);
+  var uitleg = maak('div', 'melding info');
+  uitleg.appendChild(maak('span', null,
+    'Deze route bevat geen dataset. U brengt zelf een bron mee en legt onder-, midden- en ' +
+    'bovenwaarde vast; de tool bewaart vindplaats, versie en peildatum bij de waarde en ' +
+    'meldt het wanneer de gekozen rendementseis buiten uw eigen interval valt.'));
+  $('#eis-referentie').appendChild(uitleg);
+
+  var dir = maak('div', 'raster');
+  [
+    { pad: 'eis.kostenvoetEigenVermogen', etiket: 'Rendementseis eigen vermogen', type: 'pct' },
+    { pad: 'eis.onderbouwing', etiket: 'Onderbouwing', type: 'tekst' },
+    { pad: 'eis.vvAandeel', etiket: 'Aandeel vreemd vermogen', type: 'pct' },
+    { pad: 'eis.kostenvoetVreemdVermogen', etiket: 'Rente vreemd vermogen', type: 'pct' }
+  ].forEach(function (d) { dir.appendChild(bouwVeld(d)); });
+  leeg($('#eis-direct'));
+  $('#eis-direct').appendChild(dir);
+  if (routeTeruggezet) {
+    var terug = maak('div', 'melding waarschuwing');
+    terug.appendChild(maak('span', null,
+      'De eigen build-up hoort bij de uitgebreide modus en is in de snelle indicatie niet ' +
+      'beschikbaar. De rendementseis komt nu uit de directe invoer hierboven en niet uit ' +
+      'de build-up; controleer de waarde voordat u verder rekent.'));
+    $('#eis-direct').appendChild(terug);
+  }
+}
+
+/* --- waardebrug en aanvullende berekeningen ------------------------------ */
+
+function tekenBrug() {
+  bouwVelden($('#brug-velden'), BRUGPOSTEN.map(function (p) {
+    return {
+      pad: 'brug.' + p.sleutel, etiket: p.etiket, type: 'bedrag',
+      suffix: p.teken === -1 ? 'wordt afgetrokken' : 'wordt opgeteld'
+    };
+  }));
+}
+
+function tekenAanvullend() {
+  bouwVelden($('#aanvullend-velden'), [
+    { pad: 'aanvullend.activadealAan', etiket: 'Activadeal doorrekenen', type: 'aanvinken' },
+    { pad: 'aanvullend.verdelingGebouw', etiket: 'Deel koopsom: gebouw', type: 'pct' },
+    { pad: 'aanvullend.verdelingOverigeActiva', etiket: 'Deel koopsom: overige activa', type: 'pct' },
+    { pad: 'aanvullend.verdelingGoodwill', etiket: 'Deel koopsom: goodwill', type: 'pct' },
+    { pad: 'aanvullend.termijnGebouw', etiket: 'Afschrijvingstermijn gebouw', type: 'int',
+      min: AFSCHRIJVING_MAXIMA.gebouw.minTermijn, max: GRENZEN.afschrijvingstermijn[1],
+      suffix: 'ten minste ' + AFSCHRIJVING_MAXIMA.gebouw.minTermijn + ' jaar' },
+    { pad: 'aanvullend.termijnOverigeActiva', etiket: 'Afschrijvingstermijn overige activa',
+      type: 'int', min: AFSCHRIJVING_MAXIMA.overigeActiva.minTermijn,
+      max: GRENZEN.afschrijvingstermijn[1],
+      suffix: 'ten minste ' + AFSCHRIJVING_MAXIMA.overigeActiva.minTermijn +
+              ' jaar (' + AFSCHRIJVING_MAXIMA.overigeActiva.vindplaats + ')' },
+    { pad: 'aanvullend.termijnGoodwill', etiket: 'Afschrijvingstermijn goodwill', type: 'int',
+      min: AFSCHRIJVING_MAXIMA.goodwill.minTermijn, max: GRENZEN.afschrijvingstermijn[1],
+      suffix: 'ten minste ' + AFSCHRIJVING_MAXIMA.goodwill.minTermijn +
+              ' jaar (' + AFSCHRIJVING_MAXIMA.goodwill.vindplaats + ')' },
+    { pad: 'aanvullend.wozBodemwaarde', etiket: 'WOZ-bodemwaarde van het gebouw', type: 'bedrag',
+      suffix: 'art. 3.30a Wet IB 2001; leeg laten als er geen gebouw is' },
+    { pad: 'aanvullend.illiquiditeitsopslag', etiket: 'Illiquiditeitsopslag', type: 'pct' },
+    { pad: 'aanvullend.vasteTransactiekosten', etiket: 'Vaste transactiekosten', type: 'bedrag' },
+    { pad: 'aanvullend.normMaxNettoSchuldEbitda', etiket: 'Norm: netto schuld / EBITDA',
+      type: 'getal', step: '0.1' },
+    { pad: 'aanvullend.normMinDscr', etiket: 'Norm: dekking rente en aflossing', type: 'getal',
+      step: '0.05' },
+    { pad: 'aanvullend.normMinSolvabiliteit', etiket: 'Norm: solvabiliteit na financiering',
+      type: 'pct' },
+    { pad: 'aanvullend.normTerugverdientermijn', etiket: 'Norm: terugverdientermijn (jaren)',
+      type: 'int', min: 1, max: 25 }
+  ]);
+}
+
+/* --- uitgebreide invoer: raster met kengetal of handinvoer ---------------- */
+
+// De regels die de prognose sturen. De overige regels in de uitvoer zijn afgeleid en
+// dus geen invoer: dat is het verschil met de bronmodellen, waar ook afgeleide cellen
+// overschrijfbaar zijn en een overschrijving achteraf niet te zien is.
+var RASTERREGELS = {
+  exploitatie: [
+    { sleutel: 'omzetgroei_a', etiket: 'Omzetgroei groep A', type: 'pct',
+      namen: ['omzetgroei a', 'groei omzet a', 'omzetstijging groep a'] },
+    { sleutel: 'omzet_a', etiket: 'Omzet groep A', type: 'bedrag',
+      namen: ['omzet a', 'omzetgroep a', 'netto-omzet groep a'] },
+    { sleutel: 'brutomarge_a', etiket: 'Brutomarge groep A', type: 'pct',
+      namen: ['brutomarge a', 'marge groep a', 'marge a'] },
+    { sleutel: 'omzetgroei_b', etiket: 'Omzetgroei groep B', type: 'pct',
+      namen: ['omzetgroei b', 'groei omzet b', 'omzetstijging groep b'] },
+    { sleutel: 'omzet_b', etiket: 'Omzet groep B', type: 'bedrag',
+      namen: ['omzet b', 'omzetgroep b', 'netto-omzet groep b'] },
+    { sleutel: 'brutomarge_b', etiket: 'Brutomarge groep B', type: 'pct',
+      namen: ['brutomarge b', 'marge groep b', 'marge b'] },
+    { sleutel: 'omzetgroei_c', etiket: 'Omzetgroei groep C', type: 'pct',
+      namen: ['omzetgroei c', 'groei omzet c', 'omzetstijging groep c'] },
+    { sleutel: 'omzet_c', etiket: 'Omzet groep C', type: 'bedrag',
+      namen: ['omzet c', 'omzetgroep c', 'netto-omzet groep c'] },
+    { sleutel: 'brutomarge_c', etiket: 'Brutomarge groep C', type: 'pct',
+      namen: ['brutomarge c', 'marge groep c', 'marge c'] },
+    { sleutel: 'arbeidsquote', etiket: 'Arbeidsquote van de brutomarge', type: 'pct',
+      namen: ['arbeidsquote', 'personeelsquote', 'loonquote'] },
+    { sleutel: 'personeelskosten', etiket: 'Personeelskosten', type: 'bedrag',
+      namen: ['lonen en salarissen', 'loonkosten', 'personeelslasten'] },
+    { sleutel: 'indexatie', etiket: 'Indexatie overige kostenblokken', type: 'pct',
+      namen: ['indexatie', 'kostenindexatie', 'inflatie kosten'] },
+    { sleutel: 'huisvestingskosten', etiket: 'Huisvestingskosten', type: 'bedrag',
+      namen: ['huisvesting', 'huur', 'huisvestingslasten'] },
+    { sleutel: 'overigeKosten', etiket: 'Overige bedrijfskosten', type: 'bedrag',
+      namen: ['overige kosten', 'algemene kosten', 'overige bedrijfslasten'] },
+    { sleutel: 'investeringen', etiket: 'Investeringen', type: 'bedrag',
+      namen: ['investering', 'capex', 'investeringen vaste activa'] },
+    { sleutel: 'afschrijvingspercentage', etiket: 'Afschrijvingspercentage', type: 'pct',
+      namen: ['afschrijvingspercentage', 'afschrijving in procenten'] },
+    { sleutel: 'afschrijvingen', etiket: 'Afschrijvingen', type: 'bedrag',
+      namen: ['afschrijving', 'afschrijvingslasten', 'afschrijvingskosten'] },
+    { sleutel: 'mutatieVoorzieningen', etiket: 'Dotatie voorzieningen (vrijval negatief)',
+      type: 'bedrag',
+      namen: ['voorzieningen', 'dotatie voorzieningen', 'mutatie voorzieningen',
+              'mutatie in voorzieningen'] }
+  ],
+  werkkapitaal: [
+    { sleutel: 'voorraaddagen', etiket: 'Voorraad, termijn in dagen', type: 'getal',
+      namen: ['voorraaddagen', 'voorraad dagen', 'voorraadtermijn', 'dio'] },
+    { sleutel: 'ohwDagen', etiket: 'Onderhanden werk, termijn in dagen', type: 'getal',
+      namen: ['ohw-dagen', 'ohw dagen', 'onderhanden werk dagen', 'onderhanden werk in dagen'] },
+    { sleutel: 'debiteurendagen', etiket: 'Debiteuren, termijn in dagen', type: 'getal',
+      namen: ['debiteurendagen', 'debiteuren dagen', 'debiteurentermijn', 'dso'] },
+    { sleutel: 'crediteurendagen', etiket: 'Crediteuren, termijn in dagen', type: 'getal',
+      namen: ['crediteurendagen', 'crediteuren dagen', 'crediteurentermijn', 'dpo'] },
+    { sleutel: 'overigeVorderingen', etiket: 'Overige vorderingen', type: 'bedrag',
+      namen: ['overige vorderingen', 'overlopende activa'] },
+    { sleutel: 'overigeSchulden', etiket: 'Overige kortlopende schulden', type: 'bedrag',
+      namen: ['overige schulden', 'overlopende passiva', 'kortlopende schulden'] },
+    { sleutel: 'btwTarief', etiket: 'Omzetbelastingtarief', type: 'pct',
+      namen: ['btw-tarief', 'btw tarief', 'omzetbelasting tarief'] }
+  ],
+  financiering: [
+    { sleutel: 'aflossing', etiket: 'Aflossing', type: 'bedrag',
+      namen: ['aflossingen', 'aflossing lening', 'aflossingsverplichting'] },
+    { sleutel: 'rentepercentage', etiket: 'Rentepercentage', type: 'pct',
+      namen: ['rente', 'rentevoet', 'rente percentage'] }
+  ]
+};
+
+function aantalJarenUitgebreid() { return staat.uitgebreid.uitgangspunten.aantalPrognosejaren; }
+
+function zorgVoorRegel(sleutel) {
+  var r = staat.uitgebreid.regels;
+  if (!r[sleutel]) r[sleutel] = [];
+  var n = aantalJarenUitgebreid();
+  while (r[sleutel].length < n) r[sleutel].push(null);
+  r[sleutel].length = n;
+  return r[sleutel];
+}
+
+// De berekende kengetalwaarde per cel, zodat de gebruiker ziet wat de regel zou doen
+// zonder handinvoer. Komt uit de laatste doorrekening.
+function kengetalwaarde(laatsteProjectie, sleutel, index) {
+  if (!laatsteProjectie || !laatsteProjectie[index]) return null;
+  var p = laatsteProjectie[index];
+  var groepen = { a: 0, b: 1, c: 2 };
+  var m = sleutel.match(/^(omzet|brutomarge|omzetgroei)_([abc])$/);
+  if (m) {
+    var g = groepen[m[2]];
+    if (m[1] === 'omzet') return p.omzetten[g];
+    if (m[1] === 'brutomarge') return p.margeperc[g];
+    if (m[1] === 'omzetgroei') {
+      if (index === 0) return staat.uitgebreid.uitgangspunten.omzetgroei[g];
+      var vorige = laatsteProjectie[index - 1].omzetten[g];
+      return vorige ? p.omzetten[g] / vorige - 1 : null;
+    }
+  }
+  var kaart = {
+    arbeidsquote: 'arbeidsquote', personeelskosten: 'personeelskosten', indexatie: 'indexatie',
+    huisvestingskosten: 'huisvesting', overigeKosten: 'overigeKosten',
+    investeringen: 'investering', afschrijvingspercentage: 'afschrijvingsperc',
+    afschrijvingen: 'afschrijving', mutatieVoorzieningen: 'mutatieVoorzieningen',
+    voorraaddagen: 'voorraaddagen', ohwDagen: 'ohwDagen', debiteurendagen: 'debiteurendagen',
+    crediteurendagen: 'crediteurendagen', overigeVorderingen: 'overigeVorderingen',
+    overigeSchulden: 'overigeSchulden', btwTarief: 'btwTarief',
+    aflossing: 'aflossing', rentepercentage: 'rentepercentage'
+  };
+  return kaart[sleutel] !== undefined ? p[kaart[sleutel]] : null;
+}
+
+function tekenRaster(container, regels, projectie) {
+  leeg(container);
+  var n = aantalJarenUitgebreid();
+  var eersteJaar = staat.uitgebreid.uitgangspunten.eersteJaar;
+  var tabel = maak('table', 'cijfers rasterinvoer');
+  var kop = maak('tr');
+  kop.appendChild(maak('th', 'regel', 'Regel'));
+  for (var i = 0; i < n; i++) kop.appendChild(maak('th', null, eersteJaar + i));
+  kop.appendChild(maak('th', null, 'stand'));
+  tabel.appendChild(kop);
+
+  regels.forEach(function (def) {
+    var reeks = zorgVoorRegel(def.sleutel);
+    var tr = maak('tr');
+    tr.appendChild(maak('td', 'regel', def.etiket));
+    for (var j = 0; j < n; j++) {
+      var td = maak('td');
+      var inp = maak('input');
+      inp.type = 'number';
+      var cel = reeks[j];
+      var hand = cel && cel.modus === 'hand' && isGetal(cel.waarde);
+      var waarde = hand ? cel.waarde : kengetalwaarde(projectie, def.sleutel, j);
+      inp.value = !isGetal(waarde) ? ''
+        : (def.type === 'pct' ? afronden(waarde * 100, 3)
+          : def.type === 'bedrag' ? afronden(vanEuro(waarde, staat.eenheid), 2)
+          : afronden(waarde, 2));
+      inp.step = def.type === 'pct' ? '0.1' : def.type === 'bedrag' ? '1000' : '1';
+      inp.className = hand ? 'hand' : 'kengetal';
+      inp.title = hand
+        ? 'Handinvoer. Dubbelklik om deze cel weer het kengetal te laten volgen.'
+        : 'Volgt het kengetal. Typ een waarde om deze cel op handinvoer te zetten.';
+      (function (sleutel, index, type, invoerveld) {
+        invoerveld.addEventListener('change', function () {
+          var reeksNu = zorgVoorRegel(sleutel);
+          if (invoerveld.value === '') { reeksNu[index] = null; tekenAlles(); return; }
+          var g = Number(invoerveld.value);
+          if (!Number.isFinite(g)) { reeksNu[index] = null; tekenAlles(); return; }
+          reeksNu[index] = {
+            modus: 'hand',
+            waarde: type === 'pct' ? g / 100 : type === 'bedrag' ? naarEuro(g, staat.eenheid) : g
+          };
+          tekenAlles();
+        });
+        invoerveld.addEventListener('dblclick', function () {
+          zorgVoorRegel(sleutel)[index] = null;
+          tekenAlles();
+        });
+      })(def.sleutel, j, def.type, inp);
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    var tdKnop = maak('td');
+    var telHand = reeks.filter(function (c) { return c && c.modus === 'hand'; }).length;
+    var knop = maak('button', 'modusknop' + (telHand ? ' hand' : ''),
+                    telHand ? telHand + ' x hand' : 'kengetal');
+    knop.title = telHand
+      ? 'Zet de hele regel terug op het kengetal.'
+      : 'Deze regel volgt volledig het kengetal.';
+    (function (sleutel) {
+      knop.addEventListener('click', function () {
+        var reeksNu = zorgVoorRegel(sleutel);
+        for (var k = 0; k < reeksNu.length; k++) reeksNu[k] = null;
+        tekenAlles();
+      });
+    })(def.sleutel);
+    tdKnop.appendChild(knop);
+    tr.appendChild(tdKnop);
+    tabel.appendChild(tr);
+  });
+  container.appendChild(tabel);
+}
+
+function tekenUitgangspuntenUitgebreid() {
+  var u = 'uitgebreid.uitgangspunten.';
+  var doel = $('#inv-uitgangspunten');
+  leeg(doel);
+  var raster = maak('div', 'raster');
+  [
+    { pad: u + 'beginOmzet.0', etiket: 'Omzet groep A, laatste realisatiejaar', type: 'bedrag' },
+    { pad: u + 'beginOmzet.1', etiket: 'Omzet groep B, laatste realisatiejaar', type: 'bedrag' },
+    { pad: u + 'beginOmzet.2', etiket: 'Omzet groep C, laatste realisatiejaar', type: 'bedrag' },
+    { pad: u + 'omzetgroei.0', etiket: 'Omzetgroei groep A', type: 'pct' },
+    { pad: u + 'omzetgroei.1', etiket: 'Omzetgroei groep B', type: 'pct' },
+    { pad: u + 'omzetgroei.2', etiket: 'Omzetgroei groep C', type: 'pct' },
+    { pad: u + 'brutomarge.0', etiket: 'Brutomarge groep A', type: 'pct' },
+    { pad: u + 'brutomarge.1', etiket: 'Brutomarge groep B', type: 'pct' },
+    { pad: u + 'brutomarge.2', etiket: 'Brutomarge groep C', type: 'pct' },
+    { pad: u + 'arbeidsquote', etiket: 'Arbeidsquote van de brutomarge', type: 'pct' },
+    { pad: u + 'indexatie', etiket: 'Indexatie kostenblokken', type: 'pct' },
+    { pad: u + 'beginHuisvesting', etiket: 'Huisvestingskosten, laatste realisatiejaar', type: 'bedrag' },
+    { pad: u + 'beginOverigeKosten', etiket: 'Overige kosten, laatste realisatiejaar', type: 'bedrag' },
+    { pad: u + 'beginMva', etiket: 'Materiële vaste activa, openingsstand', type: 'bedrag' },
+    { pad: u + 'beginInvestering', etiket: 'Investering eerste prognosejaar', type: 'bedrag' },
+    { pad: u + 'afschrijvingspercentage', etiket: 'Afschrijvingspercentage', type: 'pct' },
+    { pad: u + 'voorraaddagen', etiket: 'Voorraaddagen', type: 'getal', min: 0, max: 365 },
+    { pad: u + 'ohwDagen', etiket: 'Onderhanden werk in dagen', type: 'getal', min: 0, max: 365,
+      suffix: 'tegen het toegerekende deel van de overeengekomen vergoeding, ' +
+              'art. 3.29b Wet IB 2001; halffabricaat zonder opdracht hoort bij de voorraad' },
+    { pad: u + 'debiteurendagen', etiket: 'Debiteurendagen', type: 'getal', min: 0, max: 365 },
+    { pad: u + 'crediteurendagen', etiket: 'Crediteurendagen', type: 'getal', min: 0, max: 365 },
+    { pad: u + 'beginOverigeVorderingen', etiket: 'Overige vorderingen, openingsstand', type: 'bedrag' },
+    { pad: u + 'beginOverigeSchulden', etiket: 'Overige schulden, openingsstand', type: 'bedrag' },
+    { pad: u + 'beginWerkkapitaal', etiket: 'Netto werkkapitaal, openingsstand', type: 'bedrag',
+      suffix: 'leeg laten om het eerste prognosejaar als opening te nemen' },
+    { pad: u + 'btwTarief', etiket: 'Omzetbelastingtarief', type: 'pct' },
+    { pad: u + 'btwTijdvak', etiket: 'Aangiftetijdvak omzetbelasting', type: 'keuze',
+      opties: Object.keys(BTW_TIJDVAKKEN).map(function (k) {
+        return { waarde: k, etiket: BTW_TIJDVAKKEN[k].etiket }; }),
+      suffix: 'bepaalt hoe lang de omzetbelasting uitstaat' },
+    { pad: u + 'beginRentedragendeSchuld', etiket: 'Rentedragende schuld, openingsstand', type: 'bedrag' },
+    { pad: u + 'aflossingPerJaar', etiket: 'Aflossing per jaar', type: 'bedrag' },
+    { pad: u + 'rentepercentage', etiket: 'Rentepercentage', type: 'pct' },
+    { pad: u + 'verliesverrekening', etiket: 'Voorwaartse verliesverrekening toepassen',
+      type: 'aanvinken' },
+    { pad: u + 'beginvoorraadVerlies', etiket: 'Nog te verrekenen verlies', type: 'bedrag' }
+  ].forEach(function (d) { raster.appendChild(bouwVeld(d)); });
+  doel.appendChild(raster);
+  var uitleg = maak('details', 'uitleg');
+  uitleg.appendChild(maak('summary', null, 'Hoe deze uitgangspunten doorwerken'));
+  [
+    'Deze waarden vullen het eerste prognosejaar en sturen daarna de kengetallen van de ' +
+    'volgende jaren. Per jaar en per regel kunt u in de andere tabbladen een afwijkende ' +
+    'waarde zetten; die cel kleurt dan en telt mee in de telling handinvoer.',
+    'De rente loopt over de schuldstand aan het begin van het jaar. Daarmee is de ' +
+    'circulariteit tussen rente, resultaat en balans vermeden; de prijs is dat de ' +
+    'rentelast een jaar achterloopt op een sterk wijzigende financiering.',
+    'De afschrijving loopt over de openingsstand van de vaste activa plus de helft van de ' +
+    'investering van dat jaar.'
+  ].forEach(function (t) { uitleg.appendChild(maak('p', null, t)); });
+  doel.appendChild(uitleg);
+}
+
+/* --- plakken uit een spreadsheet ----------------------------------------- */
+
+var plakVoorstel = null;
+
+function alleRasterregels() {
+  return RASTERREGELS.exploitatie.concat(RASTERREGELS.werkkapitaal, RASTERREGELS.financiering);
+}
+
+function normaliseerEtiket(t) {
+  return String(t).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function ontleedPlaksel(tekst) {
+  var regels = alleRasterregels();
+  var index = {};
+  regels.forEach(function (r) {
+    index[normaliseerEtiket(r.etiket)] = r;
+    (r.namen || []).forEach(function (n) { index[normaliseerEtiket(n)] = r; });
+  });
+  var n = aantalJarenUitgebreid();
+  var herkend = [], nietHerkend = [], zonderGetallen = [], opmerkingen = [];
+  // Dezelfde lezing van dezelfde regel hoeft maar één keer te worden gemeld; zes
+  // identieke regels achter elkaar leiden alleen maar af van de echte afwijkingen.
+  function meld(tekst) {
+    if (opmerkingen.indexOf(tekst) === -1) opmerkingen.push(tekst);
+  }
+
+  String(tekst).split(/\r?\n/).forEach(function (rij) {
+    if (!rij.trim()) return;
+    var cellen = rij.split('\t');
+    if (cellen.length < 2) cellen = rij.split(/ {2,}|;/);
+    var naam = String(cellen[0]).trim();
+    var etiket = normaliseerEtiket(naam);
+    if (!etiket) return;
+    var def = index[etiket];
+    if (!def) {
+      // Alleen een volledig voor- of achtervoegsel telt als match, zodat
+      // "Omzet groep A" nooit op "Omzetgroei groep A" belandt.
+      var kandidaten = Object.keys(index).filter(function (sleutel) {
+        return etiket.length > 4 &&
+               (sleutel === etiket || sleutel.indexOf(etiket) === 0 || etiket.indexOf(sleutel) === 0);
+      });
+      // Bij meer dan één kandidaat is de match niet eenduidig; dan liever niets.
+      var uniek = [];
+      kandidaten.forEach(function (k) {
+        if (uniek.indexOf(index[k]) === -1) uniek.push(index[k]);
+      });
+      if (uniek.length === 1) def = uniek[0];
+    }
+    if (!def) { nietHerkend.push(naam); return; }
+
+    var waarden = [], onleesbaar = 0;
+    for (var k = 1; k < cellen.length && waarden.length < n; k++) {
+      if (String(cellen[k]).trim() === '') continue;
+      var g = getalUitCel(cellen[k]);
+      if (g === null) { onleesbaar++; continue; }
+      if (g.dubbelzinnig) meld(def.etiket + ': ' + g.dubbelzinnig);
+      var w;
+      if (def.type === 'pct') {
+        var p = percentageUitCel(g);
+        w = p.waarde;
+        if (p.melding) meld(def.etiket + ': ' + p.melding);
+      } else if (def.type === 'bedrag') {
+        w = naarEuro(g.getal, staat.eenheid);
+      } else {
+        w = g.getal;
+      }
+      waarden.push(w);
+    }
+    if (!waarden.length) { zonderGetallen.push(naam); return; }
+    herkend.push({ def: def, waarden: waarden, onleesbaar: onleesbaar,
+                   tekort: waarden.length < n });
+  });
+  return { herkend: herkend, nietHerkend: nietHerkend, zonderGetallen: zonderGetallen,
+           opmerkingen: opmerkingen, aantalJaren: n };
+}
+
+function tekenPlakken() {
+  var doel = $('#inv-plakken');
+  leeg(doel);
+  var uitleg = maak('div', 'melding info');
+  uitleg.appendChild(maak('span', null,
+    'Plak een blok uit een spreadsheet: de eerste kolom is de naam van de regel, de kolommen ' +
+    'daarna zijn de prognosejaren op volgorde. De tool toont eerst wat zij herkent; pas na ' +
+    'uw bevestiging worden de waarden overgenomen, en dan als handinvoer.'));
+  doel.appendChild(uitleg);
+
+  var ta = maak('textarea');
+  ta.rows = 8;
+  ta.placeholder = 'Omzet groep A\t1.200.000\t1.236.000\t1.273.080\n' +
+                   'Debiteurendagen\t40\t40\t38';
+  doel.appendChild(ta);
+
+  var rij = maak('div', 'rij');
+  rij.style.marginTop = '10px';
+  var knopLees = maak('button', 'actie', 'Lees het geplakte blok');
+  knopLees.addEventListener('click', function () {
+    plakVoorstel = ontleedPlaksel(ta.value);
+    tekenPlakvoorstel(doel);
+  });
+  rij.appendChild(knopLees);
+  doel.appendChild(rij);
+
+  var voorstelDoel = maak('div');
+  voorstelDoel.id = 'plak-voorstel';
+  doel.appendChild(voorstelDoel);
+  if (plakVoorstel) tekenPlakvoorstel(doel);
+
+  var namen = maak('details', 'uitleg');
+  namen.appendChild(maak('summary', null, 'Welke regelnamen de tool herkent'));
+  var lijst = maak('p', null, alleRasterregels().map(function (r) { return r.etiket; }).join(' · '));
+  namen.appendChild(lijst);
+  doel.appendChild(namen);
+}
+
+function tekenPlakvoorstel(doel) {
+  var v = doel.querySelector('#plak-voorstel');
+  leeg(v);
+  if (!plakVoorstel) return;
+  if (!plakVoorstel.herkend.length) {
+    v.appendChild(meldingElement('waarschuwing',
+      'Geen enkele regel met bruikbare getallen herkend. Controleer of de eerste kolom de ' +
+      'naam van de regel bevat en de kolommen daarna de jaren.'));
+  } else {
+    var tabelEl = maak('table', 'cijfers');
+    var kop = maak('tr');
+    kop.appendChild(maak('th', 'regel', 'Herkende regel'));
+    for (var i = 0; i < plakVoorstel.aantalJaren; i++) {
+      kop.appendChild(maak('th', null, staat.uitgebreid.uitgangspunten.eersteJaar + i));
+    }
+    tabelEl.appendChild(kop);
+    plakVoorstel.herkend.forEach(function (h) {
+      var tr = maak('tr');
+      tr.appendChild(maak('td', 'regel', h.def.etiket));
+      for (var j = 0; j < plakVoorstel.aantalJaren; j++) {
+        var w = h.waarden[j];
+        tr.appendChild(maak('td', null, !isGetal(w) ? '—'
+          : h.def.type === 'pct' ? toonPercentage(w, 2)
+          : h.def.type === 'bedrag' ? toonBedrag(w) : toonGetal(w, 1)));
+      }
+      tabelEl.appendChild(tr);
+    });
+    var wrap = maak('div', 'scroll');
+    wrap.appendChild(tabelEl);
+    v.appendChild(wrap);
+    v.appendChild(maak('p', 'klein',
+      'Een streepje betekent dat er voor dat jaar geen waarde is geplakt; die cel blijft ' +
+      'het kengetal volgen.'));
+  }
+
+  if (plakVoorstel.opmerkingen.length) {
+    // Elke dubbelzinnige lezing wordt getoond vóór overname. Een verkeerd gelezen
+    // duizendtalscheiding of percentage rekent anders stil een factor duizend mis.
+    var op = meldingElement('waarschuwing', 'Controleer deze lezingen: ' +
+      plakVoorstel.opmerkingen.slice(0, 10).join(' · ') +
+      (plakVoorstel.opmerkingen.length > 10
+        ? ' en ' + (plakVoorstel.opmerkingen.length - 10) + ' meer' : ''));
+    v.appendChild(op);
+  }
+  if (plakVoorstel.zonderGetallen.length) {
+    v.appendChild(meldingElement('waarschuwing',
+      'Wel herkend maar geen leesbaar getal gevonden, dus overgeslagen: ' +
+      plakVoorstel.zonderGetallen.join(', ') + '.'));
+  }
+  if (plakVoorstel.nietHerkend.length) {
+    v.appendChild(meldingElement('info', 'Naam niet herkend en dus overgeslagen: ' +
+      plakVoorstel.nietHerkend.slice(0, 12).join(', ') +
+      (plakVoorstel.nietHerkend.length > 12 ? ' en meer' : '') + '.'));
+  }
+  if (!plakVoorstel.herkend.length) return;
+
+  var rij = maak('div', 'rij');
+  rij.style.marginTop = '10px';
+  var knop = maak('button', 'actie primair',
+    'Neem ' + plakVoorstel.herkend.length + ' regels over als handinvoer');
+  knop.addEventListener('click', function () {
+    plakVoorstel.herkend.forEach(function (h) {
+      var reeks = zorgVoorRegel(h.def.sleutel);
+      for (var j = 0; j < reeks.length; j++) {
+        if (isGetal(h.waarden[j])) reeks[j] = { modus: 'hand', waarde: h.waarden[j] };
+      }
+    });
+    plakVoorstel = null;
+    staat.invtab = 'exploitatie';
+    tekenAlles();
+  });
+  rij.appendChild(knop);
+  var annuleer = maak('button', 'actie', 'Laat maar');
+  annuleer.addEventListener('click', function () { plakVoorstel = null; tekenAlles(); });
+  rij.appendChild(annuleer);
+  v.appendChild(rij);
+}
+
+/* --- van staat naar rekeninvoer ------------------------------------------ */
+
+function bouwInvoer(vvAandeelOverschrijving) {
+  var eis = {
+    route: staat.eis.route,
+    jaar: staat.modus === 'uitgebreid'
+      ? staat.uitgebreid.uitgangspunten.eersteJaar : staat.algemeen.eersteJaar,
+    risicovrijeVoet: staat.eis.risicovrijeVoet,
+    marktrisicopremie: staat.eis.marktrisicopremie,
+    betaUnlevered: staat.eis.betaUnlevered,
+    vvAandeel: isGetal(vvAandeelOverschrijving) ? vvAandeelOverschrijving : staat.eis.vvAandeel,
+    kostenvoetVreemdVermogen: staat.eis.kostenvoetVreemdVermogen,
+    opslagKleinschaligheid: staat.eis.opslagKleinschaligheid,
+    opslagBedrijfsspecifiek: staat.eis.opslagBedrijfsspecifiek,
+    opslagOverig: staat.eis.opslagOverig,
+    onder: staat.eis.onder, midden: staat.eis.midden, boven: staat.eis.boven,
+    gekozen: staat.eis.gekozen,
+    bronVindplaats: staat.eis.bronVindplaats, bronVersie: staat.eis.bronVersie,
+    bronPeildatum: staat.eis.bronPeildatum,
+    kostenvoetEigenVermogen: staat.eis.kostenvoetEigenVermogen,
+    onderbouwing: staat.eis.onderbouwing
+  };
+  return {
+    modus: staat.modus,
+    moment: staat.moment,
+    methode: staat.modus === 'uitgebreid' ? staat.methode : 'dcfm',
+    afkappenNaJaren: staat.afkappenNaJaren,
+    rendementseis: eis,
+    brugposten: staat.brug,
+    eenvoudig: {
+      eersteJaar: staat.algemeen.eersteJaar,
+      aantalJaren: staat.algemeen.aantalJaren,
+      bedrijfsresultaatBasis: staat.eenvoudig.bedrijfsresultaatBasis,
+      groeiPerJaar: staat.eenvoudig.groeiPerJaar,
+      inflatie: staat.algemeen.inflatie,
+      werkkapitaalNiveau: staat.eenvoudig.werkkapitaalNiveau,
+      afschrijvingen: staat.eenvoudig.afschrijvingen,
+      investeringen: staat.eenvoudig.investeringen,
+      investeringenGelijkAanAfschrijvingen: staat.eenvoudig.investeringenGelijkAanAfschrijvingen,
+      verliesverrekening: staat.eenvoudig.verliesverrekening,
+      beginvoorraadVerlies: staat.eenvoudig.beginvoorraadVerlies
+    },
+    uitgebreid: {
+      uitgangspunten: staat.uitgebreid.uitgangspunten,
+      regels: staat.uitgebreid.regels
+    }
+  };
+}
+
+// De vermogensverhouding hoort op marktwaarde te staan, maar die marktwaarde is juist
+// de uitkomst. Staat de schakelaar aan, dan wordt daarop geïtereerd tot een vast punt
+// en zijn de rondes zichtbaar in het tabblad Convergentie.
+function rekenDoor() {
+  var basis = bereken(bouwInvoer());
+  if (!staat.iteratief) return { uitkomst: basis, iteratie: null };
+  var schuld = isGetal(staat.brug.rentedragendeSchulden) ? staat.brug.rentedragendeSchulden : 0;
+  var laatste = basis;
+  var it = itereerNaarVastPunt(basis.aandelenwaarde, function (waarde) {
+    var noemer = schuld + Math.max(0, waarde);
+    var vv = noemer > 0 ? schuld / noemer : 0;
+    vv = Math.min(Math.max(vv, GRENZEN.vvAandeel[0]), GRENZEN.vvAandeel[1]);
+    laatste = bereken(bouwInvoer(vv));
+    return { waarde: laatste.aandelenwaarde, rendementseis: laatste.rendementseis.wacc,
+             vvAandeel: vv };
+  }, { tolerantie: 1, maxRondes: 40 });
+  return { uitkomst: laatste, iteratie: it };
+}
+
+/* --- weergave van de uitkomsten ------------------------------------------ */
+
+function tabel(kop, rijen, opties) {
+  opties = opties || {};
+  var t = maak('table', 'cijfers');
+  if (kop) {
+    var tr = maak('tr');
+    kop.forEach(function (k, i) {
+      tr.appendChild(maak('th', i === 0 ? 'regel' : null, k));
+    });
+    t.appendChild(tr);
+  }
+  rijen.forEach(function (r) {
+    if (r.groep) {
+      var g = maak('tr', 'kop-groep');
+      var td = maak('td', null, r.groep);
+      td.colSpan = (kop ? kop.length : r.cellen.length);
+      g.appendChild(td);
+      t.appendChild(g);
+      return;
+    }
+    var tr2 = maak('tr', r.klasse || null);
+    r.cellen.forEach(function (c, i) {
+      tr2.appendChild(maak('td', i === 0 ? 'regel' : (r.uitkomst ? 'uitkomst' : null), c));
+    });
+    t.appendChild(tr2);
+  });
+  var wrap = maak('div', 'scroll');
+  wrap.appendChild(t);
+  return wrap;
+}
+
+function tekenUitkomstbalk(u) {
+  var balk = $('#uitkomstbalk');
+  leeg(balk);
+  function post(etiket, waarde, klein) {
+    var d = maak('div');
+    d.appendChild(maak('span', 'etiket', etiket));
+    d.appendChild(maak('span', 'bedrag', waarde));
+    if (klein) d.appendChild(maak('span', 'etiket', klein));
+    balk.appendChild(d);
+  }
+  post('Waarde van de aandelen', toonBedrag(u.aandelenwaarde) + ' ' + EENHEDEN[staat.eenheid].kort);
+  post('Ondernemingswaarde', toonBedrag(u.ondernemingswaarde) + ' ' + EENHEDEN[staat.eenheid].kort,
+       u.methode === 'apv' ? 'volgens APV' : 'volgens DCFM');
+  post('Rendementseis eigen vermogen', toonPercentage(u.rendementseis.kostenvoetEigenVermogen));
+  post('Gewogen kostenvoet', toonPercentage(u.rendementseis.wacc));
+  post('Aandeel restwaarde', toonPercentage(
+    (u.methode === 'apv' && u.apv ? u.apv.contanteRestwaarde : u.dcfm.contanteRestwaarde) /
+    u.ondernemingswaarde, 1));
+}
+
+function tekenSamenvatting(doel, u) {
+  var eenheid = EENHEDEN[staat.eenheid].kort;
+  var rijen = [
+    { cellen: ['Contante waarde van de prognose', toonBedrag(u.dcfm.contantePrognose)] },
+    { cellen: ['Contante restwaarde', toonBedrag(u.dcfm.contanteRestwaarde)] },
+    { cellen: ['Ondernemingswaarde volgens DCFM', toonBedrag(u.dcfm.ondernemingswaarde)],
+      klasse: 'totaal', uitkomst: true }
+  ];
+  if (u.apv) {
+    rijen.push({ groep: 'APV' });
+    rijen.push({ cellen: ['Basiswaarde bij volledig eigen vermogen', toonBedrag(u.apv.basiswaarde)] });
+    rijen.push({ cellen: ['Contante tax shield uit de financiering', toonBedrag(u.apv.contanteTaxShield)] });
+    rijen.push({ cellen: ['Ondernemingswaarde volgens APV', toonBedrag(u.apv.ondernemingswaarde)],
+                 klasse: 'totaal', uitkomst: true });
+    rijen.push({ cellen: ['Verschil tussen beide methoden',
+                          toonBedrag(u.apv.ondernemingswaarde - u.dcfm.ondernemingswaarde)] });
+  }
+  if (u.apv) {
+    doel.appendChild(meldingElement('info',
+      'Beide methoden rusten op dezelfde uitgangspunten: de gewogen kostenvoet is per ' +
+      'constructie de vermogenskostenvoet vóór belastingvoordeel min de belastingbesparing ' +
+      'op de rente. Dat de uitkomsten toch verschillen, komt door de financiering zelf. De ' +
+      'DCFM veronderstelt een blijvend gelijke vermogensverhouding en verwerkt het ' +
+      'belastingvoordeel daarmee eeuwigdurend in de voet; de APV telt alleen de tax shield ' +
+      'die werkelijk uit het aflossingsschema volgt, en in de restperiode niets zolang er ' +
+      'geen blijvende financiering is opgegeven. Bij een aflopende financiering valt de APV ' +
+      'daarom lager uit. Kies de methode die bij de casus past en licht die keuze toe.'));
+  }
+  rijen.push({ groep: 'Van ondernemingswaarde naar aandelen' });
+  rijen.push({ cellen: ['Waarde van de aandelen', toonBedrag(u.aandelenwaarde)],
+               klasse: 'totaal', uitkomst: true });
+  if (u.afkappenRestwaarde) {
+    rijen.push({ groep: 'Restwaarde afgekapt na ' + u.afkappenRestwaarde.jaren + ' jaar' });
+    rijen.push({ cellen: ['Contante restwaarde, eeuwigdurend',
+                          toonBedrag(u.afkappenRestwaarde.contanteRestwaardeEeuwig)] });
+    rijen.push({ cellen: ['Contante restwaarde, afgekapt',
+                          toonBedrag(u.afkappenRestwaarde.contanteRestwaardeEindig)] });
+    rijen.push({ cellen: ['Ondernemingswaarde na afkappen',
+                          toonBedrag(u.afkappenRestwaarde.ondernemingswaardeAfgekapt)], uitkomst: true });
+  }
+  doel.appendChild(tabel(['Post', 'Bedrag in ' + eenheid], rijen));
+
+  var opbouw = [];
+  u.rendementseis.opbouw.forEach(function (o) {
+    opbouw.push({ cellen: [o.etiket + (o.detail ? ' (' + o.detail + ')' : ''),
+                           toonPercentage(o.waarde), o.herkomst] });
+  });
+  opbouw.push({ cellen: ['Rendementseis eigen vermogen',
+                         toonPercentage(u.rendementseis.kostenvoetEigenVermogen), ''],
+                klasse: 'totaal', uitkomst: true });
+  opbouw.push({ cellen: ['Kostenvoet vreemd vermogen na belasting',
+                         toonPercentage(u.rendementseis.kostenvoetVreemdVermogenNaBelasting),
+                         'tarief ' + toonPercentage(u.rendementseis.tarief, 1)] });
+  opbouw.push({ cellen: ['Aandeel vreemd vermogen',
+                         toonPercentage(u.rendementseis.vvAandeel), ''] });
+  opbouw.push({ cellen: ['Gewogen kostenvoet', toonPercentage(u.rendementseis.wacc), ''],
+                klasse: 'totaal', uitkomst: true });
+  doel.appendChild(maak('h3', null, 'Opbouw van de rendementseis'));
+  doel.appendChild(tabel(['Element', 'Percentage', 'Herkomst'], opbouw));
+}
+
+function tekenKasstroom(doel, u) {
+  var p = u.prognose;
+  var eenheid = EENHEDEN[staat.eenheid].kort;
+  var kop = ['Post'].concat(p.jaren.map(String), ['restperiode ' + p.restperiode.jaar]);
+  var rijen = [];
+  // restwaardeVeld: de naam van het veld in de restperiode, eventueel met een teken.
+  // null betekent dat de post in de restperiode niet bestaat en de cel leeg blijft.
+  function rij(etiket, lees, restwaardeVeld, klasse, uitkomst, restTeken) {
+    var cellen = [etiket];
+    (p.regels || p.projectie).forEach(function (r) { cellen.push(toonBedrag(lees(r))); });
+    cellen.push(restwaardeVeld === null ? ''
+      : toonBedrag((restTeken || 1) * p.restperiode[restwaardeVeld]));
+    rijen.push({ cellen: cellen, klasse: klasse, uitkomst: uitkomst });
+  }
+  rij('Bedrijfsresultaat', function (r) { return r.bedrijfsresultaat; }, 'bedrijfsresultaat');
+  rij('Belasting', function (r) { return -r.belasting; }, 'belasting', null, false, -1);
+  var celTarief = ['Effectief tarief'];
+  (p.regels || p.projectie).forEach(function (r) {
+    celTarief.push(toonPercentage(r.effectiefTarief, 1) +
+                   (r.tariefstatus === 'voortgezet' ? ' *' : ''));
+  });
+  celTarief.push(toonPercentage(p.restperiode.effectiefTarief, 1) +
+                 (p.restperiode.tariefstatus === 'voortgezet' ? ' *' : ''));
+  rijen.push({ cellen: celTarief, klasse: 'afgeleid' });
+  if (u.modus === 'uitgebreid') {
+    // In de restperiode zijn de investeringen gelijk aan de afschrijvingen, zodat beide
+    // tegen elkaar wegvallen; die twee cellen blijven daarom leeg.
+    rij('Afschrijvingen', function (r) { return r.afschrijving; }, null);
+    // De dotatie staat hier, na de belasting: zij zit in het bedrijfsresultaat en dus
+    // in de grondslag, en wordt alleen voor de kasstroom teruggeteld omdat er geen geld
+    // mee gemoeid is. In de restperiode gebeurt dat niet; de cel blijft daar leeg.
+    rij('Dotatie voorzieningen (geen uitgave)',
+        function (r) { return r.mutatieVoorzieningen; }, null);
+    rij('Mutatie werkkapitaal', function (r) { return -r.mutatieWerkkapitaal; },
+        'werkkapitaalmutatie', null, false, -1);
+    rij('Investeringen', function (r) { return -r.investering; }, null);
+  } else {
+    rij('Afschrijvingen', function (r) { return r.afschrijving; }, null);
+    rij('Investeringen', function (r) { return -r.investering; }, null);
+    rij('Mutatie werkkapitaal', function (r) { return -r.werkkapitaalmutatie; },
+        'werkkapitaalmutatie', null, false, -1);
+  }
+  rij('Vrije kasstroom', function (r) { return r.vrijeKasstroom; }, 'vrijeKasstroom', 'totaal', true);
+  doel.appendChild(tabel(kop, rijen));
+  var noot = maak('p', 'klein',
+    'Bedragen in ' + eenheid + '. Een ster bij het effectieve tarief betekent dat voor dat jaar ' +
+    'nog geen tarief is vastgesteld en dat het geldende recht van ' + VPB_LAATST_VASTGESTELD +
+    ' is voortgezet.');
+  doel.appendChild(noot);
+}
+
+function tekenWaardering(doel, u) {
+  var bron = (u.methode === 'apv' && u.apv) ? u.apv : u.dcfm;
+  var rijen = bron.regels.map(function (r) {
+    return { cellen: ['Jaar ' + r.periode, toonBedrag(r.kasstroom), toonGetal(r.factor, 6),
+                      toonBedrag(r.contant)] };
+  });
+  rijen.push({ cellen: ['Contante waarde van de prognose', '', '', toonBedrag(bron.contantePrognose)],
+               klasse: 'totaal', uitkomst: true });
+  rijen.push({ groep: 'Restwaarde' });
+  rijen.push({ cellen: ['Genormaliseerde kasstroom', toonBedrag(u.prognose.restwaardeKasstroom), '', ''] });
+  rijen.push({ cellen: ['Groei in de restperiode', toonPercentage(u.prognose.restperiode.groei), '', ''] });
+  rijen.push({ cellen: ['Disconteringsvoet', toonPercentage(bron.voet), '', ''] });
+  rijen.push({ cellen: ['Restwaarde einde prognose', '', '', toonBedrag(bron.restwaardeEindeProgose)] });
+  rijen.push({ cellen: ['Contante restwaarde', '', '', toonBedrag(bron.contanteRestwaarde)],
+               klasse: 'totaal', uitkomst: true });
+  if (u.apv && u.methode === 'apv') {
+    rijen.push({ groep: 'Tax shield uit de financiering' });
+    u.apv.taxShieldRegels.forEach(function (r) {
+      rijen.push({ cellen: ['Jaar ' + r.periode, toonBedrag(r.kasstroom), toonGetal(r.factor, 6),
+                            toonBedrag(r.contant)] });
+    });
+    rijen.push({ cellen: ['Contante tax shield', '', '', toonBedrag(u.apv.contanteTaxShield)],
+                 klasse: 'totaal', uitkomst: true });
+  }
+  rijen.push({ cellen: ['Ondernemingswaarde', '', '', toonBedrag(bron.ondernemingswaarde)],
+               klasse: 'totaal', uitkomst: true });
+  doel.appendChild(tabel(['Post', 'Bedrag', 'Factor', 'Contant'], rijen));
+  doel.appendChild(maak('p', 'klein',
+    'Moment van de kasstroom: ' + (u.dcfm.moment === 'midden'
+      ? 'halverwege het jaar' : 'einde van het jaar') + '.'));
+}
+
+function tekenBrugUitkomst(doel, u) {
+  var rijen = u.waardebrug.regels.map(function (r) {
+    return { cellen: [r.etiket, toonBedrag(r.bedrag)],
+             klasse: r.soort !== 'post' ? 'totaal' : null, uitkomst: r.soort !== 'post' };
+  });
+  doel.appendChild(tabel(['Post', 'Bedrag in ' + EENHEDEN[staat.eenheid].kort], rijen));
+}
+
+function tekenIteratie(doel, u, iteratie) {
+  if (!iteratie) {
+    var uit = maak('div', 'melding info');
+    uit.appendChild(maak('span', null,
+      'De vermogensverhouding staat vast op ' + toonPercentage(u.rendementseis.vvAandeel, 1) +
+      ' vreemd vermogen. Zet de schakelaar hieronder aan om die verhouding op de berekende ' +
+      'marktwaarde te bepalen; de tool itereert dan tot een vast punt.'));
+    doel.appendChild(uit);
+  } else {
+    var kop = maak('div', 'melding ' + (iteratie.geconvergeerd ? 'goed' : 'fout'));
+    kop.appendChild(maak('span', null, iteratie.geconvergeerd
+      ? 'De iteratie is na ' + iteratie.stappen.length + ' rondes tot een vast punt gekomen; ' +
+        'het laatste verschil is minder dan één euro.'
+      : iteratie.melding));
+    doel.appendChild(kop);
+    doel.appendChild(tabel(['Ronde', 'Ingaande waarde', 'Uitgaande waarde', 'Verschil',
+                            'Gewogen kostenvoet'],
+      iteratie.stappen.map(function (s) {
+        return { cellen: [String(s.ronde), toonBedrag(s.ingaandeWaarde), toonBedrag(s.uitgaandeWaarde),
+                          toonBedrag(s.verschil, 2), toonPercentage(s.rendementseis)] };
+      })));
+  }
+  var schakel = maak('label', 'veld');
+  schakel.style.maxWidth = '420px';
+  schakel.appendChild(maak('span', 'naam', 'Vermogensverhouding op marktwaarde bepalen (iteratief)'));
+  var inp = maak('input');
+  inp.type = 'checkbox';
+  inp.checked = !!staat.iteratief;
+  inp.style.width = 'auto';
+  inp.addEventListener('change', function () { staat.iteratief = inp.checked; tekenAlles(); });
+  schakel.appendChild(inp);
+  schakel.appendChild(maak('div', 'bronregel',
+    'Gebruikt de rentedragende schulden uit de waardebrug tegenover de berekende ' +
+    'aandelenwaarde. Zonder deze schakelaar geldt de vaste doelverhouding uit de ' +
+    'rendementseis.'));
+  doel.appendChild(schakel);
+}
+
+function tekenExploitatie(doel, u) {
+  var p = u.prognose;
+  var kop = ['Post'].concat(p.jaren.map(String));
+  function rij(etiket, lees, klasse, uitkomst, opmaak) {
+    var cellen = [etiket];
+    p.projectie.forEach(function (x) {
+      var w = lees(x);
+      cellen.push(opmaak === 'pct' ? toonPercentage(w, 1) : toonBedrag(w));
+    });
+    return { cellen: cellen, klasse: klasse, uitkomst: uitkomst };
+  }
+  var rijen = [{ groep: 'Omzet en brutomarge' }];
+  OMZETGROEPEN.forEach(function (g, i) {
+    rijen.push(rij('Omzet ' + g.etiket, function (x) { return x.omzetten[i]; }));
+    rijen.push(rij('Brutomarge ' + g.etiket, function (x) { return x.margeperc[i]; },
+                   'afgeleid', false, 'pct'));
+  });
+  rijen.push(rij('Totale omzet', function (x) { return x.omzet; }, 'totaal', true));
+  rijen.push(rij('Inkoopwaarde', function (x) { return -x.inkoopwaarde; }));
+  rijen.push(rij('Brutomarge', function (x) { return x.brutomarge; }, 'totaal', true));
+  rijen.push({ groep: 'Kosten' });
+  rijen.push(rij('Arbeidsquote', function (x) { return x.arbeidsquote; }, 'afgeleid', false, 'pct'));
+  rijen.push(rij('Personeelskosten', function (x) { return -x.personeelskosten; }));
+  rijen.push(rij('Huisvestingskosten', function (x) { return -x.huisvesting; }));
+  rijen.push(rij('Overige bedrijfskosten', function (x) { return -x.overigeKosten; }));
+  rijen.push(rij('Afschrijvingen', function (x) { return -x.afschrijving; }));
+  rijen.push(rij('Dotatie voorzieningen', function (x) { return -x.mutatieVoorzieningen; }));
+  rijen.push(rij('Bedrijfsresultaat', function (x) { return x.bedrijfsresultaat; }, 'totaal', true));
+  rijen.push({ groep: 'Financiering en belasting' });
+  rijen.push(rij('Rente', function (x) { return -x.rente; }));
+  rijen.push(rij('Belasting over de vrije kasstroom', function (x) { return -x.belasting; }));
+  rijen.push(rij('Verrekend verlies', function (x) { return x.verrekendVerlies; }));
+  rijen.push(rij('Tax shield van dit jaar', function (x) { return x.taxShield; }, 'afgeleid'));
+  // De shield gedeeld door de rente van hetzelfde jaar. Die verhouding maakt zichtbaar
+  // dat de aftrek lang niet altijd tegen het hoogste tarief uitpakt. Het is geen
+  // tarief: door de verliesverrekening kan hier meer dan 25,8% staan, namelijk wanneer
+  // besparing uit een eerder jaar in dit jaar landt.
+  rijen.push(rij('Shield in procenten van de rente',
+                 function (x) { return x.taxShieldAandeel; }, 'afgeleid', false, 'pct'));
+  doel.appendChild(tabel(kop, rijen));
+  doel.appendChild(maak('p', 'klein',
+    'Bedragen in ' + EENHEDEN[staat.eenheid].kort + '. De rente staat hier ter toelichting; ' +
+    'de vrije kasstroom is unlevered en bevat haar niet. Het effect van de financiering ' +
+    'loopt via de tax shield in de APV. Die shield is het bedrag waarmee de aanslag door ' +
+    'de renteaftrek daalt, dus tegen het tarief van de schijf waarin de rente valt en ' +
+    'nihil in een jaar zonder winst; hij kan later terugkomen via de verliesverrekening. ' +
+    'De regel eronder zet die shield af tegen de rente van hetzelfde jaar; dat is een ' +
+    'verhouding en geen tarief, want een shield die uit een eerder jaar doorschuift kan ' +
+    'boven het hoogste tarief uitkomen. Een dotatie voer je positief in en een vrijval ' +
+    'negatief; de post drukt het bedrijfsresultaat en de belastinggrondslag en wordt bij ' +
+    'de kasstroom teruggeteld, omdat er geen geld mee gemoeid is.'));
+}
+
+function tekenBalans(doel, u) {
+  var p = u.prognose;
+  var kop = ['Post'].concat(p.jaren.map(String));
+  function rij(etiket, lees, klasse, uitkomst, opmaak) {
+    var cellen = [etiket];
+    p.projectie.forEach(function (x) {
+      var w = lees(x);
+      cellen.push(opmaak === 'getal' ? toonGetal(w, 0) : toonBedrag(w));
+    });
+    return { cellen: cellen, klasse: klasse, uitkomst: uitkomst };
+  }
+  var rijen = [{ groep: 'Vaste activa' }];
+  rijen.push(rij('Openingsstand', function (x) { return x.mvaBegin; }));
+  rijen.push(rij('Investeringen', function (x) { return x.investering; }));
+  rijen.push(rij('Afschrijvingen', function (x) { return -x.afschrijving; }));
+  rijen.push(rij('Eindstand', function (x) { return x.mvaEind; }, 'totaal', true));
+  rijen.push({ groep: 'Werkkapitaal, gestuurd door termijnen in dagen' });
+  rijen.push(rij('Voorraaddagen', function (x) { return x.voorraaddagen; }, 'afgeleid', false, 'getal'));
+  rijen.push(rij('Voorraad', function (x) { return x.voorraad; }));
+  rijen.push(rij('Onderhanden werk in dagen', function (x) { return x.ohwDagen; }, 'afgeleid', false, 'getal'));
+  rijen.push(rij('Onderhanden werk', function (x) { return x.onderhandenWerk; }));
+  rijen.push(rij('Debiteurendagen', function (x) { return x.debiteurendagen; }, 'afgeleid', false, 'getal'));
+  rijen.push(rij('Debiteuren', function (x) { return x.debiteuren; }));
+  rijen.push(rij('Overige vorderingen', function (x) { return x.overigeVorderingen; }));
+  rijen.push(rij('Crediteurendagen', function (x) { return x.crediteurendagen; }, 'afgeleid', false, 'getal'));
+  rijen.push(rij('Crediteuren', function (x) { return -x.crediteuren; }));
+  rijen.push(rij('Overige kortlopende schulden', function (x) { return -x.overigeSchulden; }));
+  rijen.push(rij('Omzetbelasting, effect op het werkkapitaal', function (x) { return -x.btwPositie; }));
+  rijen.push(rij('Netto werkkapitaal', function (x) { return x.nettoWerkkapitaal; }, 'totaal', true));
+  rijen.push(rij('Mutatie netto werkkapitaal', function (x) { return x.mutatieWerkkapitaal; }));
+  rijen.push({ groep: 'Financiering' });
+  rijen.push(rij('Rentedragende schuld, begin', function (x) { return x.schuldBegin; }));
+  rijen.push(rij('Aflossing', function (x) { return -x.aflossing; }));
+  rijen.push(rij('Rentedragende schuld, eind', function (x) { return x.schuldEind; }, 'totaal', true));
+  doel.appendChild(tabel(kop, rijen));
+  doel.appendChild(meldingElement('info',
+    'De omzetbelasting draagt in elk jaar hetzelfde teken: een positief saldo is een schuld ' +
+    'aan de Belastingdienst en verlaagt dus het netto werkkapitaal, een negatief saldo is een ' +
+    'vordering en verhoogt het.'));
+  if (u.prognose.handinvoer) {
+    doel.appendChild(maak('p', 'klein', u.prognose.handinvoer.aantal === 0
+      ? 'Alle regels volgen het kengetal; er is niets met de hand overschreven.'
+      : u.prognose.handinvoer.aantal + ' cellen staan op handinvoer en volgen het kengetal niet.'));
+  }
+}
+
+function tekenFinanciering(doel, u) {
+  var p = u.prognose;
+  var eerste = p.projectie[0];
+  // De dotatie wordt hier teruggeteld: de bancaire normen meten de kasstroom waaruit
+  // rente en aflossing worden voldaan, en een dotatie is geen uitgave. Zonder deze
+  // terugtelling zou de toets strenger worden dan zij bedoeld is.
+  var ebitda = eerste.bedrijfsresultaat + eerste.afschrijving + eerste.mutatieVoorzieningen;
+  // Benadering van de balans: het geïnvesteerd vermogen is de som van de vaste activa
+  // en het netto werkkapitaal. Het eigen vermogen is dat bedrag min de rentedragende
+  // schuld. Liquide middelen en niet-bedrijfsgebonden activa zitten er niet in; die
+  // lopen via de waardebrug en niet via deze toets.
+  var geinvesteerdVermogen = eerste.mvaEind + eerste.nettoWerkkapitaal;
+  var toets;
+  try {
+    toets = financieringstoets({
+      ebitda: ebitda,
+      nettoSchuld: eerste.schuldBegin,
+      aflossingPerJaar: eerste.aflossing,
+      rentePerJaar: eerste.rente,
+      vrijeKasstroomVoorFinanciering: p.vrijeKasstromen[0],
+      balanstotaalNaFinanciering: geinvesteerdVermogen,
+      eigenVermogenNaFinanciering: geinvesteerdVermogen - eerste.schuldBegin,
+      normen: {
+        maxNettoSchuldEbitda: staat.aanvullend.normMaxNettoSchuldEbitda,
+        minDebtServiceCoverage: staat.aanvullend.normMinDscr,
+        minSolvabiliteitNaFinanciering: staat.aanvullend.normMinSolvabiliteit,
+        terugverdientermijnJaren: staat.aanvullend.normTerugverdientermijn
+      }
+    });
+  } catch (e) {
+    doel.appendChild(meldingElement('fout', e.message));
+    return;
+  }
+  doel.appendChild(tabel(['Toets', 'Uitkomst', 'Norm', 'Oordeel'],
+    toets.toetsen.map(function (t) {
+      return { cellen: [t.etiket,
+        t.eenheid === '%' ? toonPercentage(t.waarde, 1) : toonGetal(t.waarde, 2) +
+          (t.eenheid === 'jaar' ? ' jaar' : ' x'),
+        t.eenheid === '%' ? toonPercentage(t.norm, 1) : toonGetal(t.norm, 2) +
+          (t.eenheid === 'jaar' ? ' jaar' : ' x'),
+        t.gehaald ? 'gehaald' : 'niet gehaald'], uitkomst: !t.gehaald };
+    })));
+  doel.appendChild(meldingElement(toets.financierbaar ? 'goed' : 'waarschuwing',
+    toets.financierbaar
+      ? 'Alle vier de toetsen worden gehaald met de ingestelde normen.'
+      : (4 - toets.aantalGehaald) + ' van de vier toetsen wordt niet gehaald met de ' +
+        'ingestelde normen. De normen zijn instelbaar bij de aanvullende berekeningen; ' +
+        'het zijn gangbare bancaire kengetallen en geen wettelijke waarden.'));
+  doel.appendChild(maak('p', 'klein',
+    'De toets gebruikt het eerste prognosejaar. Het balanstotaal is hier benaderd als de ' +
+    'vaste activa plus het netto werkkapitaal; het eigen vermogen is dat bedrag min de ' +
+    'rentedragende schuld aan het begin van het jaar. Liquide middelen en ' +
+    'niet-bedrijfsgebonden activa lopen via de waardebrug en tellen hier niet mee.'));
+  doel.appendChild(maak('h3', null, 'Verloop van de financiering'));
+  doel.appendChild(tabel(['Jaar', 'Aflossing', 'Restschuld'],
+    p.financieringsschema.verloop.map(function (v) {
+      return { cellen: [String(p.jaren[v.jaar - 1] || v.jaar), toonBedrag(v.aflossing),
+                        toonBedrag(v.restschuld)] };
+    })));
+}
+
+function tekenIlliquiditeit(doel, u) {
+  var p = u.prognose;
+  var uit;
+  try {
+    uit = illiquiditeitsvergelijking({
+      vrijeKasstromen: p.vrijeKasstromen,
+      restwaardeKasstroom: p.restwaardeKasstroom,
+      groeiRestperiode: p.restperiode.groei,
+      moment: staat.moment,
+      taxShields: p.taxShields,
+      voetUnlevered: u.rendementseis.kostenvoetUnlevered,
+      kostenvoetVreemdVermogen: u.rendementseis.kostenvoetVreemdVermogen,
+      illiquiditeitsopslag: staat.aanvullend.illiquiditeitsopslag,
+      vasteTransactiekosten: staat.aanvullend.vasteTransactiekosten
+    });
+  } catch (e) {
+    doel.appendChild(meldingElement('fout', e.message));
+    return;
+  }
+  doel.appendChild(tabel(['Post', 'Bedrag in ' + EENHEDEN[staat.eenheid].kort], [
+    { cellen: ['Waarde zonder illiquiditeitsopslag', toonBedrag(uit.waardeZonderOpslag)] },
+    { cellen: ['Waarde met illiquiditeitsopslag van ' +
+               toonPercentage(staat.aanvullend.illiquiditeitsopslag), toonBedrag(uit.waardeMetOpslag)] },
+    { cellen: ['Waardeverlies door de opslag', toonBedrag(uit.kortingDoorOpslag)],
+      klasse: 'totaal', uitkomst: true },
+    { cellen: ['Als percentage van de waarde', toonPercentage(uit.kortingAlsPercentage, 1)] },
+    { cellen: ['Vaste transactiekosten', toonBedrag(uit.vasteTransactiekosten)] },
+    { cellen: ['Verschil', toonBedrag(uit.verschil)], klasse: 'totaal', uitkomst: true }
+  ]));
+  doel.appendChild(meldingElement('info', uit.oordeel));
+  doel.appendChild(maak('p', 'klein',
+    'Beide zijden van de vergelijking gebruiken dezelfde reeks tax shields, waarbij de shield ' +
+    'van elk jaar bij dat jaar hoort.'));
+}
+
+function tekenActivadeal(doel, u) {
+  if (!staat.aanvullend.activadealAan) {
+    doel.appendChild(meldingElement('info',
+      'Zet "Activadeal doorrekenen" aan bij de aanvullende berekeningen. De berekening loopt ' +
+      'altijd door op de hier berekende aandelenwaarde en nooit op een overgetypt bedrag.'));
+    return;
+  }
+  var uit;
+  try {
+    uit = activadeal({
+      waardeAandelendeal: u.aandelenwaarde,
+      tarief: u.rendementseis.tarief,
+      disconteringsvoet: u.rendementseis.wacc,
+      moment: staat.moment,
+      verdeling: {
+        gebouw: staat.aanvullend.verdelingGebouw,
+        overigeActiva: staat.aanvullend.verdelingOverigeActiva,
+        goodwill: staat.aanvullend.verdelingGoodwill
+      },
+      termijnen: {
+        gebouw: staat.aanvullend.termijnGebouw,
+        overigeActiva: staat.aanvullend.termijnOverigeActiva,
+        goodwill: staat.aanvullend.termijnGoodwill
+      },
+      wozBodemwaarde: staat.aanvullend.wozBodemwaarde
+    });
+  } catch (e) {
+    doel.appendChild(meldingElement('fout', e.message));
+    return;
+  }
+  var rijen = [{ cellen: ['Waarde bij een aandelendeal', toonBedrag(uit.waardeAandelendeal), '', ''],
+                 klasse: 'totaal' }];
+  uit.onderdelen.forEach(function (o) {
+    rijen.push({ cellen: [o.soort === 'goodwill' ? 'Goodwill'
+                            : o.soort === 'gebouw' ? 'Gebouw' : 'Overige activa',
+                          toonBedrag(o.bedrag), o.termijnJaren + ' jaar',
+                          toonBedrag(o.contanteWaarde)] });
+  });
+  rijen.push({ cellen: ['Contante tax shield', '', '', toonBedrag(uit.contanteTaxShield)],
+               klasse: 'totaal', uitkomst: true });
+  rijen.push({ cellen: ['Bruteringsfactor', '', '', toonPercentage(uit.bruteringsfactor)] });
+  rijen.push({ cellen: ['Waarde bij een activadeal, gebruteerd', '', '',
+                        toonBedrag(uit.gebruteerdeWaardeActivadeal)], klasse: 'totaal', uitkomst: true });
+  doel.appendChild(tabel(['Post', 'Afschrijfbaar bedrag', 'Termijn', 'Contante waarde'], rijen));
+  uit.meldingen.forEach(function (m) { doel.appendChild(meldingElement(m.soort, m.tekst)); });
+  doel.appendChild(maak('p', 'klein',
+    'Afschrijving op jaarbasis ten hoogste 10% voor goodwill en 20% voor andere ' +
+    'bedrijfsmiddelen (art. 3.30 lid 2 Wet IB 2001, via art. 8 lid 1 Wet Vpb 1969). Op een ' +
+    'gebouw wordt alleen afgeschreven voor zover de boekwaarde de WOZ-bodemwaarde te boven ' +
+    'gaat (art. 3.30a Wet IB 2001).'));
+}
+
+function tekenVerantwoording(doel, u) {
+  doel.appendChild(maak('h3', null, 'Waarop de uitkomst is gebaseerd'));
+  var fiscaal = [
+    { cellen: ['Tarief vennootschapsbelasting', 'art. 22 Wet Vpb 1969',
+               'schijfgrens ' + toonGetal(VPB_PER_JAAR[VPB_LAATST_VASTGESTELD].schijfgrens, 0) +
+               ' euro, ' + toonPercentage(VPB_PER_JAAR[VPB_LAATST_VASTGESTELD].tariefLaag, 0) +
+               ' en ' + toonPercentage(VPB_PER_JAAR[VPB_LAATST_VASTGESTELD].tariefHoog, 1),
+               'vastgesteld tot en met ' + VPB_LAATST_VASTGESTELD] },
+    { cellen: ['Voorwaartse verliesverrekening', 'art. 20 lid 2 Wet Vpb 1969',
+               '1.000.000 euro plus 50% van het meerdere', 'geldend recht'] },
+    { cellen: ['Afschrijving goodwill en activa', 'art. 3.30 lid 2 Wet IB 2001',
+               'ten hoogste 10% respectievelijk 20% per jaar', 'via art. 8 lid 1 Wet Vpb 1969'] },
+    { cellen: ['Afschrijving gebouwen', 'art. 3.30a Wet IB 2001',
+               'alleen boven de WOZ-bodemwaarde', 'geldend recht'] },
+    { cellen: ['Betaaltermijn omzetbelasting', 'art. 19 lid 1 AWR',
+               'binnen één maand na het tijdvak', 'geldend recht'] }
+  ];
+  doel.appendChild(tabel(['Onderwerp', 'Vindplaats', 'Waarde', 'Status'], fiscaal));
+  doel.appendChild(maak('p', 'klein', 'Alle fiscale waarden gecontroleerd op wetten.overheid.nl ' +
+    'op 02-09-2026. Voor prognosejaren na ' + VPB_LAATST_VASTGESTELD + ' wordt het geldende ' +
+    'recht voortgezet; dat staat per jaar met een ster in het overzicht van de vrije kasstroom.'));
+
+  doel.appendChild(maak('h3', null, 'Marktwaarden'));
+  var markt = [];
+  [MARKT.risicovrijeVoet, MARKT.marktrisicopremie].forEach(function (b) {
+    var t = toetsHoudbaarheid(b, VANDAAG);
+    markt.push({ cellen: [b.etiket, toonPercentage(b.waarde), b.peildatum,
+                          t.verouderd ? 'verouderd' : 'binnen houdbaarheid'], uitkomst: t.verouderd });
+  });
+  MARKT.kostenvoetVreemdVermogen.klassen.forEach(function (k) {
+    var t = toetsHoudbaarheid(MARKT.kostenvoetVreemdVermogen, VANDAAG);
+    markt.push({ cellen: [k.etiket, toonPercentage(k.waarde),
+                          MARKT.kostenvoetVreemdVermogen.peildatum,
+                          t.verouderd ? 'verouderd' : 'binnen houdbaarheid'], uitkomst: t.verouderd });
+  });
+  BRANCHE_VV.waarden.forEach(function (b) {
+    markt.push({ cellen: ['Vreemd vermogen ' + b.etiket, toonPercentage(b.vvAandeel, 1),
+                          'verslagjaar ' + BRANCHE_VV.peiljaar, 'boekwaarden, geen MKB-mediaan'] });
+  });
+  doel.appendChild(tabel(['Waarde', 'Percentage', 'Peildatum', 'Status'], markt));
+  var bronnen = maak('ul');
+  [
+    MARKT.risicovrijeVoet.bron + ' — ' + MARKT.risicovrijeVoet.vindplaats,
+    MARKT.kostenvoetVreemdVermogen.bron + ' — ' + MARKT.kostenvoetVreemdVermogen.vindplaats,
+    MARKT.marktrisicopremie.bron + ' — ' + MARKT.marktrisicopremie.vindplaats,
+    BRANCHE_VV.bron + ' (' + BRANCHE_VV.licentie + ') — ' + BRANCHE_VV.vindplaats
+  ].forEach(function (t) { bronnen.appendChild(maak('li', 'klein', t)); });
+  doel.appendChild(bronnen);
+  doel.appendChild(meldingElement('waarschuwing', MARKT.marktrisicopremie.voorbehoud));
+
+  doel.appendChild(maak('h3', null, 'Wat deze tool niet doet'));
+  var niet = maak('ul');
+  [
+    'Geen empirische dataset met rendementseisen per branche en omvangsklasse. Die datasets ' +
+    'zijn licentiegebonden en mogen niet worden meegeleverd. Wie zo een bron heeft, voert ' +
+    'onder-, midden- en bovenwaarde zelf in via de referentieroute; de tool legt vindplaats, ' +
+    'versie en peildatum vast en toetst de uitkomst aan dat interval.',
+    'Geen achterwaartse verliesverrekening. Die raakt een jaar dat op de waarderingsdatum ' +
+    'al is afgewikkeld.',
+    'Geen fiscale eenheid, geen deelnemingsvrijstelling en geen renteaftrekbeperkingen. ' +
+    'Speelt dat, dan hoort de belastingdruk buiten de tool te worden bepaald en via de ' +
+    'handinvoer te worden ingebracht.',
+    'Geen historische jaren als afzonderlijke kolommen: de realisatie komt binnen als ' +
+    'openingsstand en als uitgangspunt voor de kengetallen.',
+    'De bancaire normen in de financieringstoets zijn instelbare kengetallen en geen ' +
+    'wettelijke of door een bank vastgestelde waarden.',
+    'De tool rekent niet terug vóór ' + VPB_EERSTE_JAAR + '.'
+  ].forEach(function (t) { niet.appendChild(maak('li', 'klein', t)); });
+  doel.appendChild(niet);
+
+  if (u.prognose.handinvoer) {
+    doel.appendChild(maak('h3', null, 'Handinvoer in deze casus'));
+    doel.appendChild(maak('p', 'klein', u.prognose.handinvoer.aantal === 0
+      ? 'Geen enkele regel is losgekoppeld van het kengetal.'
+      : u.prognose.handinvoer.aantal + ' cellen staan op handinvoer: ' +
+        u.prognose.handinvoer.regels.map(function (r) {
+          return r.sleutel + ' (jaar ' + (staat.uitgebreid.uitgangspunten.eersteJaar + r.index) + ')';
+        }).join(', ') + '.'));
+  }
+}
+
+/* --- meldingen, tabs en het samenstellen van het scherm ------------------- */
+
+function meldingElement(soort, tekst) {
+  var el = maak('div', 'melding ' + (soort === 'fout' ? 'fout'
+    : soort === 'waarschuwing' ? 'waarschuwing' : soort === 'goed' ? 'goed' : 'info'));
+  el.appendChild(maak('span', null, tekst));
+  return el;
+}
+
+function tekenMeldingen(meldingen) {
+  var doel = $('#meldingen');
+  leeg(doel);
+  var houdbaarheid = [];
+  [MARKT.risicovrijeVoet, MARKT.kostenvoetVreemdVermogen, MARKT.marktrisicopremie].forEach(function (b) {
+    var t = toetsHoudbaarheid(b, VANDAAG);
+    if (t.verouderd) houdbaarheid.push({ soort: 'waarschuwing', tekst: t.tekst });
+  });
+  houdbaarheid.concat(meldingen || []).forEach(function (m) {
+    doel.appendChild(meldingElement(m.soort, m.tekst));
+  });
+}
+
+function zetTabs(container, attribuut, actief, alleenUitgebreid) {
+  container.querySelectorAll('button').forEach(function (b) {
+    var waarde = b.dataset[attribuut];
+    b.setAttribute('aria-selected', waarde === actief ? 'true' : 'false');
+    if (alleenUitgebreid && b.dataset.alleen === 'uitgebreid') {
+      b.classList.toggle('verborgen', staat.modus !== 'uitgebreid');
+    }
+  });
+}
+
+function tekenUitkomsten(uitkomst, iteratie) {
+  var doel = $('#uitkomst-inhoud');
+  leeg(doel);
+  zetTabs($('#uitkomst-tabs'), 'uittab', staat.uittab, true);
+  var tab = staat.uittab;
+  if (staat.modus !== 'uitgebreid' &&
+      ['exploitatie', 'balans', 'financiering', 'illiquiditeit'].indexOf(tab) !== -1) {
+    tab = staat.uittab = 'samenvatting';
+    zetTabs($('#uitkomst-tabs'), 'uittab', tab, true);
+  }
+  if (tab === 'samenvatting') tekenSamenvatting(doel, uitkomst);
+  else if (tab === 'kasstroom') tekenKasstroom(doel, uitkomst);
+  else if (tab === 'waardering') tekenWaardering(doel, uitkomst);
+  else if (tab === 'brug') tekenBrugUitkomst(doel, uitkomst);
+  else if (tab === 'iteratie') tekenIteratie(doel, uitkomst, iteratie);
+  else if (tab === 'exploitatie') tekenExploitatie(doel, uitkomst);
+  else if (tab === 'balans') tekenBalans(doel, uitkomst);
+  else if (tab === 'financiering') tekenFinanciering(doel, uitkomst);
+  else if (tab === 'illiquiditeit') tekenIlliquiditeit(doel, uitkomst);
+  else if (tab === 'activadeal') tekenActivadeal(doel, uitkomst);
+  else if (tab === 'verantwoording') tekenVerantwoording(doel, uitkomst);
+}
+
+var bezigMetTekenen = false;
+
+function tekenAlles() {
+  if (bezigMetTekenen) return;
+  bezigMetTekenen = true;
+  try {
+    $('#modus-eenvoudig').setAttribute('aria-pressed', staat.modus === 'eenvoudig' ? 'true' : 'false');
+    $('#modus-uitgebreid').setAttribute('aria-pressed', staat.modus === 'uitgebreid' ? 'true' : 'false');
+    $('#paneel-eenvoudig').classList.toggle('verborgen', staat.modus !== 'eenvoudig');
+    $('#paneel-uitgebreid').classList.toggle('verborgen', staat.modus !== 'uitgebreid');
+    $('#eenheid').value = staat.eenheid;
+
+    pasLengtesAan();
+    tekenAlgemeen();
+    tekenEis();
+    tekenBrug();
+    tekenAanvullend();
+    if (staat.modus === 'eenvoudig') tekenEenvoudig();
+
+    var uitkomst = null, iteratie = null, fout = null;
+    try {
+      var uit = rekenDoor();
+      uitkomst = uit.uitkomst;
+      iteratie = uit.iteratie;
+    } catch (e) {
+      fout = e;
+    }
+
+    if (staat.modus === 'uitgebreid') {
+      zetTabs($('#invoer-tabs'), 'invtab', staat.invtab, false);
+      ['uitgangspunten', 'exploitatie', 'werkkapitaal', 'financiering', 'plakken'].forEach(function (t) {
+        $('#inv-' + t).classList.toggle('verborgen', staat.invtab !== t);
+      });
+      var projectie = uitkomst && uitkomst.prognose ? uitkomst.prognose.projectie : null;
+      if (staat.invtab === 'uitgangspunten') tekenUitgangspuntenUitgebreid();
+      else if (staat.invtab === 'plakken') tekenPlakken();
+      else tekenRaster($('#inv-' + staat.invtab), RASTERREGELS[staat.invtab], projectie);
+    }
+
+    if (fout) {
+      leeg($('#uitkomstbalk'));
+      leeg($('#uitkomst-inhoud'));
+      tekenMeldingen([{ soort: 'fout', tekst: fout.message }]);
+      $('#uitkomst-inhoud').appendChild(meldingElement('fout',
+        'De tool rekent niet door zolang deze invoer niet klopt: ' + fout.message));
+      return false;
+    }
+    tekenMeldingen(uitkomst.meldingen);
+    tekenUitkomstbalk(uitkomst);
+    tekenUitkomsten(uitkomst, iteratie);
+    return true;
+  } finally {
+    bezigMetTekenen = false;
+  }
+}
+
+/* --- casus opslaan en terugladen ----------------------------------------- */
+
+var BESTANDSVERSIE = 1;
+
+function opslaan() {
+  var inhoud = {
+    bestandsoort: 'dcf-rekentool-casus',
+    versie: BESTANDSVERSIE,
+    opgeslagen: new Date().toISOString(),
+    staat: staat
+  };
+  var blob = new Blob([JSON.stringify(inhoud, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'dcf-casus-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function laden(bestand) {
+  var lezer = new FileReader();
+  lezer.onerror = function () {
+    tekenMeldingen([{ soort: 'fout', tekst: 'Het bestand kon niet worden gelezen.' }]);
+  };
+  lezer.onabort = function () {
+    tekenMeldingen([{ soort: 'fout',
+      tekst: 'Het openen van het bestand is afgebroken; er is niets gewijzigd.' }]);
+  };
+  lezer.onload = function () {
+    var inhoud;
+    try {
+      inhoud = JSON.parse(lezer.result);
+    } catch (e) {
+      tekenMeldingen([{ soort: 'fout', tekst: 'Dit bestand is geen geldige JSON.' }]);
+      return;
+    }
+    if (!inhoud || inhoud.bestandsoort !== 'dcf-rekentool-casus' || !inhoud.staat) {
+      tekenMeldingen([{ soort: 'fout',
+        tekst: 'Dit is geen casusbestand van deze tool; er is niets geladen.' }]);
+      return;
+    }
+    if (inhoud.versie > BESTANDSVERSIE) {
+      tekenMeldingen([{ soort: 'fout', tekst: 'Dit bestand komt uit een nieuwere versie van de ' +
+        'tool (versie ' + inhoud.versie + '). Werk de tool bij voordat u het opent.' }]);
+      return;
+    }
+    // Bewust samenvoegen in plaats van vervangen: ontbrekende velden uit een ouder
+    // bestand houden dan hun standaardwaarde in plaats van undefined te worden.
+    Object.keys(inhoud.staat).forEach(function (sleutel) {
+      if (sleutel in staat) staat[sleutel] = inhoud.staat[sleutel];
+    });
+    // tekenAlles() rekent meteen door en toont zelf een foutmelding zodra de
+    // geladen staat niet klopt. Die melding mag hierna niet worden overschreven
+    // met een "Casus geladen": anders meldt de tool succes terwijl er niets is
+    // doorgerekend, en dat is precies de stille fout die hier wordt uitgesloten.
+    var gelukt = tekenAlles();
+    if (gelukt === false) return;
+    tekenMeldingen([{ soort: 'goed', tekst: 'Casus geladen, opgeslagen op ' +
+      String(inhoud.opgeslagen).slice(0, 10) + '.' }]);
+  };
+  lezer.readAsText(bestand);
+}
+
+/* --- opstarten ----------------------------------------------------------- */
+
+function start() {
+  $('#modus-eenvoudig').addEventListener('click', function () {
+    staat.modus = 'eenvoudig'; tekenAlles();
+  });
+  $('#modus-uitgebreid').addEventListener('click', function () {
+    staat.modus = 'uitgebreid'; tekenAlles();
+  });
+  $('#eenheid').addEventListener('change', function () {
+    staat.eenheid = $('#eenheid').value; tekenAlles();
+  });
+  $('#uitkomst-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    staat.uittab = b.dataset.uittab;
+    tekenAlles();
+  });
+  $('#eis-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    staat.eis.route = b.dataset.eistab;
+    tekenAlles();
+  });
+  $('#invoer-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    staat.invtab = b.dataset.invtab;
+    tekenAlles();
+  });
+  $('#knop-opslaan').addEventListener('click', opslaan);
+  $('#knop-laden').addEventListener('click', function () { $('#bestand-laden').click(); });
+  $('#bestand-laden').addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) laden(e.target.files[0]);
+    e.target.value = '';
+  });
+  tekenAlles();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', start);
+} else {
+  start();
+}
+</script>
+</body>
+</html>
