@@ -177,7 +177,7 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
   <p class="hulp">De eenmalige kosten blijven buiten het jaarsaldo en staan apart, met de
     terugverdientijd erbij. Een jaarvergelijking zonder die kosten is geen oordeel.</p>
 
-  <h3>Toetsen die het bronmodel niet heeft</h3>
+  <h3>Twee toetsen vooraf</h3>
   <div class="rij">
     <div class="veld"><label for="kwalificeert">Lening bij de BV is eigenwoningschuld</label>
       <select id="kwalificeert">
@@ -257,10 +257,10 @@ const DOSSIER_VERSIE = 2;
    op 2026-09-06 gecontroleerd tegen de geldende tekst per 1 januari 2026.
 
    Een jaar dat hier niet in staat levert een zichtbare melding op en nooit
-   een stille terugval op een ander jaar. Het bronmodel doet iets anders: het
-   draagt voor de afbouw van de aftrek van art. 3.123a een reeks voor
-   toekomstige jaren. Zo'n reeks is geen wettekst maar een voorspelling van
-   toekomstig recht, en staat hier daarom niet in. */
+   een stille terugval op een ander jaar. Er staat hier evenmin een reeks met
+   percentages voor komende jaren, bijvoorbeeld voor de afbouw van de aftrek
+   van art. 3.123a: zo'n reeks is geen wettekst maar een voorspelling van
+   toekomstig recht. */
 const FISCAAL_PER_JAAR = {
   2026: {
     /* Art. 2.10 lid 1 Wet IB 2001, geldend 2026-01-01. Kolom I en II geven de
@@ -464,8 +464,8 @@ function algemeneHeffingskorting(jaar, verzamelinkomen) {
  * dat het lager is; in die route geldt geen heffingvrij vermogen en is het
  * rendement ten minste nihil (lid 2).
  *
- * Het bronmodel kent alleen die tweede route en past haar altijd toe, ook als
- * het werkelijke rendement hoger is. Zie BEVINDINGEN.md, bevinding 3.1 en 3.2.
+ * Wie alleen die tweede route zou toepassen, ook waar het werkelijke rendement
+ * hoger is, belast te veel: de tegenbewijsregeling werkt maar één kant op.
  *
  * De schuldendrempel van art. 5.3 lid 3 onder f werkt in beide routes door: wat
  * onder de drempel blijft is voor box 3 geen schuld, en dan telt ook de rente
@@ -542,10 +542,10 @@ const JA_NEE = function (v) {
  * Geen enkel getalveld valt terug op een vaste waarde: wat geen getal is, wordt
  * NaN, en `valideerInvoer` maakt daar in de rekenwijze waarin dat veld meedoet
  * een zichtbare fout van. Besluit van Sylvain, 7 september 2026. De eenmalige
- * kosten en de boeterente vielen terug op nul en de vier tarieven van het
- * bronmodel op hun percentage, en dan rekende de tool door met een getal dat
- * niemand had ingevuld — dezelfde soort fout als de terugval op "ja" bij de
- * twee toetsen. De beginwaarden op het scherm staan in de opmaak, waar een
+ * kosten en de boeterente vielen tot die datum terug op nul, en dan rekende de
+ * tool door met een getal dat niemand had ingevuld: dezelfde soort fout als de
+ * terugval op "ja" bij de twee toetsen.
+ * De beginwaarden op het scherm staan in de opmaak, waar een
  * gebruiker ze kan zien en wijzigen, en niet hier.
  */
 function normaliseerInvoer(rauw) {
@@ -701,8 +701,8 @@ function rekenScenario(inv, opzet) {
 
   if (opzet.heeftBV) {
     // De eerste drie regels spelen zich binnen de BV af en zijn tussenstappen naar
-    // de netto winst; zij tellen niet los mee in het saldo. Het bronmodel doet dat
-    // net zo: die rijen staan daar in een kolom die buiten de eindsom valt.
+    // de netto winst; zij tellen niet los mee in het saldo, want dan zou hetzelfde
+    // bedrag er twee keer in zitten.
     regels.push({ kop: true, label: 'De BV en box 2' });
     regels.push({ label: 'Renteopbrengst van de BV', bedrag: opzet.bvOpbrengst, info: true,
       toelicht: 'wat de dga betaalt, ontvangt de BV' });
@@ -779,8 +779,8 @@ function berekenVolgensBron(inv, zonderGevoeligheid) {
   const verschil = { bv: bv.saldo - bank.saldo, aflossen: aflossen.saldo - bank.saldo };
 
   /* Hoeveel verandert het BV-voordeel als de rente bij de BV een procentpunt
-     hoger wordt? Het bronmodel stelt in zijn uitlegtekst dat een hogere rente
-     bij de BV in de regel voordelig is. Of dat klopt hangt af van de tarieven:
+     hoger wordt? De gedachte dat een hogere rente bij de eigen BV in de regel
+     voordelig is, komt vaak langs. Of dat klopt hangt af van de tarieven:
      de aftrek in box 1 staat tegenover vpb en box 2 samen. Deze grootheid meet
      dat in plaats van het aan te nemen, door dezelfde berekening nog eens met
      een procentpunt meer te draaien. */
@@ -1173,10 +1173,8 @@ function bronregels(jaar) {
  * afdrukblok. Stonden de labels op twee plekken, dan zou een gewijzigd label in
  * het ene uitgangspad meelopen en in het andere niet.
  *
- * Elk veld hier doet mee in de berekening. Tot 8 september 2026 stond er een
- * kolom `actief` bij, omdat er toen twee rekenwijzen waren en de stand van het
- * bronmodel een deel van deze velden niet gebruikte. Die stand is uit de tool
- * gehaald; zie de vrijgavenotitie.
+ * Elk veld hier doet mee in de berekening. Er is één rekenwijze, die van de
+ * wettekst, dus geen veld dat in de ene stand wel en in de andere niet meetelt.
  */
 const INVOERVELDEN = [
   { id: 'jaar', label: 'Belastingjaar', soort: 'jaar' },
@@ -1434,9 +1432,9 @@ function toonEenmalig(res) {
     '<h3>Eenmalige kosten en terugverdientijd</h3><div class="tabelbak"><table>' +
     '<tr><th>Scenario</th><th class="num">Jaarvoordeel</th>' +
     '<th class="num">Eenmalige kosten</th><th>Uitkomst</th></tr>' + rijen + '</table></div>' +
-    '<p class="hulp">Het bronmodel kent alleen doorlopende kosten. De oprichting van de BV, de ' +
-    'akte van geldlening, het vestigen van het hypotheekrecht en een eventuele boeterente ' +
-    'bepalen mede of een alternatief de moeite waard is.</p>';
+    '<p class="hulp">Een vergelijking op de jaarlast alleen is niet genoeg. De oprichting van ' +
+    'de BV, de akte van geldlening, het vestigen van het hypotheekrecht en een eventuele ' +
+    'boeterente bepalen mede of een alternatief de moeite waard is.</p>';
 }
 
 function toonDetail(res) {
@@ -1505,9 +1503,9 @@ function toonAfbakening(res) {
     h += '<p><strong>Bij deze casus.</strong></p><ul>' +
       res.meldingen.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>';
   }
-  h += '<p class="afdrukblok"><strong>Bron.</strong> Deze tool vervangt het Excel-rekenmodel ' +
-    '03-06. De bevindingen uit dat model staan in BEVINDINGEN.md van de repository ' +
-    'hypotheek-in-bv; de gelijkwaardigheidstoets in VERGELIJKING.md.</p>';
+  h += '<p class="afdrukblok"><strong>Bron.</strong> Elke waarde en elke rekenregel in deze ' +
+    'tool is herleid tot de wettekst; de vindplaatsen staan hierboven bij de uitgangspunten. ' +
+    'De berekening is getoetst met een eigen testset.</p>';
   el('afbakening').innerHTML = h;
 }
 
@@ -1615,7 +1613,7 @@ const DOSSIER_METAVELDEN = [['kenmerk', 'Klantnaam of kenmerk'],
  * kern, dan wijst deze meting dat veld aan en weigert het openen van een
  * dossier waarin het leeg staat, in plaats van door te rekenen met een getal
  * dat niemand heeft ingevuld. Dat is precies wat er tot die datum gebeurde met
- * de eenmalige kosten, de boeterente en de vier tarieven van het bronmodel.
+ * de eenmalige kosten en de boeterente.
  *
  */
 function stilleStandaardVelden(genormaliseerd) {
@@ -1655,7 +1653,7 @@ function keurDossierVeld(eis, waarde) {
   if (dossierLeeg(waarde)) {
     if (eis.soort === 'keuze') {
       return naam + ' is leeg opgeslagen, en daar bestaat geen stand voor. Verwacht: ' +
-        eis.opties.join(' of ') + '.';
+        eis.opties.join(' of ') + '. Vul dit veld in de tool in en sla het dossier opnieuw op.';
     }
     if (DOSSIER_STILLE_STANDAARD[eis.id]) {
       return naam + ' is leeg opgeslagen. Dit veld heeft een vaste beginwaarde, dus de tool ' +
@@ -1667,22 +1665,26 @@ function keurDossierVeld(eis, waarde) {
   if (eis.soort === 'janee') {
     if (waarde === 'ja' || waarde === 'nee') return null;
     return naam + ' moet “ja” of “nee” zijn, of leeg blijven zolang de vraag niet is ' +
-      'beantwoord; er staat ' + dossierWeergave(waarde) + '.';
+      'beantwoord; er staat ' + dossierWeergave(waarde) + '. Corrigeer dit veld in het ' +
+      'dossierbestand of beantwoord de vraag opnieuw in de tool.';
   }
   if (eis.soort === 'keuze') {
     if (eis.opties.indexOf(waarde) >= 0) return null;
     return naam + ' moet ' + eis.opties.join(' of ') + ' zijn; er staat ' +
-      dossierWeergave(waarde) + '.';
+      dossierWeergave(waarde) + '. Corrigeer dit veld in het dossierbestand of kies opnieuw ' +
+      'in de tool.';
   }
   const n = dossierGetal(waarde);
   if (n === null) {
     return naam + ' moet een getal bevatten; er staat ' + dossierWeergave(waarde) + '. De tool ' +
       'rekent daar niet omheen: een niet-getal dat stil nul wordt, geeft een uitkomst die niet ' +
-      'bij dit dossier hoort.';
+      'bij dit dossier hoort. Corrigeer de waarde in het dossierbestand, of vul dit veld ' +
+      'opnieuw in via de tool.';
   }
   if (eis.soort === 'jaar') {
     if (!Number.isInteger(n)) {
-      return naam + ' moet een heel jaartal zijn; er staat ' + dossierWeergave(waarde) + '.';
+      return naam + ' moet een heel jaartal zijn; er staat ' + dossierWeergave(waarde) + '. ' +
+        'Corrigeer dit veld in het dossierbestand of kies opnieuw een jaar in de tool.';
     }
     // Een jaar dat de tool niet kent wordt hier geweigerd en niet doorgezet. De
     // keuzelijst op het scherm zou zo'n jaar laten vallen, waarna de melding
@@ -1690,7 +1692,8 @@ function keurDossierVeld(eis, waarde) {
     // wat er aan de hand is.
     if (FISCALE_JAREN.indexOf(n) < 0) {
       return naam + ' noemt ' + n + '. Vastgesteld zijn alleen de waarden van ' +
-        FISCALE_JAREN.join(' en ') + '; met een ander jaar rekent de tool niet.';
+        FISCALE_JAREN.join(' en ') + '; met een ander jaar rekent de tool niet. Kies in de ' +
+        'tool een van de vastgestelde jaren en sla het dossier opnieuw op.';
     }
   }
   return null;
@@ -1711,15 +1714,19 @@ function leesDossier(tekst) {
   try { d = JSON.parse(tekst); }
   catch (e) {
     return { ok: false, fouten: ['Dit is geen geldig dossierbestand: de JSON kon niet worden ' +
-      'gelezen (' + e.message + ').'] };
+      'gelezen (' + e.message + '). Open het oorspronkelijke bestand dat u eerder met ' +
+      '“Dossier opslaan” heeft weggeschreven; is dat bestand aangepast buiten deze tool om, ' +
+      'dan is het niet meer te openen.'] };
   }
   if (!d || typeof d !== 'object' || Array.isArray(d)) {
     return { ok: false, fouten: ['Dit is geen geldig dossierbestand: er staat geen dossier in ' +
-      'maar ' + dossierWeergave(d) + '.'] };
+      'maar ' + dossierWeergave(d) + '. Kies het bestand dat u eerder met “Dossier opslaan” ' +
+      'voor Hypotheek in BV heeft weggeschreven.'] };
   }
   if (d.tool !== TOOL_ID) {
     return { ok: false, fouten: ['Dit dossierbestand hoort niet bij Hypotheek in BV (tool: ' +
-      (d.tool === undefined ? 'niet vermeld' : dossierWeergave(d.tool)) + ').'] };
+      (d.tool === undefined ? 'niet vermeld' : dossierWeergave(d.tool)) + '). Open het met de ' +
+      'tool waarvoor het is gemaakt, of kies hier het dossierbestand van Hypotheek in BV.'] };
   }
 
   // De dossierversie zegt hoe de rest gelezen moet worden. Ontbreekt zij, dan
@@ -1727,19 +1734,22 @@ function leesDossier(tekst) {
   // bestand niet lezen en mag zij het ook niet half proberen.
   if (d.dossierVersie === undefined) {
     return { ok: false, fouten: ['Het dossierbestand noemt geen dossierVersie. Zonder dat ' +
-      'nummer staat niet vast hoe de velden gelezen moeten worden; de tool gokt daar niet op.'] };
+      'nummer staat niet vast hoe de velden gelezen moeten worden; de tool gokt daar niet op. ' +
+      'Gebruik het oorspronkelijke bestand zoals de tool het heeft opgeslagen, zonder ' +
+      'aanpassingen erin.'] };
   }
   const versie = dossierGetal(d.dossierVersie);
   if (versie === null || !Number.isInteger(versie) || versie < 1) {
     return { ok: false, fouten: ['Het dossierbestand noemt een dossierVersie die geen ' +
-      'versienummer is: ' + dossierWeergave(d.dossierVersie) + '.'] };
+      'versienummer is: ' + dossierWeergave(d.dossierVersie) + '. Gebruik het oorspronkelijke ' +
+      'bestand zoals de tool het heeft opgeslagen, zonder aanpassingen erin.'] };
   }
   if (versie === 1 && d.rekenwijze === 'model') {
-    return { ok: false, fouten: ['Dit dossier is opgeslagen in de rekenwijze van het ' +
-      'Excel-rekenmodel 03-06. Die stand zit sinds 8 september 2026 niet meer in de tool: zij ' +
-      'rekent nu uitsluitend volgens de wettekst. Het bestand zou dus opengaan met een andere ' +
-      'uitkomst dan waarmee het is bewaard, en daarom wordt het geweigerd. De invoer is wel ' +
-      'over te typen; alleen de vier vlakke tarieven bestaan niet meer.'] };
+    return { ok: false, fouten: ['Dit dossier is opgeslagen met een tweede rekenwijze die ' +
+      'sinds 8 september 2026 niet meer in de tool zit: zij rekent nu uitsluitend volgens de ' +
+      'wettekst. Het bestand zou dus opengaan met een andere uitkomst dan waarmee het is ' +
+      'bewaard, en daarom wordt het geweigerd. De invoer is wel over te typen; alleen de vier ' +
+      'vlakke tarieven bestaan niet meer.'] };
   }
   if (versie > DOSSIER_VERSIE) {
     return { ok: false, fouten: ['Dit dossierbestand is opgeslagen met dossierversie ' + versie +
@@ -1751,7 +1761,9 @@ function leesDossier(tekst) {
   if (ontbreekt.length) {
     return { ok: false, fouten: ['Het dossierbestand mist ' + ontbreekt.join(', ') +
       '. De tool vult die niet zelf in, want dan zou het dossier met een ander ' +
-      'uitgangspunt opengaan dan waarmee het is opgeslagen.'] };
+      'uitgangspunt opengaan dan waarmee het is opgeslagen. Vul de ontbrekende gegevens ' +
+      'opnieuw in de tool in en sla het dossier dan opnieuw op, of gebruik het bestand ' +
+      'waarmee het oorspronkelijk is bewaard.'] };
   }
 
   const fouten = [];
@@ -1762,7 +1774,8 @@ function leesDossier(tekst) {
     if (typeof w === 'string') { schoon[m[0]] = schoneTekst(w); return; }
     if (typeof w === 'number' && isFinite(w)) { schoon[m[0]] = String(w); return; }
     fouten.push('Het veld “' + m[1] + '” (' + m[0] + ') moet tekst bevatten; er staat ' +
-      dossierWeergave(w) + '.');
+      dossierWeergave(w) + '. Pas dit veld aan in het dossierbestand of vul het opnieuw in ' +
+      'via de tool.');
   });
   DOSSIER_VELDEN.forEach(function (v) {
     const eis = DOSSIER_EISEN[v];
@@ -1838,10 +1851,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const lezer = new FileReader();
     const naam = f.name ? '“' + f.name + '” ' : '';
     lezer.onerror = function () {
-      toonImportfout(['Het bestand ' + naam + 'kon niet worden gelezen.']);
+      toonImportfout(['Het bestand ' + naam + 'kon niet worden gelezen. Controleer of het nog ' +
+        'op die plek staat en niet is verplaatst, hernoemd of verwijderd, en kies het bestand ' +
+        'opnieuw.']);
     };
     lezer.onabort = function () {
-      toonImportfout(['Het openen van het bestand ' + naam + 'is afgebroken.']);
+      toonImportfout(['Het openen van het bestand ' + naam + 'is afgebroken. Klik opnieuw op ' +
+        '“Dossier openen” en kies het bestand nogmaals.']);
     };
     lezer.onload = function () {
       const r = leesDossier(String(lezer.result));
@@ -1855,7 +1871,8 @@ document.addEventListener('DOMContentLoaded', function () {
       herbereken();
     };
     try { lezer.readAsText(f); }
-    catch (e) { toonImportfout(['Het bestand kon niet worden gelezen (' + e.message + ').']); }
+    catch (e) { toonImportfout(['Het bestand kon niet worden gelezen (' + e.message + '). ' +
+      'Probeer het opnieuw te kiezen via “Dossier openen”.']); }
     ev.target.value = '';
   });
 
