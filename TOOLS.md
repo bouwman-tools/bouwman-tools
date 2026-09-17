@@ -14,7 +14,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| ⚪ verborgen | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🔵 concept | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **Auditfile App**: Analyseert XAF-auditfiles en exporteert gestructureerde overzichten per grootboekrekening of kostensoort
@@ -71,26 +71,26 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-08 |
-| 🔵 concept | DCF-rekenmodel | nog niet gepubliceerd | bouwman-tools/dcf-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | DCF-rekenmodel | `/dcf-rekentool.html` | bouwman-tools/dcf-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
-| 🔵 concept | Rente rekening-courant | nog niet gepubliceerd | bouwman-tools/rc-rente-rekenmodel | n.v.t. | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
 
 - **BV Ja/Nee**: Rekent door of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
 - **Belastinglatentie**: Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of doorschuiving: het gemis aan afschrijvingsbasis en de uitgestelde heffing, met het verloop per jaar
-- **DCF-rekenmodel**: Waardering via de discounted-cashflowmethode; nabouw van het Excel-rekenmodel, met onderbouwing van de rendementseis
+- **DCF-rekenmodel**: Waardering via de discounted-cashflowmethode, met onderbouwing van de rendementseis
 - **Dividend & Uitkeringstoets**: Doorloopt de balanstoets en liquiditeitstoets (art. 2:216 BW) en genereert direct AVA-notulen en bestuursbesluit
 - **Dividendscenario's**: Dividendscenario's voor de dga: scenariovergelijking en spreiding over jaren
 - **Earningsstripping**: Rekent de renteaftrekbeperking van art. 15b Wet Vpb door: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
 - **Gebruikelijk loon**: Toetst het DGA-loon aan de wettelijke norm: vergelijkingsloon, hoogste werknemer en afroommethode
 - **Herstructurering**: Rekent herstructureringstrajecten stap voor stap door en adviseert met AI
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
-- **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding; nabouw van het Excel-rekenmodel
+- **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
 
 ## Belastingdienst
@@ -107,7 +107,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🔵 concept | Hypotheek annuïtair | nog niet gepubliceerd | bouwman-tools/hypotheek-annuitair | n.v.t. | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
 
@@ -119,8 +119,8 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| ⚪ verborgen | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| ⚪ verborgen | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
+| 🔵 concept | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🔵 concept | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
 - **Prijsafspraken**: Toont per klant de geldende tariefafspraken, werkstatus en factuurhistorie uit een Excel-export
 - **Van rekenmodel naar bouwman.tools**: Inventarisatie van de resterende rekenmodellen, de clustering naar bouwopdrachten, de roadmap in golven en de bewijsstatus per tool. Geen rekentool: een overzichtspagina voor intern overleg

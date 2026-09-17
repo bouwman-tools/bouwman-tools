@@ -48,9 +48,9 @@ velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
   gesynct maar had geen kaart, en bestond daardoor niet voor collega's. `APP_IDS` in
   `access-beheer-worker.js` is de enige eigen lijst die nog over is; die vergelijkt
   `check_tools.py` regel voor regel met het register.
-- **De bèta-tag staat niet in `tags`**: `portal.html` leidt die af uit `status`, anders
+- **Statuslabels staan niet in `tags`**: `portal.html` leidt concept, bèta en live af uit `status`, anders
   zou de status op twee plekken in het register staan. De controle faalt op een
-  bèta-label in `tags`.
+  statuslabel in `tags`.
 - Faalt het ophalen van `tools.json`, dan tonen beide pagina's een melding en niets
   anders. Een lege pagina zou niet te onderscheiden zijn van "je hebt nergens toegang
   tot", en in `beheer.html` zou opslaan dan de rechten van een gebruiker wissen.
@@ -76,13 +76,13 @@ velden; `check_tools.py` valideert daartegen zodra `jsonschema` beschikbaar is.
   `python -B -m unittest discover -s tools -p "test_*.py"`, na installatie van
   `jsonschema` (`python -m pip install jsonschema`). De tests gebruiken synthetische
   registergegevens; de generator leest geen andere repositories.
-- Een tool met status `concept` is nog niet gepubliceerd: het bestand staat alleen in
-  de bronrepo. Zo staat werk in uitvoering toch in `tools.json` en in `TOOLS.md`, zonder
-  dat de controle struikelt op een bestand dat hier ontbreekt. `bestand` blijft verplicht
-  en noemt de beoogde naam. De controle keert het ook om: staat het bestand hier wel, of
-  is `in_portal` of `in_beheer` true, dan faalt hij en moet de status naar `beta` of
-  `live`. Een concepttool geeft geen waarschuwing over een ontbrekende Access-app, want
-  er is nog niets bereikbaar.
+- **Status en publicatie staan los van elkaar.** Besluit 17-09-2026: alle tools mogen
+  op bouwman.tools, ook concepten. Het portaal toont de inhoudelijke fase als label:
+  Concept, Bèta of Live. Publicatie verandert status of accorderingsdatum niet.
+  `in_portal` en `in_beheer` bepalen zichtbaarheid. Een zichtbare tool moet een werkend
+  bestand of een externe/Worker-route hebben; de status mag ontbrekende bestanden,
+  Access-koppelingen of Workerregistraties niet maskeren. Een nog niet gesynchroniseerd
+  concept kan tijdelijk zonder menuvlaggen geregistreerd blijven.
 - `python tools/check_tools.py` faalt bij drift, en draait ook in CI
   (`.github/workflows/check-tools.yml`). Een tool die gepubliceerd staat maar niet in
   `tools.json` voorkomt, laat de controle falen. Bij `portal.html` en `beheer.html`
@@ -140,11 +140,11 @@ bevat daarom alleen de wettelijke verwijzingen; er wordt geen interne index meeg
 
 ## Nieuwe tools gaan direct het portaal in
 
-Vaste afspraak (Sylvain, 29-08-2026): een nieuwe tool gaat meteen als `beta` het
-portaal en het beheer in, zodat testgebruikers ermee aan de slag kunnen — niet
-wachten op de fiscale beoordeling. Voorwaarde is wel dat de Access-app er eerst
-staat (nooit onafgeschermd het portaal in). De bèta-status en `status_reden`
-blijven staan tot de beoordeling is afgerond.
+Besluit Sylvain, 17-09-2026: alle tools gaan het portaal en beheer in zodra de
+publicatieversie en toegangsroute gereed zijn, ongeacht de inhoudelijke status.
+Concept, bèta en live zijn zichtbare labels; verhoog een status niet om publicatie
+mogelijk te maken. Een inhoudelijke accordering blijft een afzonderlijk besluit.
+De bestaande gegevensscheiding, publicatieroute en Access-afscherming blijven gelden.
 
 ## Onderhoud van de jaarwaarden
 

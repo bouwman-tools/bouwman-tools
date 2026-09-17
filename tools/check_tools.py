@@ -312,11 +312,10 @@ def main() -> int:
             fouten.append(f"{naam}: geen bestand en geen url.")
             continue
 
-        # Een tool met status 'concept' is nog niet gepubliceerd: het bestand staat
-        # alleen in de bronrepo. Zo staat werk in uitvoering toch in tools.json,
-        # zonder dat de controle daarop struikelt. 'bestand' blijft verplicht en
-        # noemt de beoogde bestandsnaam.
-        concept = tool["status"] == "concept"
+        # Status beschrijft de inhoudelijke fase, niet de publicatie. Ook een
+        # concept mag beschikbaar zijn; een zichtbare kaart moet wel werken.
+        zichtbaar = tool.get("in_portal") or tool.get("in_beheer")
+        verwacht_bestand = zichtbaar or tool["status"] != "concept"
 
         # bestand_in_repo false betekent: de pagina staat wel op bouwman.tools, maar
         # een eigen Worker serveert haar en het bestand hoort hier bewust niet te
@@ -324,24 +323,14 @@ def main() -> int:
         in_repo = tool.get("bestand_in_repo", True)
 
         # 1. Bestaat het bestand echt?
-        if not tool.get("extern") and not concept and in_repo and ref not in html_in_repo:
+        if not tool.get("extern") and verwacht_bestand and in_repo and ref not in html_in_repo:
             fouten.append(f"{naam}: {ref} staat in tools.json maar bestaat niet in de repo.")
         if not in_repo and ref in html_in_repo:
             fouten.append(
                 f"{naam}: bestand_in_repo is false maar {ref} staat hier wel. Haal het weg "
                 "of zet bestand_in_repo op true; de git-historie van deze repo is publiek."
             )
-        if concept and ref in html_in_repo:
-            fouten.append(
-                f"{naam}: status is concept maar {ref} staat gepubliceerd in de repo. "
-                "Zet de status op beta of live."
-            )
-
         # 2. Menuzichtbaarheid
-        if concept and (tool.get("in_portal") or tool.get("in_beheer")):
-            fouten.append(
-                f"{naam}: status is concept, dus in_portal en in_beheer horen false te zijn."
-            )
         # portal.html en beheer.html bouwen hun lijst uit het register op, dus een tool
         # met in_portal of in_beheer true komt daar vanzelf in. Wat de controle hier nog
         # moet doen is toetsen of het register alles bevat wat het portaal nodig heeft
@@ -358,9 +347,9 @@ def main() -> int:
                     "categorievolgorde, dus die kop komt achteraan in portaal en beheer."
                 )
         for tag in tool.get("tags", []):
-            if tag["label"].lower() in ("beta", "bèta"):
+            if tag["label"].lower() in ("beta", "bèta", "concept", "live"):
                 fouten.append(
-                    f"{naam}: de beta-tag hoort niet in tags; portal.html leidt die af uit "
+                    f"{naam}: de status-tag hoort niet in tags; portal.html leidt die af uit "
                     "status, anders staat de status op twee plekken."
                 )
 
@@ -370,7 +359,8 @@ def main() -> int:
             fouten.append(
                 f"{naam}: access_app_id in tools.json komt niet overeen met APP_IDS in de worker."
             )
-        if not app_id and not tool.get("extern") and not concept:
+        beschikbaar = zichtbaar or ref in html_in_repo or not in_repo
+        if not app_id and not tool.get("extern") and beschikbaar:
             waarschuwingen.append(
                 f"{naam} ({ref}) heeft geen Access-app: het bestand is voor iedereen "
                 "met de URL bereikbaar en rechten toekennen in beheer.html heeft geen effect."
@@ -383,7 +373,7 @@ def main() -> int:
         # die Worker. Zo stond kvk-zoeker op 04-09-2026 stuk in het portaal.
         for naam_worker in tool.get("workers", []):
             workers.setdefault(naam_worker, []).append(naam)
-        if not tool.get("extern") and not concept and in_repo and ref in html_in_repo:
+        if not tool.get("extern") and in_repo and ref in html_in_repo:
             if ".workers.dev" in lees(ref) and not tool.get("workers"):
                 fouten.append(
                     f"{naam}: {ref} roept een workers.dev-adres aan maar heeft geen "
@@ -549,10 +539,8 @@ def render_tools_md(bron: dict) -> str:
             "|---|---|---|---|---|---|---|---|---|",
         ]
         for tool in in_categorie:
-            concept = tool["status"] == "concept"
-            doel = "nog niet gepubliceerd" if concept else (
-                tool.get("url") or ("/" + tool["bestand"]))
-            if concept or tool.get("extern"):
+            doel = tool.get("url") or ("/" + tool["bestand"])
+            if tool.get("extern"):
                 schild = "n.v.t."
             else:
                 schild = "ja" if tool.get("access_app_id") else "**nee**"
@@ -572,8 +560,7 @@ def render_tools_md(bron: dict) -> str:
                 "n.v.t." if not oordeel_nodig or ritme == "geen" else "**nooit**"
             )
             regels.append(
-                f"| {status} | {tool['naam']} | {'' if concept else '`'}{doel}"
-                f"{'' if concept else '`'} | {tool['repo']} | {schild} "
+                f"| {status} | {tool['naam']} | `{doel}` | {tool['repo']} | {schild} "
                 f"| {jw} | {eigenaar} | {ritme} | {akkoord} |"
             )
         # De beschrijving staat als aparte regel onder de tabel en niet als tiende
@@ -591,7 +578,8 @@ def render_tools_md(bron: dict) -> str:
 
     onbeschermd = [
         t for t in bron["tools"]
-        if not t.get("access_app_id") and not t.get("extern") and t["status"] != "concept"
+        if not t.get("access_app_id") and not t.get("extern")
+        and (t.get("in_portal") or t.get("in_beheer") or t["status"] != "concept")
     ]
     if onbeschermd:
         regels += [
