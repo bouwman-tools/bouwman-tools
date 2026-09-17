@@ -1,0 +1,2822 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
+<title>RC-rente uit mutaties</title>
+<style>
+  :root {
+    --navy:        #1E2D4E;
+    --navy-deep:   #16223c;
+    --mint:        #3DD9A0;
+    --mint-light:  #e6faf3;
+    --mint-mid:    #b0efd5;
+    --yellow:      #FFD100;
+    --yellow-light:#fff8dd;
+    --bg:          #f4f5f7;
+    --surface:     #ffffff;
+    --border:      #e0e4ec;
+    --text:        #1E2D4E;
+    --muted:       #6b7a99;
+    --warn:        #c0392b;
+    --warn-light:  #fdf0ee;
+    --sans: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 20px 80px; }
+  header.top { border-bottom: 3px solid var(--mint); margin-bottom: 24px; padding-bottom: 14px; }
+  header.top h1 { margin: 0 0 4px; font-size: 24px; letter-spacing: -0.01em; }
+  header.top p { margin: 0; color: var(--muted); font-size: 14px; }
+  .lokaal {
+    display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 999px;
+    background: var(--mint-light); color: var(--navy-deep); font-size: 12px; font-weight: 600;
+    border: 1px solid var(--mint-mid);
+  }
+  section.stap {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(30,45,78,0.06);
+  }
+  section.stap > h2 { margin: 0 0 14px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+  section.stap > h2 .nr {
+    display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none;
+    border-radius: 50%; background: var(--navy); color: #fff; font-size: 13px; font-weight: 700;
+  }
+  .uitleg { color: var(--muted); font-size: 13px; margin: -6px 0 14px; }
+  .rij { display: flex; flex-wrap: wrap; gap: 18px; }
+  .veld { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .veld label { font-size: 13px; font-weight: 600; }
+  .veld .hint { font-size: 12px; color: var(--muted); }
+  input[type=text], input[type=number], select, textarea {
+    font-family: var(--sans); font-size: 14px; color: var(--text);
+    padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--mint); box-shadow: 0 0 0 3px rgba(61,217,160,0.18);
+  }
+  input[type=number], input.bedrag { text-align: right; font-variant-numeric: tabular-nums; }
+  textarea { width: 100%; min-height: 130px; font-family: var(--mono); font-size: 13px; }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer;
+    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--navy);
+    background: var(--navy); color: #fff;
+  }
+  button:hover { background: var(--navy-deep); }
+  button.secundair { background: #fff; color: var(--navy); }
+  button.secundair:hover { background: var(--mint-light); }
+  button.klein { padding: 5px 10px; font-size: 13px; }
+  .knoppen { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .dropzone {
+    border: 2px dashed var(--mint-mid); border-radius: 10px; background: var(--mint-light);
+    padding: 22px; text-align: center; color: var(--navy-deep);
+  }
+  .dropzone.hover { border-color: var(--mint); background: #d9f7ea; }
+  .dropzone strong { display: block; margin-bottom: 4px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .tabs button { background: #fff; color: var(--muted); border: 1px solid var(--border); font-weight: 600; }
+  .tabs button[aria-selected=true] { background: var(--navy); color: #fff; border-color: var(--navy); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 9px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: #fafbfc; font-weight: 600; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .scroll table { border: none; }
+  tr.overgeslagen td { color: var(--muted); background: #fbfbfc; }
+  .melding {
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+    border-left: 4px solid var(--border); background: #fafbfc;
+  }
+  .melding.blokkerend { border-left-color: var(--warn); background: var(--warn-light); }
+  .melding.let-op { border-left-color: var(--yellow); background: var(--yellow-light); }
+  .melding.goed { border-left-color: var(--mint); background: var(--mint-light); }
+  .melding strong { display: block; margin-bottom: 3px; }
+  .melding ul { margin: 6px 0 0; padding-left: 20px; }
+  .kaarten { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kaart { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: #fff; }
+  .kaart .kop { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .kaart .waarde { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .kaart .sub { font-size: 12px; color: var(--muted); }
+  .kaart.accent { background: var(--mint-light); border-color: var(--mint-mid); }
+  .negatief { color: var(--warn); }
+  h3.blokkop { font-size: 14px; margin: 22px 0 8px; }
+  details { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; background: #fff; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details[open] summary { margin-bottom: 10px; }
+  .bron { font-size: 12px; color: var(--muted); }
+  .bron code { font-family: var(--mono); font-size: 11px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+  footer.voet { color: var(--muted); font-size: 12px; margin-top: 30px; border-top: 1px solid var(--border); padding-top: 14px; }
+  @media print {
+    body { background: #fff; }
+    .niet-printen { display: none !important; }
+    section.stap { border: none; box-shadow: none; padding: 0; }
+    .scroll { border: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>RC-rente uit mutaties</h1>
+  <p>Renteberekening over een rekening-courantverhouding tussen DGA en BV, op dagbasis, uit de mutaties zelf.</p>
+  <span class="lokaal">Rekent volledig in deze browser &middot; verstuurt niets</span>
+</header>
+
+<details class="niet-printen">
+  <summary>Wat deze tool doet, en wat u zelf beoordeelt</summary>
+  <p class="uitleg" style="margin-top:10px">
+    De rente wordt per dag berekend over het werkelijke saldo: dagrente is saldo maal
+    jaarrente gedeeld door het aantal dagen van dat jaar, en een mutatie rendeert vanaf de
+    dag zelf. De rente wordt per 31 december vastgesteld en binnen het jaar niet
+    samengesteld. Dagen met een vordering van de DGA leveren creditrente op, dagen met een
+    schuld debetrente; het saldo van die twee is de totale rente.
+  </p>
+  <p class="uitleg">
+    In de uitkomst is een positief bedrag altijd een vordering van de DGA op de BV. Een
+    grootboekkaart uit de administratie van de BV heeft het andersom; dat wordt bij het
+    inlezen omgezet en de gekozen richting staat in de onderbouwing.
+  </p>
+  <p class="uitleg">
+    <strong>De sluitcontrole is de belangrijkste vangrail.</strong> Wijkt het berekende
+    eindsaldo af van het saldo in de bron, dan is er vermoedelijk een regel gemist of dubbel
+    ingelezen, en is de uitkomst niet bruikbaar voordat dat verschil is verklaard.
+  </p>
+  <p class="uitleg">
+    Wat de tool niet doet: zij beoordeelt niet of het rentepercentage zakelijk is en stelt de
+    rekening-courantverhouding niet vast. Bij de goedkeuring voor kleine standen toetst zij
+    alleen de standen zelf; of de vennootschap geen rente in aanmerking neemt en of de schuld
+    buiten box 3 blijft, kan zij niet zien. De signalering over excessief lenen is een signaal
+    en geen conclusie, omdat het maximumbedrag geldt voor de DGA en zijn fiscale partner
+    samen en artikel 4.14b Wet IB 2001 daarnaast de schulden meetelt van een bloed- of
+    aanverwant in de rechte lijn van de DGA of van zijn partner die zelf geen aanmerkelijk
+    belang in de vennootschap heeft, voor zover die schulden het in dat artikel genoemde
+    bedrag overschrijden.
+  </p>
+</details>
+
+<section class="stap niet-printen" id="stap-bron">
+  <h2><span class="nr">1</span> Mutaties inlezen</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-plak" aria-selected="true">Plakken</button>
+    <button type="button" role="tab" id="tab-bestand" aria-selected="false">Bestand (Excel, CSV of PDF)</button>
+  </div>
+
+  <div id="paneel-plak">
+    <p class="uitleg">Selecteer de mutaties in Excel of in de grootboekkaart, kopieer ze en plak ze hieronder. De kopregel mag mee.</p>
+    <textarea id="plakveld" placeholder="Datum&#9;Omschrijving&#9;Debet&#9;Credit&#9;Saldo"></textarea>
+    <div class="knoppen" style="margin-top:10px">
+      <button type="button" id="btn-plak-lees">Inlezen</button>
+      <button type="button" class="secundair" id="btn-voorbeeld">Voorbeeldgegevens</button>
+    </div>
+  </div>
+
+  <div id="paneel-bestand" hidden>
+    <div class="dropzone" id="dropzone">
+      <strong>Sleep hier een .xlsx, .csv of .pdf</strong>
+      <span class="bron">of <button type="button" class="secundair klein" id="btn-kies">kies een bestand</button></span>
+      <input type="file" id="bestand" accept=".xlsx,.csv,.txt,.pdf" hidden />
+    </div>
+    <div id="werkbladkeuze" hidden style="margin-top:12px">
+      <div class="veld" style="max-width:320px">
+        <label for="werkblad">Werkblad</label>
+        <select id="werkblad"></select>
+      </div>
+    </div>
+  </div>
+  <div id="bron-meldingen" style="margin-top:12px"></div>
+</section>
+
+<section class="stap niet-printen" id="stap-kolommen" hidden>
+  <h2><span class="nr">2</span> Kolommen toewijzen</h2>
+  <p class="uitleg">De toewijzing is een gok. Controleer haar, want alles daarna bouwt hierop voort.</p>
+  <div class="scroll"><table id="kolomtabel"></table></div>
+  <div id="kolom-meldingen" style="margin-top:12px"></div>
+</section>
+
+<section class="stap niet-printen" id="stap-uitgangspunten" hidden>
+  <h2><span class="nr">3</span> Uitgangspunten</h2>
+  <div class="rij">
+    <div class="veld">
+      <label for="jaar">Kalenderjaar</label>
+      <input type="number" id="jaar" min="2000" max="2099" step="1" style="width:110px" />
+    </div>
+    <div class="veld">
+      <label for="beginstand">Beginstand per 1 januari</label>
+      <input type="text" id="beginstand" class="bedrag" style="width:150px" />
+      <span class="hint" id="beginstand-hint">positief = vordering DGA op BV</span>
+    </div>
+    <div class="veld">
+      <label for="rente">Rente per jaar (%)</label>
+      <input type="text" id="rente" class="bedrag" style="width:110px" />
+      <span class="hint">de zakelijkheid beoordeelt de adviseur</span>
+    </div>
+    <div class="veld" id="veld-rente-debet" hidden>
+      <label for="rente-debet">Rente bij schuld DGA (%)</label>
+      <input type="text" id="rente-debet" class="bedrag" style="width:110px" />
+    </div>
+  </div>
+  <div class="rij">
+    <div class="veld">
+      <label for="conventie">Tekenconventie van de bron</label>
+      <select id="conventie">
+        <option value="bv">Administratie van de BV: debet = schuld van de DGA</option>
+        <option value="dga">Omgekeerd: debet = vordering van de DGA</option>
+      </select>
+      <span class="hint">In de uitkomst is positief altijd een vordering van de DGA op de BV.</span>
+    </div>
+    <div class="veld">
+      <label for="eindsaldo-bron">Eindsaldo volgens de bron</label>
+      <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
+      <span class="hint">voor de sluitcontrole, exclusief nog te boeken rente</span>
+    </div>
+  </div>
+  <div style="margin-bottom:12px; display:flex; flex-direction:column; gap:6px">
+    <label style="font-size:13px"><input type="checkbox" id="rente-apart" /> aparte rente voor debet- en creditstanden</label>
+    <label style="font-size:13px" id="veld-alle-jaren" hidden><input type="checkbox" id="alle-jaren" /> <span id="alle-jaren-tekst">alle jaren uit de bron doorrekenen</span></label>
+    <label style="font-size:13px" id="veld-per-jaar-anders" hidden><input type="checkbox" id="per-jaar-anders" /> afwijkende rente per jaar</label>
+    <label style="font-size:13px"><input type="checkbox" id="rente-bijschrijven" /> rente per 31 december bijschrijven op de rekening-courant</label>
+  </div>
+  <div id="rente-tabel-blok" hidden style="margin-bottom:14px; max-width:420px">
+    <div id="rente-tabel" class="scroll"></div>
+  </div>
+  <div class="knoppen">
+    <button type="button" id="btn-reken">Rente berekenen</button>
+  </div>
+  <div id="uitgangspunt-meldingen" style="margin-top:12px"></div>
+</section>
+
+<section class="stap" id="stap-uitkomst" hidden>
+  <h2><span class="nr">4</span> Uitkomst</h2>
+  <div id="uitkomst"></div>
+</section>
+
+<footer class="voet">
+  Deze tool rekent en signaleert. Het beoordelen van de zakelijkheid van de rente en het vaststellen van de
+  rekening-courantverhouding blijft werk van de adviseur.
+</footer>
+
+</div>
+<script>
+"use strict";
+// FISCALE KERN — BEGIN
+// Uitsluitend pure functies en constanten. Geen document, window, fetch of DOM.
+
+const VERSIE = "v1.0 (2026-09-02)";
+
+// Configuratie van het inlezen. De brug van bron naar mutaties loopt via
+// interpreteerTabel(). Een AI-implementatie kan daar later naast worden gezet: die mag
+// uitsluitend interpreteren, nooit rekenen. Aanzetten vereist ook het verruimen van de
+// Content-Security-Policy in de <head>; die twee horen bij elkaar.
+const LEZER_CONFIG = {
+  aiActief: false,
+  aiEndpoint: null,
+  aiModus: "alleen-interpretatie",
+  // Een implementatie die rijen omzet in een kolomvoorstel. Zolang deze null is, rekent de
+  // lokale heuristiek. Een implementatie krijgt de rijen en geeft uitsluitend een voorstel
+  // terug; bedragen en rente komen altijd uit de kern hieronder.
+  aiInterpreteer: null,
+};
+
+// Jaargebonden fiscale waarden. Eén blok per jaar, met de vindplaats bij de waarde.
+// Een jaar dat hier niet staat, levert geen toets op maar een zichtbare melding.
+const FISCAAL_PER_JAAR = {
+  2022: {
+    kleineStandenGrens: 17500,
+    // Verzamelbesluit ROW, onderdeel 8.4. Het besluit kent één versie, geldend van
+    // 17-12-2021 t/m 28-01-2026, dus in 2022 en 2023 gold dezelfde grens en dezelfde
+    // voorwaarden als in 2024 en 2025. Gecontroleerd 2026-09-03.
+    kleineStandenBron: "Verzamelbesluit ROW, onderdeel 8.4 (Stcrt. 2021, 48048)",
+    // De Wet excessief lenen bij eigen vennootschap (wet van 21-12-2022, Stb. 2022, 531)
+    // treedt op grond van artikel III in werking met ingang van 01-01-2023. Art. 4.14a
+    // Wet IB 2001 bestaat in 2022 dus nog niet; er valt over 2022 niets te signaleren.
+    // Gecontroleerd 2026-09-03.
+    excessiefLenenMax: null,
+    excessiefLenenBron: "Art. III Wet excessief lenen bij eigen vennootschap (Stb. 2022, 531)",
+    excessiefLenenMelding: "De Wet excessief lenen bij eigen vennootschap geldt pas vanaf 2023, dus over 2022 wordt niet gesignaleerd.",
+  },
+  2023: {
+    kleineStandenGrens: 17500,
+    kleineStandenBron: "Verzamelbesluit ROW, onderdeel 8.4 (Stcrt. 2021, 48048)",
+    // Art. 4.14a lid 2 Wet IB 2001 in de tekst geldend vanaf 01-01-2023: het maximumbedrag
+    // bedraagt € 700.000. Lid 4 bepaalt het bedrag van de schulden aan het einde van het
+    // kalenderjaar, zodat 31-12-2023 de eerste peildatum is. Per 01-01-2024 verlaagd naar
+    // € 500.000. Gecontroleerd 2026-09-03.
+    excessiefLenenMax: 700000,
+    excessiefLenenBron: "Art. 4.14a lid 2 Wet IB 2001 (Stb. 2022, 531)",
+  },
+  2024: {
+    kleineStandenGrens: 17500,
+    // Verzamelbesluit resultaat overige werkzaamheden, onderdeel 8.4 (rekening-courant met
+    // wisselende debet- en creditstanden), Stcrt. 2021, 48048 / BWBR0046030, geldend van
+    // 17-12-2021 tot en met 28-01-2026, want het Besluit ROW 2026 trad pas op 29-01-2026 in
+    // werking. Gecontroleerd 2026-09-11.
+    kleineStandenBron: "Verzamelbesluit ROW, onderdeel 8.4 (Stcrt. 2021, 48048)",
+    excessiefLenenMax: 500000,
+    // Art. 4.14a lid 2 Wet IB 2001. Bedrag van € 700.000 vervangen door € 500.000 bij
+    // Belastingplan 2024 (Wet van 20-12-2023, Stb. 2023, 499, art. I onderdeel 0A), in
+    // werking 01-01-2024 en dus voor het eerst op peildatum 31-12-2024.
+    // Gecontroleerd 2026-09-02.
+    excessiefLenenBron: "Art. 4.14a lid 2 Wet IB 2001 (Stb. 2023, 499)",
+  },
+  2025: {
+    kleineStandenGrens: 17500,
+    kleineStandenBron: "Verzamelbesluit ROW, onderdeel 8.4 (Stcrt. 2021, 48048)",
+    excessiefLenenMax: 500000,
+    excessiefLenenBron: "Art. 4.14a lid 2 Wet IB 2001 (Stb. 2023, 499)",
+  },
+  2026: {
+    kleineStandenGrens: 17500,
+    // Besluit resultaat uit overige werkzaamheden 2026 (Besluit ROW 2026), onderdeel 3.9.
+    // Besluit van de Staatssecretaris van Financiën van 15-01-2026, nr. 2026-436, uitgegeven
+    // in Stcrt. 2026, 1724 op 28-01-2026 en in werking op 29-01-2026, de dag na de uitgifte.
+    // Vervangt onderdeel 8.4 van het Verzamelbesluit ROW; bedrag en voorwaarden zijn
+    // ongewijzigd. Hier stond eerder 28-01-2026 als datum van het besluit zelf; dat is de
+    // datum van uitgifte, niet de dagtekening. Vindplaats:
+    // zoek.officielebekendmakingen.nl/stcrt-2026-1724 en wetten.overheid.nl/BWBR0052230.
+    // Gecontroleerd 2026-09-11.
+    kleineStandenBron: "Besluit ROW 2026, onderdeel 3.9 (nr. 2026-436, Stcrt. 2026, 1724)",
+    excessiefLenenMax: 500000,
+    excessiefLenenBron: "Art. 4.14a lid 2 Wet IB 2001 (Stb. 2023, 499)",
+  },
+};
+
+// Voorwaarden van de goedkeuring, geparafraseerd uit de bron hierboven. De tool hoort ze
+// te tonen en niet alleen de uitkomst: of aan voorwaarde 2 en 3 is voldaan, kan de tool
+// niet zien.
+const KLEINE_STANDEN_VOORWAARDEN = [
+  "het saldo van de rekening-courantverhouding blijft het hele kalenderjaar binnen de grens, zowel positief als negatief",
+  "de vennootschap neemt ter zake geen rente in aanmerking",
+  "een rekening-courantschuld wordt niet als schuld in box 3 in aanmerking genomen",
+];
+
+// De kring van schulden bij de Wet excessief lenen, als tekst met de vindplaats erbij. Zij
+// houdt niet op bij de fiscale partner. Art. 4.14a lid 3 Wet IB 2001 neemt de schulden van
+// de belastingplichtige en zijn partner eenmaal samen in aanmerking en laat het
+// maximumbedrag voor hen gezamenlijk gelden. Art. 4.14b lid 1 rekent daarnaast de schulden
+// van een verbonden persoon toe aan de belastingplichtige: een bloed- of aanverwant in de
+// rechte lijn van de belastingplichtige of van zijn partner die zelf geen aanmerkelijk
+// belang heeft in de vennootschap, en wel voor zover diens schulden meer bedragen dan het
+// in dat artikellid genoemde bedrag; lid 2 laat dat bedrag gelden voor die persoon en zijn
+// partner samen. Dat bedrag staat los van het maximumbedrag van art. 4.14a lid 2, dat wordt
+// verhoogd met eerder in de heffing betrokken bedragen, en daarom noemt de tekst hieronder
+// geen getal. De signalering blijft hoe dan ook een signaal: deze tool ziet één
+// rekening-courant en niet de overige schulden. Gelezen in de geconsolideerde XML bij KOOP,
+// BWBR0011353 versie 2026-02-21_0, waarvan de SHA-512 gelijk is aan de hashcode in het
+// manifest. Gecontroleerd 2026-09-11.
+const EXCESSIEF_LENEN_KRING = "het maximumbedrag geldt voor de DGA en zijn fiscale partner samen, en artikel 4.14b telt daarnaast de schulden mee van een bloed- of aanverwant in de rechte lijn van de DGA of van zijn partner die zelf geen aanmerkelijk belang in de vennootschap heeft, voor zover diens schulden het in dat artikel genoemde bedrag overschrijden";
+const EXCESSIEF_LENEN_KRING_BRON = "art. 4.14a lid 3 en art. 4.14b leden 1 en 2 Wet IB 2001";
+
+// Fiscale kwalificatie van de twee rentecomponenten bij de DGA, met de vindplaats bij de
+// tekst. De tool rekent; of de regeling in dit geval van toepassing is, beoordeelt de
+// adviseur. Beide teksten volgen de omslag die Besluit ROW 2026, onderdeel 3.9 beschrijft:
+// zolang de DGA een vordering heeft ligt de rekening-courant in box 1, slaat zij om in een
+// schuld dan verschuift zij naar box 3.
+const KWALIFICATIE = {
+  credit: {
+    kort: "box 1, resultaat uit overige werkzaamheden",
+    // Art. 3.92 lid 2 onderdeel a onder 1° Wet IB 2001 stelt het hebben van een
+    // schuldvordering op de vennootschap waarin de belastingplichtige een aanmerkelijk
+    // belang heeft gelijk met terbeschikkingstelling; het voordeel is dan resultaat uit
+    // overige werkzaamheden (afdeling 3.4, hoofdstuk 3, dus box 1). Art. 3.99b lid 1 bakent
+    // de vrijstelling af tot de belastingplichtige met een werkzaamheid als bedoeld in art.
+    // 3.91 of 3.92, met uitzondering van art. 3.91 lid 1 onderdeel c; lid 2 stelt haar op
+    // 12% van het gezamenlijke bedrag van het resultaat uit diezelfde werkzaamheden, met
+    // dezelfde uitzondering. Het is dus niet het resultaat uit alle werkzaamheden. Deze
+    // tekst is ongewijzigd sinds 01-01-2010 en woordelijk gelijk in de versie die op
+    // 31-12-2022 gold, dus de afbakening geldt ook voor de oudere jaren in de jaartabel.
+    // Gelezen in de geconsolideerde XML bij KOOP, versies 2026-02-21_0 en 2022-04-01_4.
+    // Gecontroleerd 2026-09-09.
+    tekst: "Een rekening-courantvordering van de DGA op zijn vennootschap wordt gelijkgesteld met terbeschikkingstelling, zodat de rente bij hem resultaat uit overige werkzaamheden is en in box 1 valt. Daarna geldt de terbeschikkingstellingsvrijstelling van 12%, en die wordt berekend over het gezamenlijke resultaat uit de werkzaamheden waarop zij van toepassing is: de werkzaamheden van de artikelen 3.91 en 3.92, met uitzondering van artikel 3.91, eerste lid, onderdeel c. Dat is dus niet het resultaat uit alle werkzaamheden van de belastingplichtige. De tool rekent de vrijstelling niet uit, want daarvoor is meer nodig dan deze rekening-courant.",
+    bron: "Art. 3.92 lid 1 onderdeel a en lid 2 onderdeel a onder 1° Wet IB 2001, tbs-vrijstelling art. 3.99b leden 1 en 2; Besluit ROW 2026, onderdeel 3.9 (tot en met 2025: Verzamelbesluit ROW, onderdeel 8.4, gelijkluidend)",
+  },
+  debet: {
+    kort: "box 3; schuldrente kan meetellen bij tegenbewijs",
+    // Het forfaitaire stelsel kent geen kostenaftrek: de schuld verlaagt de
+    // rendementsgrondslag (art. 5.3 lid 3). Onder de tegenbewijsregeling is de verschuldigde
+    // rente wel een negatief regulier voordeel (art. 5.27 lid 2 onderdeel a), maar het
+    // werkelijke rendement wordt ten minste op nihil gesteld (art. 5.25 lid 2), zodat er
+    // geen aftrekpost of verlies ontstaat. Bij onzakelijke voorwaarden wordt gerekend met
+    // wat onafhankelijke partijen zouden zijn overeengekomen (art. 5.27 lid 3). 'Geen
+    // renteaftrek' is daarom te absoluut voor de korte kaart.
+    //
+    // Het jaar waarin de rente meetelt volgt niet uit deze berekening maar uit art. 5.34
+    // lid 2: een negatief regulier voordeel hoort in het kalenderjaar waarin het is betaald,
+    // verrekend, ter beschikking gesteld of rentedragend geworden. Afdeling 5.6 is ingevoegd
+    // bij Stb. 2025, 195 en werkt op grond van art. V onderdeel a terug tot en met
+    // 01-01-2023; art. IV werkt terug tot en met 01-01-2017 en brengt art. 6a in de Wet
+    // rechtsherstel box 3, die blijkens haar opschrift de kalenderjaren 2017 tot en met 2022
+    // bestrijkt. Voor 2022 loopt het tegenbewijs dus langs die route en niet rechtstreeks
+    // langs afdeling 5.6. Inwerkingtreding 19-07-2025 (Stb. 2025, 196).
+    // Gelezen in Stb. 2025, 195 zelf en in de geconsolideerde XML bij KOOP, versie
+    // 2026-02-21_0. Gecontroleerd 2026-09-09.
+    tekst: "Slaat de vordering om in een schuld van de DGA, dan verschuift de rekening-courant naar box 3. In het forfaitaire stelsel is de betaalde rente geen aftrekpost: alleen de schuld zelf verlaagt de rendementsgrondslag. Doet de belastingplichtige een beroep op de tegenbewijsregeling, dan telt de verschuldigde rente wel mee, namelijk als negatief regulier voordeel bij het bepalen van het werkelijke rendement. Dat rendement wordt over het hele box 3-vermogen ten minste op nihil gesteld, zodat er ook langs die weg geen aftrekpost of verlies ontstaat. Is de rente onzakelijk, dan wordt gerekend met de rente die onafhankelijke partijen zouden zijn overeengekomen. Een eigenwoningschuld volgt een eigen regime en valt hierbuiten.",
+    genietingsmoment: "De rente die deze tool over een kalenderjaar berekent, is niet zonder meer het bedrag dat in dat jaar meetelt. Een negatief regulier voordeel hoort in het kalenderjaar waarin de rente is betaald, verrekend, ter beschikking gesteld of rentedragend geworden. Wordt de rente op de rekening-courant bijgeschreven, dan is zij daarmee rentedragend geworden; blijft zij onbetaald staan zonder dat een van die momenten zich voordoet, dan valt het fiscale jaar niet samen met het jaar waarover hier is gerekend. Voor 2022 en eerdere jaren loopt het tegenbewijs bovendien niet rechtstreeks langs afdeling 5.6, maar langs de tegenbewijsregeling van de Wet rechtsherstel box 3, die de kalenderjaren 2017 tot en met 2022 bestrijkt. Welk moment zich heeft voorgedaan blijkt niet uit een renteoverzicht en beoordeelt de adviseur.",
+    bron: "Besluit ROW 2026, onderdeel 3.9 (tot en met 2025: Verzamelbesluit ROW, onderdeel 8.4, gelijkluidend); art. 5.25 lid 1 en 2, art. 5.27 lid 2 onderdeel a en lid 3 en art. 5.34 lid 2 Wet IB 2001 (afdeling 5.6, ingevoegd bij Stb. 2025, 195, terugwerkend tot en met 01-01-2023); voor 2017 tot en met 2022 art. 6a Wet rechtsherstel box 3 (art. IV Stb. 2025, 195, terugwerkend tot en met 01-01-2017)",
+  },
+};
+
+// --- rekenhulpen -----------------------------------------------------------------
+
+function afrond2(x) {
+  return Math.round((x + Number.EPSILON) * 100) / 100;
+}
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+// Actual/actual: de noemer is het werkelijke aantal dagen van het kalenderjaar.
+function dagenInJaar(jaar) {
+  return isSchrikkeljaar(jaar) ? 366 : 365;
+}
+
+// Dagnummer sinds 1970-01-01 in UTC, zodat zomertijd geen rol speelt.
+function dagnummer(iso) {
+  const d = String(iso).split("-").map(Number);
+  return Math.round(Date.UTC(d[0], d[1] - 1, d[2]) / 86400000);
+}
+
+function isoVanDagnummer(n) {
+  return new Date(n * 86400000).toISOString().slice(0, 10);
+}
+
+function isGeldigeDatum(jaar, maand, dag) {
+  if (!Number.isInteger(jaar) || !Number.isInteger(maand) || !Number.isInteger(dag)) return false;
+  if (maand < 1 || maand > 12 || dag < 1) return false;
+  const lengtes = [31, isSchrikkeljaar(jaar) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return dag <= lengtes[maand - 1];
+}
+
+const MAANDNAMEN = {
+  jan: 1, feb: 2, mrt: 3, maa: 3, apr: 4, mei: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, okt: 10, nov: 11, dec: 12,
+};
+
+// Excel-serienummers: 1899-12-30 als dag 0 (het 1900-systeem inclusief de schrikkeljaarbug).
+// De ondergrens voorkomt dat een bedrag als datum wordt gelezen.
+const EXCEL_DAG0 = -25569;
+const EXCEL_MIN = 20000; // 1954-10-03
+const EXCEL_MAX = 80000; // 2119-01-27
+
+function parseDatum(waarde) {
+  if (waarde === null || waarde === undefined || waarde === "") return null;
+  if (waarde instanceof Date && !isNaN(waarde)) {
+    return [waarde.getFullYear(), waarde.getMonth() + 1, waarde.getDate()]
+      .map((n, i) => String(n).padStart(i === 0 ? 4 : 2, "0")).join("-");
+  }
+  if (typeof waarde === "number") {
+    if (!Number.isFinite(waarde) || waarde < EXCEL_MIN || waarde > EXCEL_MAX) return null;
+    return isoVanDagnummer(EXCEL_DAG0 + Math.floor(waarde));
+  }
+  const t = String(waarde).trim().replace(/ /g, " ");
+  if (t === "") return null;
+
+  let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) {
+    const [j, mm, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    return isGeldigeDatum(j, mm, d) ? `${j}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}` : null;
+  }
+  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
+  if (m) {
+    const d = Number(m[1]), mm = Number(m[2]);
+    let j = Number(m[3]);
+    if (m[3].length === 2) j += j < 70 ? 2000 : 1900;
+    return isGeldigeDatum(j, mm, d) ? `${j}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}` : null;
+  }
+  m = t.match(/^(\d{1,2})[-\s]*([a-zA-Z]{3,})\.?[-\s]*(\d{4})$/);
+  if (m) {
+    const mm = MAANDNAMEN[m[2].slice(0, 3).toLowerCase()];
+    const d = Number(m[1]), j = Number(m[3]);
+    if (mm && isGeldigeDatum(j, mm, d)) {
+      return `${j}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+  }
+  return null;
+}
+
+// Leest een bedrag in bronteken: debet is negatief, credit is positief. Afgevangen worden
+// NL- en EN-notatie, haakjes, een minteken voor of achter het bedrag en een losse
+// D/C-aanduiding. Een punt met precies drie cijfers erachter geldt als duizendscheider,
+// omdat bedragen met drie decimalen in een grootboek niet voorkomen.
+function parseBedrag(waarde) {
+  if (typeof waarde === "number") return Number.isFinite(waarde) ? waarde : null;
+  if (waarde === null || waarde === undefined) return null;
+  let t = String(waarde).trim().replace(/ /g, " ");
+  if (t === "" || t === "-") return null;
+  t = t.replace(/[€\s]/g, "");
+
+  let teken = 1;
+  let dcTeken = 0;
+  if (/^\(.*\)$/.test(t)) { teken = -1; t = t.slice(1, -1); }
+
+  let m = t.match(/^(.*\d)([DCdc])$/);
+  if (m) { t = m[1]; dcTeken = m[2].toUpperCase() === "D" ? -1 : 1; }
+  else {
+    m = t.match(/^([DCdc])(\d.*)$/);
+    if (m) { t = m[2]; dcTeken = m[1].toUpperCase() === "D" ? -1 : 1; }
+  }
+  if (t.endsWith("-")) { teken = -teken; t = t.slice(0, -1); }
+  if (t.startsWith("-")) { teken = -teken; t = t.slice(1); }
+  if (t.startsWith("+")) t = t.slice(1);
+  if (t === "") return null;
+
+  const komma = t.lastIndexOf(","), punt = t.lastIndexOf(".");
+  let dec = -1;
+  if (komma > -1 && punt > -1) {
+    dec = Math.max(komma, punt);
+  } else if (komma > -1) {
+    const na = t.length - komma - 1;
+    if (t.indexOf(",") === komma && na > 0 && na <= 2) dec = komma;
+  } else if (punt > -1) {
+    const na = t.length - punt - 1;
+    if (t.indexOf(".") === punt && na > 0 && na <= 2) dec = punt;
+  }
+  let heel = dec > -1 ? t.slice(0, dec) : t;
+  const frac = dec > -1 ? t.slice(dec + 1) : "";
+  heel = heel.replace(/[.,'’]/g, "");
+  if (!/^\d*$/.test(heel) || !/^\d*$/.test(frac)) return null;
+  if (heel === "" && frac === "") return null;
+  const getal = Number((heel === "" ? "0" : heel) + (frac ? "." + frac : ""));
+  if (!Number.isFinite(getal)) return null;
+  return dcTeken !== 0 ? dcTeken * Math.abs(getal) : teken * getal;
+}
+
+// --- bron naar mutaties ----------------------------------------------------------
+
+const KOLOMSOORTEN = ["datum", "omschrijving", "debet", "credit", "bedrag", "saldo", "negeren"];
+
+const KOLOMWOORDEN = [
+  // Let op: "valuta" alleen is een valutacode en geen datum; alleen "valutadatum" telt.
+  ["datum", /^(boek)?datum|datum\b|^dat\.|valutadatum|periode.?datum/i],
+  ["debet", /^debet|^debit|^af\b|^afschrijving|^uitgaven?$/i],
+  ["credit", /^credit|^kredit|^bij\b|^bijschrijving|^inkomsten?$/i],
+  ["saldo", /^saldo|^stand|^balans|^cumulatief/i],
+  ["bedrag", /^bedrag|^mutatie|^betaling|^amount|^waarde/i],
+  ["omschrijving", /^omschrijving|^beschrijving|^toelichting|^boekstuk|^naam|^tekst|^grootboek|^rekening|^memo|^referentie|^factuur/i],
+];
+
+function gokKolomsoort(kop) {
+  const t = String(kop === null || kop === undefined ? "" : kop).trim();
+  if (t === "") return null;
+  for (const [soort, patroon] of KOLOMWOORDEN) {
+    if (patroon.test(t)) return soort;
+  }
+  return null;
+}
+
+function isLeegRij(rij) {
+  return !rij || rij.every((c) => c === null || c === undefined || String(c).trim() === "");
+}
+
+// Interpreteert een tabel (array van arrays) en gokt welke kolom wat is. Dit is de brug
+// waar later een AI-implementatie naast kan staan; de uitvoer heeft daarom een vaste vorm.
+function interpreteerTabel(rijen) {
+  const opmerkingen = [];
+  const kolommen = { datum: null, omschrijving: null, debet: null, credit: null, bedrag: null, saldo: null };
+  const gevuld = (rijen || []).filter((r) => !isLeegRij(r));
+  if (gevuld.length === 0) {
+    return { kopIndex: -1, kolommen, betrouwbaarheid: 0, opmerkingen: ["Geen gegevens gevonden."], bron: "lokale heuristiek" };
+  }
+  const breedte = Math.max(...gevuld.map((r) => r.length));
+
+  // Kopregel: de eerste rij waarin ten minste twee cellen op een bekende kolomnaam lijken
+  // en waarin geen bruikbare datum staat.
+  let kopIndex = -1;
+  for (let i = 0; i < Math.min(gevuld.length, 15); i++) {
+    const treffers = gevuld[i].filter((c) => gokKolomsoort(c) !== null).length;
+    const datums = gevuld[i].filter((c) => parseDatum(c) !== null).length;
+    if (treffers >= 2 && datums === 0) { kopIndex = i; break; }
+  }
+
+  if (kopIndex > -1) {
+    gevuld[kopIndex].forEach((cel, k) => {
+      const soort = gokKolomsoort(cel);
+      if (soort && kolommen[soort] === null) kolommen[soort] = k;
+    });
+  } else {
+    opmerkingen.push("Geen kopregel gevonden; de kolommen zijn op inhoud gegokt.");
+  }
+
+  const gegevens = gevuld.slice(kopIndex + 1);
+
+  // De kolomnaam is een aanwijzing, de inhoud is het bewijs. Een kop als "Periode" of
+  // "Valuta" lijkt op een datumkolom terwijl er codes of nummers in staan; dan wordt de
+  // kolom met de meeste geldige datums gekozen.
+  const datumtreffers = (k) => (k === null ? 0 : gegevens.filter((r) => parseDatum(r[k]) !== null).length);
+  const drempelDatums = Math.max(1, gegevens.length * 0.5);
+  if (kolommen.datum !== null && datumtreffers(kolommen.datum) < drempelDatums) {
+    kolommen.datum = null;
+  }
+  if (kolommen.datum === null) {
+    let beste = -1, meeste = 0;
+    for (let k = 0; k < breedte; k++) {
+      const n = datumtreffers(k);
+      if (n > meeste) { meeste = n; beste = k; }
+    }
+    if (meeste >= drempelDatums) kolommen.datum = beste;
+  }
+
+  // Numerieke kolommen die nog geen soort hebben.
+  const bezet = new Set(Object.values(kolommen).filter((k) => k !== null));
+  const numeriek = [];
+  for (let k = 0; k < breedte; k++) {
+    if (bezet.has(k)) continue;
+    const waarden = gegevens.map((r) => parseBedrag(r[k])).filter((v) => v !== null);
+    if (waarden.length >= Math.max(1, gegevens.length * 0.5)) numeriek.push(k);
+  }
+  if (kolommen.bedrag === null && kolommen.debet === null && kolommen.credit === null) {
+    if (numeriek.length >= 3) {
+      kolommen.debet = numeriek[0];
+      kolommen.credit = numeriek[1];
+      if (kolommen.saldo === null) kolommen.saldo = numeriek[2];
+    } else if (numeriek.length === 2) {
+      kolommen.bedrag = numeriek[0];
+      if (kolommen.saldo === null) kolommen.saldo = numeriek[1];
+    } else if (numeriek.length === 1) {
+      kolommen.bedrag = numeriek[0];
+    }
+  } else if (kolommen.saldo === null && numeriek.length > 0) {
+    kolommen.saldo = numeriek[numeriek.length - 1];
+  }
+
+  // Omschrijving: de breedste tekstkolom die nog vrij is.
+  if (kolommen.omschrijving === null) {
+    const inGebruik = new Set(Object.values(kolommen).filter((k) => k !== null));
+    let beste = null, langste = 0;
+    for (let k = 0; k < breedte; k++) {
+      if (inGebruik.has(k)) continue;
+      const lengte = gegevens.reduce((s, r) => s + String(r[k] === null || r[k] === undefined ? "" : r[k]).trim().length, 0);
+      if (lengte > langste) { langste = lengte; beste = k; }
+    }
+    if (langste > 0) kolommen.omschrijving = beste;
+  }
+
+  if (kolommen.datum === null) opmerkingen.push("Geen datumkolom gevonden. Wijs die zelf aan.");
+  if (kolommen.bedrag === null && kolommen.debet === null && kolommen.credit === null) {
+    opmerkingen.push("Geen bedragkolom gevonden. Wijs debet en credit aan, of één bedragkolom.");
+  }
+  if (kolommen.saldo === null) {
+    opmerkingen.push("Geen saldokolom gevonden. Zonder saldo kan de beginstand niet worden afgeleid en is de sluitcontrole handwerk.");
+  }
+
+  let punten = 0;
+  if (kopIndex > -1) punten += 0.4;
+  if (kolommen.datum !== null) punten += 0.2;
+  if (kolommen.bedrag !== null || (kolommen.debet !== null && kolommen.credit !== null)) punten += 0.25;
+  if (kolommen.saldo !== null) punten += 0.15;
+
+  return {
+    kopIndex,
+    kolommen,
+    rijen: gevuld,
+    betrouwbaarheid: Math.round(punten * 100) / 100,
+    opmerkingen,
+    bron: "lokale heuristiek",
+  };
+}
+
+// Valideert een kolomvoorstel voordat het de rest van de tool in gaat. Dit is de grens
+// waarbinnen een AI-implementatie mag werken: zij mag voorstellen welke kolom wat is, en
+// niets anders. Uit het voorstel worden uitsluitend de velden hieronder overgenomen, dus een
+// meegestuurd bedrag, een gewijzigde rij of een uitgerekende rente wordt genegeerd. Zo blijft
+// de uitkomst reproduceerbaar en maakt de sluitcontrole een fout in de interpretatie
+// zichtbaar.
+function valideerInterpretatie(voorstel, rijen) {
+  const fouten = [];
+  const gevuld = (rijen || []).filter((r) => !isLeegRij(r));
+  let breedte = 0;
+  for (const rij of gevuld) if (rij.length > breedte) breedte = rij.length;
+
+  if (!voorstel || typeof voorstel !== "object") {
+    return { geldig: false, fouten: ["het voorstel is geen object"] };
+  }
+  const kolommen = { datum: null, omschrijving: null, debet: null, credit: null, bedrag: null, saldo: null };
+  const bezet = new Map();
+  const voorgesteld = voorstel.kolommen && typeof voorstel.kolommen === "object" ? voorstel.kolommen : {};
+  for (const soort of Object.keys(voorgesteld)) {
+    if (!(soort in kolommen)) fouten.push('onbekende kolomsoort "' + soort + '"');
+  }
+  for (const soort of Object.keys(kolommen)) {
+    const k = voorgesteld[soort];
+    if (k === null || k === undefined) continue;
+    if (!Number.isInteger(k) || k < 0 || k >= breedte) {
+      fouten.push("kolom voor " + soort + " valt buiten de tabel");
+      continue;
+    }
+    if (bezet.has(k)) {
+      fouten.push("kolom " + k + " is aan zowel " + bezet.get(k) + " als " + soort + " toegewezen");
+      continue;
+    }
+    bezet.set(k, soort);
+    kolommen[soort] = k;
+  }
+
+  let kopIndex = voorstel.kopIndex;
+  if (kopIndex === undefined || kopIndex === null) kopIndex = -1;
+  if (!Number.isInteger(kopIndex) || kopIndex < -1 || kopIndex >= gevuld.length) {
+    fouten.push("kopIndex is geen bestaande regel");
+    kopIndex = -1;
+  }
+
+  if (kolommen.datum === null) fouten.push("er is geen datumkolom voorgesteld");
+  if (kolommen.bedrag === null && kolommen.debet === null && kolommen.credit === null) {
+    fouten.push("er is geen bedragkolom en geen debet- of creditkolom voorgesteld");
+  }
+
+  const opmerkingen = Array.isArray(voorstel.opmerkingen)
+    ? voorstel.opmerkingen.filter((o) => typeof o === "string").slice(0, 20)
+    : [];
+  const betrouwbaarheid = typeof voorstel.betrouwbaarheid === "number"
+    && voorstel.betrouwbaarheid >= 0 && voorstel.betrouwbaarheid <= 1
+    ? voorstel.betrouwbaarheid : 0.5;
+
+  return { geldig: fouten.length === 0, fouten, kopIndex, kolommen, betrouwbaarheid, opmerkingen };
+}
+
+// Zet de rijen om in mutaties. Tekenconventie: het resultaat is altijd DGA-perspectief,
+// waarin positief een vordering van de DGA op de BV is. Bij conventie "bv" (de gangbare
+// grootboekkaart uit de administratie van de BV) is debet een schuld van de DGA en dus
+// negatief; bij "dga" wordt het teken omgedraaid.
+function bouwMutaties(rijen, kolommen, opties) {
+  const o = opties || {};
+  const factor = o.conventie === "dga" ? -1 : 1;
+  const start = (o.kopIndex === undefined ? -1 : o.kopIndex) + 1;
+  const gevuld = (rijen || []).filter((r) => !isLeegRij(r));
+  const mutaties = [];
+  const overgeslagen = [];
+  const saldoRegels = [];
+
+  for (let i = start; i < gevuld.length; i++) {
+    const rij = gevuld[i];
+    const rijnr = i + 1;
+    const iso = kolommen.datum === null ? null : parseDatum(rij[kolommen.datum]);
+    const omschrijving = kolommen.omschrijving === null
+      ? "" : String(rij[kolommen.omschrijving] === null || rij[kolommen.omschrijving] === undefined ? "" : rij[kolommen.omschrijving]).trim();
+    const saldoRuw = kolommen.saldo === null ? null : parseBedrag(rij[kolommen.saldo]);
+
+    let bedragRuw = null;
+    if (kolommen.bedrag !== null) {
+      bedragRuw = parseBedrag(rij[kolommen.bedrag]);
+    }
+    if (bedragRuw === null && (kolommen.debet !== null || kolommen.credit !== null)) {
+      const debet = kolommen.debet === null ? null : parseBedrag(rij[kolommen.debet]);
+      const credit = kolommen.credit === null ? null : parseBedrag(rij[kolommen.credit]);
+      if (debet !== null || credit !== null) {
+        bedragRuw = (credit === null ? 0 : Math.abs(credit)) - (debet === null ? 0 : Math.abs(debet));
+      }
+    }
+
+    if (iso === null || bedragRuw === null) {
+      overgeslagen.push({ rijnr, iso, omschrijving, saldo: saldoRuw === null ? null : factor * saldoRuw, rij });
+      continue;
+    }
+    mutaties.push({
+      rijnr,
+      iso,
+      omschrijving,
+      bedrag: factor * bedragRuw,
+      saldoBron: saldoRuw === null ? null : saldoRuw,
+    });
+    if (saldoRuw !== null) saldoRegels.push({ iso, saldoBron: saldoRuw });
+  }
+
+  mutaties.sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : a.rijnr - b.rijnr));
+  return { mutaties, overgeslagen, factor, aantalSaldi: saldoRegels.length };
+}
+
+// Leidt de beginstand af uit de saldokolom. Het teken van die kolom is in de bron niet
+// altijd te zien, dus beide varianten worden geprobeerd en de variant met de meeste
+// treffers wint. Klopt geen van beide, dan komt er geen voorstel en moet de gebruiker de
+// beginstand invullen.
+function leidBeginstandAf(mutaties, opties) {
+  const o = opties || {};
+  const tolerantie = o.tolerantie === undefined ? 0.005 : o.tolerantie;
+  const metSaldo = mutaties.filter((m) => m.saldoBron !== null);
+  if (metSaldo.length === 0) return { gelukt: false, reden: "geen saldi in de bron" };
+
+  let cumulatief = 0;
+  const inBronvolgorde = mutaties.slice().sort((a, b) => (a.rijnr || 0) - (b.rijnr || 0));
+  const punten = inBronvolgorde.map((m) => {
+    cumulatief += m.bedrag;
+    return { saldoBron: m.saldoBron, cumulatief };
+  }).filter((p) => p.saldoBron !== null);
+
+  let beste = null;
+  for (const tekenSaldo of [1, -1]) {
+    const kandidaten = punten.map((p) => afrond2(tekenSaldo * p.saldoBron - p.cumulatief));
+    const telling = new Map();
+    for (const k of kandidaten) telling.set(k, (telling.get(k) || 0) + 1);
+    let waarde = 0, aantal = 0;
+    for (const [k, n] of telling) if (n > aantal) { aantal = n; waarde = k; }
+    const treffers = kandidaten.filter((k) => Math.abs(k - waarde) <= tolerantie).length;
+    if (!beste || treffers > beste.treffers) {
+      beste = { tekenSaldo, beginstand: waarde, treffers, totaal: kandidaten.length };
+    }
+  }
+  const deel = beste.treffers / beste.totaal;
+  return {
+    gelukt: deel >= 0.8,
+    beginstand: beste.beginstand,
+    tekenSaldo: beste.tekenSaldo,
+    treffers: beste.treffers,
+    totaal: beste.totaal,
+    reden: deel >= 0.8 ? null : "de saldokolom sluit niet aan op de mutaties",
+  };
+}
+
+// Het saldo dat de bron toont aan het einde van een jaar: de laatste regel met een saldo die
+// op of voor 31 december van dat jaar valt. Zonder deze afbakening zou de sluitcontrole gaan
+// tegen het saldo aan het einde van de hele bron, en dan blokkeert zij onterecht zodra er van
+// een meerjarige kaart maar één jaar wordt doorgerekend.
+function saldoVolgensBronEindeJaar(mutaties, jaar, tekenSaldo) {
+  const grens = `${jaar}-12-31`;
+  let gevonden = null;
+  for (const m of mutaties) {
+    if (m.saldoBron === null || m.saldoBron === undefined) continue;
+    if (m.iso > grens) continue;
+    if (!gevonden || m.iso > gevonden.iso || (m.iso === gevonden.iso && m.rijnr > gevonden.rijnr)) gevonden = m;
+  }
+  const laterInBron = mutaties.some(
+    (m) => m.saldoBron !== null && m.saldoBron !== undefined && m.iso > grens);
+  if (!gevonden) return { bekend: false, saldo: null, iso: null, laterInBron };
+  return {
+    bekend: true,
+    saldo: (tekenSaldo === undefined ? 1 : tekenSaldo) * gevonden.saldoBron,
+    iso: gevonden.iso,
+    laterInBron,
+  };
+}
+
+function gokJaar(mutaties) {
+  const telling = new Map();
+  for (const m of mutaties) {
+    const j = Number(m.iso.slice(0, 4));
+    telling.set(j, (telling.get(j) || 0) + 1);
+  }
+  let jaar = null, aantal = 0;
+  for (const [j, n] of telling) if (n > aantal) { aantal = n; jaar = j; }
+  return { jaar, aantal, jaren: [...telling.keys()].sort() };
+}
+
+// --- controles -------------------------------------------------------------------
+
+function controleerMutaties(mutaties, jaar) {
+  const buitenPeriode = mutaties.filter((m) => Number(m.iso.slice(0, 4)) !== jaar);
+  // De mutaties zijn op datum gesorteerd. Liep de bron in een andere volgorde, dan wijkt de
+  // staffel af van de kaart die de gebruiker voor zich heeft en is dat het melden waard.
+  const inBronvolgorde = mutaties.slice().sort((a, b) => (a.rijnr || 0) - (b.rijnr || 0));
+  let nietChronologisch = false;
+  for (let i = 1; i < inBronvolgorde.length; i++) {
+    if (inBronvolgorde[i].iso < inBronvolgorde[i - 1].iso) { nietChronologisch = true; break; }
+  }
+  const gezien = new Map();
+  const dubbel = [];
+  for (const m of mutaties) {
+    const sleutel = `${m.iso}|${afrond2(m.bedrag)}|${m.omschrijving.toLowerCase()}`;
+    if (gezien.has(sleutel)) dubbel.push({ eerste: gezien.get(sleutel), tweede: m.rijnr, iso: m.iso, bedrag: m.bedrag });
+    else gezien.set(sleutel, m.rijnr);
+  }
+  return { buitenPeriode, dubbel, nietChronologisch };
+}
+
+function sluitcontrole(eindsaldoBerekend, eindsaldoBron, tolerantie) {
+  const t = tolerantie === undefined ? 0.005 : tolerantie;
+  if (eindsaldoBron === null || eindsaldoBron === undefined) {
+    return { bekend: false, sluit: false, verschil: null };
+  }
+  const verschil = afrond2(eindsaldoBerekend - eindsaldoBron);
+  return { bekend: true, sluit: Math.abs(verschil) <= t, verschil };
+}
+
+// --- de renteberekening ----------------------------------------------------------
+
+// Zoekt het percentage dat op een dag geldt. De periodes zijn oplopend op vanaf-datum.
+function percentageOpDag(rentePeriodes, dagIso) {
+  let gekozen = null;
+  for (const p of rentePeriodes) {
+    if (p.vanaf <= dagIso) gekozen = p;
+  }
+  return gekozen;
+}
+
+// Bouwt de dagstaffel van het kalenderjaar.
+// - het saldo van dag D is de beginstand plus alle mutaties met datum <= D, dus een
+//   mutatie rendeert vanaf de dag zelf;
+// - de dagrente is saldo x jaarrente / dagen in dat jaar (actual/actual);
+// - creditrente is de som over dagen met een positief saldo, debetrente over dagen met
+//   een negatief saldo. Er wordt binnen het jaar niet samengesteld.
+function bouwStaffel(invoer) {
+  const jaar = invoer.jaar;
+  if (!Number.isInteger(jaar)) throw new Error("jaar ontbreekt");
+  const rentePeriodes = (invoer.rentePeriodes || []).slice().sort((a, b) => (a.vanaf < b.vanaf ? -1 : 1));
+  if (rentePeriodes.length === 0) throw new Error("geen renteperiode opgegeven");
+  const eersteDag = `${jaar}-01-01`;
+  if (rentePeriodes[0].vanaf > eersteDag) throw new Error("de eerste renteperiode moet op of voor 1 januari beginnen");
+
+  const noemer = dagenInJaar(jaar);
+  const beginstand = invoer.beginstand || 0;
+  const binnen = (invoer.mutaties || [])
+    .filter((m) => Number(m.iso.slice(0, 4)) === jaar)
+    .slice()
+    .sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0));
+
+  const perDatum = new Map();
+  for (const m of binnen) perDatum.set(m.iso, (perDatum.get(m.iso) || 0) + m.bedrag);
+
+  const dag0 = dagnummer(eersteDag);
+  const dagen = [];
+  let saldo = beginstand;
+  let creditrente = 0, debetrente = 0;
+  let minSaldo = Infinity, maxSaldo = -Infinity, minDatum = null, maxDatum = null;
+
+  for (let i = 0; i < noemer; i++) {
+    const iso = isoVanDagnummer(dag0 + i);
+    const mutatie = perDatum.get(iso) || 0;
+    saldo += mutatie;
+    const periode = percentageOpDag(rentePeriodes, iso);
+    const pct = saldo >= 0 ? periode.pctCredit : periode.pctDebet;
+    const dagrente = (saldo * (pct / 100)) / noemer;
+    if (dagrente > 0) creditrente += dagrente;
+    else if (dagrente < 0) debetrente += dagrente;
+    if (saldo < minSaldo) { minSaldo = saldo; minDatum = iso; }
+    if (saldo > maxSaldo) { maxSaldo = saldo; maxDatum = iso; }
+    dagen.push({ iso, mutatie, saldo, pct, dagrente });
+  }
+
+  return {
+    jaar,
+    noemer,
+    beginstand,
+    dagen,
+    creditrente,
+    debetrente,
+    totaleRente: creditrente + debetrente,
+    eindsaldo: saldo,
+    eindsaldoInclusiefRente: saldo + creditrente + debetrente,
+    minSaldo, maxSaldo, minDatum, maxDatum,
+    aantalMutaties: binnen.length,
+  };
+}
+
+// Vat de dagstaffel samen in perioden met een gelijk saldo en gelijk percentage. Dit is de
+// staffel die leesbaar is voor het dossier; er wordt niets anders gerekend.
+function dichtStaffel(dagen) {
+  const rijen = [];
+  for (const d of dagen) {
+    const laatste = rijen[rijen.length - 1];
+    if (laatste && Math.abs(laatste.saldo - d.saldo) < 1e-9 && laatste.pct === d.pct) {
+      laatste.tot = d.iso;
+      laatste.dagen += 1;
+      laatste.rente += d.dagrente;
+    } else {
+      rijen.push({ van: d.iso, tot: d.iso, dagen: 1, saldo: d.saldo, pct: d.pct, rente: d.dagrente });
+    }
+  }
+  return rijen;
+}
+
+// Vergelijkingsoptie: de gangbare periodebenadering, waarbij de rente wordt berekend over
+// de stand aan het begin van elke periode en de jaarrente enkelvoudig wordt gedeeld door
+// het aantal perioden. Bij 52 weken van 7 dagen blijven de laatste 1 of 2 dagen van het
+// jaar buiten de berekening; dat is inherent aan die methode en geen fout in deze tool.
+function renteOpPeriodebasis(invoer) {
+  const jaar = invoer.jaar;
+  const perioden = invoer.perioden;
+  const rentePeriodes = (invoer.rentePeriodes || []).slice().sort((a, b) => (a.vanaf < b.vanaf ? -1 : 1));
+  if (rentePeriodes.length === 0) throw new Error("geen renteperiode opgegeven");
+  if (rentePeriodes[0].vanaf > `${jaar}-01-01`) {
+    throw new Error("de eerste renteperiode moet op of voor 1 januari beginnen");
+  }
+  const beginstand = invoer.beginstand || 0;
+  const mutaties = (invoer.mutaties || []).filter((m) => Number(m.iso.slice(0, 4)) === jaar);
+
+  const grenzen = [];
+  if (perioden === 52) {
+    const dag0 = dagnummer(`${jaar}-01-01`);
+    for (let k = 0; k < 52; k++) grenzen.push(isoVanDagnummer(dag0 + k * 7));
+  } else if (perioden === 12) {
+    for (let k = 1; k <= 12; k++) grenzen.push(`${jaar}-${String(k).padStart(2, "0")}-01`);
+  } else {
+    throw new Error("alleen 52 weken of 12 maanden worden ondersteund");
+  }
+
+  let creditrente = 0, debetrente = 0;
+  const rijen = [];
+  for (let k = 0; k < grenzen.length; k++) {
+    const iso = grenzen[k];
+    let saldo = beginstand;
+    for (const m of mutaties) if (m.iso <= iso) saldo += m.bedrag;
+    const periode = percentageOpDag(rentePeriodes, iso);
+    const pct = saldo >= 0 ? periode.pctCredit : periode.pctDebet;
+    const rente = (saldo * (pct / 100)) / perioden;
+    if (rente > 0) creditrente += rente; else if (rente < 0) debetrente += rente;
+    rijen.push({ nummer: k + 1, iso, saldo, pct, rente });
+  }
+  return { perioden, rijen, creditrente, debetrente, totaleRente: creditrente + debetrente };
+}
+
+// Rekent meerdere kalenderjaren achter elkaar door. De rente van een jaar wordt alleen op
+// de rekening-courant bijgeschreven als de gebruiker daarvoor kiest; dat is geen automatisme,
+// want of de rente is geboekt of in geld is afgerekend, weet de tool niet.
+//
+// Bij bijschrijven loopt de berekende stand uit op de stand volgens de bron. Daarom wordt
+// het eindsaldo ook zonder bijschrijving bijgehouden: alleen dat cijfer is met de bron te
+// vergelijken in de sluitcontrole.
+function bouwMeerjarigeStaffel(invoer) {
+  const jaren = (invoer.jaren || []).slice().sort((a, b) => a - b);
+  if (jaren.length === 0) throw new Error("geen jaren opgegeven");
+  const bijschrijven = invoer.renteBijschrijven === true;
+  const perJaar = invoer.rentePeriodesPerJaar || null;
+
+  let stand = invoer.beginstand || 0;
+  let bijgeschreven = 0;
+  const uitkomsten = [];
+  for (const jaar of jaren) {
+    const rentePeriodes = perJaar && perJaar[jaar] ? perJaar[jaar] : invoer.rentePeriodes;
+    const staffel = bouwStaffel({ jaar, beginstand: stand, mutaties: invoer.mutaties, rentePeriodes });
+    uitkomsten.push({
+      jaar,
+      beginstand: stand,
+      bijgeschrevenTotHier: bijgeschreven,
+      staffel,
+      bijschrijving: bijschrijven ? staffel.totaleRente : 0,
+    });
+    stand = staffel.eindsaldo + (bijschrijven ? staffel.totaleRente : 0);
+    if (bijschrijven) bijgeschreven += staffel.totaleRente;
+  }
+
+  const som = (kies) => uitkomsten.reduce((n, u) => n + kies(u.staffel), 0);
+  return {
+    jaren: uitkomsten,
+    renteBijschrijven: bijschrijven,
+    creditrente: som((s) => s.creditrente),
+    debetrente: som((s) => s.debetrente),
+    totaleRente: som((s) => s.totaleRente),
+    eindsaldo: stand,
+    totaalBijgeschreven: bijgeschreven,
+    // Wat de bron zou moeten tonen: de bijgeschreven rente staat daar nog niet in.
+    eindsaldoZonderBijschrijving: stand - bijgeschreven,
+  };
+}
+
+// --- fiscale toetsen -------------------------------------------------------------
+
+// Goedkeuring voor kleine rekening-courantstanden: de toets loopt over de dagsaldi van het
+// hele kalenderjaar en over zowel positieve als negatieve standen.
+function toetsKleineStanden(jaar, minSaldo, maxSaldo) {
+  const waarden = FISCAAL_PER_JAAR[jaar];
+  if (!waarden) {
+    return { bekend: false, jaar, melding: `Voor ${jaar} staat geen grens in de tool; de toets is niet uitgevoerd.` };
+  }
+  const grens = waarden.kleineStandenGrens;
+  return {
+    bekend: true,
+    jaar,
+    grens,
+    binnenGrens: minSaldo >= -grens && maxSaldo <= grens,
+    minSaldo,
+    maxSaldo,
+    voorwaarden: KLEINE_STANDEN_VOORWAARDEN,
+    bron: waarden.kleineStandenBron,
+  };
+}
+
+// Signalering Wet excessief lenen bij eigen vennootschap. De peildatum is 31 december.
+// Dit is en blijft een signaal: de kring van schulden loopt verder dan deze rekening-courant
+// en verder dan de partner, zie EXCESSIEF_LENEN_KRING hierboven.
+function toetsExcessiefLenen(jaar, saldoPeildatum) {
+  const waarden = FISCAAL_PER_JAAR[jaar];
+  const schuld = saldoPeildatum < 0 ? -saldoPeildatum : 0;
+  if (!waarden) {
+    return { bekend: false, jaar, schuldPeildatum: schuld, melding: `Voor ${jaar} staat geen maximumbedrag in de tool; er is niet gesignaleerd.` };
+  }
+  // Een jaar waarin de regeling nog niet gold, is iets anders dan een onbekend jaar: hier
+  // valt er niets te signaleren en dat wordt met de vindplaats erbij gemeld.
+  if (waarden.excessiefLenenMax === null) {
+    return { bekend: false, jaar, schuldPeildatum: schuld, melding: waarden.excessiefLenenMelding, bron: waarden.excessiefLenenBron };
+  }
+  const max = waarden.excessiefLenenMax;
+  return {
+    bekend: true,
+    jaar,
+    max,
+    schuldPeildatum: schuld,
+    boven: schuld > max,
+    deelVanMax: max === 0 ? 0 : schuld / max,
+    bron: waarden.excessiefLenenBron,
+  };
+}
+
+// Journaalpostvoorstel vanuit de administratie van de BV, spiegelbeeldig aan de
+// kwalificatie bij de DGA: creditrente hoort bij een vordering van de DGA en is voor de BV
+// een last, debetrente hoort bij een schuld van de DGA en is voor de BV een bate. Beide
+// componenten worden apart geboekt en niet gesaldeerd, omdat zij bij de DGA in
+// verschillende boxen vallen.
+function journaalpost(creditrente, debetrente) {
+  const regels = [];
+  const credit = afrond2(creditrente);
+  const debet = afrond2(-debetrente);
+  if (credit > 0) {
+    regels.push({ grootboek: "Rentelasten rekening-courant DGA", debet: credit, credit: 0 });
+    regels.push({ grootboek: "Rekening-courant DGA", debet: 0, credit: credit });
+  }
+  if (debet > 0) {
+    regels.push({ grootboek: "Rekening-courant DGA", debet: debet, credit: 0 });
+    regels.push({ grootboek: "Rentebaten rekening-courant DGA", debet: 0, credit: debet });
+  }
+  return regels;
+}
+
+// FISCALE KERN — EINDE
+
+// --- UI-laag: inlezen, weergave en export ---------------------------------------
+// Hieronder staat geen rekenwerk. Alles wat een bedrag of een rente bepaalt, staat in de
+// kern hierboven.
+
+const $ = (id) => document.getElementById(id);
+
+// OPMAAKHULP — BEGIN
+// Zuivere opmaakfuncties zonder DOM, zodat de uitkomstkaarten in de tests kunnen draaien.
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+const nlBedrag = new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nlHeel = new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 });
+
+function fmt(x) {
+  if (x === null || x === undefined || !Number.isFinite(x)) return "-";
+  return nlBedrag.format(afrond2(x));
+}
+function fmtEuro(x) { return "€ " + fmt(x); }
+function fmtDatum(iso) {
+  if (!iso) return "-";
+  const d = String(iso).split("-");
+  return `${d[2]}-${d[1]}-${d[0]}`;
+}
+function klasse(x) { return x < 0 ? "negatief" : ""; }
+
+function melding(soort, titel, tekst, lijst) {
+  const items = (lijst || []).map((r) => `<li>${esc(r)}</li>`).join("");
+  return `<div class="melding ${soort}"><strong>${esc(titel)}</strong>${tekst ? esc(tekst) : ""}${items ? `<ul>${items}</ul>` : ""}</div>`;
+}
+// OPMAAKHULP — EINDE
+
+const staat = {
+  rijen: [],
+  kopIndex: -1,
+  kolommen: null,
+  interpretatie: null,
+  werkbladen: null,
+  bronnaam: null,
+  bronsoort: null,
+  pdfInfo: null,
+  laatsteUitkomst: null,
+};
+
+// --- zip en xlsx ----------------------------------------------------------------
+// XLSX-LEZER — BEGIN
+// Leest een xlsx zonder externe bibliotheek: zip via DecompressionStream, XML via
+// DOMParser. pakUit() raakt geen DOM aan en wordt in de tests meegenomen.
+
+async function pakUit(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= 0 && i > bytes.length - 66000; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("Dit lijkt geen geldig xlsx-bestand (geen zip-structuur gevonden).");
+  const aantal = dv.getUint16(eocd + 10, true);
+  let offset = dv.getUint32(eocd + 16, true);
+  const uit = new Map();
+  const decoder = new TextDecoder("utf-8");
+
+  for (let n = 0; n < aantal; n++) {
+    if (dv.getUint32(offset, true) !== 0x02014b50) break;
+    const methode = dv.getUint16(offset + 10, true);
+    const gecomprimeerd = dv.getUint32(offset + 20, true);
+    const naamLengte = dv.getUint16(offset + 28, true);
+    const extraLengte = dv.getUint16(offset + 30, true);
+    const commentLengte = dv.getUint16(offset + 32, true);
+    const lokaalOffset = dv.getUint32(offset + 42, true);
+    const naam = decoder.decode(bytes.subarray(offset + 46, offset + 46 + naamLengte));
+    offset += 46 + naamLengte + extraLengte + commentLengte;
+
+    if (gecomprimeerd === 0xffffffff || lokaalOffset === 0xffffffff) {
+      throw new Error("Dit xlsx-bestand gebruikt zip64 en kan niet worden gelezen. Kopieer de gegevens en plak ze.");
+    }
+    if (!/\.(xml|rels)$/i.test(naam)) continue;
+
+    const lokaalNaam = dv.getUint16(lokaalOffset + 26, true);
+    const lokaalExtra = dv.getUint16(lokaalOffset + 28, true);
+    const dataStart = lokaalOffset + 30 + lokaalNaam + lokaalExtra;
+    const data = bytes.subarray(dataStart, dataStart + gecomprimeerd);
+
+    let plat;
+    if (methode === 0) {
+      plat = data;
+    } else if (methode === 8) {
+      if (typeof DecompressionStream !== "function") {
+        throw new Error("Deze browser kan het bestand niet uitpakken. Kopieer de gegevens en plak ze.");
+      }
+      const stroom = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      plat = new Uint8Array(await new Response(stroom).arrayBuffer());
+    } else {
+      continue;
+    }
+    uit.set(naam, decoder.decode(plat));
+  }
+  return uit;
+}
+
+const DATUM_FORMATEN = new Set([14, 15, 16, 17, 22, 27, 30, 36, 45, 46, 47, 50, 57, 58]);
+
+// Excel voor Mac gebruikte het 1904-systeem; daar liggen alle serienummers 1462 dagen
+// verder. Zonder deze correctie komen de datums vier jaar en een dag te vroeg uit.
+const EXCEL_1904_VERSCHUIVING = 1462;
+
+function xlsxDagnulpunt(workbookXml) {
+  const heeft1904 = /<workbookPr[^>]*date1904\s*=\s*"(1|true)"/i.test(String(workbookXml || ""));
+  return EXCEL_DAG0 + (heeft1904 ? EXCEL_1904_VERSCHUIVING : 0);
+}
+
+function datumStijlen(stylesXml) {
+  const set = new Set();
+  if (!stylesXml) return set;
+  const doc = new DOMParser().parseFromString(stylesXml, "application/xml");
+  const eigen = new Set();
+  doc.querySelectorAll("numFmt").forEach((n) => {
+    const code = n.getAttribute("formatCode") || "";
+    const id = Number(n.getAttribute("numFmtId"));
+    if (/[dmy]/i.test(code.replace(/\[[^\]]*\]/g, "").replace(/"[^"]*"/g, "")) && !/^[#0.,%\s]*$/.test(code)) {
+      eigen.add(id);
+    }
+  });
+  const xfs = doc.querySelector("cellXfs");
+  if (!xfs) return set;
+  [...xfs.children].forEach((xf, i) => {
+    const id = Number(xf.getAttribute("numFmtId") || 0);
+    if (DATUM_FORMATEN.has(id) || eigen.has(id)) set.add(i);
+  });
+  return set;
+}
+
+function kolomIndex(ref) {
+  const m = String(ref || "").match(/^([A-Z]+)/);
+  if (!m) return 0;
+  let n = 0;
+  for (const teken of m[1]) n = n * 26 + (teken.charCodeAt(0) - 64);
+  return n - 1;
+}
+
+function leesWerkblad(sheetXml, gedeeldeTeksten, datumStijl, dag0) {
+  const nulpunt = dag0 === undefined ? EXCEL_DAG0 : dag0;
+  const doc = new DOMParser().parseFromString(sheetXml, "application/xml");
+  const rijen = [];
+  doc.querySelectorAll("sheetData > row").forEach((row) => {
+    const cellen = [];
+    row.querySelectorAll("c").forEach((c) => {
+      const k = kolomIndex(c.getAttribute("r"));
+      const type = c.getAttribute("t");
+      const stijl = c.getAttribute("s");
+      const v = c.querySelector("v");
+      let waarde = null;
+      if (type === "s") {
+        const i = Number(v ? v.textContent : -1);
+        waarde = gedeeldeTeksten[i] === undefined ? null : gedeeldeTeksten[i];
+      } else if (type === "inlineStr") {
+        const is = c.querySelector("is");
+        waarde = is ? is.textContent : null;
+      } else if (type === "str" || type === "e") {
+        waarde = v ? v.textContent : null;
+      } else if (type === "d") {
+        waarde = v ? String(v.textContent).slice(0, 10) : null;
+      } else if (v) {
+        const getal = Number(v.textContent);
+        if (Number.isFinite(getal) && stijl !== null && datumStijl.has(Number(stijl))) {
+          waarde = isoVanDagnummer(nulpunt + Math.floor(getal));
+        } else {
+          waarde = Number.isFinite(getal) ? getal : v.textContent;
+        }
+      }
+      cellen[k] = waarde;
+    });
+    for (let i = 0; i < cellen.length; i++) if (cellen[i] === undefined) cellen[i] = null;
+    rijen.push(cellen);
+  });
+  return rijen;
+}
+
+async function leesXlsxBestand(buffer) {
+  const delen = await pakUit(new Uint8Array(buffer));
+  const wbXml = delen.get("xl/workbook.xml");
+  if (!wbXml) throw new Error("Geen werkboek gevonden in het bestand.");
+  const relsXml = delen.get("xl/_rels/workbook.xml.rels") || "";
+  const wb = new DOMParser().parseFromString(wbXml, "application/xml");
+  const rels = new Map();
+  new DOMParser().parseFromString(relsXml, "application/xml")
+    .querySelectorAll("Relationship").forEach((r) => rels.set(r.getAttribute("Id"), r.getAttribute("Target")));
+
+  const gedeeld = [];
+  const ssXml = delen.get("xl/sharedStrings.xml");
+  if (ssXml) {
+    new DOMParser().parseFromString(ssXml, "application/xml")
+      .querySelectorAll("si").forEach((si) => {
+        const stukken = [...si.querySelectorAll("t")].map((t) => t.textContent).join("");
+        gedeeld.push(stukken);
+      });
+  }
+  const stijlen = datumStijlen(delen.get("xl/styles.xml"));
+  const dag0 = xlsxDagnulpunt(wbXml);
+
+  const werkbladen = [];
+  wb.querySelectorAll("sheets > sheet").forEach((s) => {
+    const id = s.getAttribute("r:id") || s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+    let doel = rels.get(id);
+    if (!doel) return;
+    doel = doel.replace(/^\/?xl\//, "").replace(/^\//, "");
+    const xml = delen.get("xl/" + doel);
+    if (!xml) return;
+    werkbladen.push({ naam: s.getAttribute("name") || doel, rijen: leesWerkblad(xml, gedeeld, stijlen, dag0) });
+  });
+  if (werkbladen.length === 0) throw new Error("Geen leesbaar werkblad gevonden.");
+  return werkbladen;
+}
+
+// XLSX-LEZER — EINDE
+
+// PDF-LEZER — BEGIN
+// Leest de tekst met posities uit een PDF zonder externe bibliotheek: objecten worden
+// gescand, FlateDecode-streams uitgepakt met DecompressionStream en de tekstoperators van de
+// content stream nagelopen. Een PDF zonder tekstlaag levert geen fragmenten op en wordt
+// afgewezen; er wordt geen OCR gedaan.
+//
+// Dit deel raakt geen DOM aan en wordt in de tests meegenomen.
+
+const PDF_MAX_PAGINAS = 100;
+
+// Een PDF is byte-georiënteerd. latin1 houdt elke byte gelijk aan één teken, zodat posities
+// uit een tekstzoekactie ook posities in de bytes zijn.
+function pdfAlsTekst(bytes) {
+  return new TextDecoder("latin1").decode(bytes);
+}
+
+function pdfDictWaarde(dict, sleutel) {
+  const m = dict.match(new RegExp("/" + sleutel + "\\s*(<<|\\[|/[A-Za-z0-9#+-]+|\\d+\\s+\\d+\\s+R|[-+.\\d]+|\\([^)]*\\))"));
+  if (!m) return null;
+  const start = m.index + m[0].length - m[1].length;
+  if (m[1] === "<<") return pdfHaalBlokOp(dict, start, "<<", ">>");
+  if (m[1] === "[") return pdfHaalBlokOp(dict, start, "[", "]");
+  return m[1].trim();
+}
+
+function pdfHaalBlokOp(tekst, start, open, sluit) {
+  let diepte = 0;
+  for (let i = start; i < tekst.length; i++) {
+    if (tekst.startsWith(open, i)) { diepte++; i += open.length - 1; continue; }
+    if (tekst.startsWith(sluit, i)) {
+      diepte--;
+      if (diepte === 0) return tekst.slice(start, i + sluit.length);
+      i += sluit.length - 1;
+    }
+  }
+  return tekst.slice(start);
+}
+
+function pdfVerwijzingen(waarde) {
+  if (!waarde) return [];
+  return [...String(waarde).matchAll(/(\d+)\s+\d+\s+R/g)].map((m) => Number(m[1]));
+}
+
+// Scant alle indirecte objecten. Er wordt geen xref-tabel gebruikt: die is bij een
+// bijgewerkte of licht beschadigde PDF vaker fout dan de objecten zelf.
+function pdfScanObjecten(tekst) {
+  const objecten = new Map();
+  const patroon = /(\d+)\s+(\d+)\s+obj\b/g;
+  let m;
+  while ((m = patroon.exec(tekst)) !== null) {
+    const nummer = Number(m[1]);
+    const na = m.index + m[0].length;
+    const einde = tekst.indexOf("endobj", na);
+    const blok = tekst.slice(na, einde === -1 ? tekst.length : einde);
+    const streamPositie = blok.search(/\bstream\r?\n|\bstream\r/);
+    let dict = blok;
+    let dataStart = null;
+    let dataEinde = null;
+    if (streamPositie !== -1) {
+      dict = blok.slice(0, streamPositie);
+      const kop = blok.slice(streamPositie).match(/^stream(\r\n|\n|\r)/);
+      dataStart = na + streamPositie + (kop ? kop[0].length : 7);
+      const lengte = Number(pdfDictWaarde(dict, "Length"));
+      const eindstream = tekst.indexOf("endstream", dataStart);
+      dataEinde = Number.isFinite(lengte) && lengte > 0 && (eindstream === -1 || dataStart + lengte <= eindstream + 2)
+        ? dataStart + lengte
+        : (eindstream === -1 ? tekst.length : eindstream);
+    }
+    // Een later object met hetzelfde nummer is een nieuwere versie en overschrijft de oude.
+    objecten.set(nummer, { nummer, dict, dataStart, dataEinde });
+  }
+  return objecten;
+}
+
+async function pdfStreamInhoud(bytes, object) {
+  if (object.dataStart === null) return null;
+  const data = bytes.subarray(object.dataStart, object.dataEinde);
+  const filter = pdfDictWaarde(object.dict, "Filter");
+  if (!filter || filter === "null") return pdfAlsTekst(data);
+  if (/FlateDecode/.test(filter)) {
+    if (typeof DecompressionStream !== "function") {
+      throw new Error("Deze browser kan PDF-streams niet uitpakken. Exporteer de mutaties naar Excel.");
+    }
+    // FlateDecode is zlib; sommige bestanden hebben een beschadigde of ontbrekende zlib-kop,
+    // dus bij een fout wordt het nog eens zonder kop geprobeerd.
+    for (const vorm of ["deflate", "deflate-raw"]) {
+      try {
+        const stroom = new Blob([data]).stream().pipeThrough(new DecompressionStream(vorm));
+        return pdfAlsTekst(new Uint8Array(await new Response(stroom).arrayBuffer()));
+      } catch (fout) { /* volgende vorm proberen */ }
+    }
+    return null;
+  }
+  if (/ASCIIHexDecode/.test(filter)) {
+    const hex = pdfAlsTekst(data).replace(/[^0-9a-fA-F]/g, "");
+    let uit = "";
+    for (let i = 0; i + 1 < hex.length; i += 2) uit += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+    return uit;
+  }
+  return null; // LZW, DCT, JPX en de rest worden niet gelezen
+}
+
+// De ToUnicode-CMap van een font: van tekencode naar leesbare tekst. Zonder deze map is een
+// Type0-font met tweebyte-codes niet te lezen.
+function pdfLeesCMap(cmap) {
+  const map = new Map();
+  const naarTekst = (hex) => {
+    let uit = "";
+    for (let i = 0; i + 3 < hex.length + 1; i += 4) {
+      const code = parseInt(hex.slice(i, i + 4), 16);
+      if (Number.isFinite(code)) uit += String.fromCharCode(code);
+    }
+    return uit;
+  };
+  for (const blok of cmap.match(/beginbfchar[\s\S]*?endbfchar/g) || []) {
+    for (const m of blok.matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/g)) {
+      map.set(parseInt(m[1], 16), naarTekst(m[2]));
+    }
+  }
+  for (const blok of cmap.match(/beginbfrange[\s\S]*?endbfrange/g) || []) {
+    for (const m of blok.matchAll(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*(<([0-9a-fA-F]+)>|\[([\s\S]*?)\])/g)) {
+      const van = parseInt(m[1], 16);
+      const tot = parseInt(m[2], 16);
+      if (m[4] !== undefined) {
+        const basis = parseInt(m[4], 16);
+        for (let c = van; c <= tot && c - van < 65536; c++) map.set(c, String.fromCharCode(basis + (c - van)));
+      } else if (m[5] !== undefined) {
+        const losse = [...m[5].matchAll(/<([0-9a-fA-F]+)>/g)].map((h) => naarTekst(h[1]));
+        losse.forEach((tekst, i) => map.set(van + i, tekst));
+      }
+    }
+  }
+  return map;
+}
+
+// WinAnsi wijkt op de reeks 0x80-0x9F af van latin1; de rest is gelijk.
+const WINANSI_AFWIJKINGEN = {
+  128: "€", 130: "‚", 131: "ƒ", 132: "„", 133: "…", 134: "†",
+  135: "‡", 136: "ˆ", 137: "‰", 138: "Š", 139: "‹", 140: "Œ",
+  142: "Ž", 145: "‘", 146: "’", 147: "“", 148: "”", 149: "•",
+  150: "–", 151: "—", 152: "˜", 153: "™", 154: "š", 155: "›",
+  156: "œ", 158: "ž", 159: "Ÿ",
+};
+
+function pdfDecodeerString(ruw, font) {
+  if (font && font.tweebyte) {
+    let uit = "";
+    for (let i = 0; i + 1 < ruw.length; i += 2) {
+      const code = (ruw.charCodeAt(i) << 8) | ruw.charCodeAt(i + 1);
+      uit += font.naarTekst && font.naarTekst.has(code) ? font.naarTekst.get(code) : "";
+    }
+    return uit;
+  }
+  let uit = "";
+  for (const teken of ruw) {
+    const code = teken.charCodeAt(0);
+    if (font && font.naarTekst && font.naarTekst.has(code)) uit += font.naarTekst.get(code);
+    else uit += WINANSI_AFWIJKINGEN[code] || teken;
+  }
+  return uit;
+}
+
+// Leest de tokens van een content stream: strings, getallen, namen, arrays en operators.
+function pdfTokens(inhoud) {
+  const tokens = [];
+  let i = 0;
+  while (i < inhoud.length) {
+    const teken = inhoud[i];
+    if (teken === "(") {
+      let diepte = 1, j = i + 1, ruw = "";
+      while (j < inhoud.length && diepte > 0) {
+        const c = inhoud[j];
+        if (c === "\\") {
+          const volgend = inhoud[j + 1];
+          const octaal = inhoud.slice(j + 1, j + 4).match(/^[0-7]{1,3}/);
+          if (octaal) { ruw += String.fromCharCode(parseInt(octaal[0], 8)); j += 1 + octaal[0].length; continue; }
+          const vervangen = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f" }[volgend];
+          if (volgend === "\n") { j += 2; continue; }
+          ruw += vervangen !== undefined ? vervangen : volgend;
+          j += 2;
+          continue;
+        }
+        if (c === "(") diepte++;
+        if (c === ")") { diepte--; if (diepte === 0) { j++; break; } }
+        ruw += c;
+        j++;
+      }
+      tokens.push({ soort: "string", waarde: ruw });
+      i = j;
+      continue;
+    }
+    if (teken === "<" && inhoud[i + 1] !== "<") {
+      const einde = inhoud.indexOf(">", i);
+      const hex = inhoud.slice(i + 1, einde === -1 ? inhoud.length : einde).replace(/[^0-9a-fA-F]/g, "");
+      let ruw = "";
+      const even = hex.length % 2 === 0 ? hex : hex + "0";
+      for (let k = 0; k + 1 < even.length; k += 2) ruw += String.fromCharCode(parseInt(even.slice(k, k + 2), 16));
+      tokens.push({ soort: "string", waarde: ruw });
+      i = einde === -1 ? inhoud.length : einde + 1;
+      continue;
+    }
+    if (teken === "<" || teken === ">") { i += 2; continue; }
+    if (teken === "[" || teken === "]") { tokens.push({ soort: teken }); i++; continue; }
+    if (teken === "/") {
+      const m = inhoud.slice(i + 1).match(/^[^\s/[\]<>(){}]*/);
+      tokens.push({ soort: "naam", waarde: m ? m[0] : "" });
+      i += 1 + (m ? m[0].length : 0);
+      continue;
+    }
+    if (/[-+.\d]/.test(teken)) {
+      const m = inhoud.slice(i).match(/^[-+]?[\d.]+/);
+      if (m && /\d/.test(m[0])) {
+        tokens.push({ soort: "getal", waarde: parseFloat(m[0]) });
+        i += m[0].length;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (/\s/.test(teken)) { i++; continue; }
+    const m = inhoud.slice(i).match(/^[A-Za-z'"*][A-Za-z0-9*'"]*/);
+    if (m) { tokens.push({ soort: "operator", waarde: m[0] }); i += m[0].length; continue; }
+    i++;
+  }
+  return tokens;
+}
+
+function pdfMaal(m1, m2) {
+  return [
+    m1[0] * m2[0] + m1[1] * m2[2],
+    m1[0] * m2[1] + m1[1] * m2[3],
+    m1[2] * m2[0] + m1[3] * m2[2],
+    m1[2] * m2[1] + m1[3] * m2[3],
+    m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+    m1[4] * m2[1] + m1[5] * m2[3] + m2[5],
+  ];
+}
+
+// Loopt de tekstoperators na en geeft per tekstfragment de plaats op de pagina.
+function pdfFragmentenUitContent(inhoud, fonts) {
+  const tokens = pdfTokens(inhoud);
+  const fragmenten = [];
+  let ctm = [1, 0, 0, 1, 0, 0];
+  const stapel = [];
+  let tm = [1, 0, 0, 1, 0, 0];
+  let tlm = tm;
+  let leading = 0;
+  let fontGrootte = 10;
+  let font = null;
+  let stack = [];
+
+  const plaats = (tekst) => {
+    if (!tekst) return;
+    const totaal = pdfMaal(tm, ctm);
+    const schaal = Math.sqrt(Math.abs(totaal[0] * totaal[3] - totaal[1] * totaal[2])) || 1;
+    fragmenten.push({ tekst, x: totaal[4], y: totaal[5], grootte: Math.abs(fontGrootte * schaal) });
+  };
+
+  for (const token of tokens) {
+    if (token.soort !== "operator") { stack.push(token); continue; }
+    const getallen = stack.filter((t) => t.soort === "getal").map((t) => t.waarde);
+    const strings = stack.filter((t) => t.soort === "string").map((t) => t.waarde);
+    const namen = stack.filter((t) => t.soort === "naam").map((t) => t.waarde);
+
+    switch (token.waarde) {
+      case "q": stapel.push(ctm); break;
+      case "Q": ctm = stapel.pop() || [1, 0, 0, 1, 0, 0]; break;
+      case "cm": if (getallen.length >= 6) ctm = pdfMaal(getallen.slice(-6), ctm); break;
+      case "BT": tm = [1, 0, 0, 1, 0, 0]; tlm = tm; break;
+      case "ET": break;
+      case "Tf":
+        if (getallen.length) fontGrootte = getallen[getallen.length - 1];
+        if (namen.length) font = fonts.get(namen[namen.length - 1]) || null;
+        break;
+      case "TL": if (getallen.length) leading = getallen[getallen.length - 1]; break;
+      case "Td":
+        if (getallen.length >= 2) { tlm = pdfMaal([1, 0, 0, 1, getallen[getallen.length - 2], getallen[getallen.length - 1]], tlm); tm = tlm; }
+        break;
+      case "TD":
+        if (getallen.length >= 2) {
+          leading = -getallen[getallen.length - 1];
+          tlm = pdfMaal([1, 0, 0, 1, getallen[getallen.length - 2], getallen[getallen.length - 1]], tlm);
+          tm = tlm;
+        }
+        break;
+      case "Tm": if (getallen.length >= 6) { tlm = getallen.slice(-6); tm = tlm; } break;
+      case "T*": tlm = pdfMaal([1, 0, 0, 1, 0, -leading], tlm); tm = tlm; break;
+      case "Tj": if (strings.length) plaats(pdfDecodeerString(strings[strings.length - 1], font)); break;
+      case "'":
+        tlm = pdfMaal([1, 0, 0, 1, 0, -leading], tlm); tm = tlm;
+        if (strings.length) plaats(pdfDecodeerString(strings[strings.length - 1], font));
+        break;
+      case '"':
+        tlm = pdfMaal([1, 0, 0, 1, 0, -leading], tlm); tm = tlm;
+        if (strings.length) plaats(pdfDecodeerString(strings[strings.length - 1], font));
+        break;
+      case "TJ": {
+        // Een TJ-array wisselt stukjes tekst af met verplaatsingen in duizendsten em. Een
+        // ruime negatieve verplaatsing is in de praktijk een spatie tussen twee woorden.
+        let tekst = "";
+        for (const t of stack) {
+          if (t.soort === "string") tekst += pdfDecodeerString(t.waarde, font);
+          else if (t.soort === "getal" && t.waarde <= -120) tekst += " ";
+        }
+        plaats(tekst);
+        break;
+      }
+      default: break;
+    }
+    stack = [];
+  }
+  return fragmenten;
+}
+
+// Zoekt de pagina's in leesvolgorde via de paginaboom, met de objectvolgorde als terugval.
+function pdfPaginaObjecten(objecten, tekst) {
+  const paginas = [];
+  const gezien = new Set();
+  const trailer = tekst.lastIndexOf("trailer");
+  let wortel = null;
+  if (trailer !== -1) wortel = pdfVerwijzingen(pdfDictWaarde(tekst.slice(trailer), "Root"))[0];
+  if (wortel === undefined || wortel === null) {
+    for (const obj of objecten.values()) if (/\/Type\s*\/Catalog/.test(obj.dict)) { wortel = obj.nummer; break; }
+  }
+  const loop = (nummer, diepte) => {
+    if (diepte > 50 || gezien.has(nummer)) return;
+    gezien.add(nummer);
+    const obj = objecten.get(nummer);
+    if (!obj) return;
+    if (/\/Type\s*\/Page\b/.test(obj.dict)) { paginas.push(obj); return; }
+    const kids = pdfVerwijzingen(pdfDictWaarde(obj.dict, "Kids"));
+    for (const kind of kids) loop(kind, diepte + 1);
+  };
+  if (wortel !== null && wortel !== undefined) {
+    const catalog = objecten.get(wortel);
+    const pagesRef = catalog ? pdfVerwijzingen(pdfDictWaarde(catalog.dict, "Pages"))[0] : null;
+    if (pagesRef !== null && pagesRef !== undefined) loop(pagesRef, 0);
+    else loop(wortel, 0);
+  }
+  if (paginas.length === 0) {
+    for (const obj of objecten.values()) if (/\/Type\s*\/Page\b/.test(obj.dict)) paginas.push(obj);
+  }
+  return paginas.slice(0, PDF_MAX_PAGINAS);
+}
+
+async function pdfFontsVanPagina(bytes, objecten, paginaDict) {
+  const fonts = new Map();
+  let resources = pdfDictWaarde(paginaDict, "Resources");
+  if (resources && /^\d+\s+\d+\s+R/.test(resources)) {
+    const obj = objecten.get(pdfVerwijzingen(resources)[0]);
+    resources = obj ? obj.dict : null;
+  }
+  if (!resources) return fonts;
+  let fontDict = pdfDictWaarde(resources, "Font");
+  if (fontDict && /^\d+\s+\d+\s+R/.test(fontDict)) {
+    const obj = objecten.get(pdfVerwijzingen(fontDict)[0]);
+    fontDict = obj ? obj.dict : null;
+  }
+  if (!fontDict) return fonts;
+
+  for (const m of fontDict.matchAll(/\/([^\s/]+)\s+(\d+)\s+\d+\s+R/g)) {
+    const fontObj = objecten.get(Number(m[2]));
+    if (!fontObj) continue;
+    const encoding = pdfDictWaarde(fontObj.dict, "Encoding") || "";
+    const tweebyte = /\/Type0/.test(fontObj.dict) || /Identity-H|Identity-V/.test(encoding);
+    let naarTekst = null;
+    const toUnicodeRef = pdfVerwijzingen(pdfDictWaarde(fontObj.dict, "ToUnicode"))[0];
+    if (toUnicodeRef !== undefined) {
+      const cmapObj = objecten.get(toUnicodeRef);
+      if (cmapObj) {
+        const cmap = await pdfStreamInhoud(bytes, cmapObj);
+        if (cmap) naarTekst = pdfLeesCMap(cmap);
+      }
+    }
+    fonts.set(m[1], { tweebyte, naarTekst });
+  }
+  return fonts;
+}
+
+// Leest een PDF en geeft per pagina de tekstfragmenten met hun plaats.
+async function leesPdfFragmenten(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const tekst = pdfAlsTekst(bytes);
+  if (!/^%PDF-/.test(tekst.slice(0, 1024))) {
+    throw new Error("Dit bestand begint niet met een PDF-kop.");
+  }
+  if (/\/Encrypt\b/.test(tekst)) {
+    throw new Error("Deze PDF is beveiligd. Sla hem zonder beveiliging op, of exporteer naar Excel.");
+  }
+  const objecten = pdfScanObjecten(tekst);
+  const paginaObjecten = pdfPaginaObjecten(objecten, tekst);
+  const opmerkingen = [];
+  const paginas = [];
+
+  for (const pagina of paginaObjecten) {
+    const fonts = await pdfFontsVanPagina(bytes, objecten, pagina.dict);
+    const contentRefs = pdfVerwijzingen(pdfDictWaarde(pagina.dict, "Contents"));
+    let inhoud = "";
+    for (const ref of contentRefs) {
+      const obj = objecten.get(ref);
+      if (!obj) continue;
+      const deel = await pdfStreamInhoud(bytes, obj);
+      if (deel === null) opmerkingen.push(`Een stream op pagina ${paginas.length + 1} kon niet worden uitgepakt.`);
+      else inhoud += deel + "\n";
+    }
+    paginas.push({ fragmenten: inhoud ? pdfFragmentenUitContent(inhoud, fonts) : [] });
+  }
+
+  const totaal = paginas.reduce((n, p) => n + p.fragmenten.length, 0);
+  if (totaal === 0) {
+    throw new Error("In deze PDF is geen tekst gevonden. Waarschijnlijk is het een scan; die wordt niet met OCR gelezen. Exporteer de mutaties naar Excel of plak ze.");
+  }
+  return { paginas, opmerkingen, aantalFragmenten: totaal };
+}
+
+// Bepaalt kolomgrenzen uit de verticale witruimte. Voor elke positie op de breedte wordt
+// geteld in hoeveel regels daar tekst staat; een aaneengesloten reeks posities waar dat
+// vrijwel nooit zo is, is een kolomscheiding. Deze methode blijft overeind bij een cel die
+// twee kolommen overspant, in tegenstelling tot samenvoegen op overlap.
+function pdfKolommenUitWitruimte(cellen, aantalRegels) {
+  const linkerrand = Math.floor(Math.min(...cellen.map((c) => c.start)));
+  const rechterrand = Math.ceil(Math.max(...cellen.map((c) => c.eind)));
+  const breedte = rechterrand - linkerrand;
+  if (breedte <= 0 || breedte > 20000) return null;
+
+  // Per positie de regels tellen, niet de cellen: een regel met drie cellen op dezelfde
+  // plaats zou anders drie keer meewegen.
+  const dekking = new Array(breedte + 1).fill(0);
+  const perRegel = new Map();
+  for (const cel of cellen) {
+    if (!perRegel.has(cel.regel)) perRegel.set(cel.regel, []);
+    perRegel.get(cel.regel).push(cel);
+  }
+  // Een paginakop of voettekst loopt over de kolomgrenzen heen en zou ze wegpoetsen. Voor
+  // het bepalen van de grenzen tellen daarom alleen regels die op een tabelregel lijken,
+  // met ten minste drie cellen. Toewijzen gebeurt daarna wel voor alle regels.
+  const tabelregels = [...perRegel.values()].filter((r) => r.length >= 3);
+  const bepalend = tabelregels.length >= 3 ? tabelregels : [...perRegel.values()];
+  for (const regelcellen of bepalend) {
+    const bezet = new Uint8Array(breedte + 1);
+    for (const cel of regelcellen) {
+      const van = Math.max(0, Math.floor(cel.start - linkerrand));
+      const tot = Math.min(breedte, Math.ceil(cel.eind - linkerrand));
+      for (let x = van; x <= tot; x++) bezet[x] = 1;
+    }
+    for (let x = 0; x <= breedte; x++) dekking[x] += bezet[x];
+  }
+
+  const drempel = Math.max(1, Math.floor(bepalend.length * 0.1));
+  const minimaleKloof = 3;
+  const grenzen = [];
+  let kloofStart = null;
+  for (let x = 0; x <= breedte; x++) {
+    const leeg = dekking[x] <= drempel;
+    if (leeg && kloofStart === null) kloofStart = x;
+    if ((!leeg || x === breedte) && kloofStart !== null) {
+      const kloofEinde = leeg ? x : x - 1;
+      // De randen van de pagina zijn geen kolomscheiding.
+      if (kloofEinde - kloofStart >= minimaleKloof && kloofStart > 0 && kloofEinde < breedte) {
+        grenzen.push(linkerrand + (kloofStart + kloofEinde) / 2);
+      }
+      kloofStart = null;
+    }
+  }
+  if (grenzen.length === 0) return null;
+
+  const kolommen = [];
+  let vorige = -Infinity;
+  for (const grens of grenzen.concat([Infinity])) {
+    kolommen.push({ start: vorige, eind: grens, cellen: [] });
+    vorige = grens;
+  }
+  for (const cel of cellen) {
+    let index = kolommen.findIndex((k) => cel.start >= k.start && cel.start < k.eind);
+    if (index === -1) index = cel.start < kolommen[0].eind ? 0 : kolommen.length - 1;
+    kolommen[index].cellen.push(cel);
+  }
+  const gevuld = kolommen.filter((k) => k.cellen.length > 0);
+  return gevuld.length >= 2 ? gevuld : null;
+}
+
+// Terugval: cellen met overlappende breedte horen bij dezelfde kolom.
+function pdfKolommenUitOverlap(cellen) {
+  const opStart = cellen.slice().sort((a, b) => a.start - b.start);
+  const kolommen = [];
+  for (const cel of opStart) {
+    const laatste = kolommen[kolommen.length - 1];
+    if (laatste && cel.start < laatste.eind - 0.5) {
+      laatste.eind = Math.max(laatste.eind, cel.eind);
+      laatste.cellen.push(cel);
+    } else {
+      kolommen.push({ start: cel.start, eind: cel.eind, cellen: [cel] });
+    }
+  }
+  return kolommen;
+}
+
+// Zet tekstfragmenten om in een tabel. De kolommen volgen uit de plaats op de pagina: eerst
+// worden fragmenten met dezelfde hoogte tot een regel gegroepeerd, dan binnen de regel tot
+// cellen, en tot slot worden cellen met overlappende breedte tot kolommen samengevoegd. Dat
+// laatste is nodig omdat bedragen rechts uitgelijnd staan en dus niet op dezelfde x beginnen.
+function pdfFragmentenNaarRijen(paginas, opties) {
+  const o = opties || {};
+  const breedtePerTeken = o.breedtePerTeken === undefined ? 0.5 : o.breedtePerTeken;
+  const cellen = [];
+  let regelnummer = 0;
+
+  for (const pagina of paginas) {
+    const fragmenten = pagina.fragmenten.filter((f) => f.tekst && f.tekst.trim() !== "");
+    if (fragmenten.length === 0) continue;
+    const groottes = fragmenten.map((f) => f.grootte).sort((a, b) => a - b);
+    const mediaan = groottes[Math.floor(groottes.length / 2)] || 10;
+    const yTolerantie = Math.max(1.5, mediaan * 0.5);
+
+    const gesorteerd = fragmenten.slice().sort((a, b) => (b.y - a.y) || (a.x - b.x));
+    const regels = [];
+    for (const f of gesorteerd) {
+      const laatste = regels[regels.length - 1];
+      if (laatste && Math.abs(laatste.y - f.y) <= yTolerantie) {
+        laatste.fragmenten.push(f);
+        laatste.y = (laatste.y * (laatste.fragmenten.length - 1) + f.y) / laatste.fragmenten.length;
+      } else {
+        regels.push({ y: f.y, fragmenten: [f] });
+      }
+    }
+
+    for (const regel of regels) {
+      regelnummer++;
+      const opX = regel.fragmenten.slice().sort((a, b) => a.x - b.x);
+      let huidig = null;
+      for (const f of opX) {
+        const breedte = f.tekst.length * f.grootte * breedtePerTeken;
+        if (huidig && f.x - huidig.eind <= huidig.grootte * 0.9) {
+          const gat = f.x - huidig.eind;
+          huidig.tekst += (gat > huidig.grootte * 0.25 ? " " : "") + f.tekst;
+          huidig.eind = f.x + breedte;
+          huidig.grootte = Math.max(huidig.grootte, f.grootte);
+        } else {
+          if (huidig) cellen.push(huidig);
+          huidig = { regel: regelnummer, tekst: f.tekst, start: f.x, eind: f.x + breedte, grootte: f.grootte };
+        }
+      }
+      if (huidig) cellen.push(huidig);
+    }
+  }
+
+  if (cellen.length === 0) return { rijen: [], kolomgrenzen: [] };
+
+  // Kolommen: de verticale witruimte tussen de kolommen bepaalt de grenzen. Een enkele
+  // lange omschrijving die over een grens heen loopt, mag die grens niet wissen; daarom
+  // geldt een kolomgrens al zodra minder dan een tiende van de regels daar tekst heeft.
+  const aantalRegels = Math.max(...cellen.map((c) => c.regel));
+  const kolommen = pdfKolommenUitWitruimte(cellen, aantalRegels)
+    || pdfKolommenUitOverlap(cellen);
+
+  const rijen = Array.from({ length: aantalRegels }, () => new Array(kolommen.length).fill(null));
+  kolommen.forEach((kolom, k) => {
+    for (const cel of kolom.cellen) {
+      const bestaand = rijen[cel.regel - 1][k];
+      rijen[cel.regel - 1][k] = bestaand ? bestaand + " " + cel.tekst : cel.tekst;
+    }
+  });
+
+  return {
+    rijen: rijen.filter((r) => r.some((c) => c !== null && String(c).trim() !== "")),
+    kolomgrenzen: kolommen.map((k) => ({
+      start: Number.isFinite(k.start) ? Math.round(k.start * 10) / 10 : null,
+      eind: Number.isFinite(k.eind) ? Math.round(k.eind * 10) / 10 : null,
+    })),
+  };
+}
+// PDF-LEZER — EINDE
+
+// --- csv en plaktekst -----------------------------------------------------------
+// TEKSTLEZER — BEGIN
+// Puur tekstwerk, zonder DOM, en daarom in de tests meegenomen.
+
+// Een CSV uit een boekhoudpakket is vaak niet in UTF-8 maar in Windows-1252. Onbewerkt als
+// UTF-8 lezen levert dan vervangingstekens in de omschrijvingen op. Bedragen en datums
+// blijven in beide gevallen goed, maar een onleesbare omschrijving in het dossier is
+// onnodig, dus wordt eerst UTF-8 geprobeerd en bij een fout Windows-1252.
+function decodeerTekst(buffer) {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder("utf-8").decode(bytes.subarray(3));
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (fout) {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+}
+
+function splitsRegel(regel, scheider) {
+  const cellen = [];
+  let huidig = "", inQuote = false;
+  for (let i = 0; i < regel.length; i++) {
+    const c = regel[i];
+    if (inQuote) {
+      if (c === '"' && regel[i + 1] === '"') { huidig += '"'; i++; }
+      else if (c === '"') inQuote = false;
+      else huidig += c;
+    } else if (c === '"') {
+      inQuote = true;
+    } else if (c === scheider) {
+      cellen.push(huidig); huidig = "";
+    } else {
+      huidig += c;
+    }
+  }
+  cellen.push(huidig);
+  return cellen.map((c) => c.trim());
+}
+
+// Kiest het scheidingsteken op de eerste regels: een tab wint altijd, want dat is wat een
+// selectie uit Excel oplevert. Daarna de puntkomma, omdat een Nederlandse CSV die gebruikt
+// en de komma daar het decimaalteken is.
+function leesTekst(tekst) {
+  const regels = String(tekst).split(/\r\n|\n|\r/).filter((r) => r.trim() !== "");
+  if (regels.length === 0) return { rijen: [], scheider: null };
+  const kop = regels.slice(0, Math.min(5, regels.length)).join("\n");
+  const tel = (teken) => kop.split(teken).length - 1;
+  let scheider = "\t";
+  if (tel("\t") === 0) scheider = tel(";") >= tel(",") ? ";" : ",";
+  return { rijen: regels.map((r) => splitsRegel(r, scheider)), scheider };
+}
+// TEKSTLEZER — EINDE
+
+// --- meldingen ------------------------------------------------------------------
+// melding() zelf staat bij de opmaakhulpen hierboven, binnen het gemarkeerde blok.
+
+function zetMeldingen(doelId, html) { $(doelId).innerHTML = html; }
+
+// --- stap 1: bron ---------------------------------------------------------------
+
+// Het schakelpunt van bron naar kolomtoewijzing. Standaard doet de lokale heuristiek het
+// werk. Staat een AI-implementatie aan, dan wordt haar voorstel eerst gevalideerd; komt het
+// niet door de controle, dan valt de tool terug op de heuristiek en wordt dat gemeld in
+// plaats van stil doorgegaan.
+async function interpreteerBron(rijen) {
+  if (!LEZER_CONFIG.aiActief) return interpreteerTabel(rijen);
+  const metMelding = (tekst) => {
+    const lokaal = interpreteerTabel(rijen);
+    lokaal.opmerkingen.push(tekst);
+    return lokaal;
+  };
+  if (typeof LEZER_CONFIG.aiInterpreteer !== "function") {
+    return metMelding("De AI-lezer staat aan, maar er is geen implementatie ingesteld; de lokale heuristiek is gebruikt.");
+  }
+  let voorstel = null;
+  try {
+    voorstel = await LEZER_CONFIG.aiInterpreteer(rijen);
+  } catch (fout) {
+    return metMelding("De AI-lezer gaf een fout (" + (fout && fout.message ? fout.message : fout) + "); de lokale heuristiek is gebruikt.");
+  }
+  const gevalideerd = valideerInterpretatie(voorstel, rijen);
+  if (!gevalideerd.geldig) {
+    return metMelding("Het AI-voorstel is verworpen (" + gevalideerd.fouten.join("; ") + "); de lokale heuristiek is gebruikt.");
+  }
+  return {
+    kopIndex: gevalideerd.kopIndex,
+    kolommen: gevalideerd.kolommen,
+    // De rijen komen uit de bron en niet uit het voorstel: een implementatie kan de
+    // gegevens dus niet wijzigen.
+    rijen: (rijen || []).filter((r) => !isLeegRij(r)),
+    betrouwbaarheid: gevalideerd.betrouwbaarheid,
+    opmerkingen: gevalideerd.opmerkingen.slice(),
+    bron: "AI-assistentie, voorstel gevalideerd",
+  };
+}
+
+function kiesTab(welke) {
+  const plak = welke === "plak";
+  $("tab-plak").setAttribute("aria-selected", String(plak));
+  $("tab-bestand").setAttribute("aria-selected", String(!plak));
+  $("paneel-plak").hidden = !plak;
+  $("paneel-bestand").hidden = plak;
+}
+
+async function neemRijenAan(rijen, bronnaam, bronsoort) {
+  // Een nieuwe bron hoort een nieuw jaar te gokken; anders blijft een jaartal van een
+  // vorige kaart staan en wordt alles "buiten de periode" gemeld.
+  if (!$("jaar").dataset.handmatig) $("jaar").value = "";
+  staat.rijen = rijen;
+  staat.bronnaam = bronnaam;
+  staat.bronsoort = bronsoort;
+  const interpretatie = await interpreteerBron(rijen);
+  staat.interpretatie = interpretatie;
+  staat.kopIndex = interpretatie.kopIndex;
+  staat.kolommen = Object.assign({}, interpretatie.kolommen);
+
+  const aantalGegevens = interpretatie.rijen ? interpretatie.rijen.length - (interpretatie.kopIndex + 1) : 0;
+  let zeker = interpretatie.betrouwbaarheid >= 0.8 ? "goed" : interpretatie.betrouwbaarheid >= 0.5 ? "let-op" : "blokkerend";
+  const opmerkingen = interpretatie.opmerkingen.slice();
+  if (bronsoort === "pdf") {
+    // Een PDF heeft geen kolommen, alleen tekst op een plek. De indeling hieronder is
+    // afgeleid uit die plaatsen en dat is een gok, ook als hij er goed uitziet.
+    if (zeker === "goed") zeker = "let-op";
+    const info = staat.pdfInfo || {};
+    opmerkingen.unshift(`De kolomindeling is afgeleid uit de plaats van de tekst op ${info.paginas || 1} pagina('s), niet uit de PDF zelf. Loop de regels na en let op de sluitcontrole.`);
+    for (const opmerking of info.opmerkingen || []) opmerkingen.push(opmerking);
+  }
+  zetMeldingen("bron-meldingen", melding(
+    zeker,
+    `${aantalGegevens} regels ingelezen${bronnaam ? " uit " + bronnaam : ""}`,
+    opmerkingen.length ? "" : "De kolommen zijn herkend. Controleer de toewijzing in stap 2.",
+    opmerkingen
+  ));
+
+  $("stap-kolommen").hidden = false;
+  $("stap-uitgangspunten").hidden = false;
+  toonKolomtabel();
+  vulUitgangspunten();
+}
+
+function toonKolomtabel() {
+  const rijen = staat.interpretatie.rijen || [];
+  const breedte = Math.max(1, ...rijen.map((r) => r.length));
+  const voorbeeld = rijen.slice(Math.max(0, staat.kopIndex + 1)).slice(0, 6);
+  const kopregel = staat.kopIndex > -1 ? rijen[staat.kopIndex] : null;
+
+  const soortVanKolom = (k) => {
+    for (const soort of ["datum", "omschrijving", "debet", "credit", "bedrag", "saldo"]) {
+      if (staat.kolommen[soort] === k) return soort;
+    }
+    return "negeren";
+  };
+
+  let html = "<thead><tr>";
+  for (let k = 0; k < breedte; k++) {
+    const opties = KOLOMSOORTEN.map((s) =>
+      `<option value="${s}"${soortVanKolom(k) === s ? " selected" : ""}>${s === "negeren" ? "- negeren -" : s}</option>`
+    ).join("");
+    html += `<th><select data-kolom="${k}" class="kolomkeuze">${opties}</select>`;
+    if (kopregel) html += `<div class="bron">${esc(kopregel[k] === null || kopregel[k] === undefined ? "" : kopregel[k])}</div>`;
+    html += "</th>";
+  }
+  html += "</tr></thead><tbody>";
+  for (const rij of voorbeeld) {
+    html += "<tr>";
+    for (let k = 0; k < breedte; k++) {
+      const waarde = rij[k];
+      html += `<td>${esc(waarde === null || waarde === undefined ? "" : waarde)}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  $("kolomtabel").innerHTML = html;
+
+  $("kolomtabel").querySelectorAll("select.kolomkeuze").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const k = Number(sel.dataset.kolom);
+      const nieuw = sel.value;
+      for (const soort of Object.keys(staat.kolommen)) {
+        if (staat.kolommen[soort] === k) staat.kolommen[soort] = null;
+      }
+      if (nieuw !== "negeren") {
+        for (const soort of Object.keys(staat.kolommen)) {
+          if (soort === nieuw && staat.kolommen[soort] !== null && staat.kolommen[soort] !== k) {
+            staat.kolommen[soort] = null;
+          }
+        }
+        staat.kolommen[nieuw] = k;
+      }
+      toonKolomtabel();
+      vulUitgangspunten();
+    });
+  });
+}
+
+// --- stap 3: uitgangspunten -----------------------------------------------------
+
+function huidigeMutaties() {
+  return bouwMutaties(staat.rijen, staat.kolommen, {
+    conventie: $("conventie").value,
+    kopIndex: staat.kopIndex,
+  });
+}
+
+function vulUitgangspunten() {
+  const opbouw = huidigeMutaties();
+  const meldingen = [];
+  if (opbouw.mutaties.length === 0) {
+    zetMeldingen("kolom-meldingen", melding("blokkerend", "Geen bruikbare mutaties", "Er is geen regel met zowel een datum als een bedrag. Controleer de toewijzing."));
+    return;
+  }
+
+  const jaarInfo = gokJaar(opbouw.mutaties);
+  if (!$("jaar").value) $("jaar").value = String(jaarInfo.jaar);
+  const jaar = Number($("jaar").value) || jaarInfo.jaar;
+
+  const afgeleid = leidBeginstandAf(opbouw.mutaties);
+  if (afgeleid.gelukt) {
+    if (!$("beginstand").dataset.handmatig) {
+      $("beginstand").value = fmt(afgeleid.beginstand);
+    }
+    $("beginstand-hint").textContent =
+      `afgeleid uit de saldokolom (${afgeleid.treffers} van ${afgeleid.totaal} regels sluiten aan)`;
+  } else {
+    $("beginstand-hint").textContent = `beginstand zelf invullen (${afgeleid.reden})`;
+    meldingen.push(`De beginstand kon niet uit de bron worden afgeleid: ${afgeleid.reden}.`);
+  }
+
+  // Bevat de bron meer dan één jaar, dan is doorrekenen van alle jaren een keuze en geen
+  // automatisme: de gebruiker bepaalt of dat de bedoeling is.
+  const meerdereJaren = jaarInfo.jaren.length > 1;
+  $("veld-alle-jaren").hidden = !meerdereJaren;
+  if (meerdereJaren) {
+    $("alle-jaren-tekst").textContent =
+      `alle jaren uit de bron doorrekenen (${jaarInfo.jaren[0]} t/m ${jaarInfo.jaren[jaarInfo.jaren.length - 1]})`;
+  } else if ($("alle-jaren").checked) {
+    $("alle-jaren").checked = false;
+  }
+  const alleJaren = meerdereJaren && $("alle-jaren").checked;
+  const controle = controleerMutaties(opbouw.mutaties, jaar);
+  if (meerdereJaren && !alleJaren) {
+    meldingen.push(`De bron bevat mutaties uit meer dan één jaar (${jaarInfo.jaren.join(", ")}). Alleen ${jaar} wordt doorgerekend, tenzij u alle jaren aanvinkt.`);
+  }
+  if (controle.buitenPeriode.length && !alleJaren) {
+    meldingen.push(`${controle.buitenPeriode.length} mutatie(s) vallen buiten ${jaar} en blijven buiten de berekening.`);
+  }
+  toonRenteTabel();
+
+  // Het eindsaldo voor de sluitcontrole hoort bij het einde van de periode die wordt
+  // doorgerekend, niet bij het einde van de bron. Anders blokkeert de sluitcontrole zodra
+  // van een meerjarige kaart maar één jaar wordt doorgerekend.
+  const laatsteJaar = alleJaren ? jaarInfo.jaren[jaarInfo.jaren.length - 1] : jaar;
+  const bronsaldo = saldoVolgensBronEindeJaar(opbouw.mutaties, laatsteJaar, afgeleid.gelukt ? afgeleid.tekenSaldo : 1);
+  const hint = $("eindsaldo-bron").parentElement.querySelector(".hint");
+  if (bronsaldo.bekend && !$("eindsaldo-bron").dataset.handmatig) {
+    $("eindsaldo-bron").value = fmt(bronsaldo.saldo);
+  }
+  if (hint) {
+    hint.textContent = bronsaldo.bekend
+      ? `stand volgens de bron per ${fmtDatum(bronsaldo.iso)}; exclusief nog te boeken rente`
+      : "voor de sluitcontrole, exclusief nog te boeken rente";
+  }
+  if (bronsaldo.bekend && bronsaldo.laterInBron && !alleJaren) {
+    meldingen.push(`Het eindsaldo voor de sluitcontrole is de stand per ${fmtDatum(bronsaldo.iso)}; de bron loopt daarna nog door.`);
+  }
+
+  if (controle.dubbel.length) {
+    meldingen.push(`${controle.dubbel.length} regel(s) lijken dubbel: zelfde datum, bedrag en omschrijving (bijvoorbeeld regel ${controle.dubbel[0].tweede}).`);
+  }
+  if (controle.nietChronologisch) {
+    meldingen.push("De regels in de bron staan niet op datum; de berekening gebruikt de datum en niet de volgorde van de kaart.");
+  }
+  if (opbouw.overgeslagen.length) {
+    meldingen.push(`${opbouw.overgeslagen.length} regel(s) zonder bruikbare datum of bedrag zijn overgeslagen, bijvoorbeeld een beginbalans- of totaalregel.`);
+  }
+
+  zetMeldingen("kolom-meldingen", meldingen.length
+    ? melding("let-op", `${opbouw.mutaties.length} mutaties gebruikt`, "", meldingen)
+    : melding("goed", `${opbouw.mutaties.length} mutaties gebruikt`, "Datums, bedragen en saldi zijn zonder bijzonderheden ingelezen."));
+}
+
+// --- stap 4: rekenen en weergeven -----------------------------------------------
+
+function renteVelden() {
+  const credit = parseBedrag($("rente").value);
+  const apart = $("rente-apart").checked;
+  const debet = apart ? parseBedrag($("rente-debet").value) : credit;
+  return { credit, debet, apart };
+}
+
+// De jaren die worden doorgerekend: het ingevulde jaar, of alle jaren uit de bron.
+function gekozenJaren(opbouw) {
+  if ($("alle-jaren").checked) {
+    const jaren = gokJaar(opbouw.mutaties).jaren;
+    return jaren.length ? jaren : [Number($("jaar").value)];
+  }
+  return [Number($("jaar").value)];
+}
+
+// Per jaar de renteperiodes. Standaard geldt één percentage voor alle jaren; met
+// "afwijkende rente per jaar" krijgt elk jaar zijn eigen invoerveld.
+function rentePeriodesPerJaar(jaren, rente) {
+  const perJaar = {};
+  for (const jaar of jaren) {
+    const eigen = $(`rente-${jaar}`);
+    const eigenDebet = $(`rente-debet-${jaar}`);
+    const credit = eigen && eigen.value !== "" ? parseBedrag(eigen.value) : rente.credit;
+    const debet = rente.apart
+      ? (eigenDebet && eigenDebet.value !== "" ? parseBedrag(eigenDebet.value) : rente.debet)
+      : credit;
+    perJaar[jaar] = [{ vanaf: `${jaar}-01-01`, pctCredit: credit, pctDebet: debet }];
+  }
+  return perJaar;
+}
+
+// Het tabelletje met een percentage per jaar, alleen zichtbaar bij meer dan één jaar.
+function toonRenteTabel() {
+  const meerjarig = $("alle-jaren").checked;
+  const anders = $("per-jaar-anders").checked;
+  $("veld-per-jaar-anders").hidden = !meerjarig;
+  $("rente-tabel-blok").hidden = !(meerjarig && anders);
+  if (!(meerjarig && anders)) return;
+  if (!staat.rijen.length) return;
+
+  const jaren = gekozenJaren(huidigeMutaties());
+  const hoofd = $("rente").value;
+  let html = `<table><thead><tr><th>Jaar</th><th class="num">Rente (%)</th>${$("rente-apart").checked ? '<th class="num">Rente bij schuld DGA (%)</th>' : ""}</tr></thead><tbody>`;
+  for (const jaar of jaren) {
+    const bestaand = $(`rente-${jaar}`);
+    const bestaandDebet = $(`rente-debet-${jaar}`);
+    html += `<tr><td>${jaar}</td>
+      <td class="num"><input type="text" class="bedrag" id="rente-${jaar}" style="width:90px" value="${esc(bestaand ? bestaand.value : hoofd)}" /></td>
+      ${$("rente-apart").checked
+        ? `<td class="num"><input type="text" class="bedrag" id="rente-debet-${jaar}" style="width:90px" value="${esc(bestaandDebet ? bestaandDebet.value : $("rente-debet").value || hoofd)}" /></td>`
+        : ""}</tr>`;
+  }
+  html += "</tbody></table>";
+  $("rente-tabel").innerHTML = html;
+}
+
+function reken() {
+  const opbouw = huidigeMutaties();
+  const rente = renteVelden();
+  const beginstand = parseBedrag($("beginstand").value);
+  const jaren = gekozenJaren(opbouw);
+  const fouten = [];
+
+  if (jaren.some((j) => !Number.isInteger(j) || j < 2000 || j > 2099)) fouten.push("Vul een kalenderjaar in.");
+  if (beginstand === null) fouten.push("Vul de beginstand in.");
+  if (rente.credit === null) fouten.push("Vul het rentepercentage in.");
+  if (rente.apart && rente.debet === null) fouten.push("Vul ook de rente voor debetstanden in.");
+  const perJaar = fouten.length ? null : rentePeriodesPerJaar(jaren, rente);
+  if (perJaar) {
+    for (const jaar of jaren) {
+      const p = perJaar[jaar][0];
+      if (p.pctCredit === null || p.pctDebet === null) fouten.push(`Vul het rentepercentage voor ${jaar} in.`);
+    }
+  }
+  if (fouten.length) {
+    zetMeldingen("uitgangspunt-meldingen", melding("blokkerend", "Nog niet compleet", "", fouten));
+    return;
+  }
+  zetMeldingen("uitgangspunt-meldingen", "");
+
+  const bijschrijven = $("rente-bijschrijven").checked;
+  const uitkomst = bouwMeerjarigeStaffel({
+    jaren,
+    beginstand,
+    mutaties: opbouw.mutaties,
+    rentePeriodesPerJaar: perJaar,
+    rentePeriodes: perJaar[jaren[0]],
+    renteBijschrijven: bijschrijven,
+  });
+
+  const eindsaldoBron = parseBedrag($("eindsaldo-bron").value);
+  // De bron kent een eventuele bijschrijving niet, dus de sluitcontrole gaat over het
+  // eindsaldo zonder bijschrijving.
+  const sluit = sluitcontrole(uitkomst.eindsaldoZonderBijschrijving, eindsaldoBron);
+
+  staat.laatsteUitkomst = {
+    jaren, beginstand, rente, uitkomst, sluit, opbouw, perJaar, bijschrijven,
+    // De herkomst hoort bij de uitkomst zelf. Las de onderbouwing haar uit de globale
+    // toestand, dan hing de opbouw van de kaarten aan state buiten dit object.
+    bron: { naam: staat.bronnaam, soort: staat.bronsoort },
+    conventie: $("conventie").value,
+    eindsaldoBron,
+    meerjarig: jaren.length > 1,
+  };
+  toonUitkomst(staat.laatsteUitkomst);
+  $("stap-uitkomst").hidden = false;
+  $("stap-uitkomst").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// UITKOMSTKAARTEN — BEGIN
+// Alles hieronder bouwt alleen tekst op. Het DOM wordt pas geraakt in toonUitkomst().
+function sluitcontroleHtml(u) {
+  const laatsteJaar = u.jaren[u.jaren.length - 1];
+  const stand = u.uitkomst.eindsaldoZonderBijschrijving;
+  if (!u.sluit.bekend) {
+    return melding("let-op", "Sluitcontrole niet uitgevoerd",
+      "Er is geen eindsaldo volgens de bron ingevuld. Zonder die controle blijft een gemiste of dubbel ingelezen regel onopgemerkt.");
+  }
+  if (u.sluit.sluit) {
+    return melding("goed", "Sluitcontrole in orde",
+      `Het berekende eindsaldo per 31-12-${laatsteJaar} is gelijk aan het saldo volgens de bron (${fmtEuro(stand)})`
+      + `${u.bijschrijven ? ", de bijgeschreven rente niet meegerekend" : ""}.`);
+  }
+  return melding("blokkerend", "Sluitcontrole klopt niet",
+    `Berekend eindsaldo ${fmtEuro(stand)} tegen ${fmtEuro(u.eindsaldoBron)} volgens de bron, een verschil van ${fmtEuro(u.sluit.verschil)}. Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd.`);
+}
+
+function kaartenHtml(u) {
+  const r = u.uitkomst;
+  const laatsteJaar = u.jaren[u.jaren.length - 1];
+  const periode = u.meerjarig ? `${u.jaren[0]} t/m ${laatsteJaar}` : String(laatsteJaar);
+  return `<div class="kaarten">
+    <div class="kaart accent"><div class="kop">Creditrente</div><div class="waarde">${fmtEuro(r.creditrente)}</div><div class="sub">dagen met een vordering van de DGA; ${KWALIFICATIE.credit.kort}${u.meerjarig ? " (" + periode + ")" : ""}</div></div>
+    <div class="kaart"><div class="kop">Debetrente</div><div class="waarde ${klasse(r.debetrente)}">${fmtEuro(r.debetrente)}</div><div class="sub">dagen met een schuld van de DGA; ${KWALIFICATIE.debet.kort}</div></div>
+    <div class="kaart"><div class="kop">Rente per saldo</div><div class="waarde ${klasse(r.totaleRente)}">${fmtEuro(r.totaleRente)}</div><div class="sub">${u.meerjarig ? "over " + periode : "bij te schrijven per 31-12-" + laatsteJaar}</div></div>
+    <div class="kaart"><div class="kop">Stand per 31-12-${laatsteJaar}</div><div class="waarde ${klasse(r.eindsaldo)}">${fmtEuro(r.eindsaldo)}</div><div class="sub">${u.bijschrijven
+      ? "waarvan " + fmtEuro(r.totaalBijgeschreven) + " bijgeschreven rente"
+      : "exclusief rente; inclusief rente " + fmtEuro(r.eindsaldo + r.totaleRente)}</div></div>
+  </div>`;
+}
+
+function jaaroverzichtHtml(u) {
+  if (!u.meerjarig) return "";
+  let html = `<h3 class="blokkop">Per jaar</h3><div class="scroll"><table><thead><tr>
+    <th>Jaar</th><th class="num">Stand 1-1</th><th class="num">Dagen</th><th class="num">Creditrente</th>
+    <th class="num">Debetrente</th><th class="num">Rente</th><th class="num">Stand 31-12</th>
+    ${u.bijschrijven ? '<th class="num">Bijgeschreven</th>' : ""}</tr></thead><tbody>`;
+  for (const jaar of u.uitkomst.jaren) {
+    const s = jaar.staffel;
+    html += `<tr>
+      <td>${jaar.jaar}</td>
+      <td class="num ${klasse(jaar.beginstand)}">${fmt(jaar.beginstand)}</td>
+      <td class="num">${s.noemer}</td>
+      <td class="num">${fmt(s.creditrente)}</td>
+      <td class="num ${klasse(s.debetrente)}">${fmt(s.debetrente)}</td>
+      <td class="num ${klasse(s.totaleRente)}">${fmt(s.totaleRente)}</td>
+      <td class="num ${klasse(s.eindsaldo)}">${fmt(s.eindsaldo)}</td>
+      ${u.bijschrijven ? `<td class="num">${fmt(jaar.bijschrijving)}</td>` : ""}
+    </tr>`;
+  }
+  html += `</tbody><tfoot><tr><th>Totaal</th><th></th><th></th>
+    <th class="num">${fmt(u.uitkomst.creditrente)}</th>
+    <th class="num ${klasse(u.uitkomst.debetrente)}">${fmt(u.uitkomst.debetrente)}</th>
+    <th class="num ${klasse(u.uitkomst.totaleRente)}">${fmt(u.uitkomst.totaleRente)}</th>
+    <th class="num ${klasse(u.uitkomst.eindsaldo)}">${fmt(u.uitkomst.eindsaldo)}</th>
+    ${u.bijschrijven ? `<th class="num">${fmt(u.uitkomst.totaalBijgeschreven)}</th>` : ""}
+  </tr></tfoot></table></div>`;
+  return html;
+}
+
+function toetsenHtml(u) {
+  let html = "";
+  for (const jaar of u.uitkomst.jaren) {
+    const s = jaar.staffel;
+    const voor = u.meerjarig ? `${jaar.jaar}: ` : "";
+    const kleine = toetsKleineStanden(jaar.jaar, s.minSaldo, s.maxSaldo);
+    if (!kleine.bekend) {
+      html += melding("let-op", `${voor}goedkeuring kleine standen niet getoetst`, kleine.melding);
+    } else if (kleine.binnenGrens) {
+      html += melding("goed", `${voor}standen blijven binnen ${fmtEuro(kleine.grens)}`,
+        `De laagste stand is ${fmt(kleine.minSaldo)} (${fmtDatum(s.minDatum)}) en de hoogste ${fmt(kleine.maxSaldo)} (${fmtDatum(s.maxDatum)}). De goedkeuring kan van toepassing zijn, mits aan alle voorwaarden is voldaan:`,
+        kleine.voorwaarden);
+    } else {
+      html += melding("let-op", `${voor}standen komen boven ${fmtEuro(kleine.grens)}`,
+        `De laagste stand is ${fmt(kleine.minSaldo)} (${fmtDatum(s.minDatum)}) en de hoogste ${fmt(kleine.maxSaldo)} (${fmtDatum(s.maxDatum)}). De goedkeuring voor kleine rekening-courantstanden is niet van toepassing; de rente hoort in aanmerking te worden genomen.`);
+    }
+
+    // De peildatum van de Wet excessief lenen is 31 december, dus elk jaar apart.
+    const excessief = toetsExcessiefLenen(jaar.jaar, s.eindsaldo);
+    if (!excessief.bekend && excessief.schuldPeildatum > 0) {
+      html += melding("let-op", `${voor}excessief lenen niet gesignaleerd`, excessief.melding);
+    } else if (excessief.bekend && excessief.schuldPeildatum > 0) {
+      const aandeel = Math.round(excessief.deelVanMax * 100);
+      if (excessief.boven) {
+        html += melding("blokkerend", `${voor}schuld boven het maximumbedrag van de Wet excessief lenen`,
+          `De schuld op peildatum 31-12-${jaar.jaar} is ${fmtEuro(excessief.schuldPeildatum)} tegen een maximum van ${fmtEuro(excessief.max)}. Dit is een signaal en geen conclusie: ${EXCESSIEF_LENEN_KRING}. Deze tool ziet één rekening-courant. Vindplaats: ${EXCESSIEF_LENEN_KRING_BRON}.`);
+      } else if (aandeel >= 60) {
+        html += melding("let-op", `${voor}schuld op ${aandeel}% van het maximumbedrag`,
+          `De schuld op peildatum 31-12-${jaar.jaar} is ${fmtEuro(excessief.schuldPeildatum)}, het maximum is ${fmtEuro(excessief.max)}. Tel daar de overige schulden bij op voordat u dit afdoet: ${EXCESSIEF_LENEN_KRING}. Vindplaats: ${EXCESSIEF_LENEN_KRING_BRON}.`);
+      }
+    }
+  }
+  return html;
+}
+
+// Kwalificatie bij de DGA, met de vindplaats erbij. Alleen de component die er werkelijk
+// is wordt getoond; de tool kwalificeert niet, zij laat zien welke regeling erbij hoort.
+function kwalificatieHtml(u) {
+  const r = u.uitkomst;
+  const delen = [];
+  if (r.creditrente > 0.005) delen.push(["Creditrente", KWALIFICATIE.credit]);
+  if (r.debetrente < -0.005) delen.push(["Debetrente", KWALIFICATIE.debet]);
+  if (!delen.length) return "";
+  return `<details><summary>Fiscale kwalificatie bij de DGA</summary>
+    ${delen.map(([kop, k]) => `<p class="uitleg" style="margin-top:10px"><strong>${kop}: ${esc(k.kort)}.</strong> ${esc(k.tekst)}</p>
+      ${k.genietingsmoment ? `<p class="uitleg"><strong>In welk jaar telt de rente mee?</strong> ${esc(k.genietingsmoment)}</p>` : ""}
+      <p class="bron">${esc(k.bron)}</p>`).join("")}
+    <p class="bron">Of de terbeschikkingstellingsregeling in dit geval van toepassing is, of er een aanmerkelijk belang is en of de rente zakelijk is, beoordeelt de adviseur.</p>
+  </details>`;
+}
+
+function planHtml(u) {
+  const laatste = u.uitkomst.jaren[u.uitkomst.jaren.length - 1];
+  const s = laatste.staffel;
+  const excessief = toetsExcessiefLenen(laatste.jaar, s.eindsaldo);
+  if (!(excessief.schuldPeildatum > 0)) return "";
+  const groeit = s.eindsaldo < laatste.beginstand - 0.005;
+  if (!(groeit || excessief.deelVanMax >= 0.6 || excessief.boven)) return "";
+  return `<div class="melding let-op"><strong>Een plan maken?</strong>
+    ${groeit ? "De schuld van de DGA is in dit jaar toegenomen. " : ""}De tool <em>RC-schuld DGA</em> rekent aflossingsroutes via dividend en privéstortingen door en gebruikt de stand per 31 december als beginstand.
+    <div class="knoppen niet-printen" style="margin-top:10px">
+      <button type="button" class="secundair klein" id="btn-kopieer-plan">Uitgangspunten naar klembord</button>
+    </div></div>`;
+}
+
+function staffelHtml(jaar, meerjarig) {
+  const s = jaar.staffel;
+  const segmenten = dichtStaffel(s.dagen);
+  let html = `<div class="scroll"><table><thead><tr>
+      <th>Van</th><th>Tot en met</th><th class="num">Dagen</th><th class="num">Saldo</th><th class="num">%</th><th class="num">Rente</th>
+    </tr></thead><tbody>`;
+  for (const r of segmenten) {
+    html += `<tr><td>${fmtDatum(r.van)}</td><td>${fmtDatum(r.tot)}</td><td class="num">${r.dagen}</td>
+      <td class="num ${klasse(r.saldo)}">${fmt(r.saldo)}</td><td class="num">${nlBedrag.format(r.pct)}</td>
+      <td class="num ${klasse(r.rente)}">${fmt(r.rente)}</td></tr>`;
+  }
+  html += `</tbody><tfoot><tr><th colspan="5">Totaal ${jaar.jaar} (${s.noemer} dagen)</th>
+    <th class="num ${klasse(s.totaleRente)}">${fmt(s.totaleRente)}</th></tr></tfoot></table></div>`;
+  return html;
+}
+
+function vergelijkingHtml(u) {
+  const rijen = [];
+  for (const jaar of u.uitkomst.jaren) {
+    const invoer = {
+      jaar: jaar.jaar, beginstand: jaar.beginstand, mutaties: u.opbouw.mutaties,
+      rentePeriodes: u.perJaar[jaar.jaar],
+    };
+    const dag = jaar.staffel;
+    const week = renteOpPeriodebasis({ ...invoer, perioden: 52 });
+    const maand = renteOpPeriodebasis({ ...invoer, perioden: 12 });
+    rijen.push({ jaar: jaar.jaar, dag: dag.totaleRente, week: week.totaleRente, maand: maand.totaleRente, noemer: dag.noemer });
+  }
+  let html = `<details><summary>Vergelijking met de week- en maandbenadering</summary>
+    <p class="bron">Veel bestaande modellen rekenen met de stand aan het begin van elke periode en delen de jaarrente enkelvoudig. Bij 52 weken van 7 dagen blijven de laatste dag of dagen van het jaar buiten die berekening, en gaat een mutatie pas de week erna renderen. Het verschil hieronder is dus methodisch en niet een fout in een van beide.</p>
+    <div class="scroll"><table><thead><tr><th>Jaar</th><th class="num">Dagbasis</th><th class="num">52 weken</th><th class="num">Verschil</th><th class="num">12 maanden</th><th class="num">Verschil</th></tr></thead><tbody>`;
+  for (const r of rijen) {
+    html += `<tr><td>${r.jaar}</td>
+      <td class="num ${klasse(r.dag)}">${fmt(r.dag)}</td>
+      <td class="num ${klasse(r.week)}">${fmt(r.week)}</td>
+      <td class="num ${klasse(r.week - r.dag)}">${fmt(r.week - r.dag)}</td>
+      <td class="num ${klasse(r.maand)}">${fmt(r.maand)}</td>
+      <td class="num ${klasse(r.maand - r.dag)}">${fmt(r.maand - r.dag)}</td></tr>`;
+  }
+  html += "</tbody></table></div></details>";
+  return html;
+}
+
+function onderbouwingHtml(u) {
+  const r = u.uitkomst;
+  const laatste = r.jaren[r.jaren.length - 1];
+  const bronnen = [];
+  for (const jaar of r.jaren) {
+    const kleine = toetsKleineStanden(jaar.jaar, jaar.staffel.minSaldo, jaar.staffel.maxSaldo);
+    const excessief = toetsExcessiefLenen(jaar.jaar, jaar.staffel.eindsaldo);
+    bronnen.push(`${jaar.jaar}: ${kleine.bekend ? kleine.bron : "geen jaargebonden waarden"}${excessief.bron ? "; " + excessief.bron : ""}`);
+  }
+  const rentetekst = r.jaren.map((jaar) => {
+    const p = u.perJaar[jaar.jaar][0];
+    const zelfde = p.pctCredit === p.pctDebet;
+    return `${u.meerjarig ? jaar.jaar + ": " : ""}${nlBedrag.format(p.pctCredit)}%${zelfde ? "" : ` credit en ${nlBedrag.format(p.pctDebet)}% debet`}`;
+  }).join("; ");
+
+  return `<details open><summary>Onderbouwing voor het dossier</summary>
+    <dl class="kv">
+      <dt>Periode</dt><dd>${u.meerjarig ? `${r.jaren[0].jaar} t/m ${laatste.jaar}, elk jaar met zijn eigen aantal dagen` : `${laatste.jaar} (${laatste.staffel.noemer} dagen, actual/actual)`}</dd>
+      <dt>Beginstand ${r.jaren[0].jaar}</dt><dd>${fmtEuro(u.beginstand)}</dd>
+      <dt>Mutaties</dt><dd>${r.jaren.reduce((n, j) => n + j.staffel.aantalMutaties, 0)} in de periode${u.opbouw.overgeslagen.length ? `, ${u.opbouw.overgeslagen.length} regel(s) overgeslagen` : ""}</dd>
+      <dt>Rente</dt><dd>${rentetekst}</dd>
+      <dt>Rentemoment</dt><dd>een mutatie rendeert vanaf de dag zelf; de rente wordt per 31-12 vastgesteld en binnen het jaar niet samengesteld</dd>
+      <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
+      <dt>Tekenconventie</dt><dd>positief is een vordering van de DGA op de BV; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = vordering DGA)" : "administratie van de BV (debet = schuld DGA)"}</dd>
+      <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}</dd>
+      <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}, ingelezen met ${LEZER_CONFIG.aiActief ? "AI-assistentie" : "de lokale heuristiek, zonder AI"}</dd>
+      <dt>Vindplaatsen</dt><dd>${bronnen.map((b) => esc(b)).join("<br />")}</dd>
+      <dt>Tool</dt><dd>RC-rente uit mutaties ${esc(VERSIE)}</dd>
+    </dl></details>`;
+}
+
+function bouwUitkomstHtml(u) {
+  let html = sluitcontroleHtml(u);
+  if (u.bijschrijven) {
+    // Bijschrijven mag alleen als de renteboeking nog niet in de administratie staat.
+    // Staat zij er al, dan wordt de rente dubbel geteld en klopt de stand niet meer.
+    html += melding("let-op", "De rente is bijgeschreven op de rekening-courant",
+      `Er is ${fmtEuro(u.uitkomst.totaalBijgeschreven)} rente op de rekening-courant bijgeschreven en die verhoogt de stand waarover het volgende jaar rente wordt berekend. Doe dit alleen als de renteboeking nog niet in de administratie staat en de rente niet in geld is afgerekend; anders telt u haar dubbel. De sluitcontrole hierboven gaat daarom over de stand zonder bijschrijving.`);
+  }
+  html += kaartenHtml(u) + jaaroverzichtHtml(u) + toetsenHtml(u) + kwalificatieHtml(u) + planHtml(u);
+
+  html += `<h3 class="blokkop">Renteberekening op dagbasis</h3>
+    <p class="bron">Perioden met een gelijk saldo zijn samengevoegd. De dagrente is saldo &times; jaarrente / het aantal dagen van dat jaar; er wordt binnen het jaar niet samengesteld.</p>`;
+  if (u.meerjarig) {
+    for (const jaar of u.uitkomst.jaren) {
+      html += `<details><summary>Staffel ${jaar.jaar} (${fmt(jaar.staffel.totaleRente)})</summary>${staffelHtml(jaar, true)}</details>`;
+    }
+  } else {
+    html += staffelHtml(u.uitkomst.jaren[0], false);
+  }
+
+  // De rente van een jaar hoort in dat jaar te worden geboekt, dus bij meer dan één jaar
+  // volgt er een post per jaar en niet één post over de hele periode.
+  const postenPerJaar = u.uitkomst.jaren
+    .map((jaar) => ({ jaar: jaar.jaar, posten: journaalpost(jaar.staffel.creditrente, jaar.staffel.debetrente) }))
+    .filter((p) => p.posten.length);
+  if (postenPerJaar.length) {
+    html += `<h3 class="blokkop">Journaalpostvoorstel (administratie van de BV)</h3>
+      <div class="scroll"><table><thead><tr>${u.meerjarig ? "<th>Jaar</th>" : ""}<th>Grootboekrekening</th><th class="num">Debet</th><th class="num">Credit</th></tr></thead><tbody>`;
+    for (const blok of postenPerJaar) {
+      blok.posten.forEach((p, i) => {
+        html += `<tr>${u.meerjarig ? `<td>${i === 0 ? blok.jaar : ""}</td>` : ""}<td>${esc(p.grootboek)}</td>
+          <td class="num">${p.debet ? fmt(p.debet) : ""}</td><td class="num">${p.credit ? fmt(p.credit) : ""}</td></tr>`;
+      });
+    }
+    html += `</tbody></table></div>
+      <p class="bron">Dit is de administratie van de BV, spiegelbeeldig aan de kwalificatie bij de DGA: creditrente is voor de BV een last, debetrente een bate. De tegenrekening is de rekening-courant zolang de rente wordt bijgeschreven; wordt zij in geld afgerekend, dan boekt u tegen de bank. De boeking hoort op 31 december van het jaar waarop zij betrekking heeft. Past u de goedkeuring voor kleine standen toe, dan hoort de vennootschap juist geen rente in aanmerking te nemen en vervalt deze post (Besluit ROW 2026, onderdeel 3.9, tweede voorwaarde).</p>`;
+  }
+
+  html += vergelijkingHtml(u) + onderbouwingHtml(u);
+  html += `<div class="knoppen niet-printen" style="margin-top:16px">
+    <button type="button" id="btn-csv">Staffel als CSV</button>
+    <button type="button" class="secundair" id="btn-print">Onderbouwing printen</button>
+  </div>
+  <div id="csv-fallback"></div>`;
+
+  return html;
+}
+// UITKOMSTKAARTEN — EINDE
+
+// De enige plek waar de uitkomst het DOM in gaat.
+function toonUitkomst(u) {
+  $("uitkomst").innerHTML = bouwUitkomstHtml(u);
+  if ($("btn-csv")) $("btn-csv").addEventListener("click", () => exporteerCsv(u));
+  if ($("btn-print")) $("btn-print").addEventListener("click", () => window.print());
+  if ($("btn-kopieer-plan")) $("btn-kopieer-plan").addEventListener("click", () => kopieerPlan(u));
+}
+
+// --- export ---------------------------------------------------------------------
+
+function csvVeld(waarde) {
+  // De puntkomma scheidt de kolommen, dus de komma is vrij als decimaalteken. Met een punt
+  // leest een Nederlandse Excel "-437.5" als tekst of als datum en kan er niet mee worden
+  // gerekend.
+  if (typeof waarde === "number") {
+    return Number.isFinite(waarde) ? String(waarde).replace(".", ",") : "";
+  }
+  const t = String(waarde === null || waarde === undefined ? "" : waarde);
+  return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function exporteerCsv(u) {
+  const r = u.uitkomst;
+  const regels = [];
+  regels.push(["RC-rente uit mutaties", VERSIE]);
+  regels.push(["Periode", u.meerjarig ? `${r.jaren[0].jaar} t/m ${r.jaren[r.jaren.length - 1].jaar}` : r.jaren[0].jaar]);
+  regels.push(["Beginstand", afrond2(u.beginstand)]);
+  regels.push(["Tekenconventie", "positief = vordering DGA op BV"]);
+  regels.push(["Rente per 31-12 bijgeschreven", u.bijschrijven ? "ja" : "nee"]);
+  regels.push([]);
+
+  for (const jaar of r.jaren) {
+    const s = jaar.staffel;
+    const p = u.perJaar[jaar.jaar][0];
+    regels.push([`Jaar ${jaar.jaar}`, `${s.noemer} dagen`, `rente ${p.pctCredit}%${p.pctCredit === p.pctDebet ? "" : ` credit, ${p.pctDebet}% debet`}`]);
+    regels.push(["Stand 1-1", afrond2(jaar.beginstand)]);
+    regels.push(["Van", "Tot en met", "Dagen", "Saldo", "Percentage", "Rente"]);
+    for (const seg of dichtStaffel(s.dagen)) {
+      regels.push([seg.van, seg.tot, seg.dagen, afrond2(seg.saldo), seg.pct, afrond2(seg.rente)]);
+    }
+    regels.push(["Creditrente", afrond2(s.creditrente)]);
+    regels.push(["Debetrente", afrond2(s.debetrente)]);
+    regels.push(["Rente per saldo", afrond2(s.totaleRente)]);
+    regels.push(["Stand 31-12", afrond2(s.eindsaldo)]);
+    if (u.bijschrijven) regels.push(["Bijgeschreven op de rekening-courant", afrond2(jaar.bijschrijving)]);
+    regels.push([]);
+  }
+
+  if (u.meerjarig) {
+    regels.push(["Totaal creditrente", afrond2(r.creditrente)]);
+    regels.push(["Totaal debetrente", afrond2(r.debetrente)]);
+    regels.push(["Totaal rente per saldo", afrond2(r.totaleRente)]);
+  }
+  regels.push(["Eindstand", afrond2(r.eindsaldo)]);
+  if (u.bijschrijven) regels.push(["Eindstand zonder bijgeschreven rente", afrond2(r.eindsaldoZonderBijschrijving)]);
+  regels.push(["Sluitcontrole", u.sluit.bekend ? (u.sluit.sluit ? "sluit aan" : "verschil " + afrond2(u.sluit.verschil)) : "niet uitgevoerd"]);
+
+  const csv = "﻿" + regels.map((rij) => rij.map(csvVeld).join(";")).join("\r\n");
+  const naam = `rc-rente-${r.jaren[0].jaar}${u.meerjarig ? "-" + r.jaren[r.jaren.length - 1].jaar : ""}.csv`;
+  try {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = naam;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    $("csv-fallback").innerHTML =
+      `<p class="bron">Opslaan lukte niet in deze browser. Kopieer de tekst hieronder:</p><textarea rows="10"></textarea>`;
+    $("csv-fallback").querySelector("textarea").value = csv;
+  }
+}
+
+async function kopieerPlan(u) {
+  const laatste = u.uitkomst.jaren[u.uitkomst.jaren.length - 1];
+  const s = laatste.staffel;
+  const stand = u.uitkomst.eindsaldo;
+  const p = u.perJaar[laatste.jaar][0];
+  const tekst = [
+    "Uitgangspunten voor de tool RC-schuld DGA",
+    `Jaar: ${laatste.jaar}`,
+    `Stand rekening-courant per 31-12-${laatste.jaar}: ${fmt(stand)}${u.bijschrijven ? " (inclusief bijgeschreven rente)" : " (exclusief nog te boeken rente)"}`,
+    `Schuld van de DGA aan de BV: ${fmt(stand < 0 ? -stand : 0)}`,
+    `Rente per jaar: ${nlBedrag.format(p.pctCredit)}%`,
+    `Rente over ${laatste.jaar}: credit ${fmt(s.creditrente)}, debet ${fmt(s.debetrente)}, per saldo ${fmt(s.totaleRente)}`,
+  ].join("\n");
+  try {
+    await navigator.clipboard.writeText(tekst);
+    const knop = $("btn-kopieer-plan");
+    if (knop) { knop.textContent = "Gekopieerd"; setTimeout(() => { knop.textContent = "Uitgangspunten naar klembord"; }, 2500); }
+  } catch (e) {
+    const knop = $("btn-kopieer-plan");
+    if (knop) knop.insertAdjacentHTML("afterend", `<textarea rows="8" style="margin-top:8px">${esc(tekst)}</textarea>`);
+  }
+}
+
+// --- voorbeeldgegevens (synthetisch) --------------------------------------------
+
+const VOORBEELD = [
+  "Datum\tOmschrijving\tDebet\tCredit\tSaldo",
+  "01-01-2025\tBeginbalans\t\t\t12.500,00",
+  "15-01-2025\tPrivé-opname\t8.000,00\t\t20.500,00",
+  "01-03-2025\tStorting privé\t\t25.000,00\t-4.500,00",
+  "12-05-2025\tPrivé-opname auto\t14.000,00\t\t9.500,00",
+  "30-06-2025\tDeclaratie kosten\t\t2.750,00\t6.750,00",
+  "01-09-2025\tPrivé-opname\t22.000,00\t\t28.750,00",
+  "15-11-2025\tSalaris netto\t\t9.250,00\t19.500,00",
+  "31-12-2025\tPrivé-opname\t3.500,00\t\t23.000,00",
+].join("\n");
+
+// --- opstarten ------------------------------------------------------------------
+
+function meldFout(doelId, fout) {
+  zetMeldingen(doelId, melding("blokkerend", "Inlezen mislukt", String(fout && fout.message ? fout.message : fout)));
+}
+
+async function verwerkBestand(bestand) {
+  if (!bestand) return;
+  zetMeldingen("bron-meldingen", melding("", "Bezig met inlezen", esc(bestand.name)));
+  try {
+    if (/\.xlsx$/i.test(bestand.name)) {
+      const werkbladen = await leesXlsxBestand(await bestand.arrayBuffer());
+      staat.werkbladen = werkbladen;
+      const keuze = $("werkblad");
+      keuze.innerHTML = werkbladen.map((w, i) => `<option value="${i}">${esc(w.naam)}</option>`).join("");
+      $("werkbladkeuze").hidden = werkbladen.length < 2;
+      const metInhoud = werkbladen.findIndex((w) => w.rijen.filter((r) => !isLeegRij(r)).length > 1);
+      keuze.value = String(metInhoud < 0 ? 0 : metInhoud);
+      await neemRijenAan(werkbladen[Number(keuze.value)].rijen, bestand.name, "xlsx");
+    } else if (/\.(csv|txt)$/i.test(bestand.name)) {
+      const gelezen = leesTekst(decodeerTekst(await bestand.arrayBuffer()));
+      $("werkbladkeuze").hidden = true;
+      await neemRijenAan(gelezen.rijen, bestand.name, "csv");
+    } else if (/\.pdf$/i.test(bestand.name)) {
+      const gelezen = await leesPdfFragmenten(await bestand.arrayBuffer());
+      const tabel = pdfFragmentenNaarRijen(gelezen.paginas);
+      $("werkbladkeuze").hidden = true;
+      if (tabel.rijen.length === 0) {
+        throw new Error("Er is tekst gevonden, maar daaruit is geen tabel te maken. Exporteer de mutaties naar Excel of plak ze.");
+      }
+      staat.pdfInfo = {
+        paginas: gelezen.paginas.length,
+        kolommen: tabel.kolomgrenzen.length,
+        opmerkingen: gelezen.opmerkingen,
+      };
+      await neemRijenAan(tabel.rijen, bestand.name, "pdf");
+    } else {
+      throw new Error("Kies een .xlsx of .csv bestand.");
+    }
+  } catch (fout) {
+    meldFout("bron-meldingen", fout);
+  }
+}
+
+function start() {
+  // De browser herstelt bij een refresh de stand van de selectievakjes. De gegevens zijn
+  // dan weg, dus een keuze als "rente bijschrijven" die onzichtbaar aan blijft staan zou de
+  // volgende uitkomst stil veranderen. Alles begint daarom leeg.
+  for (const id of ["rente-apart", "alle-jaren", "per-jaar-anders", "rente-bijschrijven"]) {
+    $(id).checked = false;
+  }
+  $("veld-rente-debet").hidden = true;
+
+  $("tab-plak").addEventListener("click", () => kiesTab("plak"));
+  $("tab-bestand").addEventListener("click", () => kiesTab("bestand"));
+
+  $("btn-plak-lees").addEventListener("click", async () => {
+    const tekst = $("plakveld").value;
+    if (!tekst.trim()) {
+      zetMeldingen("bron-meldingen", melding("blokkerend", "Niets om in te lezen", "Plak eerst de mutaties in het veld."));
+      return;
+    }
+    const gelezen = leesTekst(tekst);
+    await neemRijenAan(gelezen.rijen, null, "klembord");
+  });
+
+  $("btn-voorbeeld").addEventListener("click", async () => {
+    $("plakveld").value = VOORBEELD;
+    $("jaar").value = "";
+    $("jaar").dataset.handmatig = "";
+    $("rente").value = "2,5";
+    $("beginstand").dataset.handmatig = "";
+    $("eindsaldo-bron").dataset.handmatig = "";
+    const gelezen = leesTekst(VOORBEELD);
+    await neemRijenAan(gelezen.rijen, "voorbeeldgegevens", "voorbeeld");
+  });
+
+  $("btn-kies").addEventListener("click", () => $("bestand").click());
+  $("bestand").addEventListener("change", (e) => verwerkBestand(e.target.files[0]));
+
+  const zone = $("dropzone");
+  ["dragenter", "dragover"].forEach((n) => zone.addEventListener(n, (e) => {
+    e.preventDefault(); zone.classList.add("hover");
+  }));
+  ["dragleave", "drop"].forEach((n) => zone.addEventListener(n, (e) => {
+    e.preventDefault(); zone.classList.remove("hover");
+  }));
+  zone.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) verwerkBestand(e.dataTransfer.files[0]);
+  });
+
+  $("werkblad").addEventListener("change", async (e) => {
+    const i = Number(e.target.value);
+    if (staat.werkbladen && staat.werkbladen[i]) {
+      $("beginstand").dataset.handmatig = "";
+      $("eindsaldo-bron").dataset.handmatig = "";
+      $("jaar").dataset.handmatig = "";
+      await neemRijenAan(staat.werkbladen[i].rijen, staat.bronnaam, "xlsx");
+    }
+  });
+
+  $("rente-apart").addEventListener("change", (e) => {
+    $("veld-rente-debet").hidden = !e.target.checked;
+    if (e.target.checked && !$("rente-debet").value) $("rente-debet").value = $("rente").value;
+    toonRenteTabel();
+  });
+
+  $("alle-jaren").addEventListener("change", () => {
+    if (staat.rijen.length) vulUitgangspunten();
+  });
+  $("per-jaar-anders").addEventListener("change", toonRenteTabel);
+  $("rente").addEventListener("input", () => {
+    // Het hoofdpercentage vult de tabel zolang de gebruiker daar niets eigen heeft ingevuld.
+    if ($("per-jaar-anders").checked) toonRenteTabel();
+  });
+
+  $("conventie").addEventListener("change", () => {
+    $("beginstand").dataset.handmatig = "";
+    $("eindsaldo-bron").dataset.handmatig = "";
+    if (staat.rijen.length) vulUitgangspunten();
+  });
+
+  ["beginstand", "eindsaldo-bron"].forEach((id) => {
+    $(id).addEventListener("input", () => { $(id).dataset.handmatig = "1"; });
+  });
+  $("jaar").addEventListener("input", () => { $("jaar").dataset.handmatig = "1"; });
+  $("jaar").addEventListener("change", () => { if (staat.rijen.length) vulUitgangspunten(); });
+
+  $("btn-reken").addEventListener("click", reken);
+}
+
+start();
+</script>
+</body>
+</html>
