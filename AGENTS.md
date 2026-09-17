@@ -6,6 +6,20 @@ projectspecifieke informatie op; geen klantnamen, secretwaarden of absolute pade
 
 ## Rol en bron van waarheid
 
+**Dit is de POC- en testomgeving, niet de uiteindelijke productieomgeving.**
+Verduidelijkt door Sylvain op 17-09-2026: alle tools mogen hier staan zodat hij ze zelf
+gemakkelijk kan bekijken. Hij bepaalt via toegangsrechten welke collega's een tool
+mogen gebruiken. Enkele collega's hebben bewust toegang tot alle tools en kennen
+het proefkarakter. Een conceptstatus is daarom geen reden om een tool uit het portaal
+te houden; beperk toegang via beheer, niet door de tool voor iedereen te verbergen.
+
+Concept, bèta en live beschrijven de fase binnen deze proefomgeving. Ook `live` is
+geen verklaring dat de tool in de uiteindelijke productieomgeving is opgenomen.
+Overgang naar die echte omgeving is een afzonderlijke overdracht aan de platformbouw;
+daarna werkt Sylvain niet meer aan de tool mee. Vraag voor publicatie van een POC
+geen productieaccordering. Technische werking, gegevensscheiding en toegangscontrole
+blijven wel nodig; een statuslabel vervangt die niet.
+
 - Deze repo bevat de **publieke** versies van de tools plus de eigen bestanden van het
   portaal (o.a. `portal.html`, `beheer.html`, worker-, publicatie-, documentatie- en
   configuratiebestanden).
