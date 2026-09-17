@@ -15,6 +15,19 @@ const registry = { categorievolgorde: ['Synthetisch'], tools: [
   { naam: 'Synthetic B', bestand: 'synthetic-b.html', categorie: 'Synthetisch', in_portal: true, beschrijving: 'Test B' },
 ] };
 
+test('concept, bèta en live krijgen ieder een kaart met hun eigen statuslabel', async () => {
+  const tools = ['concept', 'beta', 'live'].map(status => ({
+    naam: `Test ${status}`, bestand: `${status}.html`, categorie: 'Synthetisch',
+    in_portal: true, status, beschrijving: 'Synthetische tool',
+  }));
+  const { context, node } = page(() => Response.json({ email: EMAIL, access: 'all' }),
+    () => Response.json({ categorievolgorde: ['Synthetisch'], tools }));
+  await context.render();
+  const markup = node('main-content').innerHTML;
+  for (const label of ['Concept', 'Bèta', 'Live']) assert.ok(markup.includes(`>${label}<`), label);
+  for (const tool of tools) assert.ok(markup.includes(`href="${tool.bestand}"`), tool.bestand);
+});
+
 function page(accessResponse, registerResponse = () => Response.json(registry)) {
   const nodes = new Map();
   const node = id => {
