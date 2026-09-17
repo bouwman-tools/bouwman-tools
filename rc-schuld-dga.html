@@ -1179,6 +1179,11 @@
         <div class="field-hint">Vrije kasstroom die elk volgend jaar bijkomt.</div>
       </div>
       <div>
+        <label for="withdrawalAnnual">Verwachte onttrekking per jaar<span class="tip" title="Nieuwe opnames in rekening-courant die de DGA tijdens de route naar verwachting doet, bijvoorbeeld voor levensonderhoud. De tool boekt dit bedrag aan het begin van elk jaar op de RC-schuld — vóór de aflossing en vóór de peildatum van 31 december voor de Wet excessief lenen — en laat het geld uit de kas van de BV lopen. Het komt níet terug als privémiddelen voor aflossing: wie opneemt om af te lossen, neemt niet op.">?</span></label>
+        <input id="withdrawalAnnual" type="number" value="0" step="0.01" min="0" />
+        <div class="field-hint">Nieuwe opnames op de RC, elk jaar opnieuw. Verhoogt de schuld en de peildatumstand.</div>
+      </div>
+      <div>
         <label for="distributable">Vrij uitkeerbaar vermogen BV</label>
         <input id="distributable" type="number" value="" step="0.01" min="0" placeholder="leeg = niet beperkend" />
         <div class="field-hint">Eigen vermogen boven de wettelijke en statutaire reserves (art. 2:216 lid 1 BW).</div>
@@ -2048,8 +2053,25 @@ function planYear(a) {
     var mand = Math.max(0, t.additionalIB);
     var dep, cashOut, feasible = true;
 
-    if (bv < divTax - 1e-9) {
-      // De BV kan de afdracht niet zelf dragen: privéstorting vult aan.
+    if (divTax > 1e-9 && bv < divTax - 1e-9) {
+      /* De BV kan de afdracht niet zelf dragen: privéstorting vult aan.
+
+         De voorwaarde `divTax > 1e-9` is toegevoegd op 17-09-2026. De aanvulling
+         dient uitsluitend de afdracht van dividendbelasting; is er geen dividend,
+         dan is er niets af te dragen en dus niets aan te vullen. Zonder die
+         voorwaarde plande de jaarplanner bij een negatieve kas in de BV een
+         privéstorting ter grootte van dat tekort, óók bij een dividend van nul —
+         en die storting loste de RC-schuld af terwijl er geen geld was. Een kas
+         die al negatief stond werd zo stil met de rekening-courant verrekend.
+
+         Dat kwam aan het licht bij de onttrekking tijdens de route, die de kas
+         van de BV kan leegtrekken: een schuld van 480.000 met een opname van
+         30.000 per jaar en verder geen middelen bleef vijf jaar lang exact op
+         480.000 staan, omdat elke opname meteen door een niet-bestaande storting
+         werd teruggeboekt. De fout zat er echter al langer: ook zonder opname kan
+         `bvCashClosing` in een later jaar negatief worden, en dan liep dezelfde
+         weg. Een kas die tekortschiet hoort als liquiditeitssignaal naar boven te
+         komen, niet als aflossing. */
       cashOut = 0;
       dep = Math.min(Math.max(budget, divTax - bv), debtBefore);
       // De onvermijdbare heffing heeft voorrang op een vrijwillige storting.
@@ -2159,7 +2181,7 @@ function simulateRoute(inp, policy) {
     interest: 0, deposit: 0, depositApplied: 0, grossDividend: 0, dividendTax: 0,
     netDividend: 0, netSettled: 0, netPaidInCash: 0, box2Total: 0, box2TaxLow: 0,
     box2TaxHigh: 0, box2HighPart: 0, additionalIB: 0, privateOutTax: 0, taxRefund: 0,
-    lossRefund: 0,
+    lossRefund: 0, withdrawal: 0,
     privateOut: 0, bvCashOut: 0, bvCashIn: 0, fictiefVoordeel: 0
   };
 
@@ -2189,6 +2211,57 @@ function simulateRoute(inp, policy) {
     openLosses = stillOpen;
     lossCarry = 0;
     for (li = 0; li < openLosses.length; li++) lossCarry += openLosses[li].amount;
+
+    /* ── Nieuwe onttrekking in rekening-courant ─────────────────────────────
+       De tool ging er tot 17-09-2026 van uit dat de DGA tijdens de route niets
+       nieuws opneemt. Bij een meerjarenroute is dat optimistisch: wie nu 800.000
+       schuldig is, neemt de komende zes jaar doorgaans gewoon door op. Vier
+       modelkeuzes, elk met de reden erbij, want zij sturen de uitkomst.
+
+       1. HETZELFDE BEDRAG ELK JAAR, VANAF HET EERSTE JAAR. De invoer volgt het
+          patroon van `privateAnnual` en `bvCashAnnual` en van de rentetiming:
+          één instelbare waarde die voor de hele route geldt. Anders dan die twee
+          geldt de onttrekking wél al in jaar 1, want zij is geen aanwas bovenop
+          een beginstand — de beginstand van de schuld is `rcDebt` en de opname
+          van het lopende jaar komt daar bovenop. Een staffel per jaar zou
+          nauwkeuriger zijn maar vraagt een invoerrij per jaar; dat is dezelfde
+          afweging die bij de rentestand door het jaar is gemaakt.
+
+       2. AAN HET BEGIN VAN HET JAAR, DUS VÓÓR DE AFLOSSING EN VÓÓR DE PEILDATUM.
+          Voor de Wet excessief lenen is er geen keuze: art. 4.14a lid 4 Wet IB
+          2001 meet de schuld op 31 december, dus een opname ergens in het jaar
+          zit hoe dan ook in de stand op de peildatum. Waar zij binnen het jaar
+          valt raakt alleen de rente en de aflosvolgorde. De keuze voor het begin
+          van het jaar doet twee dingen. Zij houdt de route sluitend: elk jaar
+          lost af wat er dat jaar aan schuld staat, inclusief de nieuwe opname,
+          zodat een route die "volledig afgelost" heet dat op 31 december van het
+          laatste jaar ook werkelijk is. En zij is de voorzichtige kant: bij een
+          opname die in werkelijkheid gelijkmatig door het jaar loopt draagt zij
+          hier het volle jaar rente, waardoor de tool de rente en daarmee het
+          benodigde dividend eerder overschat dan onderschat. Bij de standaard
+          rentetiming van zes maanden is die overschatting ongeveer een half jaar
+          rente over de opname; bij 0% rente is zij nul.
+
+       3. DE OPNAME IS CONSUMPTIEF. Zij verlaat de kas van de BV en komt niet
+          terug als privéliquiditeit die voor aflossing beschikbaar is. Wie
+          opneemt om daarna af te lossen, neemt niet op; het veld beschrijft geld
+          dat de DGA nodig heeft om van te leven. Zou de opname wél als inzetbaar
+          privégeld terugkomen, dan kostte zij per saldo alleen rente en zou de
+          tool juist verbergen wat zij hoort te laten zien. Heeft de BV de kas
+          niet, dan komt dat als liquiditeitssignaal naar boven — terecht, want
+          dan kan er feitelijk niet worden opgenomen.
+
+       4. DE ROUTE EINDIGT ZODRA DE SCHULD WEG IS. Gaat de DGA daarna door met
+          opnemen, dan bouwt hij een nieuwe schuld op; dat is een nieuwe vraag,
+          niet het aflossen van deze. De lusvoorwaarde hieronder is daarom
+          onveranderd gebleven.
+
+       Bij een onttrekking van nul verandert er niets aan de berekening: alle
+       termen hieronder worden dan nul. Dat is met de vaste praktijkcasussen
+       nagemeten. */
+    var withdrawal = Math.max(0, inp.withdrawalAnnual || 0);
+    var debtBeforeWithdrawal = debt;
+    if (withdrawal > 0) { debt += withdrawal; bv -= withdrawal; }
 
     var base = {
       openingDebt: debt, interestRate: inp.rcInterestRate, timingMonths: inp.timingMonths,
@@ -2238,11 +2311,18 @@ function simulateRoute(inp, policy) {
     // eerste jaar wordt wél getoond als er dan een onvermijdbare heffing staat
     // (bijvoorbeeld over een fictief regulier voordeel), want dat is juist de
     // uitkomst die de gebruiker moet zien.
-    var geenActie = res.grossDividend < EPS && res.deposit < EPS;
+    // Een opname is zelf een handeling: zij verhoogt de schuld, kan het fictieve
+    // reguliere voordeel van de peildatum doen ontstaan en verandert de eindstand.
+    // Zo'n jaar mag dus niet als "leeg" worden weggelaten, ook niet wanneer er
+    // geen dividend en geen storting tegenover staat — juist dan moet de
+    // gebruiker zien dat de schuld de verkeerde kant op loopt.
+    var geenActie = res.grossDividend < EPS && res.deposit < EPS && withdrawal < EPS;
     var laterMiddelen = inp.privateAnnual > EPS || inp.bvCashAnnual > EPS;
     if (geenActie && !laterMiddelen && !(y === 1 && res.box2Total > EPS)) break;
 
     res.year = y;
+    res.withdrawal = withdrawal;
+    res.openingDebtBeforeWithdrawal = debtBeforeWithdrawal;
     res.excessiveMaxAmount = exc.maxAmount;
     res.relevantDebtAtYearEnd = res.closingDebt + inp.otherLoans;
     res.lossRefundReceived = refundNow;
@@ -2264,6 +2344,7 @@ function simulateRoute(inp, policy) {
     T.privateOutTax += res.privateOutTax;
     T.taxRefund += res.taxRefund;
     T.lossRefund += res.lossRefundReceived;
+    T.withdrawal += res.withdrawal;
     T.privateOut += res.privateOutDeposit + res.privateOutTax;
     T.bvCashIn += res.bvCashIn;
     T.bvCashOut += res.bvCashOutDividendTax + res.bvCashOutCashDividend;
@@ -2385,8 +2466,13 @@ function simulateRoute(inp, policy) {
     privateNetUsed: (inp.privateAvailable + inp.privateAnnual * Math.max(0, rows.length - 1)) - priv,
     privateAvailableTotal: inp.privateAvailable + inp.privateAnnual * Math.max(0, rows.length - 1),
     bvCashUsed: T.bvCashOut,
-    bvOwnCashUsed: Math.max(0, (inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, rows.length - 1)) - bv),
-    bvCashAdded: Math.max(0, bv - (inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, rows.length - 1))),
+    // De onttrekking gaat van de kas van de BV af voordat de route iets doet.
+    // Zij hoort dus in de noemer thuis: `bvCashAdded` blijft zo meten hoeveel
+    // privégeld er per saldo in de BV achterblijft, wat de tiebreaker in
+    // `betterRoute` bedoelt, en gaat niet negatief lopen door de opname zelf.
+    bvOwnCashUsed: Math.max(0, (inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, rows.length - 1) - T.withdrawal) - bv),
+    bvCashAdded: Math.max(0, bv - (inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, rows.length - 1) - T.withdrawal)),
+    withdrawalTotal: T.withdrawal,
     cumulativeFictief: cumFictief,
     lossCarryRemaining: lossCarry,
     // De maatstaf voor het advies: de totale box 2-heffing. De RC-rente is een
@@ -2530,8 +2616,22 @@ function checkRouteInvariants(inp, route) {
     // jaar wordt gerekend, want de heffing is ook uit dat vermogen betaald.
     // Zonder deze term valt de kasketen om zodra er wordt teruggewenteld.
     privChain += (r.lossRefundReceived || 0);
+    // De nieuwe opname in rekening-courant gaat aan het begin van het jaar van
+    // de kas van de BV naar de schuld. Zij staat hier expliciet in de keten,
+    // zodat een opname die wel in de schuld belandt maar niet uit de kas komt
+    // (of andersom) als rekenfout naar boven komt in plaats van stil op te gaan
+    // in de eindstand. De toets erop dat elk jaar hetzelfde bedrag is, bewaakt
+    // modelkeuze 1 in `simulateRoute`.
+    var w = r.withdrawal || 0;
+    if (Math.abs(w - inp.withdrawalAnnual) > TOL) {
+      errors.push('jaar ' + r.year + ' onttrekking wijkt af van de invoer: ' +
+        w.toFixed(2) + ' ≠ ' + inp.withdrawalAnnual.toFixed(2));
+    }
+    debtChain += w;
+    bvChain -= w;
     var Y = 'jaar ' + r.year + ' ';
 
+    chk(Y + 'onttrekking op de RC', r.openingDebt, (r.openingDebtBeforeWithdrawal || 0) + w);
     chk(Y + 'beginstand RC', r.openingDebt, debtChain);
     chk(Y + 'beginstand privé', r.privateOpening, privChain);
     chk(Y + 'beginstand BV-kas', r.bvCashOpening, bvChain);
@@ -2565,8 +2665,10 @@ function checkRouteInvariants(inp, route) {
   chk('totaal bruto dividend', route.totals.grossDividend, sum(function (r) { return r.grossDividend; }));
   chk('totaal dividendbelasting', route.totals.dividendTax, sum(function (r) { return r.dividendTax; }));
   chk('totaal aanvullende IB', route.totals.additionalIB, route.totals.box2Total - route.totals.dividendTax);
+  chk('totaal onttrekking', route.totals.withdrawal, sum(function (r) { return r.withdrawal || 0; }));
   chk('RC-keten totaal', route.remainingDebt,
-      inp.rcDebt + route.totals.interest - route.totals.depositApplied - route.totals.netSettled);
+      inp.rcDebt + route.totals.interest + route.totals.withdrawal
+      - route.totals.depositApplied - route.totals.netSettled);
   chk('eindstand privé', route.privateRemaining, privChain);
   chk('eindstand BV-kas', route.bvCashRemaining, bvChain);
 
@@ -2780,23 +2882,32 @@ function buildRoutes(inp) {
  * een maatstaf voor de belastingdruk zonder planning.
  */
 function referenceFullDividend(inp) {
-  var interestPre = inp.rcDebt * inp.rcInterestRate * (inp.timingMonths / 12);
-  var debtBefore = inp.rcDebt + interestPre;
+  // Ook deze maatstaf loopt over één kalenderjaar, en in dat jaar neemt de DGA
+  // op zoals hij in elke andere route zou doen. De opname hoort dus in de af te
+  // lossen schuld en gaat af van de kas van de BV — dezelfde modelkeuze als in
+  // `simulateRoute`, zodat de vergelijking "alles ineens" op dezelfde schuld
+  // slaat als de routes eronder.
+  var startDebt = inp.rcDebt + inp.withdrawalAnnual;
+  var interestPre = startDebt * inp.rcInterestRate * (inp.timingMonths / 12);
+  var debtBefore = startDebt + interestPre;
   var netFactor = 1 - inp.dividendTaxRate;
   var gross = netFactor > 1e-9 ? debtBefore / netFactor : 0;
 
   var res = computeYear({
-    openingDebt: inp.rcDebt, interestRate: inp.rcInterestRate, timingMonths: inp.timingMonths,
-    bvCashOpening: inp.bvCashAvailable, privateOpening: inp.privateAvailable,
+    openingDebt: startDebt, interestRate: inp.rcInterestRate, timingMonths: inp.timingMonths,
+    bvCashOpening: inp.bvCashAvailable - inp.withdrawalAnnual, privateOpening: inp.privateAvailable,
     lowBracketAvail: inp.lowBracketAvail, lowRate: inp.lowRate, highRate: inp.highRate,
     dividendTaxRate: inp.dividendTaxRate, fictiefVoordeel: 0, lossCarryIn: 0,
     grossDividend: gross, deposit: 0, cashPayout: 0
   });
   res.year = 1;
+  res.withdrawal = inp.withdrawalAnnual;
+  res.openingDebtBeforeWithdrawal = inp.rcDebt;
   res.excessiveMaxAmount = inp.excessiveMax + inp.priorFictief;
   res.relevantDebtAtYearEnd = res.closingDebt + inp.otherLoans;
 
   var T = {
+    withdrawal: inp.withdrawalAnnual,
     interest: res.interestTotal, deposit: 0, depositApplied: 0, grossDividend: res.grossDividend,
     dividendTax: res.dividendTax, netDividend: res.netDividend, netSettled: res.netSettled,
     netPaidInCash: res.netPaidInCash, box2Total: res.box2Total, box2TaxLow: res.box2TaxLow,
@@ -2820,6 +2931,7 @@ function referenceFullDividend(inp) {
     bvCashUsed: T.bvCashOut,
     bvOwnCashUsed: T.bvCashOut,
     bvCashAdded: 0,
+    withdrawalTotal: inp.withdrawalAnnual,
     privateRemaining: res.privateClosing,
     bvCashRemaining: res.bvCashClosing,
     taxCost: res.box2Total,
@@ -2852,7 +2964,12 @@ function requiredAnnualPrivate(inp, horizon, capMode) {
       grossCapMode: capMode || 'lowBracket', depositBudget: 0
     });
   }
-  var hi = Math.max(1000, inp.rcDebt * Math.pow(1 + inp.rcInterestRate, horizon) * 1.5);
+  // De bovengrens moet ook de opnames van de hele looptijd kunnen dragen. Zonder
+  // die term zou de bisectie bij een onttrekking al bij de eerste proef falen en
+  // zou de omgekeerde berekening "niet haalbaar" melden terwijl een hogere inleg
+  // wel volstaat.
+  var hi = Math.max(1000, (inp.rcDebt + inp.withdrawalAnnual * horizon)
+                          * Math.pow(1 + inp.rcInterestRate, horizon) * 1.5);
   if (!trial(hi).fullyRepaid) return null;
   var lo = 0;
   for (var i = 0; i < 40; i++) {
@@ -2899,6 +3016,10 @@ function normaliseInput(raw) {
     privateAnnual: Math.max(0, num(raw.privateAnnual)),
     bvCashAvailable: Math.max(0, num(raw.bvCashAvailable)),
     bvCashAnnual: Math.max(0, num(raw.bvCashAnnual)),
+    // Verwachte nieuwe onttrekking in rekening-courant per jaar. Eén bedrag dat
+    // voor elk jaar van de route geldt; de onderbouwing van die modelkeuze staat
+    // bij de boeking in simulateRoute.
+    withdrawalAnnual: Math.max(0, num(raw.withdrawalAnnual)),
     distributable: (raw.distributable === '' || raw.distributable == null) ? Infinity : Math.max(0, num(raw.distributable)),
     hasPartner: hasPartner,
     otherBox2Self: Math.max(0, num(raw.otherBox2Self)),
@@ -2936,6 +3057,13 @@ function validateInput(inp) {
     warnings.push('De BV heeft geen vrije kas. De dividendbelasting moet dan eerst met een privéstorting worden gefinancierd; die storting verlaagt de RC-schuld tegelijk.');
   } else if (inp.privateAvailable <= 0 && inp.privateAnnual <= 0) {
     warnings.push('Er is geen privéliquiditeit opgegeven. De aanvullende inkomstenbelasting kan dan alleen worden betaald uit een deel van het dividend dat in geld wordt uitbetaald in plaats van verrekend met de RC-schuld.');
+  }
+  if (inp.withdrawalAnnual > 0) {
+    warnings.push('Er is een verwachte onttrekking van ' + Math.round(inp.withdrawalAnnual) +
+      ' euro per jaar opgegeven. De tool boekt die aan het begin van elk jaar op de rekening-courant, vóór de aflossing en vóór de peildatum van 31 december, en neemt haar op als geld dat de kas van de BV verlaat en privé wordt besteed — niet als middelen die opnieuw voor aflossing beschikbaar zijn.');
+    if (inp.bvCashAvailable <= 0 && inp.bvCashAnnual <= 0) {
+      warnings.push('De BV heeft geen vrije kas terwijl er wel een onttrekking wordt verwacht. Een opname in rekening-courant vraagt geld uit de BV; de kas van de BV loopt daardoor negatief en dat wordt als liquiditeitssignaal bij de routes gemeld.');
+    }
   }
   if (inp.config.status === 'scenario') warnings.push('Het gekozen belastingjaar is een scenariojaar: de tarieven en de schijfgrens staan nog niet vast.');
   return { ok: errors.length === 0, errors: errors, warnings: warnings };
@@ -2985,10 +3113,77 @@ function excessiveLoanSignal(inp, route) {
     maxAmount: maxAmount,
     excess: Math.max(0, relevantNow - maxAmount),
     exceeds: relevantNow > maxAmount + EPS,
+    /* De schuld van vandaag kan onder het maximumbedrag blijven terwijl de stand
+       op een peildatum tijdens de route eroverheen gaat: door bijgeschreven
+       rente, en sinds 17-09-2026 vooral door een verwachte onttrekking. Art.
+       4.14a lid 4 Wet IB 2001 meet elk jaar opnieuw per 31 december, dus dan is
+       de regeling wel degelijk aan de orde. Vóór deze toevoeging viel de
+       waarschuwing in dat geval stil weg, terwijl de route het fictieve voordeel
+       al wél in de heffing meenam. */
+    exceedsDuringRoute: peakFictief > EPS,
     modelled: inp.excessiveLoanOn,
     routeHasFictief: anyFictief,
     peakFictief: peakFictief,
     netFictief: totalFictiefTax
+  };
+}
+
+/* ────────────── WAT DE ONTTREKKING ZELF VERANDERT ─────────────────────────
+   Een opname tijdens de route werkt op vier plaatsen door: de eindstand, de
+   rente, de peildatum van de Wet excessief lenen en daarmee de heffing. Zonder
+   tegenproef is dat verschil voor de gebruiker niet te zien — hij ziet één
+   uitkomst en weet niet of de opname haar heeft gemaakt.
+
+   De tegenproef houdt het beleid van de route vast en zet alleen de onttrekking
+   op nul. Dat isoleert het effect van de opname. Het is dus uitdrukkelijk niet
+   "wat het beste advies zou zijn geweest zonder opnames": zonder opnames kan een
+   heel andere route winnen. Het antwoordt op de vraag "wat kost mij dit
+   opnemen", en dat is de vraag die de adviseur aan tafel krijgt.
+   ─────────────────────────────────────────────────────────────────────────── */
+function peakFictiefOfRoute(route) {
+  var p = 0;
+  for (var i = 0; i < route.rows.length; i++) p = Math.max(p, route.rows[i].fictiefVoordeel);
+  return p;
+}
+
+function withdrawalImpact(inp, route) {
+  if (!(inp.withdrawalAnnual > 0) || !route || !route.policy) return null;
+  var zonder = simulateRoute(Object.assign({}, inp, { withdrawalAnnual: 0 }), route.policy);
+  var peakMet = peakFictiefOfRoute(route);
+  var peakZonder = peakFictiefOfRoute(zonder);
+  return {
+    withdrawalAnnual: inp.withdrawalAnnual,
+    totalWithdrawal: route.totals.withdrawal,
+    yearsWith: route.years,
+    yearsWithout: zonder.years,
+    taxWith: route.taxCost,
+    taxWithout: zonder.taxCost,
+    extraTax: route.taxCost - zonder.taxCost,
+    /* Lost een van beide routes de schuld niet volledig af, dan is de heffing
+       alléén een misleidende maatstaf: wie minder aflost betaalt minder box 2 en
+       houdt schuld over. De routevergelijking gebruikt in dat geval `burden`, de
+       som van restschuld en heffing, en de tegenproef hoort hetzelfde te doen.
+       Gemeten in de browser op 17-09-2026 bij schuld 440.000 met een opname van
+       40.000 per jaar: het signaal meldde toen "de heffing valt 40.000 lager
+       uit", terwijl de route met opnames 156.210 schuld liet staan. De tests
+       zagen dat niet, want zij toetsten de getallen en niet de zin eromheen. */
+    burdenWith: route.burden,
+    burdenWithout: zonder.burden,
+    extraBurden: route.burden - zonder.burden,
+    comparableOnTax: route.fullyRepaid && zonder.fullyRepaid,
+    interestWith: route.totals.interest,
+    interestWithout: zonder.totals.interest,
+    repaidWith: route.fullyRepaid,
+    repaidWithout: zonder.fullyRepaid,
+    remainingWith: route.remainingDebt,
+    remainingWithout: zonder.remainingDebt,
+    peakFictiefWith: peakMet,
+    peakFictiefWithout: peakZonder,
+    // Het scherpste geval: zonder de opnames blijft de schuld op elke peildatum
+    // onder het maximumbedrag, met de opnames niet. De route lost dan af én
+    // raakt tegelijk de Wet excessief lenen.
+    triggersExcessive: peakMet > EPS && peakZonder <= EPS,
+    blocksRepayment: !route.fullyRepaid && zonder.fullyRepaid
   };
 }
 
@@ -3014,6 +3209,7 @@ function solve(raw) {
   var reference = referenceFullDividend(inp);
   var gates = evaluateGates(inp, opt.best);
   var excessive = excessiveLoanSignal(inp, opt.best);
+  var withdrawal = withdrawalImpact(inp, opt.best);
   var reverse = reverseSchedule(inp);
 
   return {
@@ -3030,6 +3226,7 @@ function solve(raw) {
     evaluated: opt.evaluated,
     gates: gates,
     excessive: excessive,
+    withdrawal: withdrawal,
     reverse: reverse
   };
 }
@@ -3296,6 +3493,7 @@ function readInputs() {
     privateAnnual: numVal('privateAnnual'),
     bvCashAvailable: numVal('bvCashAvailable'),
     bvCashAnnual: numVal('bvCashAnnual'),
+    withdrawalAnnual: numVal('withdrawalAnnual'),
     distributable: val('distributable'),
     fiscalPartner: val('fiscalPartner') === 'true',
     otherBox2Self: numVal('otherBox2Self'),
@@ -3344,6 +3542,7 @@ function loadScenario(key) {
   el('otherBox2Partner').value = 0;
   el('privateAnnual').value = 0;
   el('bvCashAnnual').value = 0;
+  el('withdrawalAnnual').value = s.onttrekking || 0;
   el('priorFictief').value = s.priorFictief || 0;
   el('otherLoans').value = 0;
   el('distributable').value = '';
@@ -3617,15 +3816,20 @@ function renderRoutesTable(res) {
 function renderJaarplan(route, inp) {
   if (!route || !route.rows.length) return '<p class="pending">Geen jaarplanning beschikbaar.</p>';
   var rows = route.rows, i;
-  var hasRente = false, hasDeposit = false, hasFictief = false, hasCash = false;
+  var hasRente = false, hasDeposit = false, hasFictief = false, hasCash = false, hasOnttr = false;
   for (i = 0; i < rows.length; i++) {
     if (Math.abs(rows[i].interestTotal) > EPS) hasRente = true;
     if (rows[i].deposit > EPS) hasDeposit = true;
     if (Math.abs(rows[i].fictiefVoordeel) > EPS) hasFictief = true;
     if (rows[i].netPaidInCash > EPS) hasCash = true;
+    if ((rows[i].withdrawal || 0) > EPS) hasOnttr = true;
   }
 
+  // Bij een onttrekking is de beginstand van de kolom "RC begin" de stand vóór
+  // de opname; de opname staat er als eigen kolom naast. Zonder onttrekking valt
+  // die kolom weg en zijn beide standen gelijk.
   var th = '<tr><th>Jaar</th><th>RC begin</th>' +
+    (hasOnttr ? '<th>Onttrekking</th>' : '') +
     (hasRente ? '<th>Rente</th>' : '') +
     (hasDeposit ? '<th>Privéstorting</th>' : '') +
     '<th>RC vóór verrekening</th><th>Bruto dividend</th><th>Div.bel.</th><th>Netto dividend</th>' +
@@ -3637,7 +3841,8 @@ function renderJaarplan(route, inp) {
   for (i = 0; i < rows.length; i++) {
     var r = rows[i];
     tbody += '<tr><td>' + r.year + '</td>' +
-      '<td>' + bedrag(clean(r.openingDebt)) + '</td>' +
+      '<td>' + bedrag(clean(r.openingDebtBeforeWithdrawal != null ? r.openingDebtBeforeWithdrawal : r.openingDebt)) + '</td>' +
+      (hasOnttr ? '<td>' + bedrag(clean(r.withdrawal || 0)) + '</td>' : '') +
       (hasRente ? '<td>' + bedrag(clean(r.interestTotal)) + '</td>' : '') +
       (hasDeposit ? '<td>' + bedrag(clean(r.depositApplied)) + '</td>' : '') +
       '<td>' + bedrag(clean(r.debtAfterDeposit)) + '</td>' +
@@ -3655,6 +3860,7 @@ function renderJaarplan(route, inp) {
   }
   var T = route.totals;
   tbody += '<tr><td>Totaal</td><td></td>' +
+    (hasOnttr ? '<td>' + bedrag(clean(T.withdrawal || 0)) + '</td>' : '') +
     (hasRente ? '<td>' + bedrag(clean(T.interest)) + '</td>' : '') +
     (hasDeposit ? '<td>' + bedrag(clean(T.depositApplied)) + '</td>' : '') +
     '<td></td>' +
@@ -3676,8 +3882,12 @@ function renderKasstroom(route, inp) {
   var T = route.totals;
   var html = '';
 
+  var onttr = T.withdrawal || 0;
+
   html += block('Rekening-courantschuld', [
     row('Beginstand', euro(inp.rcDebt)),
+    (onttr > EPS ? row('Bij: nieuwe onttrekkingen (' + route.years + ' × ' + euro(inp.withdrawalAnnual) + ')',
+      '+ ' + euro(onttr)) : ''),
     row('Bij: RC-rente over de looptijd', '+ ' + euro(T.interest)),
     row('Af: privéstorting op de RC', '− ' + euro(T.depositApplied)),
     row('Af: netto dividend verrekend met de RC', '− ' + euro(T.netSettled)),
@@ -3698,6 +3908,7 @@ function renderKasstroom(route, inp) {
   html += block('Kas van de BV', [
     row('Beschikbaar over de looptijd', euro(bvIn)),
     row('Bij: ontvangen privéstortingen', '+ ' + euro(T.bvCashIn)),
+    (onttr > EPS ? row('Af: uitbetaald aan de DGA als nieuwe RC-opname', '− ' + euro(onttr)) : ''),
     row('Af: afgedragen dividendbelasting', '− ' + euro(T.dividendTax)),
     (T.netPaidInCash > EPS ? row('Af: netto dividend in geld uitbetaald', '− ' + euro(T.netPaidInCash)) : ''),
     row('<strong>BV-kas resterend</strong>', '<strong>' + euro(route.bvCashRemaining) + '</strong>',
@@ -3841,7 +4052,66 @@ function renderAdvies(res) {
         ? 'De tool rekent het fictieve reguliere voordeel per 31 december mee in de routes hieronder. Let op: de basisdrempel geldt voor de DGA en de fiscale partner <em>gezamenlijk</em> — anders dan de eerste box 2-schijf, die per persoon geldt.'
         : 'Het fictieve reguliere voordeel wordt <strong>niet</strong> meegerekend omdat dat in de geavanceerde instellingen is uitgeschakeld. De uitkomsten hieronder zijn daarmee te gunstig.') +
       ' Beoordeel ook de eigenwoningschuld-uitzondering en schulden van verbonden personen; die rekent de tool niet zelfstandig uit.');
+  } else if (res.excessive.exceedsDuringRoute) {
+    html += signal('warn', '<strong>Wet excessief lenen: de grens wordt tijdens de route overschreden.</strong> De relevante schulden bedragen nu ' +
+      euro(res.excessive.relevantDebt) + ' tegenover een basisdrempel van ' + euro(res.excessive.maxAmount) +
+      ' en blijven daarmee vandaag onder het maximumbedrag. Op een latere peildatum van 31 december niet: de aanbevolen route kent een fictief regulier voordeel van maximaal ' +
+      euro(res.excessive.peakFictief) + ' in één jaar. De regeling meet elk jaar opnieuw per 31 december (art. 4.14a lid 4 Wet IB 2001); rente en nieuwe onttrekkingen tellen daarin mee. ' +
+      'Beoordeel ook de eigenwoningschuld-uitzondering en schulden van verbonden personen; die rekent de tool niet zelfstandig uit.');
   }
+  // Wat de verwachte onttrekking de route kost. Dezelfde route, alleen zonder de
+  // opnames, is de tegenproef; zie withdrawalImpact in de engine.
+  var w = res.withdrawal;
+  if (w) {
+    var wJaren = w.yearsWith === 1 ? 'één jaar' : w.yearsWith + ' jaar';
+    var wTekst = 'De verwachte onttrekking van ' + euro(w.withdrawalAnnual) + ' per jaar is meegerekend: over ' +
+      wJaren + ' komt er ' + euro(w.totalWithdrawal) + ' bij op de rekening-courant. ';
+
+    if (w.comparableOnTax) {
+      // Beide routes lossen volledig af, dus de heffing is een eerlijke maatstaf.
+      wTekst += 'Dezelfde route zonder die opnames lost ook volledig af en kost ' + euro(w.taxWithout) +
+        ' aan box 2-heffing' + (w.yearsWithout !== w.yearsWith ? ' in ' + w.yearsWithout + ' jaar' : '') +
+        '; met de opnames ' + euro(w.taxWith) +
+        (w.yearsWithout !== w.yearsWith ? ' in ' + w.yearsWith + ' jaar' : '') + '. ';
+      if (w.extraTax > 1) {
+        wTekst += 'Het opnemen kost daarmee ' + euro(w.extraTax) + ' extra box 2-heffing, bovenop de ' +
+          euro(w.totalWithdrawal) + ' die opnieuw moet worden afgelost.';
+      } else if (w.extraTax < -1) {
+        wTekst += 'De heffing valt ' + euro(-w.extraTax) +
+          ' lager uit. Dat komt niet doordat opnemen voordelig is, maar doordat de route met opnames een ander aflospad volgt — er moet nog altijd ' +
+          euro(w.totalWithdrawal) + ' extra worden afgelost.';
+      } else {
+        wTekst += 'De heffing verandert daardoor nauwelijks; wat wél verandert is dat er ' +
+          euro(w.totalWithdrawal) + ' opnieuw moet worden afgelost.';
+      }
+    } else {
+      /* Minstens één van de twee lost niet volledig af. De heffing alleen zegt
+         dan niets: minder aflossen kost minder box 2 en laat schuld staan. De
+         routevergelijking zelf rangschikt zulke routes op restschuld plus
+         heffing; deze vergelijking doet hetzelfde. */
+      wTekst += 'Deze vergelijking loopt over de som van restschuld en heffing, want ' +
+        (w.repaidWithout ? 'de route lost met de opnames niet volledig af' : 'de schuld wordt hier niet volledig afgelost') +
+        ' en dan zegt de heffing op zichzelf niets: minder aflossen kost minder box 2 en laat schuld staan. ' +
+        'Zonder de opnames: ' + euro(w.taxWithout) + ' heffing en ' + euro(w.remainingWithout) +
+        ' restschuld, samen ' + euro(w.burdenWithout) + '. Met de opnames: ' + euro(w.taxWith) +
+        ' heffing en ' + euro(w.remainingWith) + ' restschuld, samen ' + euro(w.burdenWith) + '. ';
+      wTekst += w.extraBurden > 1
+        ? 'Het opnemen kost per saldo ' + euro(w.extraBurden) + '.'
+        : (w.extraBurden < -1
+          ? 'Per saldo valt de uitkomst ' + euro(-w.extraBurden) + ' gunstiger uit; loop de jaartabel na voordat u daar een conclusie aan verbindt, want restschuld en heffing zijn niet hetzelfde soort last.'
+          : 'Per saldo verandert er weinig, maar de samenstelling verschuift van heffing naar restschuld.');
+    }
+    if (w.blocksRepayment) {
+      html += signal('warn', '<strong>De opnames houden de schuld in stand.</strong> Zonder de verwachte onttrekking lost deze route de schuld volledig af; met de onttrekking blijft er na ' +
+        w.yearsWith + ' jaar ' + euro(w.remainingWith) + ' over. ' + wTekst);
+    } else if (w.triggersExcessive) {
+      html += signal('warn', '<strong>De opnames brengen de Wet excessief lenen in beeld.</strong> Zonder de verwachte onttrekking blijft de schuld op elke peildatum van 31 december onder het maximumbedrag; met de onttrekking niet. Er ontstaat een fictief regulier voordeel van maximaal ' +
+        euro(w.peakFictiefWith) + ' in één jaar (art. 4.14a lid 1 en 4 Wet IB 2001), ook in jaren waarin de route juist aflost. ' + wTekst);
+    } else {
+      html += signal('info', wTekst);
+    }
+  }
+
   var vw = res.validation.warnings;
   for (var i = 0; i < vw.length; i++) html += signal('info', vw[i]);
 
@@ -3865,6 +4135,9 @@ function renderAannames(res) {
     ['Dividendbelasting', pctRaw(inp.dividendTaxRate) + ' — verrekenbare voorheffing'],
     ['RC-rente', pctRaw(inp.rcInterestRate) + ' per jaar'],
     ['Moment van aflossing', inp.timingMonths + ' maanden na jaarbegin'],
+    ['Verwachte onttrekking per jaar', inp.withdrawalAnnual > 0
+      ? euro(inp.withdrawalAnnual) + ' — geboekt bij jaarbegin, vóór aflossing en peildatum'
+      : 'geen — de DGA neemt tijdens de route niets nieuws op'],
     ['Basisdrempel excessief lenen', euro(inp.excessiveMax) + (inp.excessiveLoanOn ? ' — doorgerekend' : ' — alleen gesignaleerd')],
     ['Vrij uitkeerbaar vermogen', isFinite(inp.distributable) ? euro(inp.distributable) : 'niet als beperking opgegeven'],
     ['Maximale looptijd', inp.maxYears + ' jaar'],
@@ -3883,7 +4156,7 @@ function renderAannames(res) {
     'De volgende zaken worden bewust <strong>niet</strong> gemodelleerd: vennootschapsbelasting over de winst waaruit het dividend komt; ' +
     'de zakelijkheid van de RC-rente; renteaftrek bij de DGA (een RC-schuld is in de regel een box 3-schuld, waarvan de rente niet aftrekbaar is); ' +
     'de uitzondering voor eigenwoningschulden en schulden van verbonden personen binnen de Wet excessief lenen; ' +
-    'de zesjaarstermijn voor verrekening van een verlies uit aanmerkelijk belang; ' +
+    'de belastingkorting voor verlies uit aanmerkelijk belang na beëindiging van het belang (art. 2.11a Wet IB 2001); ' +
     'salaris- of andere alternatieve uitkeringsvormen; rendement op privévermogen en inflatie.' +
     '</p>';
   html += '<p class="blok-intro">' +
@@ -4031,6 +4304,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 11 sep 2026, 14:57</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 11:35</div>
 </body>
 </html>
