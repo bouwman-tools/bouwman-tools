@@ -3724,6 +3724,33 @@ function renderRouteCard(route, inp, opts) {
     privRows.push(row('<strong>Totaal privé ingezet</strong>', '<strong>' + euro(route.privateUsed) + '</strong>'));
     privRows.push(rowMuted('waarvan netto beroep op het privévermogen', euro(route.privateNetUsed)));
     privRows.push(row('Privé resterend', euro(route.privateRemaining), route.privateRemaining < -EPS ? 'warn' : 'ok'));
+    /* Teruggaaf van dividendbelasting, als memorandumpost ná de eindstand.
+
+       Is de ingehouden dividendbelasting van een jaar hoger dan de box 2-heffing
+       over dat jaar, dan krijgt de DGA het verschil terug. `computeYear` telt die
+       teruggaaf bewust niet bij de privéstand van datzelfde jaar: zij komt pas via
+       de aanslag binnen. Dat is voorzichtig en het blijft zo. Maar het geld komt
+       de DGA wel toe, en tot 18-09-2026 stond het nergens in dit blok — terwijl de
+       teruggaaf uit terugwenteling er hierboven wél staat. Gemeten over 500
+       invoeren: 46,2% van de aanbevolen routes kent zo'n teruggaaf, gemiddeld
+       € 54.334, en in bijna de helft daarvan stond "Privé resterend" op nul
+       terwijl er tienduizenden tegoed waren.
+
+       Daarom staat hij hier ná de eindstand en niet als "Bij:"-regel erboven: de
+       optelling tot "Privé resterend" moet blijven kloppen. Zou hij erboven staan,
+       dan telde hij mee in een stand waarin hij niet zit. */
+    if (T.taxRefund > EPS) {
+      var tgJaren = [];
+      for (var tg = 0; tg < route.rows.length; tg++) {
+        if (route.rows[tg].taxRefund > EPS) {
+          tgJaren.push('jaar ' + route.rows[tg].year + ': ' + euro(route.rows[tg].taxRefund));
+        }
+      }
+      privRows.push(rowMuted('─', '─'));
+      privRows.push(rowMuted('Nog te ontvangen: teruggaaf dividendbelasting'
+        + (tgJaren.length ? ' (' + tgJaren.join(', ') + ')' : ''), '+ ' + euro(T.taxRefund)));
+      privRows.push(rowMuted('Deze teruggaaf komt via de aanslag en staat bewust niet in de eindstand hierboven.', ''));
+    }
     html += block('Privéliquiditeit DGA', privRows);
 
     var bvRows = [row('BV-kas bij aanvang', euro(inp.bvCashAvailable))];
@@ -3901,7 +3928,14 @@ function renderKasstroom(route, inp) {
     row('Af: aanvullende inkomstenbelasting box 2', '− ' + euro(T.privateOutTax)),
     (T.netPaidInCash > EPS ? row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)) : ''),
     row('<strong>Privé resterend</strong>', '<strong>' + euro(route.privateRemaining) + '</strong>',
-      route.privateRemaining < -EPS ? 'warn' : 'ok')
+      route.privateRemaining < -EPS ? 'warn' : 'ok'),
+    // Memorandumpost ná de eindstand; zie de toelichting bij hetzelfde blok in
+    // renderRouteCard. De optelling hierboven moet blijven kloppen, dus deze
+    // teruggaaf staat eronder en niet als bijtelling ertussen.
+    (T.taxRefund > EPS
+      ? rowMuted('Nog te ontvangen: teruggaaf dividendbelasting via de aanslag — niet in de eindstand hierboven',
+        '+ ' + euro(T.taxRefund))
+      : '')
   ]);
 
   var bvIn = inp.bvCashAvailable + inp.bvCashAnnual * Math.max(0, route.years - 1);
@@ -4304,6 +4338,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 11:35</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 09:46</div>
 </body>
 </html>
