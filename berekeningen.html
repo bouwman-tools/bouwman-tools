@@ -1613,6 +1613,212 @@ function revisierenteAfkoopLijfrente({
 }
 
 
+/* ============================================================
+   Revisierente bij afkoop van een pensioenaanspraak
+   Art. 30i lid 1 onderdeel a AWR. Anders dan bij een lijfrente is
+   de grondslag hier de waarde in het economische verkeer.
+   ============================================================ */
+
+/* Jaren waarvoor de tekst van art. 30i lid 2 AWR hier zelf is teruggelezen, in
+   de geconsolideerde tekst van de KOOP-repository (BWBR0002320) per 1 januari
+   van dat jaar. In elk van die jaren luidt de eerste volzin: 20 percent van de
+   waarde in het economische verkeer van aanspraken als bedoeld in het eerste
+   lid. En in elk van die jaren noemt de tweede volzin uitsluitend bepalingen
+   uit de Wet IB 2001 - tot en met 2023 alleen art. 3.136 lid 2, 3 en 4, vanaf
+   2024 ook art. 3.133 lid 9 en vanaf 2025 ook art. 3.133 zelf - en dus nooit
+   het geval van lid 1 onderdeel a. Voor een pensioenaanspraak geldt daarom de
+   eerste volzin, in elk van deze jaren.
+
+   Gecontroleerd op 18 september 2026. Een jaar dat hier niet staat levert een
+   melding op en geen uitkomst; er wordt nooit stil teruggevallen op een ander
+   jaar. */
+const REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+
+/* Revisierente bij afkoop van een pensioenaanspraak, art. 30i lid 1 onderdeel a
+   AWR.
+
+   De grondslag. Onderdeel a ziet op het geval dat de aanspraak ingevolge een
+   pensioenregeling tot het loon wordt gerekend door art. 19b lid 1 of lid 2,
+   eerste volzin, Wet LB 1964 in verbinding met art. 3.81 Wet IB 2001, of door
+   art. 3.83 lid 1 of lid 2 dan wel art. 7.2 lid 8 Wet IB 2001. De tweede volzin
+   van art. 30i lid 2 wijst de negatieve uitgaven alleen aan voor art. 3.133,
+   art. 3.133 lid 9 en art. 3.136 lid 2, 3 en 4 Wet IB 2001; onderdeel a staat
+   daar niet bij. Dus geldt de eerste volzin: 20 percent van de waarde in het
+   economische verkeer van de aanspraak.
+
+   Anders dan bij een lijfrente verlaagt niet-afgetrokken saldo de grondslag hier
+   dus niet. Dat past bij de omkeerregel: de aanspraak behoorde op grond van
+   art. 11 lid 1 onderdeel c Wet LB 1964 niet tot het loon, zodat er in de
+   inkomstenbelasting geen premieaftrek is waarop een saldo kan achterblijven.
+
+   Het tegenbewijs. De regeling van art. 30i lid 3 AWR wordt hier niet
+   aangeboden. Zij rekent met het jaar waarin de aanspraak is bedongen en met de
+   jaren van de aftrek van de premies, en bij een pensioenaanspraak die onder de
+   omkeerregel in jaren is opgebouwd is geen van beide uit wettekst of beleid in
+   te vullen. De tool zegt dat met een melding in plaats van te zwijgen; het
+   verzoek zelf blijft de belastingplichtige vrijstaan.
+
+   De waardering. De waarde in het economische verkeer is invoer. De tool
+   waardeert de aanspraak niet, en bij een aanspraak in eigen beheer is dat
+   waarderingswerk dat er buiten valt.
+
+   De reikwijdte. Alleen de afkoop van de gehele aanspraak van art. 19b lid 1
+   onderdeel b Wet LB 1964, bij een pensioenregeling in de zin van art. 1.7
+   lid 2 onderdeel a Wet IB 2001. Elk ander geval geeft een gerichte melding en
+   geen uitkomst; de weigeringen staan hieronder uitgeschreven.
+
+   De afronding. Zoals bij de lijfrente rekent deze kern onafgerond en kapt zij
+   alleen het eindbedrag af op hele euro's. */
+function revisierenteAfkoopPensioen({
+  jaarAfkoop, waardeEconomischVerkeer, regelingSoort, aanleiding,
+  volledigeAfkoopBevestigd, waardeVastgesteldBevestigd, eigenBeheer
+}) {
+  if (!Number.isInteger(jaarAfkoop)) {
+    return { fout: 'Geef het jaar op waarin de aanspraak tot het loon wordt gerekend.' };
+  }
+  if (!REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN.includes(jaarAfkoop)) {
+    return { fout: 'Voor ' + jaarAfkoop + ' is de tekst van art. 30i lid 2 AWR in deze tool ' +
+                   'niet teruggelezen. Gecontroleerd zijn de jaren ' +
+                   REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN[0] + ' tot en met ' +
+                   REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN[
+                     REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN.length - 1] + '.' };
+  }
+  if (!Number.isFinite(waardeEconomischVerkeer) || waardeEconomischVerkeer < 0) {
+    return { fout: 'Geef een eindige waarde in het economische verkeer op; die kan niet negatief zijn.' };
+  }
+
+  // Onderdeel c van art. 30i lid 1 AWR is een eigen route met een eigen
+  // grondslag en valt bewust buiten deze ronde.
+  if (regelingSoort === 'beroepspensioen') {
+    return { fout: 'Een pensioenregeling als bedoeld in art. 1.7 lid 2 onderdeel b Wet IB 2001, ' +
+                   'dus op grond van de Wet verplichte deelneming in een bedrijfstakpensioenfonds ' +
+                   '2000, de Wet op het notarisambt of de Wet verplichte beroepspensioenregeling, ' +
+                   'valt onder art. 30i lid 1 onderdeel c AWR. Die route knoopt aan bij art. 3.135 ' +
+                   'Wet IB 2001 en neemt de negatieve uitgaven als grondslag. Zij is bewust buiten ' +
+                   'deze ronde gehouden en zit niet in deze tool.' };
+  }
+  if (regelingSoort !== 'loonbelasting') {
+    return { fout: 'Stel vast om welke soort pensioenregeling het gaat. Deze berekening geldt ' +
+                   'alleen voor een pensioenregeling overeenkomstig de wettelijke bepalingen van ' +
+                   'de loonbelasting (art. 1.7 lid 2 onderdeel a Wet IB 2001).' };
+  }
+
+  // De aanleiding bepaalt of art. 30i lid 1 onderdeel a AWR in beeld komt. Elk
+  // geval dat er niet in past krijgt een eigen melding, zodat de gebruiker leest
+  // waarom er niet wordt gerekend en niet alleen dat het niet kan.
+  if (aanleiding === 'kleinPensioen') {
+    return { fout: 'Bij een afkoop met toepassing van artikel 66, 67 of 68 van de Pensioenwet is ' +
+                   'geen revisierente verschuldigd. Art. 19b lid 4 Wet LB 1964 zet het eerste lid ' +
+                   'van dat artikel dan opzij, zodat de aanspraak niet tot het loon wordt gerekend; ' +
+                   'art. 30i lid 1 onderdeel a AWR vraagt juist die toepassing. De afkoopsom zelf ' +
+                   'is wel belast loon uit vroegere dienstbetrekking. De pensioenuitvoerder toetst ' +
+                   'de grens van art. 66 lid 1 onderdeel a Pensioenwet, die per 1 januari met de ' +
+                   'consumentenprijsindex wordt aangepast (art. 66 lid 7). Deze tool rekent dit ' +
+                   'geval niet door.' };
+  }
+  if (aanleiding === 'overgangVerzekeraar') {
+    return { fout: 'Gaat de pensioenverplichting geheel of gedeeltelijk over op een andere ' +
+                   'verzekeraar, dan wordt de aanspraak op grond van art. 19b lid 2, eerste ' +
+                   'volzin, Wet LB 1964 geacht te zijn afgekocht. De tweede volzin zondert de ' +
+                   'overgang naar een verzekeraar als bedoeld in art. 19a lid 1 onderdeel a, b of d ' +
+                   'uit, mits die overgang niet in strijd komt met de artikelen 70 tot en met 91 ' +
+                   'van de Pensioenwet, en lid 7 kent een eigen uitzondering bij een ' +
+                   'dienstbetrekking buiten Nederland. Of er revisierente is hangt dus af van de ' +
+                   'verzekeraar en van de wijze van overgang; deze tool beoordeelt dat niet.' };
+  }
+  if (aanleiding === 'scheiding') {
+    return { fout: 'Vervreemdt of zet de werknemer of gewezen werknemer een pensioenaanspraak om ' +
+                   'in het kader van scheiding van tafel en bed, echtscheiding of beëindiging van ' +
+                   'de gezamenlijke huishouding, dan is art. 19b lid 1 Wet LB 1964 op grond van ' +
+                   'lid 3 niet van toepassing: de verkregen of omgezette aanspraak geldt als ' +
+                   'voortzetting van de oorspronkelijke aanspraak. Er is dan geen loon en geen ' +
+                   'revisierente. Deze tool rekent dit geval niet door.' };
+  }
+  if (aanleiding === 'emigratie') {
+    return { fout: 'Houdt de belastingplichtige op binnenlands belastingplichtige te zijn, dan ' +
+                   'rekent art. 3.83 lid 1 Wet IB 2001 de waarde in het economische verkeer van ' +
+                   'de opgebouwde aanspraken tot het loon, en kan art. 3.136 negatieve uitgaven in ' +
+                   'aanmerking nemen. Dat loopt via een conserverende aanslag, met eigen regels ' +
+                   'over uitstel van betaling (art. 25 lid 5 Invorderingswet 1990) en over de ' +
+                   'belastingrente: art. 30i lid 4 AWR schakelt art. 30fc lid 6 dan uit. Die route ' +
+                   'zit niet in deze tool.' };
+  }
+  if (aanleiding === 'ondergebrachtElders') {
+    return { fout: 'Zijn de verplichtingen waarop de aanspraken berusten geheel of gedeeltelijk ' +
+                   'ondergebracht bij een ander lichaam dan bedoeld in art. 19a lid 1 onderdelen ' +
+                   'a, b en d Wet LB 1964, dan rekent art. 3.83 lid 2 Wet IB 2001 de waarde in het ' +
+                   'economische verkeer tot het loon, en voor de buitenlandse belastingplichtige ' +
+                   'art. 7.2 lid 8. Ook dat loopt via een conserverende aanslag met eigen regels en ' +
+                   'zit niet in deze tool.' };
+  }
+  if (aanleiding !== 'afkoop') {
+    return { fout: 'Stel vast waardoor de aanspraak tot het loon wordt gerekend. Zonder dat ' +
+                   'gegeven is niet te zeggen of art. 30i lid 1 onderdeel a AWR van toepassing is.' };
+  }
+
+  if (volledigeAfkoopBevestigd !== true) {
+    return { fout: 'Deze berekening vereist een bevestigde afkoop van de gehele aanspraak. Bij een ' +
+                   'gedeeltelijke afkoop wordt alleen het afgekochte deel tot het loon gerekend en ' +
+                   'moet de waarde in het economische verkeer van dat deel worden vastgesteld; die ' +
+                   'splitsing zit niet in deze tool.' };
+  }
+  if (waardeVastgesteldBevestigd !== true) {
+    return { fout: 'Bevestig dat de waarde in het economische verkeer van de aanspraak onmiddellijk ' +
+                   'voor de afkoop is vastgesteld. De tool waardeert de aanspraak niet.' };
+  }
+  if (typeof eigenBeheer !== 'boolean') {
+    return { fout: 'Stel vast of de aanspraak in eigen beheer wordt gehouden.' };
+  }
+
+  const grondslag = waardeEconomischVerkeer;
+  const hoofdregelExact = grondslag * REVISIERENTE_PERCENTAGE;
+  const revisierente = afrondOmlaagOpEuro(hoofdregelExact);
+
+  const meldingen = [
+    { soort: 'info', tekst:
+      'De grondslag is de waarde in het economische verkeer van de aanspraak (art. 30i lid 2, ' +
+      'eerste volzin, AWR). De tweede volzin wijst de negatieve uitgaven alleen aan voor ' +
+      'art. 3.133, art. 3.133 lid 9 en art. 3.136 lid 2, 3 en 4 Wet IB 2001; het geval van lid 1 ' +
+      'onderdeel a staat daar niet bij. Anders dan bij een lijfrente verlaagt niet-afgetrokken ' +
+      'saldo de grondslag hier dus niet.' },
+    { soort: 'let', tekst:
+      'De tegenbewijsregeling van art. 30i lid 3 AWR wordt in deze tool niet aangeboden. Zij ' +
+      'vraagt het jaar waarin de aanspraak is bedongen en de jaren waarin de premies in aftrek ' +
+      'zijn gebracht. Bij een pensioenaanspraak die onder de omkeerregel van art. 11 lid 1 ' +
+      'onderdeel c Wet LB 1964 in jaren is opgebouwd is er geen aftrek in de inkomstenbelasting ' +
+      'maar een onbelaste aanspraak, en zijn die twee gegevens niet uit wettekst of beleid in te ' +
+      'vullen. Het verzoek staat de belastingplichtige wel vrij; onderbouw het dan buiten deze ' +
+      'tool om.' },
+    { soort: 'let', tekst:
+      'De waarde in het economische verkeer is invoer van de gebruiker. De tool waardeert de ' +
+      'aanspraak niet en controleert geen polis, pensioenbrief of jaaropgave.' }
+  ];
+  if (eigenBeheer) {
+    meldingen.push({ soort: 'let', tekst:
+      'Voor een aanspraak waarvan een lichaam als bedoeld in art. 19a lid 1 onderdeel d of e, ' +
+      'zoals dat artikel luidde op 31 december 2016, de verzekeraar is, houdt art. 38n lid 1 ' +
+      'Wet LB 1964 het oude art. 19b van toepassing. Afkoop daarvan is vandaag de volle heffing ' +
+      'over de waarde in het economische verkeer plus deze revisierente; de afkoopfaciliteit met ' +
+      'korting van het overgangsrecht liep tot en met 2019 en zit daarom niet in deze tool. De ' +
+      'waardering van een aanspraak in eigen beheer valt buiten de tool.' });
+  }
+  meldingen.push({ soort: 'info', tekst:
+    'De afkoopsom is loon uit vroegere dienstbetrekking (art. 19b lid 1 Wet LB 1964 in verbinding ' +
+    'met art. 3.81 Wet IB 2001) en valt in box 1. De revisierente komt daar bovenop en is geen ' +
+    'belasting maar rente; zij is niet aftrekbaar.' });
+
+  return {
+    jaarAfkoop, waardeEconomischVerkeer,
+    grondslag, grondslagBox1: grondslag,
+    hoofdregelExact, hoofdregelBedrag: revisierente,
+    revisierenteExact: hoofdregelExact, revisierente,
+    route: 'hoofdregel', deelVanGrondslag: REVISIERENTE_PERCENTAGE,
+    tegenbewijsAangeboden: false, eigenBeheer,
+    meldingen
+  };
+}
+
+
 /* Tarief van box 1 per jaar, alleen het percentage per schijf.
 
    Art. 2.10 lid 1 Wet IB 2001, tabel geldend per 1 januari 2026. Opnieuw
@@ -1753,7 +1959,13 @@ function heffingBox1MetPremies({ jaar, inkomen, aowGerechtigd, geborenVoor1946 }
    woning en telt daarom voor de belasting én voor het premie-inkomen mee: de
    negatieve uitgaven voor inkomensvoorzieningen zijn inkomen uit werk en woning
    (afdeling 3.7 Wet IB 2001) en het premie-inkomen is datzelfde inkomen
-   (art. 8 lid 1 Wfsv). */
+   (art. 8 lid 1 Wfsv).
+
+   Bij de afkoop van een pensioenaanspraak is die grondslag geen negatieve
+   uitgave maar loon uit vroegere dienstbetrekking (art. 19b lid 1 Wet LB 1964 in
+   verbinding met art. 3.81 Wet IB 2001). Dat is eveneens inkomen uit werk en
+   woning en eveneens premie-inkomen, zodat deze functie voor beide onderwerpen
+   ongewijzigd bruikbaar is; wat de grondslag is, bepaalt de aanroeper. */
 function heffingsverschilAfkoop({ jaar, overigInkomen, grondslagBox1, aowGerechtigd, geborenVoor1946 }) {
   if (!(typeof overigInkomen === 'number' && isFinite(overigInkomen) && overigInkomen >= 0)) {
     return { fout: 'Geef het overige belastbare inkomen uit werk en woning op als een bedrag van nul of hoger.' };
@@ -1788,7 +2000,9 @@ function heffingsverschilAfkoop({ jaar, overigInkomen, grondslagBox1, aowGerecht
    het tarief van art. 2.10. Blijft de afkoop op grond van art. 3.133 lid 2
    onderdeel d buiten de negatieve uitgaven, dan is de uitkering een termijn van
    lijfrente, verminderd met beschikbaar saldo; dan is dit dus niet hetzelfde bedrag.
-   De aanroeper bepaalt welk van de twee het is, want die kent de voorwaarden. De revisierente komt daar bovenop en is geen belasting
+   Bij de afkoop van een pensioenaanspraak is het de waarde in het economische
+   verkeer zelf, als loon uit vroegere dienstbetrekking, zonder saldovermindering.
+   De aanroeper bepaalt welk van de drie het is, want die kent de voorwaarden. De revisierente komt daar bovenop en is geen belasting
    maar rente; zij is niet aftrekbaar.
 
    Er zijn twee manieren om aan de heffing over die grondslag te komen, en de
@@ -1836,7 +2050,7 @@ function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revi
    Weergave. Roept de kern aan en raakt geen rekenlogica.
    ============================================================ */
 
-const VERSIE = '2026-09-08';
+const VERSIE = '2026-09-18';
 document.getElementById('versie').textContent = 'versie ' + VERSIE;
 
 const euro = n => (n === null || n === undefined || !isFinite(n))
@@ -1847,6 +2061,138 @@ const getal = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
   ? '—' : n.toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d });
 const procent = (n, d = 2) => (n === null || n === undefined || !isFinite(n))
   ? '—' : (n * 100).toLocaleString('nl-NL', { minimumFractionDigits: d, maximumFractionDigits: d }) + '%';
+
+/* De vindplaatsen over de heffing in box 1 en de premies volksverzekeringen.
+   Beide revisierente-onderwerpen gebruiken dezelfde samenloopberekening en dus
+   dezelfde bronnen; zij staan daarom een keer. */
+const VINDPLAATSEN_SAMENLOOP_BOX1 = [
+  'Art. 2.10 lid 1 Wet IB 2001: het tarief van box 1, tabel per 1 januari 2026, waarmee ' +
+    'de belasting over de grondslag van de afkoop wordt bepaald. Art. 2.10a lid 1 geeft voor wie ' +
+    'geboren is vóór 1 januari 1946 dezelfde percentages bij een ruimere eerste schijf. ' +
+    'Kiest de gebruiker zelf een schijf of een eigen tarief, dan is het tarief invoer; ' +
+    'wordt het uit het overige inkomen berekend, dan volgt het uit de wet.',
+  'Art. 8 lid 1 en lid 3, art. 10 en art. 11 Wfsv: over hetzelfde belastbare inkomen uit ' +
+    'werk en woning wordt premie voor de volksverzekeringen geheven, tot ten hoogste het ' +
+    'als eerste vermelde bedrag in kolom II van de tarieftabel van art. 2.10 lid 1, en van ' +
+    'art. 2.10a lid 1 voor wie geboren is vóór 1 januari 1946. Het maximum premie-inkomen ' +
+    'valt daardoor samen met het einde van de eerste schijf.',
+  'De premiepercentages voor 2026: AOW 17,90 percent en Anw 0,10 percent uit art. I en II ' +
+    'van de Regeling tot vaststelling premiepercentages werknemers- en volksverzekeringen, ' +
+    'maximumpremieloon werknemersverzekeringen en opslag kinderopvangtoeslag 2026 ' +
+    '(Stcrt. 2025, 42324), en Wlz 9,65 percent uit art. 1 van de Regeling vaststelling ' +
+    'premiepercentage Wlz (Stcrt. 2018, 70642), die dat percentage met ingang van ' +
+    '1 januari 2019 vaststelt en sindsdien niet is gewijzigd. Samen met het tarief van de ' +
+    'eerste schijf is dat het gecombineerde heffingspercentage van art. 8.1 lid 1 ' +
+    'onderdeel c Wet IB 2001, in 2026 35,75 percent.',
+  'Art. 10 lid 2 Wfsv: vanaf de eerste dag van de maand waarin de verzekerde de ' +
+    'pensioengerechtigde leeftijd bereikt is geen premie voor de algemene ' +
+    'ouderdomsverzekering meer verschuldigd. De Anw en de Wlz blijven wel verschuldigd, ' +
+    'samen 9,75 percent in 2026.',
+  'Art. 9 lid 1 Wfsv en hoofdstuk 8 Wet IB 2001: de heffingskortingen komen op de premie ' +
+    'en op de belasting in mindering. Zij zitten hier niet in, zodat de getoonde last de ' +
+    'heffing vóór korting is. De algemene heffingskorting bouwt af met 6,398 percent van ' +
+    'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2), en een afkoop verhoogt dat ' +
+    'verzamelinkomen; de werkelijke druk ligt daardoor hoger dan deze uitkomst.'
+];
+
+/* De samenloop van de heffing over de afkoop met de revisierente.
+
+   Beide revisierente-onderwerpen stellen dezelfde vraag en bieden dezelfde drie
+   routes: uit het overige inkomen, een gekozen schijf of een eigen tarief. Wat
+   per onderwerp verschilt is alleen de grondslag, en die staat al in `r`. Daarom
+   staat dit hier een keer in plaats van twee keer; anders lopen de twee
+   onderwerpen uiteen zodra er aan een van beide iets wijzigt.
+
+   `i` is de invoer van het onderwerp en `r` de uitkomst van de kern. De uitkomst
+   gaat er onveranderd doorheen; er komen alleen `tariefBox1`, `samenloop`,
+   `heffingsverschil` en de meldingen bij. */
+function samenloopVanAfkoop(i, r) {
+  if (i.tariefSleutelBox1 === 'geen') return r;
+
+  // Het tarief per schijf en de premiepercentages staan alleen voor 2026 in de
+  // kern. Wordt een ander afkoopjaar gekozen, dan is een schijfkeuze niet
+  // gecontroleerd en moet de gebruiker het tarief van dat jaar zelf opgeven.
+  const meldingen = [];
+  let tarief;
+  let heffingsverschil;
+  let belastingBox1;
+  if (i.tariefSleutelBox1 === 'eigen') {
+    tarief = i.eigenTariefBox1;
+  } else if (i.tariefSleutelBox1 === 'overig') {
+    if (!box1Tarieven(i.jaarAfkoop, i.geborenVoor1946) || !premiesVolksverzekeringen(i.jaarAfkoop)) {
+      return { fout: 'Het schijventarief en de premiepercentages voor afkoopjaar ' +
+        i.jaarAfkoop + ' zijn niet in deze tool gecontroleerd. Kies een eigen marginaal ' +
+        'tarief voor dat jaar, of kies "De samenloop niet uitrekenen".' };
+    }
+    if (i.aowStatus === 'inJaar') {
+      return { fout: 'In het jaar waarin iemand de AOW-leeftijd bereikt vervalt de ' +
+        'AOW-premie vanaf de eerste dag van die maand (art. 10 lid 2 Wfsv) en wordt de ' +
+        'premie geheven naar een tijdsevenredig samengesteld heffingspercentage ' +
+        '(art. 2.6 Regeling Wfsv). Die herleiding zit niet in deze tool. Kies een eigen ' +
+        'marginaal tarief, of kies "De samenloop niet uitrekenen".' };
+    }
+    if (i.geborenVoor1946 && i.aowStatus !== 'na') {
+      return { fout: 'Wie geboren is vóór 1 januari 1946 heeft de AOW-leeftijd allang ' +
+        'bereikt. Zet de AOW-status op "Het hele jaar al AOW-gerechtigd", of haal het ' +
+        'vinkje voor art. 2.10a weg.' };
+    }
+    heffingsverschil = heffingsverschilAfkoop({
+      jaar: i.jaarAfkoop, overigInkomen: i.overigInkomen, grondslagBox1: r.grondslagBox1,
+      aowGerechtigd: i.aowStatus === 'na', geborenVoor1946: i.geborenVoor1946
+    });
+    if (heffingsverschil.fout) return heffingsverschil;
+    // Het bedrag gaat ongeafgerond door naar de samenloop; het effectieve tarief
+    // is de uitkomst van het verschil en niet de weg ernaartoe.
+    belastingBox1 = heffingsverschil.last;
+    tarief = heffingsverschil.effectiefTarief;
+  } else {
+    const tarieven = box1Tarieven(i.jaarAfkoop);
+    if (!tarieven) {
+      return { fout: 'Het schijventarief voor afkoopjaar ' + i.jaarAfkoop +
+        ' is niet in deze tool gecontroleerd. Kies een eigen marginaal tarief ' +
+        'voor dat jaar, of kies "De samenloop niet uitrekenen".' };
+    }
+    const index = { eerste: 0, tweede: 1, derde: 2 }[i.tariefSleutelBox1];
+    tarief = tarieven[index].tarief;
+  }
+  const samenloop = samenloopAfkoopLijfrente({
+    waardeEconomischVerkeer: i.waardeEconomischVerkeer,
+    grondslagBox1: r.grondslagBox1,
+    // Het afgeronde bedrag, niet het onafgeronde: de samenloop hoort op te tellen
+    // met de revisierente die er boven staat, anders sluit de uitkomst niet op
+    // zichzelf aan.
+    revisierente: r.revisierente, marginaalTarief: tarief, belastingBox1
+  });
+  if (samenloop.fout) return samenloop;
+  if (heffingsverschil) {
+    meldingen.push({ soort: 'info', tekst:
+      'De last van de afkoop is bepaald als verschil: de heffing over het overige inkomen ' +
+      'plus de afkoop, min de heffing over alleen het overige inkomen. Zo telt een afkoop ' +
+      'die over een schijfgrens of over het maximum premie-inkomen van ' +
+      euro(heffingsverschil.maximumPremieInkomen) + ' heen loopt op de juiste manier mee, ' +
+      'en volgt het getoonde tarief uit de uitkomst in plaats van andersom. De heffing is ' +
+      'de belasting van art. ' + (i.geborenVoor1946 ? '2.10a' : '2.10') + ' Wet IB 2001 ' +
+      'plus de premies volksverzekeringen van art. 10 Wfsv, hier ' +
+      procent(heffingsverschil.premiepercentage, 2) + ' over het premie-inkomen' +
+      (i.aowStatus === 'na' ? ', zonder de AOW-premie omdat de AOW-leeftijd is bereikt' : '') +
+      '.' });
+    meldingen.push({ soort: 'let', tekst:
+      'Heffingskortingen zitten hier niet in, en daardoor is de werkelijke druk hoger dan ' +
+      'deze uitkomst. De algemene heffingskorting bouwt in 2026 af met 6,398 percent van ' +
+      'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2 Wet IB 2001), en de afkoop ' +
+      'verhoogt dat verzamelinkomen. De arbeidskorting hangt af van het arbeidsinkomen ' +
+      '(art. 8.11 jo. art. 8.1 lid 1 onderdeel e Wet IB 2001) en wordt door een afkoop in ' +
+      'beginsel niet geraakt. De tool rekent geen aanslag: box 2 en box 3, de ' +
+      'partnerverdeling en de inkomensafhankelijke bijdrage Zvw blijven er ook buiten.' });
+  } else {
+    meldingen.push({ soort: 'info', tekst:
+      'De samenloop is een schatting van de last en geen aanslag: zij rekent met één marginaal ' +
+      'tarief en laat heffingskortingen, de premies volksverzekeringen en het overige inkomen ' +
+      'buiten beschouwing. De revisierente is geen belasting en niet aftrekbaar.' });
+  }
+  return { ...r, tariefBox1: tarief, samenloop, heffingsverschil,
+           meldingen: [...(r.meldingen || []), ...meldingen] };
+}
 
 /* Elk onderwerp: velden, rekenfunctie en opmaak van de uitkomst. */
 const ONDERWERPEN = [
@@ -2550,33 +2896,7 @@ const ONDERWERPEN = [
       'is de ECB-herfinancieringsrente van voor 1 november van het voorafgaande jaar plus ' +
       '3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten minste ' +
       '4,5 en met een wijziging van maximaal 2 procentpunt.',
-    'Art. 2.10 lid 1 Wet IB 2001: het tarief van box 1, tabel per 1 januari 2026, waarmee ' +
-      'de belasting over de negatieve uitgaven wordt bepaald. Art. 2.10a lid 1 geeft voor wie ' +
-      'geboren is vóór 1 januari 1946 dezelfde percentages bij een ruimere eerste schijf. ' +
-      'Kiest de gebruiker zelf een schijf of een eigen tarief, dan is het tarief invoer; ' +
-      'wordt het uit het overige inkomen berekend, dan volgt het uit de wet.',
-    'Art. 8 lid 1 en lid 3, art. 10 en art. 11 Wfsv: over hetzelfde belastbare inkomen uit ' +
-      'werk en woning wordt premie voor de volksverzekeringen geheven, tot ten hoogste het ' +
-      'als eerste vermelde bedrag in kolom II van de tarieftabel van art. 2.10 lid 1, en van ' +
-      'art. 2.10a lid 1 voor wie geboren is vóór 1 januari 1946. Het maximum premie-inkomen ' +
-      'valt daardoor samen met het einde van de eerste schijf.',
-    'De premiepercentages voor 2026: AOW 17,90 percent en Anw 0,10 percent uit art. I en II ' +
-      'van de Regeling tot vaststelling premiepercentages werknemers- en volksverzekeringen, ' +
-      'maximumpremieloon werknemersverzekeringen en opslag kinderopvangtoeslag 2026 ' +
-      '(Stcrt. 2025, 42324), en Wlz 9,65 percent uit art. 1 van de Regeling vaststelling ' +
-      'premiepercentage Wlz (Stcrt. 2018, 70642), die dat percentage met ingang van ' +
-      '1 januari 2019 vaststelt en sindsdien niet is gewijzigd. Samen met het tarief van de ' +
-      'eerste schijf is dat het gecombineerde heffingspercentage van art. 8.1 lid 1 ' +
-      'onderdeel c Wet IB 2001, in 2026 35,75 percent.',
-    'Art. 10 lid 2 Wfsv: vanaf de eerste dag van de maand waarin de verzekerde de ' +
-      'pensioengerechtigde leeftijd bereikt is geen premie voor de algemene ' +
-      'ouderdomsverzekering meer verschuldigd. De Anw en de Wlz blijven wel verschuldigd, ' +
-      'samen 9,75 percent in 2026.',
-    'Art. 9 lid 1 Wfsv en hoofdstuk 8 Wet IB 2001: de heffingskortingen komen op de premie ' +
-      'en op de belasting in mindering. Zij zitten hier niet in, zodat de getoonde last de ' +
-      'heffing vóór korting is. De algemene heffingskorting bouwt af met 6,398 percent van ' +
-      'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2), en een afkoop verhoogt dat ' +
-      'verzamelinkomen; de werkelijke druk ligt daardoor hoger dan deze uitkomst.',
+    ...VINDPLAATSEN_SAMENLOOP_BOX1,
     'Verzamelspoedwet COVID-19, Stb. 2020, 200: de verlaging naar 0,01 percent geldt voor ' +
       'de inkomstenbelasting vanaf 1 juli 2020 en niet vanaf 1 juni 2020 zoals voor de ' +
       'overige belastingen. Juni 2020 valt dus nog onder vier percent.'
@@ -2604,6 +2924,7 @@ const ONDERWERPEN = [
     'een tijdsevenredig samengesteld heffingspercentage (art. 2.6 Regeling Wfsv).',
   id: 'revisierente', groep: 'Lijfrente', naam: 'Revisierente bij afkoop',
   titel: 'Revisierente bij afkoop van een lijfrente',
+  herbereken: true,
   grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van het bedrag aan ' +
              'negatieve uitgaven voor inkomensvoorzieningen. ' +
              'Op verzoek stelt lid 3 de revisierente in plaats daarvan op de ' +
@@ -2673,91 +2994,7 @@ const ONDERWERPEN = [
       jaarBedongen: i.jaarBedongen, premies
     });
     if (r.fout) return r;
-    if (i.tariefSleutelBox1 === 'geen') return r;
-
-    // Het tarief per schijf en de premiepercentages staan alleen voor 2026 in de
-    // kern. Wordt een ander afkoopjaar gekozen, dan is een schijfkeuze niet
-    // gecontroleerd en moet de gebruiker het tarief van dat jaar zelf opgeven.
-    const meldingen = [];
-    let tarief;
-    let heffingsverschil;
-    let belastingBox1;
-    if (i.tariefSleutelBox1 === 'eigen') {
-      tarief = i.eigenTariefBox1;
-    } else if (i.tariefSleutelBox1 === 'overig') {
-      if (!box1Tarieven(i.jaarAfkoop, i.geborenVoor1946) || !premiesVolksverzekeringen(i.jaarAfkoop)) {
-        return { fout: 'Het schijventarief en de premiepercentages voor afkoopjaar ' +
-          i.jaarAfkoop + ' zijn niet in deze tool gecontroleerd. Kies een eigen marginaal ' +
-          'tarief voor dat jaar, of kies "De samenloop niet uitrekenen".' };
-      }
-      if (i.aowStatus === 'inJaar') {
-        return { fout: 'In het jaar waarin iemand de AOW-leeftijd bereikt vervalt de ' +
-          'AOW-premie vanaf de eerste dag van die maand (art. 10 lid 2 Wfsv) en wordt de ' +
-          'premie geheven naar een tijdsevenredig samengesteld heffingspercentage ' +
-          '(art. 2.6 Regeling Wfsv). Die herleiding zit niet in deze tool. Kies een eigen ' +
-          'marginaal tarief, of kies "De samenloop niet uitrekenen".' };
-      }
-      if (i.geborenVoor1946 && i.aowStatus !== 'na') {
-        return { fout: 'Wie geboren is vóór 1 januari 1946 heeft de AOW-leeftijd allang ' +
-          'bereikt. Zet de AOW-status op "Het hele jaar al AOW-gerechtigd", of haal het ' +
-          'vinkje voor art. 2.10a weg.' };
-      }
-      heffingsverschil = heffingsverschilAfkoop({
-        jaar: i.jaarAfkoop, overigInkomen: i.overigInkomen, grondslagBox1: r.grondslagBox1,
-        aowGerechtigd: i.aowStatus === 'na', geborenVoor1946: i.geborenVoor1946
-      });
-      if (heffingsverschil.fout) return heffingsverschil;
-      // Het bedrag gaat ongeafgerond door naar de samenloop; het effectieve tarief
-      // is de uitkomst van het verschil en niet de weg ernaartoe.
-      belastingBox1 = heffingsverschil.last;
-      tarief = heffingsverschil.effectiefTarief;
-    } else {
-      const tarieven = box1Tarieven(i.jaarAfkoop);
-      if (!tarieven) {
-        return { fout: 'Het schijventarief voor afkoopjaar ' + i.jaarAfkoop +
-          ' is niet in deze tool gecontroleerd. Kies een eigen marginaal tarief ' +
-          'voor dat jaar, of kies "De samenloop niet uitrekenen".' };
-      }
-      const index = { eerste: 0, tweede: 1, derde: 2 }[i.tariefSleutelBox1];
-      tarief = tarieven[index].tarief;
-    }
-    const samenloop = samenloopAfkoopLijfrente({
-      waardeEconomischVerkeer: i.waardeEconomischVerkeer,
-      grondslagBox1: r.grondslagBox1,
-      // Het afgeronde bedrag, niet het onafgeronde: de samenloop hoort op te tellen
-      // met de revisierente die er boven staat, anders sluit de uitkomst niet op
-      // zichzelf aan.
-      revisierente: r.revisierente, marginaalTarief: tarief, belastingBox1
-    });
-    if (samenloop.fout) return samenloop;
-    if (heffingsverschil) {
-      meldingen.push({ soort: 'info', tekst:
-        'De last van de afkoop is bepaald als verschil: de heffing over het overige inkomen ' +
-        'plus de afkoop, min de heffing over alleen het overige inkomen. Zo telt een afkoop ' +
-        'die over een schijfgrens of over het maximum premie-inkomen van ' +
-        euro(heffingsverschil.maximumPremieInkomen) + ' heen loopt op de juiste manier mee, ' +
-        'en volgt het getoonde tarief uit de uitkomst in plaats van andersom. De heffing is ' +
-        'de belasting van art. ' + (i.geborenVoor1946 ? '2.10a' : '2.10') + ' Wet IB 2001 ' +
-        'plus de premies volksverzekeringen van art. 10 Wfsv, hier ' +
-        procent(heffingsverschil.premiepercentage, 2) + ' over het premie-inkomen' +
-        (i.aowStatus === 'na' ? ', zonder de AOW-premie omdat de AOW-leeftijd is bereikt' : '') +
-        '.' });
-      meldingen.push({ soort: 'let', tekst:
-        'Heffingskortingen zitten hier niet in, en daardoor is de werkelijke druk hoger dan ' +
-        'deze uitkomst. De algemene heffingskorting bouwt in 2026 af met 6,398 percent van ' +
-        'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2 Wet IB 2001), en de afkoop ' +
-        'verhoogt dat verzamelinkomen. De arbeidskorting hangt af van het arbeidsinkomen ' +
-        '(art. 8.11 jo. art. 8.1 lid 1 onderdeel e Wet IB 2001) en wordt door een afkoop in ' +
-        'beginsel niet geraakt. De tool rekent geen aanslag: box 2 en box 3, de ' +
-        'partnerverdeling en de inkomensafhankelijke bijdrage Zvw blijven er ook buiten.' });
-    } else {
-      meldingen.push({ soort: 'info', tekst:
-        'De samenloop is een schatting van de last en geen aanslag: zij rekent met één marginaal ' +
-        'tarief en laat heffingskortingen, de premies volksverzekeringen en het overige inkomen ' +
-        'buiten beschouwing. De revisierente is geen belasting en niet aftrekbaar.' });
-    }
-    return { ...r, tariefBox1: tarief, samenloop, heffingsverschil,
-             meldingen: [...(r.meldingen || []), ...meldingen] };
+    return samenloopVanAfkoop(i, r);
   },
   uit: r => [
     ['Vermindering met niet-afgetrokken premies', euro(r.saldoVermindering)],
@@ -2790,6 +3027,193 @@ const ONDERWERPEN = [
       x.maanden, procent(x.percentage, 4), euro(x.renteAfgerond)
     ])
   } : null
+}
+,
+{
+  vindplaatsen: [
+    'Art. 30i lid 1 onderdeel a AWR: revisierente is verschuldigd zodra de aanspraak ingevolge ' +
+      'een pensioenregeling tot het loon wordt gerekend door toepassing van art. 19b lid 1 of ' +
+      'lid 2, eerste volzin, Wet op de loonbelasting 1964 in verbinding met art. 3.81 Wet IB ' +
+      '2001, of van art. 3.83 lid 1 of lid 2 dan wel art. 7.2 lid 8 Wet IB 2001. Gecontroleerd ' +
+      'op 18 september 2026 in de geconsolideerde tekst van de KOOP-repository (BWBR0002320, ' +
+      'consolidatie 2026-04-11, SHA256 ' +
+      'df711b636de085dab3fc8947a7b796957ba82b1e303b4e44d142714e3aa398b5).',
+    'Art. 30i lid 2 AWR: de eerste volzin stelt de revisierente op 20 percent van de waarde in ' +
+      'het economische verkeer van aanspraken als bedoeld in het eerste lid. De tweede volzin ' +
+      'wijkt daarvan alleen af voor art. 3.133, art. 3.133 lid 9 en art. 3.136 lid 2, 3 en 4 ' +
+      'Wet IB 2001, en wijst dan het bedrag aan negatieve uitgaven aan. Het geval van lid 1 ' +
+      'onderdeel a staat daar niet bij, zodat bij afkoop van een pensioenaanspraak de eerste ' +
+      'volzin geldt: de waarde in het economische verkeer. Teruggelezen in de consolidaties per ' +
+      '1 januari van 2020 tot en met 2026. Tot en met 2023 noemde de tweede volzin alleen ' +
+      'art. 3.136 lid 2, 3 en 4; per 1 januari 2024 kwam art. 3.133 lid 9 erbij en per ' +
+      '1 januari 2025 art. 3.133 zelf (Stb. 2024, 440, Kamerstukken 36605). In geen van die ' +
+      'versies raakt de tweede volzin onderdeel a.',
+    'Art. 19b lid 1 Wet op de loonbelasting 1964: wordt een aanspraak ingevolge een ' +
+      'pensioenregeling afgekocht of vervreemd, of is zij niet langer als zodanig aan te ' +
+      'merken, dan wordt zij op het onmiddellijk daaraan voorafgaande tijdstip aangemerkt als ' +
+      'loon uit een vroegere dienstbetrekking. Art. 3.81 Wet IB 2001 neemt dat loonbegrip over ' +
+      'voor de inkomstenbelasting, zodat de afkoop in box 1 valt. Gecontroleerd op ' +
+      '18 september 2026 (BWBR0002471, consolidatie 2026-02-21, SHA256 ' +
+      '74f6c7578304d1a90a4280854464749019e427423007ff564858d8f77138cd6f).',
+    'Art. 11 lid 1 onderdeel c Wet op de loonbelasting 1964: aanspraken ingevolge een ' +
+      'pensioenregeling behoren niet tot het loon. Dat is de omkeerregel. Er is daardoor geen ' +
+      'aftrek van premies in de inkomstenbelasting waarop een saldo aan niet-afgetrokken ' +
+      'premies kan achterblijven, anders dan bij een lijfrente; de grondslag wordt hier dus ' +
+      'niet met een saldo verlaagd.',
+    'Art. 30i lid 3 AWR: het tegenbewijs geldt op verzoek en alleen als de aanspraak is ' +
+      'bedongen minder dan tien jaren voor het jaar waarin zij tot loon wordt gerekend. Voor ' +
+      'een pensioenaanspraak rekent onderdeel a met navorderingsaanslagen over de jaren van de ' +
+      'aftrek van de premies. Deze tool biedt die route niet aan: bij een aanspraak die onder ' +
+      'de omkeerregel in jaren is opgebouwd zijn het jaar van bedingen en de jaren van aftrek ' +
+      'niet uit wettekst of beleid vast te stellen. Besloten door de eigenaar op ' +
+      '18 september 2026; het verzoek zelf blijft de belastingplichtige vrijstaan.',
+    'Art. 19b lid 4 Wet op de loonbelasting 1964: het eerste lid is niet van toepassing voor ' +
+      'zover een uitkering of afkoopsom wordt uitgekeerd met toepassing van artikel 66, 67 of ' +
+      '68 van de Pensioenwet. Bij die afkoop van een klein pensioen wordt de aanspraak dus niet ' +
+      'tot het loon gerekend en is er geen revisierente. Art. 66 Pensioenwet geeft het ' +
+      'afkooprecht bij een klein ouderdomspensioen, art. 67 bij een klein partner- of ' +
+      'wezenpensioen en art. 68 bij een klein bijzonder partnerpensioen; de grens van art. 66 ' +
+      'lid 1 onderdeel a wordt per 1 januari aangepast met de consumentenprijsindex (art. 66 ' +
+      'lid 7). Gecontroleerd op 18 september 2026 (BWBR0020809, consolidatie 2026-01-01, ' +
+      'SHA256 0b4c34e1aa17a3a84d5d3b02521bcff1c22930aa599f50d1c0972c04d8424781).',
+    'Art. 19b lid 2 Wet op de loonbelasting 1964: gaat de pensioenverplichting geheel of ' +
+      'gedeeltelijk over op een andere verzekeraar, dan wordt de aanspraak geacht te zijn ' +
+      'afgekocht. De tweede volzin zondert de overgang naar een verzekeraar als bedoeld in ' +
+      'art. 19a lid 1 onderdeel a, b of d uit, mits die niet in strijd komt met de artikelen 70 ' +
+      'tot en met 91 van de Pensioenwet, en lid 7 kent een uitzondering bij een ' +
+      'dienstbetrekking buiten Nederland.',
+    'Art. 19b lid 3 Wet op de loonbelasting 1964: bij vervreemding of omzetting van een ' +
+      'aanspraak in het kader van scheiding van tafel en bed, echtscheiding of beëindiging van ' +
+      'de gezamenlijke huishouding is het eerste lid niet van toepassing; de verkregen of ' +
+      'omgezette aanspraak geldt als voortzetting van de oorspronkelijke aanspraak.',
+    'Art. 3.83 lid 1 en lid 2 en art. 7.2 lid 8 Wet IB 2001: bij het ophouden binnenlands ' +
+      'belastingplichtig te zijn en bij het onderbrengen van de verplichting bij een ander ' +
+      'lichaam dan bedoeld in art. 19a lid 1 onderdelen a, b en d Wet op de loonbelasting 1964 ' +
+      'wordt de waarde in het economische verkeer tot het loon gerekend; art. 3.136 doet ' +
+      'hetzelfde voor de negatieve uitgaven bij emigratie. Die gevallen lopen via een ' +
+      'conserverende aanslag, met uitstel van betaling op grond van art. 25 lid 5 ' +
+      'Invorderingswet 1990 en met art. 30fc lid 6 AWR buiten toepassing (art. 30i lid 4 AWR).',
+    'Art. 1.7 lid 2 Wet IB 2001: onderdeel a is de pensioenregeling overeenkomstig de ' +
+      'wettelijke bepalingen van de loonbelasting, waarop deze berekening ziet. Onderdeel b ' +
+      'noemt de regelingen op grond van de Wet verplichte deelneming in een ' +
+      'bedrijfstakpensioenfonds 2000, de Wet op het notarisambt en de Wet verplichte ' +
+      'beroepspensioenregeling; die vallen onder art. 30i lid 1 onderdeel c AWR, met art. 3.135 ' +
+      'Wet IB 2001 als aanknopingspunt, en zitten niet in deze tool. Gecontroleerd op ' +
+      '18 september 2026 (BWBR0011353, consolidatie 2026-02-21, SHA256 ' +
+      'a10b4feaee14ba1e983c859d4ffc8847c84c3df060e71a9b28e5f1086666019f).',
+    'Art. 38n lid 1 Wet op de loonbelasting 1964: op aanspraken waarvan een lichaam als bedoeld ' +
+      'in art. 19a lid 1 onderdeel d of e, zoals dat artikel luidde op 31 december 2016, de ' +
+      'verzekeraar is, blijven onder meer art. 19a en art. 19b zoals zij op die datum luidden ' +
+      'van toepassing. Een nog bestaande aanspraak in eigen beheer valt daar dus onder. De ' +
+      'afkoopfaciliteit met korting uit het overgangsrecht van de uitfasering liep tot en met ' +
+      '2019 en zit daarom niet in deze tool.',
+    ...VINDPLAATSEN_SAMENLOOP_BOX1
+  ],
+  afbakening: 'Alleen de afkoop van de gehele pensioenaanspraak van art. 19b lid 1 onderdeel b ' +
+    'Wet op de loonbelasting 1964, bij een pensioenregeling in de zin van art. 1.7 lid 2 ' +
+    'onderdeel a Wet IB 2001, dus art. 30i lid 1 onderdeel a AWR. De grondslag is de waarde in ' +
+    'het economische verkeer. Die waarde is invoer: de tool waardeert de aanspraak niet, en bij ' +
+    'een aanspraak in eigen beheer is dat waarderingswerk dat er buiten valt. De ' +
+    'tegenbewijsregeling van art. 30i lid 3 AWR wordt niet aangeboden, en er worden daarom ook ' +
+    'geen premies uitgevraagd. Deze gevallen geven elk een eigen melding en geen uitkomst: ' +
+    'afkoop van een klein pensioen met toepassing van art. 66, 67 of 68 Pensioenwet, waarbij ' +
+    'art. 19b lid 4 het eerste lid opzijzet zodat er juist geen revisierente is; overgang van ' +
+    'de verplichting op een andere verzekeraar (art. 19b lid 2); de scheidingssituatie van ' +
+    'art. 19b lid 3; emigratie en het onderbrengen van de verplichting elders (art. 3.83, ' +
+    'art. 3.136 en art. 7.2 lid 8 Wet IB 2001); gedeeltelijke afkoop; en de pensioenregeling ' +
+    'van art. 1.7 lid 2 onderdeel b Wet IB 2001, die onder onderdeel c van art. 30i lid 1 AWR ' +
+    'valt. Onderdeel c en de vermenigvuldiging van art. 3.133 lid 9 Wet IB 2001 zijn bewust ' +
+    'buiten deze ronde gehouden. De jaren 2020 tot en met 2026 zijn gecontroleerd; daarbuiten ' +
+    'volgt een melding en geen uitkomst. De samenloop met de heffing over de afkoop kan op drie ' +
+    'manieren, gelijk aan het onderwerp bij de lijfrente. Met een gekozen schijf of een eigen ' +
+    'tarief rekent zij met één marginaal tarief en alleen met belasting. Wordt zij uit het ' +
+    'overige inkomen berekend, dan bepaalt de tool de last als verschil tussen de heffing met ' +
+    'en zonder de afkoop, inclusief de premies volksverzekeringen. Het schijventarief en de ' +
+    'premiepercentages staan alleen voor 2026 in de tool. Heffingskortingen blijven er in alle ' +
+    'gevallen buiten, evenals box 2, box 3, de partnerverdeling en de inkomensafhankelijke ' +
+    'bijdrage Zvw; de tool rekent geen aanslag. Het jaar waarin iemand de AOW-leeftijd bereikt ' +
+    'wordt niet doorgerekend (art. 2.6 Regeling Wfsv). De loonheffing die de pensioenuitvoerder ' +
+    'op de afkoopsom inhoudt blijft buiten beeld: de tool schat de last in de ' +
+    'inkomstenbelasting.',
+  id: 'revisierente-pensioen', groep: 'Pensioen', naam: 'Revisierente bij afkoop',
+  titel: 'Revisierente bij afkoop van een pensioenaanspraak',
+  herbereken: true,
+  grondslag: 'Art. 30i lid 1 onderdeel a AWR. Wordt een pensioenaanspraak afgekocht, dan is zij ' +
+             'op grond van art. 19b lid 1 Wet op de loonbelasting 1964 loon uit vroegere ' +
+             'dienstbetrekking en is daarnaast revisierente verschuldigd. De hoofdregel van ' +
+             'lid 2, eerste volzin, is 20 percent van de waarde in het economische verkeer van ' +
+             'de aanspraak; de tweede volzin, die het bedrag aan negatieve uitgaven aanwijst, ' +
+             'ziet niet op dit geval. De tegenbewijsregeling van lid 3 wordt in deze tool niet ' +
+             'aangeboden.',
+  velden: [
+    { k: 'jaarAfkoop', l: 'Jaar waarin de aanspraak tot het loon wordt gerekend', t: 'keuze', v: 2026, opties: [
+      { w: 2020, l: '2020' }, { w: 2021, l: '2021' }, { w: 2022, l: '2022' },
+      { w: 2023, l: '2023' }, { w: 2024, l: '2024' }, { w: 2025, l: '2025' },
+      { w: 2026, l: '2026' }
+    ] },
+    { k: 'waardeEconomischVerkeer', l: 'Waarde in het economische verkeer van de aanspraak', h: 'Op het tijdstip onmiddellijk voor de afkoop (art. 19b lid 1 Wet op de loonbelasting 1964). De tool waardeert de aanspraak niet', t: 'euro', v: 100000 },
+    { k: 'regelingSoort', l: 'Soort pensioenregeling', h: 'Onderdeel a van art. 1.7 lid 2 Wet IB 2001 is de gewone regeling volgens de loonbelasting; onderdeel b is de verplichte bedrijfstak-, notaris- of beroepspensioenregeling', t: 'keuze', v: 'onbekend', opties: [
+      { w: 'onbekend', l: 'Nog niet vastgesteld' },
+      { w: 'loonbelasting', l: 'Volgens de wettelijke bepalingen van de loonbelasting (art. 1.7 lid 2 onderdeel a)' },
+      { w: 'beroepspensioen', l: 'Bpf 2000, notarisambt of beroepspensioenregeling (art. 1.7 lid 2 onderdeel b)' }
+    ] },
+    { k: 'aanleiding', l: 'Waardoor wordt de aanspraak tot het loon gerekend?', h: 'Alleen de gewone afkoop van art. 19b lid 1 onderdeel b wordt doorgerekend; de andere gevallen krijgen een melding met de reden', t: 'keuze', v: 'onbekend', opties: [
+      { w: 'onbekend', l: 'Nog niet vastgesteld' },
+      { w: 'afkoop', l: 'Afkoop van de aanspraak (art. 19b lid 1 onderdeel b)' },
+      { w: 'kleinPensioen', l: 'Afkoop klein pensioen met toepassing van art. 66, 67 of 68 Pensioenwet' },
+      { w: 'overgangVerzekeraar', l: 'Overgang van de verplichting op een andere verzekeraar (art. 19b lid 2)' },
+      { w: 'scheiding', l: 'Vervreemding of omzetting bij scheiding (art. 19b lid 3)' },
+      { w: 'emigratie', l: 'Ophouden binnenlands belastingplichtige te zijn (art. 3.83 lid 1 Wet IB 2001)' },
+      { w: 'ondergebrachtElders', l: 'Verplichting ondergebracht bij een niet toegelaten lichaam (art. 3.83 lid 2 of art. 7.2 lid 8 Wet IB 2001)' }
+    ] },
+    { k: 'volledigeAfkoopBevestigd', l: 'Afkoop van de gehele aanspraak vastgesteld', h: 'Bij een gedeeltelijke afkoop moet de waarde van het afgekochte deel afzonderlijk worden vastgesteld; dat valt buiten deze route', t: 'vinkje', v: false },
+    { k: 'waardeVastgesteldBevestigd', l: 'De waarde in het economische verkeer is vastgesteld', h: 'Dit is een invoeraanname; bewaar de onderbouwing van de waardering in uw eigen dossier', t: 'vinkje', v: false },
+    { k: 'eigenBeheer', l: 'Aanspraak in eigen beheer (art. 38n Wet op de loonbelasting 1964)', h: 'Voor een nog bestaande aanspraak in eigen beheer blijft het oude art. 19b gelden; de afkoopfaciliteit met korting liep tot en met 2019', t: 'vinkje', v: false },
+    { k: 'tariefSleutelBox1', l: 'Heffing box 1 over de afkoop', h: 'Welke schijf marginaal is hangt af van het overige inkomen. Laat de tool het uitrekenen, kies zelf een schijf, of geef een eigen tarief', t: 'keuze', v: 'derde', opties: [
+      { w: 'overig', l: 'Uit het overige inkomen berekenen, met premies volksverzekeringen' },
+      { w: 'derde', l: 'Derde schijf, 49,50 percent (2026), alleen belasting' },
+      { w: 'tweede', l: 'Tweede schijf, 37,56 percent (2026), alleen belasting' },
+      { w: 'eerste', l: 'Eerste schijf, 8,10 percent (2026), alleen belasting' },
+      { w: 'geen', l: 'De samenloop niet uitrekenen' },
+      { w: 'eigen', l: 'Zelf een tarief opgeven' }
+    ] },
+    { k: 'overigInkomen', l: 'Overig belastbaar inkomen uit werk en woning', h: 'Alleen bij "Uit het overige inkomen berekenen". Het inkomen van hetzelfde jaar zonder de afkoop, na aftrekposten; box 2 en box 3 tellen niet mee', t: 'euro', v: null },
+    { k: 'aowStatus', l: 'AOW-leeftijd in het jaar van afkoop', h: 'Alleen bij "Uit het overige inkomen berekenen". Vanaf de AOW-leeftijd vervalt de AOW-premie (art. 10 lid 2 Wfsv)', t: 'keuze', v: 'voor', opties: [
+      { w: 'voor', l: 'Het hele jaar nog niet AOW-gerechtigd' },
+      { w: 'na', l: 'Het hele jaar al AOW-gerechtigd' },
+      { w: 'inJaar', l: 'Bereikt de AOW-leeftijd in dit jaar' }
+    ] },
+    { k: 'geborenVoor1946', l: 'Geboren vóór 1 januari 1946 (art. 2.10a Wet IB 2001)', h: 'Alleen bij "Uit het overige inkomen berekenen". Dezelfde percentages, maar een ruimere eerste schijf, die ook het maximum premie-inkomen verruimt', t: 'vinkje', v: false },
+    { k: 'eigenTariefBox1', l: 'Eigen marginaal tarief', h: 'Alleen als hierboven een eigen tarief is gekozen', t: 'procent', v: 49.5 }
+  ],
+  reken: i => {
+    const r = revisierenteAfkoopPensioen({
+      jaarAfkoop: i.jaarAfkoop, waardeEconomischVerkeer: i.waardeEconomischVerkeer,
+      regelingSoort: i.regelingSoort, aanleiding: i.aanleiding,
+      volledigeAfkoopBevestigd: i.volledigeAfkoopBevestigd,
+      waardeVastgesteldBevestigd: i.waardeVastgesteldBevestigd,
+      eigenBeheer: i.eigenBeheer
+    });
+    if (r.fout) return r;
+    return samenloopVanAfkoop(i, r);
+  },
+  uit: r => [
+    ['Waarde in het economische verkeer, grondslag van lid 2', euro(r.grondslag)],
+    ['Revisierente, 20 percent van die waarde', euro(r.revisierente), true],
+    ['Revisierente als deel van de grondslag', procent(r.deelVanGrondslag, 3)],
+    ['Tegenbewijsregeling van lid 3 aangeboden', r.tegenbewijsAangeboden ? 'Ja' : 'Nee'],
+    ['Belastbaar loon uit vroegere dienstbetrekking', euro(r.grondslagBox1)],
+    ['Overig inkomen box 1 naast de afkoop', r.heffingsverschil ? euro(r.heffingsverschil.overigInkomen) : '—'],
+    [r.heffingsverschil ? 'Effectief tarief over de afkoop' : 'Marginaal tarief box 1',
+      r.samenloop ? procent(r.tariefBox1, 2) : '—'],
+    ['Waarvan belasting, art. 2.10 Wet IB 2001', r.heffingsverschil ? euro(r.heffingsverschil.belastingdeel) : '—'],
+    ['Waarvan premies volksverzekeringen', r.heffingsverschil ? euro(r.heffingsverschil.premiedeel) : '—'],
+    ['Belasting box 1 over de afkoop', r.samenloop ? euro(r.samenloop.belastingBox1) : '—'],
+    ['Totale last, belasting plus revisierente', r.samenloop ? euro(r.samenloop.totaleLast) : '—', true],
+    ['Netto over uit de afkoop', r.samenloop ? euro(r.samenloop.nettoUitAfkoop) : '—'],
+    ['Totale last als deel van de waarde', r.samenloop ? procent(r.samenloop.deelVanWaarde, 3) : '—']
+  ],
+  meldingen: r => r.meldingen || []
 }
 ];
 
@@ -3292,8 +3716,9 @@ function exportBladen(o, r) {
   const fout = invoerFout(o);
   if (fout) throw new Error(fout);
   // Een bewaarde knop mag na wijziging/import geen verouderde fiscale uitkomst
-  // combineren met nieuwe voorwaarden. Herbereken alleen dit onderwerp.
-  if (o.id === 'revisierente') {
+  // combineren met nieuwe voorwaarden. Herbereken elk onderwerp dat op bevestigde
+  // toepassingsgegevens rust, dus elk onderwerp met de vlag `herbereken`.
+  if (o.herbereken) {
     r = o.reken({ ...invoer[o.id] });
     if (r.fout) throw new Error(r.fout);
   }
@@ -3422,7 +3847,7 @@ function exportKnoppen(o, r) {
    ============================================================ */
 // DOSSIERBESTAND — BEGIN
 
-const DOSSIER_FORMAATVERSIE = 3;
+const DOSSIER_FORMAATVERSIE = 4;
 const DOSSIER_MAX_KENMERK = 80;
 
 /* De waarde zoals zij in het invoervak staat, dus een percentage als 10 en niet
@@ -3568,8 +3993,9 @@ function leesDossier(tekst) {
 function zetDossier(d) {
   // Ontbrekende nieuwe toepassingsgegevens mogen nooit eerder aangevinkte
   // bevestigingen overnemen, ook niet bij import over een complete berekening.
-  const revisie = ONDERWERPEN.find(o => o.id === 'revisierente');
-  for (const v of revisie.velden) invoer.revisierente[v.k] = leesVeld(v, v.v);
+  for (const o of ONDERWERPEN.filter(x => x.herbereken)) {
+    for (const v of o.velden) invoer[o.id][v.k] = leesVeld(v, v.v);
+  }
 
   for (const o of ONDERWERPEN) {
     for (const v of o.velden) {
