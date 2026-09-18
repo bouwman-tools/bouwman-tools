@@ -1615,15 +1615,13 @@ function revisierenteAfkoopLijfrente({
 
 /* Tarief van box 1 per jaar, alleen het percentage per schijf.
 
-   Art. 2.10 lid 1 Wet IB 2001, tabel geldend per 1 januari 2026, gecontroleerd
-   op 7 september 2026. De tool rekent geen aanslag: zij gebruikt het tarief
-   alleen om de belasting over de negatieve uitgaven te schatten, en welk
-   percentage marginaal is hangt af van het overige inkomen.
+   Art. 2.10 lid 1 Wet IB 2001, tabel geldend per 1 januari 2026. Opnieuw
+   gecontroleerd op 18 september 2026 in de geconsolideerde tekst van de
+   KOOP-repository (BWBR0011353, consolidatie 2026-02-21, SHA256
+   a10b4feaee14ba1e983c859d4ffc8847c84c3df060e71a9b28e5f1086666019f).
 
    De verhoging van art. 2.10 lid 2 met 11,94 procentpunt geldt voor
-   grondslagverminderende posten en blijft hier buiten beschouwing; art. 2.10a
-   voor belastingplichtigen geboren voor 1 januari 1946 heeft eigen schijfgrenzen
-   maar dezelfde percentages. */
+   grondslagverminderende posten en blijft hier buiten beschouwing. */
 const BOX1_TARIEVEN_PER_JAAR = {
   2026: [
     { tarief: 0.0810, totEnMet: 38883, omschrijving: 'Eerste schijf, 8,10 percent' },
@@ -1632,7 +1630,155 @@ const BOX1_TARIEVEN_PER_JAAR = {
   ]
 };
 
-function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
+/* Art. 2.10a lid 1 Wet IB 2001: dezelfde percentages, maar een ruimere eerste
+   schijf voor wie geboren is vóór 1 januari 1946. Zelfde bron en controledatum
+   als hierboven. Het verschil werkt twee kanten op: het deel tussen 38.883 en
+   41.123 valt in de eerste schijf, en art. 8 lid 3, tweede volzin, Wfsv laat
+   het maximum premie-inkomen met die ruimere eerste schijf meelopen. */
+const BOX1_TARIEVEN_ART210A_PER_JAAR = {
+  2026: [
+    { tarief: 0.0810, totEnMet: 41123, omschrijving: 'Eerste schijf, 8,10 percent' },
+    { tarief: 0.3756, totEnMet: 78426, omschrijving: 'Tweede schijf, 37,56 percent' },
+    { tarief: 0.4950, totEnMet: Infinity, omschrijving: 'Derde schijf, 49,50 percent' }
+  ]
+};
+
+function box1Tarieven(jaar, geborenVoor1946) {
+  const tabel = geborenVoor1946 ? BOX1_TARIEVEN_ART210A_PER_JAAR : BOX1_TARIEVEN_PER_JAAR;
+  return tabel[jaar] || null;
+}
+
+/* Premies volksverzekeringen over het premie-inkomen van box 1.
+
+   Art. 11 Wfsv laat de percentages bij ministeriële regeling vaststellen. Voor
+   2026, gecontroleerd op 18 september 2026 in de KOOP-repository:
+
+   - AOW 17,90 percent: art. I van de Regeling tot vaststelling premiepercentages
+     werknemers- en volksverzekeringen, maximumpremieloon werknemersverzekeringen
+     en opslag kinderopvangtoeslag 2026 (BWBR0051937, Stcrt. 2025, 42324;
+     consolidatie 2026-01-01, SHA256
+     04635d82a116ba51c080a86541cc8362ab096b9711f7b9aff72b8df3e6ff84b1).
+   - Anw 0,10 percent: art. II van diezelfde regeling.
+   - Wlz 9,65 percent: art. 1 van de Regeling vaststelling premiepercentage Wlz
+     (BWBR0041685, Stcrt. 2018, 70642; consolidatie 2018-12-18, SHA256
+     8f1dc868e623f8eaa8037be5565fbd5ba8773f116ff5390c314cf292d5b1b61c). Die
+     regeling stelt het percentage met ingang van 1 januari 2019 vast en is
+     sindsdien niet gewijzigd; het manifest van de KOOP-repository kent voor
+     BWBR0041685 maar één consolidatie.
+
+   De optelling van deze drie percentages bij het tarief van de eerste schijf is
+   het gecombineerde heffingspercentage van art. 8.1 lid 1 onderdeel c Wet IB
+   2001: 8,10 + 17,90 + 0,10 + 9,65 is 35,75 percent in 2026.
+
+   Een jaar dat hier niet staat levert een melding op en nooit een stille
+   terugval op een ander jaar. */
+const PREMIES_VOLKSVERZEKERINGEN_PER_JAAR = {
+  2026: { aow: 0.1790, anw: 0.0010, wlz: 0.0965 }
+};
+
+function premiesVolksverzekeringen(jaar) {
+  return PREMIES_VOLKSVERZEKERINGEN_PER_JAAR[jaar] || null;
+}
+
+/* Maximum premie-inkomen, art. 8 lid 3 Wfsv: het als eerste vermelde bedrag in
+   kolom II van de tarieftabel van art. 2.10 lid 1 Wet IB 2001, en voor wie
+   geboren is vóór 1 januari 1946 dat van art. 2.10a lid 1. Het valt dus krachtens
+   die bepaling samen met het einde van de eerste schijf, en is daarom hier
+   afgeleid uit de tarieftabel in plaats van als tweede constante opgeschreven;
+   anders kunnen de twee bij een jaarwisseling uit elkaar lopen. */
+function maximumPremieInkomen(jaar, geborenVoor1946) {
+  const tarieven = box1Tarieven(jaar, geborenVoor1946);
+  return tarieven ? tarieven[0].totEnMet : null;
+}
+
+/* De belasting van art. 2.10 of 2.10a over een heel inkomen, schijf voor
+   schijf. Geen heffingskortingen: dit is de belasting van de tabel en niet de
+   verschuldigde belasting. */
+function belastingBox1OverInkomen(inkomen, tarieven) {
+  let belasting = 0;
+  let ondergrens = 0;
+  for (const schijf of tarieven) {
+    if (inkomen <= ondergrens) break;
+    belasting += (Math.min(inkomen, schijf.totEnMet) - ondergrens) * schijf.tarief;
+    ondergrens = schijf.totEnMet;
+  }
+  return belasting;
+}
+
+/* Belasting plus premies volksverzekeringen over een heel box 1-inkomen.
+
+   De premie is het premiepercentage over het premie-inkomen, en het
+   premie-inkomen is het belastbare inkomen uit werk en woning met het maximum
+   van art. 8 lid 3 Wfsv (art. 8 lid 1 en art. 10 lid 1 Wfsv). Wie de
+   pensioengerechtigde leeftijd heeft bereikt betaalt geen premie voor de
+   algemene ouderdomsverzekering meer (art. 10 lid 2 Wfsv); de Anw en de Wlz
+   blijven wel verschuldigd.
+
+   Wat hier bewust niet in zit: de heffingskortingen. Art. 9 lid 1 Wfsv trekt de
+   heffingskorting voor de volksverzekeringen van de premie af en hoofdstuk 8
+   Wet IB 2001 doet hetzelfde voor de belasting. Deze functie geeft dus de
+   heffing vóór korting en niet de verschuldigde aanslag. */
+function heffingBox1MetPremies({ jaar, inkomen, aowGerechtigd, geborenVoor1946 }) {
+  const tarieven = box1Tarieven(jaar, geborenVoor1946);
+  const premies = premiesVolksverzekeringen(jaar);
+  if (!tarieven) {
+    return { fout: 'Het schijventarief van box 1 voor ' + jaar + ' is niet in deze tool gecontroleerd.' };
+  }
+  if (!premies) {
+    return { fout: 'De premiepercentages volksverzekeringen voor ' + jaar +
+      ' zijn niet in deze tool gecontroleerd.' };
+  }
+  if (!(typeof inkomen === 'number' && isFinite(inkomen))) {
+    return { fout: 'Geef het inkomen op als een geldig bedrag.' };
+  }
+  const grondslag = Math.max(0, inkomen);
+  const percentage = aowGerechtigd
+    ? premies.anw + premies.wlz
+    : premies.aow + premies.anw + premies.wlz;
+  const premieInkomen = Math.min(grondslag, maximumPremieInkomen(jaar, geborenVoor1946));
+  const belasting = belastingBox1OverInkomen(grondslag, tarieven);
+  const premie = premieInkomen * percentage;
+  return { belasting, premie, premieInkomen, premiepercentage: percentage, totaal: belasting + premie };
+}
+
+/* De last van de afkoop als verschil, niet als schijfkeuze.
+
+   Een afkoop loopt vaak over een schijfgrens en over het maximum premie-inkomen
+   heen. Eén marginaal percentage is dan onjuist. Daarom: de heffing over het
+   overige inkomen plus de grondslag van de afkoop, min de heffing over alleen
+   het overige inkomen. Wat overblijft is wat de afkoop kost, en het effectieve
+   tarief volgt daaruit in plaats van andersom.
+
+   De grondslag van de afkoop hoort tot het belastbare inkomen uit werk en
+   woning en telt daarom voor de belasting én voor het premie-inkomen mee: de
+   negatieve uitgaven voor inkomensvoorzieningen zijn inkomen uit werk en woning
+   (afdeling 3.7 Wet IB 2001) en het premie-inkomen is datzelfde inkomen
+   (art. 8 lid 1 Wfsv). */
+function heffingsverschilAfkoop({ jaar, overigInkomen, grondslagBox1, aowGerechtigd, geborenVoor1946 }) {
+  if (!(typeof overigInkomen === 'number' && isFinite(overigInkomen) && overigInkomen >= 0)) {
+    return { fout: 'Geef het overige belastbare inkomen uit werk en woning op als een bedrag van nul of hoger.' };
+  }
+  if (!(typeof grondslagBox1 === 'number' && isFinite(grondslagBox1) && grondslagBox1 >= 0)) {
+    return { fout: 'De belastbare grondslag van de afkoop moet nul of hoger zijn.' };
+  }
+  const zonder = heffingBox1MetPremies({ jaar, inkomen: overigInkomen, aowGerechtigd, geborenVoor1946 });
+  if (zonder.fout) return zonder;
+  const met = heffingBox1MetPremies({ jaar, inkomen: overigInkomen + grondslagBox1,
+    aowGerechtigd, geborenVoor1946 });
+  if (met.fout) return met;
+  const belastingdeel = met.belasting - zonder.belasting;
+  const premiedeel = met.premie - zonder.premie;
+  const last = belastingdeel + premiedeel;
+  return {
+    overigInkomen, grondslagBox1,
+    heffingZonderAfkoop: zonder.totaal,
+    heffingMetAfkoop: met.totaal,
+    belastingdeel, premiedeel, last,
+    effectiefTarief: grondslagBox1 > 0 ? last / grondslagBox1 : 0,
+    premiepercentage: met.premiepercentage,
+    maximumPremieInkomen: maximumPremieInkomen(jaar, geborenVoor1946)
+  };
+}
 
 /* Samenloop van de heffing over de afkoop en de revisierente.
 
@@ -1645,19 +1791,39 @@ function box1Tarieven(jaar) { return BOX1_TARIEVEN_PER_JAAR[jaar] || null; }
    De aanroeper bepaalt welk van de twee het is, want die kent de voorwaarden. De revisierente komt daar bovenop en is geen belasting
    maar rente; zij is niet aftrekbaar.
 
-   Welk percentage marginaal is volgt niet uit deze berekening, want dat hangt af
-   van het overige inkomen van de belastingplichtige. Het tarief is daarom invoer,
-   zoals de marktrente bij de boeterente. De tool rekent geen heffingskortingen en
-   geen premies volksverzekeringen mee; dit is een schatting van de last en geen
-   aanslag. */
-function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revisierente, marginaalTarief }) {
-  if (!(marginaalTarief >= 0 && marginaalTarief <= 1)) {
-    return { fout: 'Geef een marginaal tarief tussen nul en honderd procent op.' };
+   Er zijn twee manieren om aan de heffing over die grondslag te komen, en de
+   aanroeper kiest er één.
+
+   Met `marginaalTarief` rekent deze functie met een enkel percentage dat de
+   gebruiker kiest of opgeeft. Welk percentage marginaal is volgt dan niet uit
+   deze berekening, want dat hangt af van het overige inkomen; het tarief is
+   invoer, zoals de marktrente bij de boeterente.
+
+   Met `belastingBox1` neemt zij een al berekend bedrag over, zoals het
+   heffingsverschil uit `heffingsverschilAfkoop`. Dat bedrag komt dan uit een
+   berekening over het hele inkomen en niet uit één schijf, en het effectieve
+   tarief volgt eruit in plaats van andersom.
+
+   In beide gevallen rekent de tool geen heffingskortingen mee; dit is een
+   schatting van de last en geen aanslag. */
+function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revisierente,
+                                    marginaalTarief, belastingBox1 }) {
+  let belasting;
+  if (belastingBox1 !== undefined && belastingBox1 !== null) {
+    if (!(typeof belastingBox1 === 'number' && isFinite(belastingBox1) && belastingBox1 >= 0)) {
+      return { fout: 'De belasting over de afkoop moet een bedrag van nul of hoger zijn.' };
+    }
+    belasting = belastingBox1;
+  } else {
+    if (!(marginaalTarief >= 0 && marginaalTarief <= 1)) {
+      return { fout: 'Geef een marginaal tarief tussen nul en honderd procent op.' };
+    }
+    belasting = grondslagBox1 * marginaalTarief;
   }
-  const belastingBox1 = grondslagBox1 * marginaalTarief;
-  const totaleLast = belastingBox1 + revisierente;
+  const totaleLast = belasting + revisierente;
   return {
-    belastingBox1,
+    belastingBox1: belasting,
+    effectiefTariefBox1: grondslagBox1 > 0 ? belasting / grondslagBox1 : 0,
     totaleLast,
     nettoUitAfkoop: waardeEconomischVerkeer - totaleLast,
     deelVanWaarde: waardeEconomischVerkeer > 0 ? totaleLast / waardeEconomischVerkeer : 0
@@ -2385,8 +2551,32 @@ const ONDERWERPEN = [
       '3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten minste ' +
       '4,5 en met een wijziging van maximaal 2 procentpunt.',
     'Art. 2.10 lid 1 Wet IB 2001: het tarief van box 1, tabel per 1 januari 2026, waarmee ' +
-      'de belasting over de negatieve uitgaven wordt geschat. Welke schijf marginaal is hangt ' +
-      'af van het overige inkomen en is daarom invoer.',
+      'de belasting over de negatieve uitgaven wordt bepaald. Art. 2.10a lid 1 geeft voor wie ' +
+      'geboren is vóór 1 januari 1946 dezelfde percentages bij een ruimere eerste schijf. ' +
+      'Kiest de gebruiker zelf een schijf of een eigen tarief, dan is het tarief invoer; ' +
+      'wordt het uit het overige inkomen berekend, dan volgt het uit de wet.',
+    'Art. 8 lid 1 en lid 3, art. 10 en art. 11 Wfsv: over hetzelfde belastbare inkomen uit ' +
+      'werk en woning wordt premie voor de volksverzekeringen geheven, tot ten hoogste het ' +
+      'als eerste vermelde bedrag in kolom II van de tarieftabel van art. 2.10 lid 1, en van ' +
+      'art. 2.10a lid 1 voor wie geboren is vóór 1 januari 1946. Het maximum premie-inkomen ' +
+      'valt daardoor samen met het einde van de eerste schijf.',
+    'De premiepercentages voor 2026: AOW 17,90 percent en Anw 0,10 percent uit art. I en II ' +
+      'van de Regeling tot vaststelling premiepercentages werknemers- en volksverzekeringen, ' +
+      'maximumpremieloon werknemersverzekeringen en opslag kinderopvangtoeslag 2026 ' +
+      '(Stcrt. 2025, 42324), en Wlz 9,65 percent uit art. 1 van de Regeling vaststelling ' +
+      'premiepercentage Wlz (Stcrt. 2018, 70642), die dat percentage met ingang van ' +
+      '1 januari 2019 vaststelt en sindsdien niet is gewijzigd. Samen met het tarief van de ' +
+      'eerste schijf is dat het gecombineerde heffingspercentage van art. 8.1 lid 1 ' +
+      'onderdeel c Wet IB 2001, in 2026 35,75 percent.',
+    'Art. 10 lid 2 Wfsv: vanaf de eerste dag van de maand waarin de verzekerde de ' +
+      'pensioengerechtigde leeftijd bereikt is geen premie voor de algemene ' +
+      'ouderdomsverzekering meer verschuldigd. De Anw en de Wlz blijven wel verschuldigd, ' +
+      'samen 9,75 percent in 2026.',
+    'Art. 9 lid 1 Wfsv en hoofdstuk 8 Wet IB 2001: de heffingskortingen komen op de premie ' +
+      'en op de belasting in mindering. Zij zitten hier niet in, zodat de getoonde last de ' +
+      'heffing vóór korting is. De algemene heffingskorting bouwt af met 6,398 percent van ' +
+      'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2), en een afkoop verhoogt dat ' +
+      'verzamelinkomen; de werkelijke druk ligt daardoor hoger dan deze uitkomst.',
     'Verzamelspoedwet COVID-19, Stb. 2020, 200: de verlaging naar 0,01 percent geldt voor ' +
       'de inkomstenbelasting vanaf 1 juli 2020 en niet vanaf 1 juni 2020 zoals voor de ' +
       'overige belastingen. Juni 2020 valt dus nog onder vier percent.'
@@ -2403,9 +2593,15 @@ const ONDERWERPEN = [
     'Beschikbaar saldo is vastgestelde invoer: jaargrenzen, andere overeenkomsten en eerder ' +
     'gebruik moeten daarin zijn verwerkt. De tool controleert geen bewijsstukken of ' +
     'jaaradministratie. Saldo boven de uitkering en onbekende voorwaarden geven geen uitkomst. ' +
-    'De samenloop met de heffing over de afkoop is een schatting: één marginaal ' +
-    'tarief, zonder heffingskortingen, zonder premies volksverzekeringen en zonder het overige ' +
-    'inkomen, en het schijventarief staat alleen voor 2026 in de tool.',
+    'De samenloop met de heffing over de afkoop kan op drie manieren. Met een gekozen schijf ' +
+    'of een eigen tarief rekent zij met één marginaal tarief en alleen met belasting. Wordt ' +
+    'zij uit het overige inkomen berekend, dan bepaalt de tool de last als verschil tussen de ' +
+    'heffing met en zonder de afkoop, inclusief de premies volksverzekeringen. Het ' +
+    'schijventarief en de premiepercentages staan alleen voor 2026 in de tool. ' +
+    'Heffingskortingen blijven er in alle gevallen buiten, evenals box 2, box 3, de ' +
+    'partnerverdeling en de inkomensafhankelijke bijdrage Zvw; de tool rekent geen aanslag. ' +
+    'Het jaar waarin iemand de AOW-leeftijd bereikt wordt niet doorgerekend, want dan geldt ' +
+    'een tijdsevenredig samengesteld heffingspercentage (art. 2.6 Regeling Wfsv).',
   id: 'revisierente', groep: 'Lijfrente', naam: 'Revisierente bij afkoop',
   titel: 'Revisierente bij afkoop van een lijfrente',
   grondslag: 'Art. 30i AWR. De hoofdregel van lid 2 is 20 percent van het bedrag aan ' +
@@ -2431,13 +2627,21 @@ const ONDERWERPEN = [
     { k: 'saldoKeuze', l: 'Niet-afgetrokken premies: beschikbare saldoruimte', t: 'keuze', v: 'onbekend', opties: [{ w: 'onbekend', l: 'Nog niet vastgesteld' }, { w: 'geen', l: 'Alle premies zijn afgetrokken' }, { w: 'vastgesteld', l: 'Nog beschikbaar saldo is vastgesteld' }] },
     { k: 'beschikbaarSaldo', l: 'Vastgesteld nog beschikbaar saldo', h: 'Nul bij alle premies afgetrokken. Geen totaal van ongecorrigeerde premies: verwerk per jaar de toepasselijke grenzen, andere overeenkomsten en eerder gebruik', t: 'euro', v: null },
     { k: 'saldoBevestigd', l: 'Jaargrenzen, andere overeenkomsten en eerder gebruik zijn verwerkt', h: 'Vereist bij vastgesteld saldo. Dit is een invoeraanname; bewaar de onderbouwing in uw eigen dossier', t: 'vinkje', v: false },
-    { k: 'tariefSleutelBox1', l: 'Marginaal tarief box 1 over de afkoop', h: 'Welke schijf marginaal is hangt af van het overige inkomen; kies of geef zelf een tarief', t: 'keuze', v: 'derde', opties: [
-      { w: 'derde', l: 'Derde schijf, 49,50 percent (2026)' },
-      { w: 'tweede', l: 'Tweede schijf, 37,56 percent (2026)' },
-      { w: 'eerste', l: 'Eerste schijf, 8,10 percent (2026)' },
+    { k: 'tariefSleutelBox1', l: 'Heffing box 1 over de afkoop', h: 'Welke schijf marginaal is hangt af van het overige inkomen. Laat de tool het uitrekenen, kies zelf een schijf, of geef een eigen tarief', t: 'keuze', v: 'derde', opties: [
+      { w: 'overig', l: 'Uit het overige inkomen berekenen, met premies volksverzekeringen' },
+      { w: 'derde', l: 'Derde schijf, 49,50 percent (2026), alleen belasting' },
+      { w: 'tweede', l: 'Tweede schijf, 37,56 percent (2026), alleen belasting' },
+      { w: 'eerste', l: 'Eerste schijf, 8,10 percent (2026), alleen belasting' },
       { w: 'geen', l: 'De samenloop niet uitrekenen' },
       { w: 'eigen', l: 'Zelf een tarief opgeven' }
     ] },
+    { k: 'overigInkomen', l: 'Overig belastbaar inkomen uit werk en woning', h: 'Alleen bij "Uit het overige inkomen berekenen". Het inkomen van hetzelfde jaar zonder de afkoop, na aftrekposten; box 2 en box 3 tellen niet mee', t: 'euro', v: null },
+    { k: 'aowStatus', l: 'AOW-leeftijd in het jaar van afkoop', h: 'Alleen bij "Uit het overige inkomen berekenen". Vanaf de AOW-leeftijd vervalt de AOW-premie (art. 10 lid 2 Wfsv)', t: 'keuze', v: 'voor', opties: [
+      { w: 'voor', l: 'Het hele jaar nog niet AOW-gerechtigd' },
+      { w: 'na', l: 'Het hele jaar al AOW-gerechtigd' },
+      { w: 'inJaar', l: 'Bereikt de AOW-leeftijd in dit jaar' }
+    ] },
+    { k: 'geborenVoor1946', l: 'Geboren vóór 1 januari 1946 (art. 2.10a Wet IB 2001)', h: 'Alleen bij "Uit het overige inkomen berekenen". Dezelfde percentages, maar een ruimere eerste schijf, die ook het maximum premie-inkomen verruimt', t: 'vinkje', v: false },
     { k: 'eigenTariefBox1', l: 'Eigen marginaal tarief', h: 'Alleen als hierboven een eigen tarief is gekozen', t: 'procent', v: 49.5 },
     { k: 'jaarBedongen', l: 'Jaar waarin de aanspraak is bedongen', h: 'De tegenbewijsregeling staat open tot en met het tiende kalenderjaar voor het jaar van afkoop; meer dan tien jaar ervoor sluit haar af', t: 'geheel', v: 2019 },
     { k: 'premie0', l: 'Premie in het jaar van afkoop', h: 'In aftrek gebracht; over dit jaar loopt geen rente', t: 'euro', v: 3000 },
@@ -2471,13 +2675,42 @@ const ONDERWERPEN = [
     if (r.fout) return r;
     if (i.tariefSleutelBox1 === 'geen') return r;
 
-    // Het tarief per schijf staat alleen voor 2026 in de kern. Wordt een ander
-    // afkoopjaar gekozen, dan is een schijfkeuze niet gecontroleerd en moet de
-    // gebruiker het tarief van dat jaar zelf opgeven.
+    // Het tarief per schijf en de premiepercentages staan alleen voor 2026 in de
+    // kern. Wordt een ander afkoopjaar gekozen, dan is een schijfkeuze niet
+    // gecontroleerd en moet de gebruiker het tarief van dat jaar zelf opgeven.
     const meldingen = [];
     let tarief;
+    let heffingsverschil;
+    let belastingBox1;
     if (i.tariefSleutelBox1 === 'eigen') {
       tarief = i.eigenTariefBox1;
+    } else if (i.tariefSleutelBox1 === 'overig') {
+      if (!box1Tarieven(i.jaarAfkoop, i.geborenVoor1946) || !premiesVolksverzekeringen(i.jaarAfkoop)) {
+        return { fout: 'Het schijventarief en de premiepercentages voor afkoopjaar ' +
+          i.jaarAfkoop + ' zijn niet in deze tool gecontroleerd. Kies een eigen marginaal ' +
+          'tarief voor dat jaar, of kies "De samenloop niet uitrekenen".' };
+      }
+      if (i.aowStatus === 'inJaar') {
+        return { fout: 'In het jaar waarin iemand de AOW-leeftijd bereikt vervalt de ' +
+          'AOW-premie vanaf de eerste dag van die maand (art. 10 lid 2 Wfsv) en wordt de ' +
+          'premie geheven naar een tijdsevenredig samengesteld heffingspercentage ' +
+          '(art. 2.6 Regeling Wfsv). Die herleiding zit niet in deze tool. Kies een eigen ' +
+          'marginaal tarief, of kies "De samenloop niet uitrekenen".' };
+      }
+      if (i.geborenVoor1946 && i.aowStatus !== 'na') {
+        return { fout: 'Wie geboren is vóór 1 januari 1946 heeft de AOW-leeftijd allang ' +
+          'bereikt. Zet de AOW-status op "Het hele jaar al AOW-gerechtigd", of haal het ' +
+          'vinkje voor art. 2.10a weg.' };
+      }
+      heffingsverschil = heffingsverschilAfkoop({
+        jaar: i.jaarAfkoop, overigInkomen: i.overigInkomen, grondslagBox1: r.grondslagBox1,
+        aowGerechtigd: i.aowStatus === 'na', geborenVoor1946: i.geborenVoor1946
+      });
+      if (heffingsverschil.fout) return heffingsverschil;
+      // Het bedrag gaat ongeafgerond door naar de samenloop; het effectieve tarief
+      // is de uitkomst van het verschil en niet de weg ernaartoe.
+      belastingBox1 = heffingsverschil.last;
+      tarief = heffingsverschil.effectiefTarief;
     } else {
       const tarieven = box1Tarieven(i.jaarAfkoop);
       if (!tarieven) {
@@ -2494,14 +2727,36 @@ const ONDERWERPEN = [
       // Het afgeronde bedrag, niet het onafgeronde: de samenloop hoort op te tellen
       // met de revisierente die er boven staat, anders sluit de uitkomst niet op
       // zichzelf aan.
-      revisierente: r.revisierente, marginaalTarief: tarief
+      revisierente: r.revisierente, marginaalTarief: tarief, belastingBox1
     });
     if (samenloop.fout) return samenloop;
-    meldingen.push({ soort: 'info', tekst:
-      'De samenloop is een schatting van de last en geen aanslag: zij rekent met één marginaal ' +
-      'tarief en laat heffingskortingen, de premies volksverzekeringen en het overige inkomen ' +
-      'buiten beschouwing. De revisierente is geen belasting en niet aftrekbaar.' });
-    return { ...r, tariefBox1: tarief, samenloop,
+    if (heffingsverschil) {
+      meldingen.push({ soort: 'info', tekst:
+        'De last van de afkoop is bepaald als verschil: de heffing over het overige inkomen ' +
+        'plus de afkoop, min de heffing over alleen het overige inkomen. Zo telt een afkoop ' +
+        'die over een schijfgrens of over het maximum premie-inkomen van ' +
+        euro(heffingsverschil.maximumPremieInkomen) + ' heen loopt op de juiste manier mee, ' +
+        'en volgt het getoonde tarief uit de uitkomst in plaats van andersom. De heffing is ' +
+        'de belasting van art. ' + (i.geborenVoor1946 ? '2.10a' : '2.10') + ' Wet IB 2001 ' +
+        'plus de premies volksverzekeringen van art. 10 Wfsv, hier ' +
+        procent(heffingsverschil.premiepercentage, 2) + ' over het premie-inkomen' +
+        (i.aowStatus === 'na' ? ', zonder de AOW-premie omdat de AOW-leeftijd is bereikt' : '') +
+        '.' });
+      meldingen.push({ soort: 'let', tekst:
+        'Heffingskortingen zitten hier niet in, en daardoor is de werkelijke druk hoger dan ' +
+        'deze uitkomst. De algemene heffingskorting bouwt in 2026 af met 6,398 percent van ' +
+        'het verzamelinkomen boven € 29.736 (art. 8.10 lid 2 Wet IB 2001), en de afkoop ' +
+        'verhoogt dat verzamelinkomen. De arbeidskorting hangt af van het arbeidsinkomen ' +
+        '(art. 8.11 jo. art. 8.1 lid 1 onderdeel e Wet IB 2001) en wordt door een afkoop in ' +
+        'beginsel niet geraakt. De tool rekent geen aanslag: box 2 en box 3, de ' +
+        'partnerverdeling en de inkomensafhankelijke bijdrage Zvw blijven er ook buiten.' });
+    } else {
+      meldingen.push({ soort: 'info', tekst:
+        'De samenloop is een schatting van de last en geen aanslag: zij rekent met één marginaal ' +
+        'tarief en laat heffingskortingen, de premies volksverzekeringen en het overige inkomen ' +
+        'buiten beschouwing. De revisierente is geen belasting en niet aftrekbaar.' });
+    }
+    return { ...r, tariefBox1: tarief, samenloop, heffingsverschil,
              meldingen: [...(r.meldingen || []), ...meldingen] };
   },
   uit: r => [
@@ -2516,7 +2771,11 @@ const ONDERWERPEN = [
       : (r.route === 'tegenbewijs' ? 'Tegenbewijs (lid 3)' : 'Hoofdregel (lid 2)')],
     ['Revisierente', euro(r.revisierente), true],
     ['Revisierente als deel van de grondslag', procent(r.deelVanGrondslag, 3)],
-    ['Marginaal tarief box 1', r.samenloop ? procent(r.tariefBox1, 2) : '—'],
+    ['Overig inkomen box 1 naast de afkoop', r.heffingsverschil ? euro(r.heffingsverschil.overigInkomen) : '—'],
+    [r.heffingsverschil ? 'Effectief tarief over de afkoop' : 'Marginaal tarief box 1',
+      r.samenloop ? procent(r.tariefBox1, 2) : '—'],
+    ['Waarvan belasting, art. 2.10 Wet IB 2001', r.heffingsverschil ? euro(r.heffingsverschil.belastingdeel) : '—'],
+    ['Waarvan premies volksverzekeringen', r.heffingsverschil ? euro(r.heffingsverschil.premiedeel) : '—'],
     ['Belasting box 1 over de afkoop', r.samenloop ? euro(r.samenloop.belastingBox1) : '—'],
     ['Totale last, belasting plus revisierente', r.samenloop ? euro(r.samenloop.totaleLast) : '—', true],
     ['Netto over uit de afkoop', r.samenloop ? euro(r.samenloop.nettoUitAfkoop) : '—'],
@@ -3163,7 +3422,7 @@ function exportKnoppen(o, r) {
    ============================================================ */
 // DOSSIERBESTAND — BEGIN
 
-const DOSSIER_FORMAATVERSIE = 2;
+const DOSSIER_FORMAATVERSIE = 3;
 const DOSSIER_MAX_KENMERK = 80;
 
 /* De waarde zoals zij in het invoervak staat, dus een percentage als 10 en niet
