@@ -107,7 +107,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🔵 concept | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
 
