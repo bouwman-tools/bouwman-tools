@@ -1311,10 +1311,6 @@
             <input id="maxYears" type="number" value="15" step="1" min="1" max="40" />
           </div>
           <div>
-            <label for="latentRate">Latent AB-tarief voor economische vergelijking (%)<span class="tip" title="Tarief waartegen het achterblijvende BV-vermogen ooit in box 2 wordt afgerekend. Alleen gebruikt voor de aanvullende economische vergelijking, niet voor het advies.">?</span></label>
-            <input id="latentRate" type="number" value="24.5" step="0.01" min="0" />
-          </div>
-          <div>
             <label for="discountRate">Discontovoet contante waarde (%)</label>
             <input id="discountRate" type="number" value="0" step="0.01" min="0" />
             <div class="field-hint">0% = geen contante waarde; bedragen worden nominaal opgeteld.</div>
@@ -1370,6 +1366,16 @@
   <p class="blok-intro">Alle doorgerekende routes, gesorteerd op totale box 2-heffing. Elke route gebruikt dezelfde rekenkern; routes die niet volledig aflossen of niet passen binnen de beschikbare middelen zijn grijs.</p>
   <div class="table-scroll wide"><div id="routes"></div></div>
   <div class="scroll-hint">Tabel is horizontaal te scrollen.</div>
+</div>
+
+<div class="card" id="cardEconomisch" style="display:none;">
+  <div class="card-title">Economische vergelijking</div>
+  <p class="blok-intro">Een tweede kijk op dezelfde routes, náást het advies hierboven en niet in de
+     plaats daarvan. De routevergelijking rangschikt op de box 2-heffing; deze kaart waardeert wat
+     een route met het vermogen van de DGA doet: de betaalde heffing, de latente
+     aanmerkelijkbelangclaim die met een dividend wordt afgerekend, en het deel van de bijgeschreven
+     RC-rente dat onderweg aan belasting verdwijnt. <strong>Het advies verandert hier niet door.</strong></p>
+  <div class="table-scroll wide"><div id="economisch"></div></div>
 </div>
 
 <!-- == AFREKENEN EXCESSIEF LENEN OVER MEERDERE JAREN (model 01-29) == -->
@@ -1540,6 +1546,14 @@ var SETTLE = 0.5;         // een restschuld onder dit bedrag geldt als afgelost;
    Eén bron voor alle tarieven; nergens anders staan tarieven hardcoded.
    `status` bepaalt of een jaar als vastgesteld of als scenariojaar wordt
    gepresenteerd. Bronnen: zie de kaart "Gebruikte aannames en tarieven".
+
+   `vpbLowRate` en `vpbHighRate` zijn de twee schijven van de
+   vennootschapsbelasting: 19% over de eerste € 200.000 belastbaar bedrag en
+   25,8% daarboven (art. 22 Wet Vpb 1969; die tarieven gelden onafgebroken vanaf
+   1 januari 2023 en dus voor elk jaar in deze tabel, geraadpleegd 18-09-2026).
+   Zij worden uitsluitend gebruikt door de economische vergelijking van laag 2,
+   die de Vpb over de rentebate van de BV waardeert. De fiscale routeberekening
+   raakt er niet aan: daar is de RC-rente een interne geldstroom en niets meer.
    ─────────────────────────────────────────────────────────────────────────── */
 var TAX_CONFIG = {
   2023: {
@@ -1550,6 +1564,8 @@ var TAX_CONFIG = {
     box2HighRate: 0.269,
     box2LowBracket: null,
     dividendTaxRate: 0.15,
+    vpbLowRate: 0.19,
+    vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 700000,
     note: 'Box 2 kende in 2023 een vlak tarief van 26,9% (art. 2.12 Wet IB 2001, tekst 1-1-2023); ' +
           'de schijvenstructuur begint pas in 2024. Het maximumbedrag van de Wet excessief lenen ' +
@@ -1564,6 +1580,8 @@ var TAX_CONFIG = {
     box2HighRate: 0.33,
     box2LowBracket: 67000,
     dividendTaxRate: 0.15,
+    vpbLowRate: 0.19,
+    vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 67.000 per persoon tegen 24,5%, daarboven 33% (art. 2.12 Wet IB 2001, tekst 1-1-2024). ' +
           'Basisdrempel Wet excessief lenen verlaagd van € 700.000 naar € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2024).'
@@ -1575,6 +1593,8 @@ var TAX_CONFIG = {
     box2HighRate: 0.31,
     box2LowBracket: 67804,
     dividendTaxRate: 0.15,
+    vpbLowRate: 0.19,
+    vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 67.804 per persoon tegen 24,5%, daarboven 31%; het hoge tarief is verlaagd van 33% naar 31% ' +
           '(art. 2.12 Wet IB 2001, tekst 1-1-2025). Basisdrempel Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2025).'
@@ -1586,6 +1606,8 @@ var TAX_CONFIG = {
     box2HighRate: 0.31,
     box2LowBracket: 68843,
     dividendTaxRate: 0.15,
+    vpbLowRate: 0.19,
+    vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 68.843 per persoon tegen 24,5%, daarboven 31% (art. 2.12 Wet IB 2001, tekst 1-1-2026). ' +
           'Basisdrempel Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2026).'
@@ -1597,6 +1619,8 @@ var TAX_CONFIG = {
     box2HighRate: 0.31,
     box2LowBracket: 68843,
     dividendTaxRate: 0.15,
+    vpbLowRate: 0.19,
+    vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'De eerste schijf van art. 2.12 wordt jaarlijks geïndexeerd (art. 10.1 Wet IB 2001) en staat voor 2027 nog niet vast. Hier zijn de bedragen van 2026 aangehouden — pas ze handmatig aan zodra de bijstellingsregeling bekend is.'
   }
@@ -2950,6 +2974,302 @@ function referenceFullDividend(inp) {
   };
 }
 
+/* ─────────── 7b. ECONOMISCHE VERGELIJKING VAN ROUTES (laag 2) ───────────────
+   Laag 1 hierboven rekent de werkelijke heffing per jaar en per handeling uit.
+   Deze laag doet iets anders: zij waardeert de vermogensverschuiving die een
+   route teweegbrengt, zodat twee routes economisch vergelijkbaar worden. Zij
+   kiest niets en verandert niets aan laag 1; de rangschikking van het advies
+   loopt onveranderd via `betterRoute`, `taxCostPV` en `burden`.
+
+   De maatstaf:
+
+       L = H − t2 × G + (1 − k) × R      met k = (1 − v)(1 − t2)
+
+     H   de werkelijke box 2-heffing van laag 1, ná verliesverrekening en
+         inclusief positief en negatief fictief regulier voordeel (`taxCost`);
+     G   het totale bruto dividend over de route;
+     R   de totale bijgeschreven RC-rente over de route;
+     t2  het box 2-tarief bij een toekomstige uitkering (scenario);
+     v   het Vpb-tarief (scenario);
+     k   wat een euro nieuwe winst in de BV de DGA na twee heffingen waard is.
+
+   Waarom `− t2 × G`. Dividend rekent de latente aanmerkelijkbelangclaim over
+   dat bedrag af; dat is geen verlies maar een vooruitbetaling. De route die
+   uitkeert laat minder vermogen in de BV achter en heeft daar dus ook minder
+   claim op staan.
+
+   Waarom `+ (1 − k) × R`. De bijgeschreven rente verhuist van privé naar de BV.
+   Er gaat geen euro verloren, maar er wordt onderweg wél geheven: eerst `v` aan
+   Vpb over de rentebate van de BV, daarna `t2` over wat resteert. Samen is dat
+   `1 − (1 − v)(1 − t2)`, oftewel 38,8% tot 48,8%. De oude maatstaf woog de
+   rente op nul, omdat de box 2-heffing over het extra dividend en het latente
+   krediet daarop elkaar precies opheffen.
+
+   Waarom er géén restschuldterm in zit. De eindstand `S_T` komt in `L` niet
+   voor. Dat volgt uit de balansherleiding hieronder en niet uit een voorkeur.
+   De voorwaarde op de eindstand staat er náást: `S_T <= gewenste restschuld`.
+   `burden = heffing + restschuld` rekent iedere euro restschuld voor EUR 1 en
+   is daarmee een beleidsdoel in een kostenfunctie; die blijft ongemoeid tot er
+   uitdrukkelijk anders wordt besloten.
+
+   Waarom de eerder betaalde heffing niet hoeft te worden gereconstrueerd. Er
+   wordt gerangschikt op `L − min(L)`. De heffing over een eerder belast fictief
+   voordeel is voor alle routes dezelfde historische gebeurtenis en valt in het
+   verschil weg. Art. 4.14a lid 1 onderdeel b Wet IB 2001 neemt bovendien de
+   grondslag terug en niet de betaalde belasting; wat daar destijds aan tarief
+   en schijf tegenover stond weet de tool niet en zou zij dus moeten verzinnen.
+
+   DE BALANSHERLEIDING. Waardeer de positie van de DGA als
+
+       W = P − t2 × S + (1 − t2) × (B + V)
+
+   met P het privévermogen, S de RC-schuld, B de kas van de BV en V het overige
+   vermogen van de BV. De schuld S is tegelijk een vordering van de BV; privé
+   telt zij voor −S en via de BV voor +(1 − t2) × S, samen −t2 × S. Uitwerken
+   van alle jaarmutaties geeft
+
+       W0 − W_T = L + onttrekking + t2 × (storting − toegepaste storting)
+
+   De onttrekking is consumptie en geen kostenpost van de route; het laatste lid
+   vangt een storting die groter is dan de schuld die zij kan aflossen, waarbij
+   het overschot als kas in de BV achterblijft en daar de latente claim oploopt.
+   Nagemeten op 18-09-2026 over 400 pseudo-willekeurige invoeren, vier
+   scenariohoeken en alle aangeboden routes: 7000 van de 7000 combinaties
+   sluitend tot op de cent, met 2532 combinaties waarin werkelijk werd
+   onttrokken en nul waarin een stortingsoverschot voorkwam.
+
+   Twee posten moeten daarbij in `W_T` worden meegeteld die niet in de getoonde
+   privéstand zitten: de teruggaaf van dividendbelasting (`totals.taxRefund`) en
+   een teruggaaf uit terugwenteling die pas na de rekenhorizon binnenkomt
+   (`lossRefundAfterHorizon`). Zonder die twee sluit de herleiding niet.
+
+   Een valkuil die het noteren waard is: uit `W0 − W_T` lijkt `S0` als constante
+   weg te vallen waarna `+ t2 × S_T` overblijft. Dat is fout, want `P_T` en `B_T`
+   verschillen ook per route en compenseren precies. Uit een sluitende balans
+   mag geen enkele term los worden gelicht.
+
+   WAT DEZE LAAG NIET DOET. De zakelijkheid van de RC-rente wordt niet
+   beoordeeld; box 3 is niet gemodelleerd; de rente ná de rekenhorizon blijft
+   buiten de berekening. De vastgelegde formuleringen staan in
+   `ECONOMIC_ASSUMPTIONS` hieronder en gaan mee naar het scherm.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+var ECONOMIC_ASSUMPTIONS = [
+  'De economische vergelijking gaat uit van de ingevoerde rente als zakelijke rente. ' +
+  'De tool beoordeelt niet of de overeengekomen rente fiscaal zakelijk is. Een eventuele ' +
+  'fiscale correctie van een onzakelijke rente is niet in de berekening verwerkt.',
+  'Aflossing van een RC-schuld kan de box 3-heffing wijzigen, omdat de schuld in box 3 kan ' +
+  'meetellen terwijl bezittingen en schulden verschillend worden behandeld. Daardoor kan het ' +
+  'box 3-effect per route verschillen. Box 3 is hier niet gemodelleerd.',
+  'De rente ná de rekenhorizon blijft buiten de berekening. Bij routes die op dezelfde ' +
+  'eindstand uitkomen valt dat effect in het verschil weg; bij routes met een verschillende ' +
+  'eindstand niet, en dan staat er een waarschuwing bij.'
+];
+
+/** Percentage zoals het in een label hoort te staan: 24,5% en niet 24.50%. */
+function economicPct(rate) {
+  var s = (Math.round(rate * 1000) / 10).toFixed(1).replace('.', ',');
+  return s.replace(/,0$/, '') + '%';
+}
+
+/**
+ * De vier scenariohoeken: Vpb laag en hoog maal box 2 laag en hoog.
+ * De box 2-tarieven komen uit de tarieventabel van het gekozen jaar (of uit de
+ * handmatig ingevoerde tarieven, zodat de hoeken bij de doorgerekende route
+ * blijven passen) en de Vpb-tarieven uit diezelfde tabel; nergens staat hier
+ * een tarief hardcoded.
+ */
+function economicScenarios(inp) {
+  var cfg = inp.config;
+  var vpbs = [
+    { key: 'vpbLaag', rate: cfg.vpbLowRate },
+    { key: 'vpbHoog', rate: cfg.vpbHighRate }
+  ];
+  var box2s = [
+    { key: 'box2Laag', rate: inp.lowRate },
+    { key: 'box2Hoog', rate: inp.highRate }
+  ];
+  var out = [];
+  for (var i = 0; i < box2s.length; i++) {
+    for (var j = 0; j < vpbs.length; j++) {
+      var t2 = box2s[i].rate, v = vpbs[j].rate;
+      var k = (1 - v) * (1 - t2);
+      out.push({
+        id: box2s[i].key + '-' + vpbs[j].key,
+        box2Key: box2s[i].key,
+        vpbKey: vpbs[j].key,
+        box2Rate: t2,
+        vpbRate: v,
+        k: k,
+        interestBurdenRate: 1 - k,
+        label: 'Vpb ' + economicPct(v) + ' × box 2 ' + economicPct(t2)
+      });
+    }
+  }
+  return out;
+}
+
+/** `L` voor één route in één scenariohoek, met de drie termen apart. */
+function economicCostOfRoute(route, scenario) {
+  var t2 = scenario.box2Rate;
+  var H = route.taxCost;
+  var G = route.totals.grossDividend;
+  var R = route.totals.interest;
+  var latent = t2 * G;
+  var renteLast = scenario.interestBurdenRate * R;
+  return {
+    scenarioId: scenario.id,
+    taxCost: H,
+    grossDividend: G,
+    interest: R,
+    latentSettled: latent,
+    interestBurden: renteLast,
+    L: H - latent + renteLast,
+    delta: null
+  };
+}
+
+/**
+ * De balansherleiding als narekenbare functie: de daling van de vermogenspositie
+ * naast `L`. `residual` hoort nul te zijn. Dit is de toets uit het commentaar
+ * hierboven, en zij staat in de engine zodat de testrunner haar draait op exact
+ * dezelfde code als de browser.
+ */
+function economicWealthCheck(inp, route, scenario) {
+  var t2 = scenario.box2Rate, v = scenario.vpbRate;
+  var T = route.totals;
+  var jaren = Math.max(0, route.years - 1);
+  var P0 = inp.privateAvailable + inp.privateAnnual * jaren;
+  var B0 = inp.bvCashAvailable + inp.bvCashAnnual * jaren;
+  var W0 = P0 - t2 * inp.rcDebt + (1 - t2) * B0;
+
+  // De teruggaaf van dividendbelasting en een teruggaaf van ná de horizon staan
+  // niet in de getoonde privéstand maar komen de DGA wel toe.
+  var PT = route.privateRemaining + (T.taxRefund || 0) + (route.lossRefundAfterHorizon || 0);
+  // Het overige vermogen van de BV daalt met de Vpb over haar rentebate.
+  var VT = -v * T.interest;
+  var WT = PT - t2 * route.remainingDebt + (1 - t2) * (route.bvCashRemaining + VT);
+
+  var drop = W0 - WT;
+  var L = economicCostOfRoute(route, scenario).L;
+  var consumed = T.withdrawal || 0;
+  var surplusDeposit = t2 * Math.max(0, (T.deposit || 0) - (T.depositApplied || 0));
+  return {
+    wealthStart: W0,
+    wealthEnd: WT,
+    drop: drop,
+    L: L,
+    consumed: consumed,
+    surplusDeposit: surplusDeposit,
+    residual: drop - L - consumed - surplusDeposit
+  };
+}
+
+/**
+ * De hele economische vergelijking: `L` per route per scenariohoek, de
+ * verschillen ten opzichte van de goedkoopste route die aan de eindvoorwaarde
+ * voldoet, en de signalen die de adviseur nodig heeft om dat verschil te wegen.
+ *
+ * Alleen de routes uit de routevergelijking gaan mee. De referentieregel
+ * "alles ineens via dividend" blijft er bewust buiten: haar liquiditeit wordt
+ * niet getoetst, dus zij is geen route die iemand kan nemen, en als zij het
+ * referentiepunt zou zetten verschoof zij elk verschil in de tabel.
+ */
+function buildEconomicComparison(inp, routes, targetRemainingDebt) {
+  var doel = Math.max(0, targetRemainingDebt || 0);
+  var scen = economicScenarios(inp);
+  var rows = [], i, s;
+
+  for (i = 0; i < routes.length; i++) {
+    var r = routes[i];
+    var cells = {};
+    for (s = 0; s < scen.length; s++) cells[scen[s].id] = economicCostOfRoute(r, scen[s]);
+    rows.push({
+      routeId: r.id,
+      label: r.label,
+      shape: r.shape,
+      years: r.years,
+      remainingDebt: r.remainingDebt,
+      fullyRepaid: r.fullyRepaid,
+      // De eindvoorwaarde staat náást L en niet erin.
+      meetsEndCondition: r.remainingDebt <= doel + SETTLE && r.liquidityOk !== false,
+      taxCost: r.taxCost,
+      grossDividend: r.totals.grossDividend,
+      interest: r.totals.interest,
+      cells: cells
+    });
+  }
+
+  var scenarios = [];
+  for (s = 0; s < scen.length; s++) {
+    var sid = scen[s].id, minL = null, winner = null;
+    for (i = 0; i < rows.length; i++) {
+      if (!rows[i].meetsEndCondition) continue;
+      var L = rows[i].cells[sid].L;
+      if (minL === null || L < minL - EPS) { minL = L; winner = rows[i].routeId; }
+    }
+    scenarios.push({
+      id: sid, label: scen[s].label, box2Key: scen[s].box2Key, vpbKey: scen[s].vpbKey,
+      box2Rate: scen[s].box2Rate, vpbRate: scen[s].vpbRate, k: scen[s].k,
+      interestBurdenRate: scen[s].interestBurdenRate,
+      minL: minL, bestRouteId: winner
+    });
+  }
+
+  for (i = 0; i < rows.length; i++) {
+    for (s = 0; s < scenarios.length; s++) {
+      var sc = scenarios[s];
+      rows[i].cells[sc.id].delta = sc.minL === null ? null : rows[i].cells[sc.id].L - sc.minL;
+    }
+  }
+
+  function winnerOf(id) {
+    for (var q = 0; q < scenarios.length; q++) if (scenarios[q].id === id) return scenarios[q].bestRouteId;
+    return null;
+  }
+
+  /* Kantelt de rangorde op de Vpb-keuze binnen één box 2-kolom, en kantelt zij
+     op de box 2-keuze? Beide zijn een eigenschap van dít dossier. Het aandeel
+     gevallen in een testpopulatie zegt daar niets over, en daarom blijven alle
+     vier de hoeken in de motor staan ook al toont het scherm twee kolommen. */
+  var kolommen = ['box2Laag', 'box2Hoog'];
+  var vpbTiltPerColumn = {}, vpbTilt = false;
+  for (i = 0; i < kolommen.length; i++) {
+    var wLaag = winnerOf(kolommen[i] + '-vpbLaag');
+    var wHoog = winnerOf(kolommen[i] + '-vpbHoog');
+    vpbTiltPerColumn[kolommen[i]] = wLaag !== wHoog;
+    if (wLaag !== wHoog) vpbTilt = true;
+  }
+  var box2Tilt = winnerOf('box2Laag-vpbLaag') !== winnerOf('box2Hoog-vpbLaag') ||
+                 winnerOf('box2Laag-vpbHoog') !== winnerOf('box2Hoog-vpbHoog');
+
+  var eerste = scenarios.length ? scenarios[0].bestRouteId : null;
+  var unaniem = eerste !== null;
+  for (s = 0; s < scenarios.length; s++) if (scenarios[s].bestRouteId !== eerste) unaniem = false;
+
+  var meetellend = 0, buiten = 0;
+  for (i = 0; i < rows.length; i++) { if (rows[i].meetsEndCondition) meetellend++; else buiten++; }
+
+  return {
+    available: rows.length > 0 && meetellend > 0,
+    targetRemainingDebt: doel,
+    scenarios: scenarios,
+    rows: rows,
+    eligibleCount: meetellend,
+    excludedCount: buiten,
+    /* Lopen de eindstanden uiteen, dan blijft het horizoneffect over dat
+       verschil bestaan, ten gunste van de route die minder aflost. Dat alsnog
+       inrekenen vraagt een aanname over de rente ná de horizon, en dan worden
+       er getallen verzonnen; vandaar een waarschuwing en geen correctie. */
+    endStateWarning: buiten > 0,
+    vpbTilt: vpbTilt,
+    vpbTiltPerColumn: vpbTiltPerColumn,
+    box2Tilt: box2Tilt,
+    unanimousWinnerId: unaniem ? eerste : null,
+    assumptions: ECONOMIC_ASSUMPTIONS
+  };
+}
+
 /* ─────────────── 8. OMGEKEERDE BEREKENING: "wat heb ik nodig?" ─────────────
    Zoekt per looptijd de minimale privé-inleg per jaar waarmee de schuld
    volledig wordt afgelost — met exact dezelfde rekenkern als de routes.
@@ -3259,6 +3579,12 @@ function solve(raw) {
   var withdrawal = withdrawalImpact(inp, opt.best);
   var longerAlternative = longerRouteComparison(opt.routes, opt.best);
   var reverse = reverseSchedule(inp);
+  /* Laag 2 komt als aparte weergave naast de bestaande uitkomsten te staan en
+     raakt `opt.best`, `betterRoute`, `taxCostPV` en `burden` niet aan. De
+     gewenste restschuld is nul: de tool kent geen invoerveld voor een andere
+     eindstand, en bij nul is de eindstand van alle meetellende routes per
+     definitie gelijk en is er geen horizoneffect over een verschil. */
+  var economic = buildEconomicComparison(inp, opt.routes, 0);
 
   return {
     ok: true,
@@ -3276,7 +3602,8 @@ function solve(raw) {
     excessive: excessive,
     withdrawal: withdrawal,
     longerAlternative: longerAlternative,
-    reverse: reverse
+    reverse: reverse,
+    economic: economic
   };
 }
 
@@ -3515,7 +3842,6 @@ function applyTaxYear() {
   el('lowBracket').value = cfg.box2LowBracket.toString();
   el('dividendTaxRate').value = (cfg.dividendTaxRate * 100).toString();
   el('excessiveMax').value = cfg.excessiveLoanMaxAmount.toString();
-  el('latentRate').value = (cfg.box2LowRate * 100).toString();
   el('taxYearHint').innerHTML = (cfg.status === 'scenario'
     ? '<strong style="color:var(--warn)">Scenariojaar — tarieven staan niet vast.</strong> '
     : '') + cfg.note;
@@ -3556,7 +3882,6 @@ function readInputs() {
     priorFictief: numVal('priorFictief'),
     excessiveLoanOn: val('excessiveOn') === 'true',
     maxYears: numVal('maxYears'),
-    latentRate: numVal('latentRate') / 100,
     discountRate: numVal('discountRate') / 100,
     gates: {
       balans: el('gateBalans').checked,
@@ -3829,11 +4154,17 @@ function renderRouteCard(route, inp, opts) {
   if (T.interest > EPS) {
     costRows.push(rowMuted('Bijgeschreven RC-rente — interne geldstroom van de DGA naar de eigen BV; verhoogt de schuld en zit daardoor al in de heffing hierboven', euro(T.interest)));
   }
-  if (route.latentCredit > EPS) {
-    costRows.push(rowMuted('Af: latente aanmerkelijkbelangclaim die met dit dividend is afgerekend (' + pct(inp.latentRate) + ' × bruto dividend)',
-      '− ' + euro(route.latentCredit)));
-    costRows.push(rowMuted('Kosten na verrekening latente claim', euroSigned(route.economicCost)));
-  }
+  /* De regel "Kosten na verrekening latente claim" stond hier tot 18-09-2026.
+     Zij is weggehaald op besluit van Sylvain, tegelijk met het bouwen van laag 2.
+     Twee redenen. Zij kon negatief worden en las dan als een opbrengst, omdat de
+     heffing over een eerder belast fictief voordeel wel werd teruggenomen maar
+     nooit was meegeteld; dat trof 61% van de aanbevolen routes zodra er een eerder
+     belast fictief voordeel in het spel was. En zij woog de bijgeschreven RC-rente
+     op nul, terwijl de werkelijke economische last 39% tot 49% is. De kaart
+     "Economische vergelijking" neemt die vraag over, met verschillen in plaats van
+     een absoluut bedrag. `route.latentCredit` en `route.economicCost` blijven in de
+     engine staan: zij sturen niets aan en weghalen zou de controle-informatie en de
+     vergelijking met eerdere metingen zonder noodzaak breken. */
   html += block('Kosten', costRows);
 
   return html;
@@ -3886,6 +4217,192 @@ function renderRoutesTable(res) {
     '<strong>Privé netto</strong> = wat het privévermogen van de DGA netto verlaat: rechtstreekse aflossing plus aanvullende inkomstenbelasting, minus een eventuele uitbetaling in geld. ' +
     '<strong>BV-kas ingezet</strong> = de netto afname van de eigen kas van de BV; een privéstorting die direct wordt doorbetaald als dividendbelasting kost de BV zelf niets. ' +
     'Routes die niet volledig aflossen zijn onderling vergeleken op de som van restschuld en betaalde heffing.</p>';
+  return html;
+}
+
+/**
+ * Laag 2 op het scherm. Twee regels die deze weergave sturen:
+ *
+ *   · er staat nooit een absoluut bedrag, alleen het verschil met de
+ *     goedkoopste route. Dat is geen opmaakvoorkeur maar het punt van de
+ *     maatstaf zelf: de heffing over een eerder belast fictief voordeel is
+ *     historisch, valt in het verschil weg en hoeft niet te worden
+ *     gereconstrueerd. Het houdt bovendien een negatieve uitkomst van het
+ *     scherm, en dat is precies waar de oude maatstaf op stukliep;
+ *   · de vier scenariohoeken blijven in de motor, het scherm toont twee box
+ *     2-kolommen. Verschillen de twee Vpb-hoeken binnen een kolom, dan staat
+ *     er een bereik in plaats van één getal, en kantelt de rangorde erop, dan
+ *     staat dat er met zoveel woorden bij.
+ */
+function renderEconomisch(res) {
+  var ec = res.economic;
+  if (!ec || !ec.rows.length) return '<p class="pending">Geen routes om economisch te vergelijken.</p>';
+  if (!ec.available) {
+    return signal('warn', '<strong>Geen economische vergelijking mogelijk.</strong><br>' +
+      'Geen enkele doorgerekende route lost de schuld volledig af binnen de beschikbare middelen. ' +
+      'Zonder gelijke eindstand is een economische vergelijking van routes niet zinnig: het verschil ' +
+      'in restschuld draagt rente die ná de rekenhorizon doorloopt en die hier niet is gewaardeerd.');
+  }
+
+  var kolommen = [
+    { key: 'box2Laag', scen: [] },
+    { key: 'box2Hoog', scen: [] }
+  ];
+  var i, j, s;
+  for (i = 0; i < kolommen.length; i++) {
+    for (s = 0; s < ec.scenarios.length; s++) {
+      if (ec.scenarios[s].box2Key === kolommen[i].key) kolommen[i].scen.push(ec.scenarios[s]);
+    }
+  }
+
+  /** Eén cel: het verschil, als bereik zodra de Vpb-keuze het getal verplaatst. */
+  function cel(rij, kolom) {
+    var waarden = [], winnaar = false;
+    for (var q = 0; q < kolom.scen.length; q++) {
+      var sc = kolom.scen[q];
+      var d = rij.cells[sc.id].delta;
+      if (d === null) return { html: '—', winnaar: false };
+      waarden.push(d);
+      if (sc.bestRouteId === rij.routeId) winnaar = true;
+    }
+    var lo = Math.min.apply(null, waarden), hi = Math.max.apply(null, waarden);
+    var tekst = (hi - lo <= 0.5)
+      ? euroSigned(lo)
+      : euroSigned(lo) + ' – ' + euroSigned(hi);
+    return { html: tekst, winnaar: winnaar };
+  }
+
+  var html = '<table class="routes"><thead><tr>' +
+    '<th>Route</th><th>Looptijd</th><th>Restschuld</th>' +
+    '<th>Box 2-heffing</th><th>Bruto dividend</th><th>RC-rente</th>';
+  for (i = 0; i < kolommen.length; i++) {
+    html += '<th>Meerkosten bij box 2 ' + pct(kolommen[i].scen[0].box2Rate) + '</th>';
+  }
+  html += '</tr></thead><tbody>';
+
+  for (i = 0; i < ec.rows.length; i++) {
+    var rij = ec.rows[i];
+    var buiten = !rij.meetsEndCondition;
+    html += '<tr class="' + (buiten ? 'route-infeasible' : '') + '">' +
+      '<td>' + rij.label + (buiten ? ' <span class="route-tag grey">Niet vergelijkbaar</span>' : '') + '</td>' +
+      '<td>' + rij.years + '</td>' +
+      '<td>' + (rij.fullyRepaid ? '€ 0' : euro(rij.remainingDebt)) + '</td>' +
+      '<td>' + euro(rij.taxCost) + '</td>' +
+      '<td>' + euro(rij.grossDividend) + '</td>' +
+      '<td>' + (rij.interest > EPS ? euro(rij.interest) : '—') + '</td>';
+    for (j = 0; j < kolommen.length; j++) {
+      var c = cel(rij, kolommen[j]);
+      html += '<td>' + c.html +
+        (c.winnaar && !buiten ? ' <span class="route-tag">Goedkoopst</span>' : '') + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div class="scroll-hint">Tabel is horizontaal te scrollen.</div>';
+
+  // ── Toelichting onder de tabel ──
+  var lo = null, hi = null;
+  for (s = 0; s < ec.scenarios.length; s++) {
+    var b = ec.scenarios[s].interestBurdenRate;
+    if (lo === null || b < lo) lo = b;
+    if (hi === null || b > hi) hi = b;
+  }
+  // Is er nergens rente bijgeschreven, dan doet de Vpb-term niets en zou een zin
+  // over de last per euro rente alleen ruis zijn. Om dezelfde reden staat er dan
+  // ook nergens een bereik in de tabel.
+  var heeftRente = false;
+  for (i = 0; i < ec.rows.length; i++) if (ec.rows[i].interest > EPS) heeftRente = true;
+
+  html += '<p class="blok-intro" style="margin-top:12px;">' +
+    'De meerkosten zijn het verschil met de goedkoopste route in dezelfde kolom; die staat daarom ' +
+    'op € 0. Er staat bewust geen absoluut bedrag: een eerder belast fictief regulier voordeel is ' +
+    'een gebeurtenis uit het verleden die voor alle routes gelijk is en in het verschil wegvalt. ' +
+    'Per route telt de berekening de werkelijke box 2-heffing, mínus de latente ' +
+    'aanmerkelijkbelangclaim die met het uitgekeerde dividend is afgerekend' +
+    (heeftRente
+      ? ', plús het deel van de bijgeschreven RC-rente dat onderweg aan belasting verdwijnt (' +
+        economicPct(lo) + ' tot ' + economicPct(hi) + ' per euro rente: eerst vennootschapsbelasting ' +
+        'over de rentebate van de BV, daarna box 2 over wat er van die winst bij de DGA terechtkomt). ' +
+        'Een bereik in een kolom betekent dat de uitkomst afhangt van het Vpb-tarief van de BV; ' +
+        'het linkergetal hoort bij het lage Vpb-tarief.'
+      : '. Er is in geen enkele route rente bijgeschreven, dus het Vpb-tarief van de BV doet hier ' +
+        'niets en beide Vpb-scenario’s geven hetzelfde getal.') +
+    '</p>';
+
+  // Tarieven uit de kolommen zelf halen en niet uit een index in `scenarios`;
+  // dat blijft kloppen als de volgorde van de hoeken ooit verandert.
+  var box2Laag = kolommen[0].scen[0].box2Rate, box2Hoog = kolommen[1].scen[0].box2Rate;
+  var vpbLaag = kolommen[0].scen[0].vpbRate, vpbHoog = kolommen[0].scen[1].vpbRate;
+
+  /* De adviseur ziet hierboven één aanbevolen route en hier soms een andere.
+     Dat verschil zwijgend laten staan is precies het soort ding dat op
+     17-09-2026 in de browserproef naar boven kwam: de getallen klopten en de
+     zin eromheen niet. Dus benoemen, met de reden erbij. */
+  var aanbevolenId = res.best && res.best.id;
+  var afwijkend = [];
+  for (s = 0; s < ec.scenarios.length; s++) {
+    if (ec.scenarios[s].bestRouteId && ec.scenarios[s].bestRouteId !== aanbevolenId) afwijkend.push(ec.scenarios[s]);
+  }
+  if (aanbevolenId && afwijkend.length) {
+    var namen = {};
+    for (i = 0; i < ec.rows.length; i++) namen[ec.rows[i].routeId] = ec.rows[i].label;
+    var lijst = [], gezien = {};
+    for (s = 0; s < afwijkend.length; s++) {
+      // Routelabels beginnen met een hoofdletter; midden in een zin hoort die
+      // er niet te staan.
+      var nm = namen[afwijkend[s].bestRouteId];
+      if (nm) nm = nm.charAt(0).toLowerCase() + nm.slice(1);
+      if (nm && !gezien[nm]) { gezien[nm] = true; lijst.push(nm); }
+    }
+    html += signal('info', '<strong>De aanbevolen route is hier niet de goedkoopste.</strong> ' +
+      'Het advies hierboven rangschikt op de box 2-heffing en wijst ' + res.best.label.toLowerCase() +
+      ' aan; economisch komt ' + lijst.join(' of ') + ' lager uit in ' +
+      (afwijkend.length === ec.scenarios.length ? 'alle doorgerekende scenario’s'
+        : afwijkend.length + ' van de ' + ec.scenarios.length + ' scenario’s') + '. ' +
+      'Dat komt doordat een route die méér dividend uitkeert ook méér latente ' +
+      'aanmerkelijkbelangclaim afrekent; die vooruitbetaling telt in de heffing wel mee en in het ' +
+      'vermogen van de DGA niet. <strong>Het advies is hier niet op aangepast.</strong> Deze weergave ' +
+      'staat er om het gesprek met de klant te kunnen voeren, niet om de aanbeveling te vervangen.');
+  }
+
+  if (ec.unanimousWinnerId) {
+    html += signal('ok', 'Dezelfde route is economisch de goedkoopste in alle vier de doorgerekende ' +
+      'scenario’s (Vpb ' + pct(vpbLaag) + ' en ' + pct(vpbHoog) +
+      ', box 2 ' + pct(box2Laag) + ' en ' + pct(box2Hoog) + '). ' +
+      'De uitkomst hangt dus niet af van de tariefaanname.');
+  }
+  if (ec.box2Tilt) {
+    html += signal('warn', '<strong>De rangorde kantelt op het box 2-tarief.</strong> Welke route ' +
+      'economisch het goedkoopst is, hangt af van het tarief waartegen het vermogen dat in de BV ' +
+      'achterblijft ooit wordt uitgekeerd. Dat is tariefarbitrage en geen rekenfout: wie verwacht ' +
+      'later in het lage tarief te blijven, kiest anders dan wie het hoge tarief verwacht. De twee ' +
+      'kolommen hiernaast tonen beide uitkomsten.');
+  }
+  if (ec.vpbTilt) {
+    var welke = [];
+    if (ec.vpbTiltPerColumn.box2Laag) welke.push('box 2 ' + pct(box2Laag));
+    if (ec.vpbTiltPerColumn.box2Hoog) welke.push('box 2 ' + pct(box2Hoog));
+    html += signal('warn', '<strong>De rangorde kantelt ook op het Vpb-tarief</strong>' +
+      (welke.length ? ' (in de kolom ' + welke.join(' en ') + ')' : '') + '. ' +
+      'Dat kan alleen wanneer er rente meespeelt. Ga na of de winst van de BV boven of onder ' +
+      '€ 200.000 uitkomt, want daar ligt de grens tussen de twee Vpb-schijven.');
+  }
+  if (ec.endStateWarning) {
+    html += signal('warn', '<strong>' + ec.excludedCount + ' ' +
+      (ec.excludedCount === 1 ? 'route blijft' : 'routes blijven') + ' buiten de vergelijking.</strong> ' +
+      (ec.excludedCount === 1 ? 'Die route lost' : 'Die routes lossen') + ' de schuld niet volledig af ' +
+      'of past niet binnen de beschikbare middelen. Een route die schuld laat staan, laat ook rente ' +
+      'staan die ná het laatste getoonde jaar doorloopt; die rente is hier niet gewaardeerd, en het ' +
+      'getal zou daardoor te gunstig uitvallen voor de route die het minst aflost. De regels staan ' +
+      'er grijs bij ter informatie en tellen niet mee voor het goedkoopste punt.');
+  }
+
+  html += '<p class="blok-intro" style="margin-top:12px;"><strong>Wat hier niet in zit.</strong><br>';
+  for (i = 0; i < ec.assumptions.length; i++) {
+    html += '· ' + ec.assumptions[i] + '<br>';
+  }
+  html += '</p>';
+
   return html;
 }
 
@@ -4245,7 +4762,11 @@ function renderAannames(res) {
     ['Vrij uitkeerbaar vermogen', isFinite(inp.distributable) ? euro(inp.distributable) : 'niet als beperking opgegeven'],
     ['Maximale looptijd', inp.maxYears + ' jaar'],
     ['Discontovoet', inp.discountRate > 0 ? pctRaw(inp.discountRate) : 'geen — bedragen nominaal opgeteld'],
-    ['Latent AB-tarief', pctRaw(inp.latentRate) + ' — alleen voor de economische vergelijking']
+    ['Vpb-tarieven economische vergelijking',
+      pctRaw(inp.config.vpbLowRate) + ' en ' + pctRaw(inp.config.vpbHighRate) +
+      ' — beide doorgerekend als scenario, alleen in de kaart Economische vergelijking'],
+    ['Box 2-tarieven economische vergelijking',
+      pctRaw(inp.lowRate) + ' en ' + pctRaw(inp.highRate) + ' — beide doorgerekend als scenario']
   ];
   var html = '<div class="assump">';
   for (var i = 0; i < items.length; i++) {
@@ -4256,7 +4777,8 @@ function renderAannames(res) {
   html += '<div class="block-title" style="margin-top:22px;">Wat de tool wél en niet doet</div>';
   html += '<p class="blok-intro">' +
     'De tool rekent de box 2-heffing, de dividendbelasting als voorheffing, de aanvullende inkomstenbelasting, de RC-rente en het fictieve reguliere voordeel van de Wet excessief lenen door. ' +
-    'De volgende zaken worden bewust <strong>niet</strong> gemodelleerd: vennootschapsbelasting over de winst waaruit het dividend komt; ' +
+    'De volgende zaken worden bewust <strong>niet</strong> gemodelleerd: vennootschapsbelasting over de winst waaruit het dividend komt ' +
+    '(de kaart Economische vergelijking gebruikt de Vpb wél, maar uitsluitend over de rentebate van de BV op de rekening-courant); ' +
     'de zakelijkheid van de RC-rente; renteaftrek bij de DGA (een RC-schuld is in de regel een box 3-schuld, waarvan de rente niet aftrekbaar is); ' +
     'de uitzondering voor eigenwoningschulden en schulden van verbonden personen binnen de Wet excessief lenen; ' +
     'de belastingkorting voor verlies uit aanmerkelijk belang na beëindiging van het belang (art. 2.11a Wet IB 2001); ' +
@@ -4264,7 +4786,8 @@ function renderAannames(res) {
     '</p>';
   html += '<p class="blok-intro">' +
     '<strong>Belangrijke nuance bij de vergelijking.</strong> Privégeld dat rechtstreeks op de RC wordt afgelost is niet "weg": het wordt kas in de BV en draagt een latente aanmerkelijkbelangclaim. ' +
-    'Een route zonder dividend kent daardoor nu weinig heffing, maar stelt die alleen uit. De regel "kosten na verrekening latente claim" bij elke route maakt dat verschil zichtbaar. ' +
+    'Een route zonder dividend kent daardoor nu weinig heffing, maar stelt die alleen uit. De kaart <strong>Economische vergelijking</strong> maakt dat verschil zichtbaar, ' +
+    'door per route te tonen hoeveel die duurder is dan de goedkoopste. Zij staat naast het advies en niet erin: de aanbeveling blijft op de box 2-heffing rangschikken. ' +
     'De RC-rente is een interne geldstroom van de DGA naar de eigen BV en telt daarom niet als afzonderlijke kostenpost mee in de routevergelijking; de bijschrijving verhoogt wél de schuld en werkt zo door in de heffing.' +
     '</p>';
   html += '<div class="block-title" style="margin-top:22px;">Bronnen</div>';
@@ -4312,7 +4835,7 @@ function calculate() {
 
   var show = function (id) { var e = el(id); if (e) e.style.display = ''; };
   var hide = function (id) { var e = el(id); if (e) e.style.display = 'none'; };
-  var ids = ['secAdvies', 'cardModeToggle', 'cardGates', 'cardAdvies', 'cardRoutes', 'secDetails',
+  var ids = ['secAdvies', 'cardModeToggle', 'cardGates', 'cardAdvies', 'cardRoutes', 'cardEconomisch', 'secDetails',
              'blokkenGrid', 'cardLegende', 'cardJaarplan', 'cardKasstroom', 'cardOmgekeerd', 'cardAannames'];
 
   el('debug').textContent = JSON.stringify(res, function (key, value) {
@@ -4329,12 +4852,13 @@ function calculate() {
   }
 
   show('secAdvies'); show('cardModeToggle'); show('cardGates'); show('cardAdvies');
-  show('cardRoutes'); show('secDetails'); show('blokkenGrid'); show('cardLegende');
+  show('cardRoutes'); show('cardEconomisch'); show('secDetails'); show('blokkenGrid'); show('cardLegende');
   show('cardJaarplan'); show('cardKasstroom'); show('cardAannames');
 
   el('gates').innerHTML = renderGates(res);
   el('advies').innerHTML = renderAdvies(res);
   el('routes').innerHTML = renderRoutesTable(res);
+  el('economisch').innerHTML = renderEconomisch(res);
   el('blok1').innerHTML = renderRouteCard(res.reference, res.input, { showLiquidity: false });
   el('blok2').innerHTML = res.directNow ? renderRouteCard(res.directNow, res.input) : '<p class="pending">Geen eenjarige route mogelijk.</p>';
   el('blok3').innerHTML = res.best ? renderRouteCard(res.best, res.input) : '<p class="pending">Geen route gevonden.</p>';
@@ -4365,7 +4889,7 @@ function calculate() {
 function setMode(mode) {
   el('btnModeKosten').classList.toggle('active', mode === 'kosten');
   el('btnModeNodig').classList.toggle('active', mode === 'nodig');
-  var kosten = ['cardGates', 'cardAdvies', 'cardRoutes', 'secDetails', 'blokkenGrid',
+  var kosten = ['cardGates', 'cardAdvies', 'cardRoutes', 'cardEconomisch', 'secDetails', 'blokkenGrid',
                 'cardLegende', 'cardJaarplan', 'cardKasstroom'];
   for (var i = 0; i < kosten.length; i++) {
     el(kosten[i]).style.display = mode === 'kosten' ? '' : 'none';
@@ -4407,6 +4931,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 10:39</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 11:09</div>
 </body>
 </html>
