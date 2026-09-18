@@ -3255,11 +3255,40 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
       var L = rows[i].cells[sid].L;
       if (minL === null || L < minL - EPS) { minL = L; winner = rows[i].routeId; }
     }
+
+    /* Een gelijkspel is geen voorkeur. Tel hoeveel routes er op het minimum
+       liggen; zijn dat er meer dan één, dan wijst dit scenario niets aan en komt
+       er geen `bestRouteId` uit.
+
+       Dit is geen randgeval maar structureel. Is het toekomstige box 2-tarief
+       gelijk aan het tarief waartegen nu wordt afgerekend, dan is `L` voor "privé
+       aflossen" en "dividend uitkeren" per definitie gelijk: de heffing die je nu
+       betaalt is dan exact de latente claim die je ermee afkoopt. Het verschil
+       ontstaat pas bij een ánder toekomstig tarief, en dat is tariefarbitrage.
+
+       Zonder deze telling bleef de eerst gevonden route winnaar en telde een
+       gelijkspel mee als stem vóór wisselen. Gemeten op 18-09-2026 over 800
+       dossiers: van de 182 wisselingen berustten er 28 (15,4%) op een gelijkspel
+       in twee van de vier hoeken, en die kostten de DGA gemiddeld € 46.972 aan
+       box 2-heffing die hij anders niet had betaald. De melding op het scherm zei
+       daarbij dat alle vier de hoeken dezelfde kant op wezen en dat de tool geen
+       tarief aannam — terwijl zij dat in die gevallen feitelijk wél deed, namelijk
+       het hoge. Besloten door Sylvain op 18-09-2026. */
+    var opMinimum = 0;
+    if (minL !== null) {
+      for (i = 0; i < rows.length; i++) {
+        if (!rows[i].meetsEndCondition) continue;
+        if (Math.abs(rows[i].cells[sid].L - minL) <= EPS) opMinimum++;
+      }
+    }
+    var gelijkspel = opMinimum > 1;
+
     scenarios.push({
       id: sid, label: scen[s].label, box2Key: scen[s].box2Key, vpbKey: scen[s].vpbKey,
       box2Rate: scen[s].box2Rate, vpbRate: scen[s].vpbRate, k: scen[s].k,
       interestBurdenRate: scen[s].interestBurdenRate,
-      minL: minL, bestRouteId: winner
+      minL: minL, bestRouteId: gelijkspel ? null : winner,
+      tied: gelijkspel, tiedCount: opMinimum
     });
   }
 
@@ -3290,9 +3319,17 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
   var box2Tilt = winnerOf('box2Laag-vpbLaag') !== winnerOf('box2Hoog-vpbLaag') ||
                  winnerOf('box2Laag-vpbHoog') !== winnerOf('box2Hoog-vpbHoog');
 
+  /* Unanimiteit vraagt dat élk scenario dezelfde route aanwijst. Een scenario met
+     een gelijkspel wijst niets aan en heeft dus `bestRouteId === null`; dat breekt
+     de unanimiteit, en dat is de bedoeling. Eén hoek zonder voorkeur is genoeg om
+     niet te wisselen, want de grendel bestaat juist om geen tarief aan te nemen. */
   var eerste = scenarios.length ? scenarios[0].bestRouteId : null;
   var unaniem = eerste !== null;
-  for (s = 0; s < scenarios.length; s++) if (scenarios[s].bestRouteId !== eerste) unaniem = false;
+  var gelijkspelHoeken = 0;
+  for (s = 0; s < scenarios.length; s++) {
+    if (scenarios[s].bestRouteId !== eerste) unaniem = false;
+    if (scenarios[s].tied) gelijkspelHoeken++;
+  }
 
   var meetellend = 0, buiten = 0;
   for (i = 0; i < rows.length; i++) { if (rows[i].meetsEndCondition) meetellend++; else buiten++; }
@@ -3313,6 +3350,10 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
     vpbTiltPerColumn: vpbTiltPerColumn,
     box2Tilt: box2Tilt,
     unanimousWinnerId: unaniem ? eerste : null,
+    // Hoeveel hoeken geen voorkeur hebben omdat er meerdere routes op het
+    // minimum liggen. De renderlaag meldt dat, zodat "geen wisseling" niet leest
+    // als "de hoeken zijn het oneens" terwijl zij in feite gelijkwaardig zijn.
+    tiedScenarioCount: gelijkspelHoeken,
     assumptions: ECONOMIC_ASSUMPTIONS
   };
 }
@@ -4500,9 +4541,24 @@ function renderEconomisch(res) {
       var nm = kleinLabel(oordeel.dissenting[s]);
       if (!gezien[nm]) { gezien[nm] = true; lijst.push(nm); }
     }
+    /* Twee verschillende redenen waarom de hoeken niet eensgezind zijn, en de
+       gebruiker heeft aan het onderscheid wat. Wijzen zij verschillende kanten
+       op, dan is het een echte tariefweddenschap. Ligt er in een of meer hoeken
+       een gelijkspel, dan valt daar niets te winnen of te verliezen: de heffing
+       die nu wordt betaald is dan precies de latente claim die ermee wordt
+       afgekocht. Dat tweede is het geruststellender verhaal en het hoort er te
+       staan. */
+    var gelijkspelHoeken = ec.tiedScenarioCount || 0;
     html += signal('warn', '<strong>Hier hangt de uitkomst aan het verwachte tarief.</strong> ' +
       'Economisch komt ' + lijst.join(' of ') + ' in een deel van de scenario’s lager uit dan ' +
-      kleinLabel(oordeel.previousId) + ', maar niet in alle. De aanbeveling hierboven blijft daarom de ' +
+      kleinLabel(oordeel.previousId) + ', maar niet in alle. ' +
+      (gelijkspelHoeken > 0
+        ? 'In ' + (gelijkspelHoeken === 1 ? 'één scenario' : gelijkspelHoeken + ' scenario’s') +
+          ' zijn de routes economisch <em>gelijkwaardig</em>: de box 2-heffing die daar nu wordt betaald is ' +
+          'precies de latente claim die ermee wordt afgekocht, dus valt er niets te winnen. Een gelijkspel ' +
+          'telt niet als voorkeur en leidt daarom niet tot een andere aanbeveling. '
+        : '') +
+      'De aanbeveling hierboven blijft de ' +
       'laagste box 2-heffing volgen: de tool neemt geen tarief aan dat zij niet kent. ' +
       'Weet u wél waar de DGA later op uitkomt, lees dan de kolom die daarbij hoort.');
   }
@@ -4825,10 +4881,18 @@ function renderAdvies(res) {
         '. Die rente verdwijnt onderweg voor 39% tot 49% aan belasting, en dat weegt in alle vier de doorgerekende ' +
         'tariefscenario’s zwaarder dan de lagere heffing. De kaart <strong>Economische vergelijking</strong> toont het verschil per scenario.';
     } else if (oordeel && oordeel.tariffDependent) {
+      // Zie de toelichting bij dezelfde tweedeling in de economische kaart: een
+      // gelijkspel is iets anders dan onenigheid, en dat verschil hoort hier ook
+      // te staan omdat dit de tekst is die een adviseur als eerste leest.
+      var gelijkspelHoeken = (res.economic && res.economic.tiedScenarioCount) || 0;
       tekst += ' De aanbeveling volgt hier de laagste box 2-heffing. Economisch zou een andere route ' +
         'goedkoper kunnen zijn, maar dat hangt af van het tarief waartegen het vermogen dat in de BV achterblijft ' +
-        'ooit wordt uitgekeerd: de doorgerekende scenario’s wijzen niet allemaal dezelfde kant op. ' +
-        'De tool neemt daarom geen tarief aan; zie de kaart <strong>Economische vergelijking</strong>.';
+        'ooit wordt uitgekeerd: ' +
+        (gelijkspelHoeken > 0
+          ? 'in ' + (gelijkspelHoeken === 1 ? 'één doorgerekend scenario' : gelijkspelHoeken + ' doorgerekende scenario’s') +
+            ' zijn de routes economisch gelijkwaardig en valt er dus niets te winnen'
+          : 'de doorgerekende scenario’s wijzen niet allemaal dezelfde kant op') +
+        '. De tool neemt daarom geen tarief aan; zie de kaart <strong>Economische vergelijking</strong>.';
     }
   }
 
@@ -5112,6 +5176,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 15:23</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 23:36</div>
 </body>
 </html>
