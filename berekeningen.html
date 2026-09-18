@@ -1245,6 +1245,18 @@ const REVISIERENTE_NAVORDERING_DEEL = 0.50;
    BRONNEN.md. */
 const REVISIERENTE_TEGENBEWIJS_JAREN = 10;
 
+/* Vanaf welk afkoopjaar de tweede volzin van art. 30i lid 2 AWR de gewone
+   lijfrenteafkoop van art. 3.133 Wet IB 2001 zelf aanwijst, zodat het met het
+   saldo verlaagde bedrag aan negatieve uitgaven de grondslag is. Ingevoegd bij
+   de Fiscale verzamelwet 2025, Stb. 2024, 440, artikel IX onderdeel B, in
+   werking per 1 januari 2025 zonder overgangsrecht en zonder terugwerkende
+   kracht. Wetteksten teruggelezen in de KOOP-repository op 18-09-2026, per
+   1 januari van 2020 tot en met 2025. Voor eerdere afkoopjaren rekent de tool
+   bewust volgens de uitvoeringspraktijk en niet naar de letter; zie de melding
+   in revisierenteAfkoopLijfrente en open punt 10 in BRONNEN.md. */
+const REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF = 2025;
+
+
 /* Grens van art. 3.133 lid 2 onderdeel d Wet IB 2001. Wordt een aanspraak op
    lijfrente waarvan nog geen termijnen zijn vervallen in een bedrag uitgekeerd,
    en bedraagt de waarde in het economische verkeer onmiddellijk voor de afkoop
@@ -1473,6 +1485,21 @@ function revisierenteAfkoopLijfrente({
   const hoofdregel = negatieveUitgaven * REVISIERENTE_PERCENTAGE;
   const meldingen = [{ soort: 'let', tekst:
     'De ingevulde bevestigingen zijn aannames van de gebruiker, geen controle van polis of bewijsstukken door de tool. Het beschikbare saldo moet rekening houden met de jaargrenzen van art. 3.107a lid 2 Wet IB 2001, andere overeenkomsten en eerder gebruik.' }];
+  // Tot en met afkoopjaar 2024 wees de tweede volzin van art. 30i lid 2 AWR de
+  // gewone lijfrenteafkoop niet aan: art. 3.133 Wet IB 2001 staat er pas in vanaf
+  // 1 januari 2025 (Fiscale verzamelwet 2025, Stb. 2024, 440, art. IX onderdeel B).
+  // Naar de letter gold voor die jaren dus de eerste volzin, met de hele waarde in
+  // het economische verkeer als grondslag. De tool volgt toch de saldoverlaging,
+  // omdat de wetgever bij die wijziging zelf vaststelde dat de Belastingdienst al
+  // zo hief en dat heffen over het onbelaste saldo nooit de bedoeling was
+  // (Kamerstukken II 2024/25, 36 605, nr. 3). Besluit van de eigenaar op
+  // 18-09-2026. Zonder saldo maakt het geen verschil; dan blijft de melding weg.
+  if (jaarAfkoop <= REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF - 1 && saldoVermindering > 0) {
+    meldingen.push({ soort: 'let', tekst:
+      'Het afkoopjaar ligt voor ' + REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF + '. De tweede volzin van art. 30i lid 2 AWR noemde art. 3.133 Wet IB 2001 toen nog niet, zodat de wettekst van dat jaar naar de letter de hele waarde in het economische verkeer als grondslag aanwees en niet het met het saldo verlaagde bedrag. Deze berekening volgt de uitvoeringspraktijk: bij de wetswijziging per ' + REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF + ' stelde de wetgever vast dat de Belastingdienst al geen revisierente over niet-afgetrokken premies in rekening bracht en dat dit nooit de bedoeling was (Kamerstukken II 2024/25, 36 605, nr. 3). Er is geen gepubliceerd beleidsbesluit dat die praktijk vastlegt. Leg de keuze bij een verzoek in het eigen dossier vast; zonder de saldoverlaging zou de revisierente hier ',
+      bedrag: afrondOmlaagOpEuro(saldoVermindering * REVISIERENTE_PERCENTAGE), staart:
+      ' hoger uitkomen.' });
+  }
   const afkoopgrens = AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR[jaarAfkoop];
   if (!termijnenVervallen && afkoopgrens === undefined) {
     return { fout: 'Voor ' + jaarAfkoop + ' is de grens van art. 3.133 lid 2 onderdeel d Wet IB 2001 niet gecontroleerd.' };
