@@ -3270,6 +3270,71 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
   };
 }
 
+/* ─────────── 7c. DE RANGSCHIKKING (laag 3) ─────────────────────────────────
+   Laag 1 rekent, laag 2 waardeert, en hier wordt gekozen. Besloten door Sylvain
+   op 18-09-2026, nadat laag 2 er eenmaal stond.
+
+   HET PROBLEEM. Rangschikken op de economische maatstaf `L` kan niet zonder een
+   box 2-tarief en een Vpb-tarief aan te nemen, en die weet de tool niet. Laag 2
+   toont juist twee kolommen omdát er geen enkel antwoord is. Gemeten over 600
+   pseudo-willekeurige invoeren, 554 daarvan met een haalbare route: in 57,4%
+   wijst `L` in alle vier de scenariohoeken dezelfde route aan als de bestaande
+   regel, in 31,0% in alle vier de hoeken een ándere, en in 11,6% zijn de hoeken
+   het onderling oneens. Dat laatste is precies het geval waarin een aangenomen
+   tarief de uitkomst bepaalt.
+
+   DE REGEL. Het advies wijkt alleen af van de bestaande rangschikking wanneer
+   alle vier de hoeken dezelfde andere route aanwijzen. Zijn zij het oneens, dan
+   blijft de bestaande aanbeveling staan en komt er een melding bij dat de keuze
+   van het verwachte tarief afhangt. Zo neemt de tool nooit een tarief aan dat
+   zij niet heeft, en wordt de 31,0% waarin dat niet nodig is wél gerepareerd.
+
+   WAT DIT NIET RAAKT. `betterRoute`, `taxCostPV` en `burden` blijven exact zoals
+   zij zijn, en dat is met opzet. `buildRoutes` gebruikt `betterRoute` óók
+   binnenin, bij het zoeken naar de beste inzet van privégeld en bij het
+   ontdubbelen per looptijd. Zou de vergelijkingsregel zelf veranderen, dan
+   veranderde niet alleen de keuze maar ook welke routes er worden aangeboden,
+   en dan schuift elk getal in de tabel mee. Deze laag kiest alleen ánders uit
+   dezelfde aangeboden routes.
+
+   `burden` is bewust ongemoeid gelaten. Hij rangschikt uitsluitend routes die
+   de eindvoorwaarde al niet halen, en juist daar is er geen economische
+   vergelijking om hem door te vervangen: `buildEconomicComparison` levert dan
+   niets. Hem weghalen zonder vervanging zou de volgorde van de mislukte routes
+   willekeurig maken. Dat blijft een open punt in ROADMAP.md.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+function economicVerdict(economic, currentBestId) {
+  var leeg = {
+    switched: false, recommendedId: currentBestId || null, previousId: currentBestId || null,
+    unanimousId: null, tariffDependent: false, dissenting: []
+  };
+  if (!economic || !economic.available || !currentBestId) return leeg;
+
+  var afwijkend = [], i, w;
+  for (i = 0; i < economic.scenarios.length; i++) {
+    w = economic.scenarios[i].bestRouteId;
+    if (w && w !== currentBestId && afwijkend.indexOf(w) < 0) afwijkend.push(w);
+  }
+
+  var unaniem = economic.unanimousWinnerId;
+  if (unaniem && unaniem !== currentBestId) {
+    return {
+      switched: true, recommendedId: unaniem, previousId: currentBestId,
+      unanimousId: unaniem, tariffDependent: false, dissenting: []
+    };
+  }
+  return {
+    switched: false, recommendedId: currentBestId, previousId: currentBestId,
+    unanimousId: unaniem,
+    // De hoeken zijn het oneens én ten minste één van hen wijst een andere
+    // route aan dan de bestaande aanbeveling. Alleen dan hangt er iets aan het
+    // tarief en hoort de gebruiker dat te weten.
+    tariffDependent: !unaniem && afwijkend.length > 0,
+    dissenting: afwijkend
+  };
+}
+
 /* ─────────────── 8. OMGEKEERDE BEREKENING: "wat heb ik nodig?" ─────────────
    Zoekt per looptijd de minimale privé-inleg per jaar waarmee de schuld
    volledig wordt afgelost — met exact dezelfde rekenkern als de routes.
@@ -3574,17 +3639,32 @@ function solve(raw) {
 
   var opt = buildRoutes(inp);
   var reference = referenceFullDividend(inp);
-  var gates = evaluateGates(inp, opt.best);
-  var excessive = excessiveLoanSignal(inp, opt.best);
-  var withdrawal = withdrawalImpact(inp, opt.best);
-  var longerAlternative = longerRouteComparison(opt.routes, opt.best);
-  var reverse = reverseSchedule(inp);
-  /* Laag 2 komt als aparte weergave naast de bestaande uitkomsten te staan en
-     raakt `opt.best`, `betterRoute`, `taxCostPV` en `burden` niet aan. De
-     gewenste restschuld is nul: de tool kent geen invoerveld voor een andere
-     eindstand, en bij nul is de eindstand van alle meetellende routes per
-     definitie gelijk en is er geen horizoneffect over een verschil. */
+  /* Laag 2 staat als aparte weergave naast de uitkomsten en raakt `betterRoute`,
+     `taxCostPV` en `burden` niet aan. De gewenste restschuld is nul: de tool kent
+     geen invoerveld voor een andere eindstand, en bij nul is de eindstand van
+     alle meetellende routes per definitie gelijk en is er geen horizoneffect
+     over een verschil. */
   var economic = buildEconomicComparison(inp, opt.routes, 0);
+
+  /* Laag 3 kiest. Alleen wanneer alle vier de scenariohoeken dezelfde ándere
+     route aanwijzen wijkt de aanbeveling af van de bestaande rangschikking; zie
+     de toelichting bij `economicVerdict`. De route die de box 2-rangschikking
+     aanwees blijft als `taxRankedBest` in de uitkomst staan, want het scherm
+     moet kunnen zeggen wat er is gewisseld en waarom. */
+  var verdict = economicVerdict(economic, opt.best && opt.best.id);
+  var best = opt.best;
+  if (verdict.switched) {
+    for (var bi = 0; bi < opt.routes.length; bi++) {
+      if (opt.routes[bi].id === verdict.recommendedId) { best = opt.routes[bi]; break; }
+    }
+  }
+
+  // Alles wat over "de aanbevolen route" gaat, gaat over de uiteindelijke keuze.
+  var gates = evaluateGates(inp, best);
+  var excessive = excessiveLoanSignal(inp, best);
+  var withdrawal = withdrawalImpact(inp, best);
+  var longerAlternative = longerRouteComparison(opt.routes, best);
+  var reverse = reverseSchedule(inp);
 
   return {
     ok: true,
@@ -3592,8 +3672,10 @@ function solve(raw) {
     validation: validation,
     reference: reference,
     directNow: opt.oneYear,
-    best: opt.best,
-    bestIsFeasible: opt.bestIsFeasible,
+    best: best,
+    taxRankedBest: opt.best,
+    economicVerdict: verdict,
+    bestIsFeasible: !!best && best.fullyRepaid && best.liquidityOk !== false,
     routes: opt.routes,
     lowBracketRoute: opt.lowBracketRoute,
     privateOnlyRoute: opt.privateOnlyRoute,
@@ -4334,38 +4416,44 @@ function renderEconomisch(res) {
   var box2Laag = kolommen[0].scen[0].box2Rate, box2Hoog = kolommen[1].scen[0].box2Rate;
   var vpbLaag = kolommen[0].scen[0].vpbRate, vpbHoog = kolommen[0].scen[1].vpbRate;
 
-  /* De adviseur ziet hierboven één aanbevolen route en hier soms een andere.
-     Dat verschil zwijgend laten staan is precies het soort ding dat op
-     17-09-2026 in de browserproef naar boven kwam: de getallen klopten en de
-     zin eromheen niet. Dus benoemen, met de reden erbij. */
-  var aanbevolenId = res.best && res.best.id;
-  var afwijkend = [];
-  for (s = 0; s < ec.scenarios.length; s++) {
-    if (ec.scenarios[s].bestRouteId && ec.scenarios[s].bestRouteId !== aanbevolenId) afwijkend.push(ec.scenarios[s]);
+  /* Wat het advies met deze tabel heeft gedaan. Sinds 18-09-2026 wijkt de
+     aanbeveling af van de laagste box 2-heffing wanneer alle vier de hoeken
+     dezelfde andere route aanwijzen; zijn zij het oneens, dan blijft de
+     bestaande rangschikking staan. Beide gevallen horen er te staan. Dit
+     zwijgend laten is precies het soort ding dat op 17-09-2026 in de
+     browserproef naar boven kwam: de getallen klopten en de zin eromheen niet. */
+  var namen = {};
+  for (i = 0; i < ec.rows.length; i++) namen[ec.rows[i].routeId] = ec.rows[i].label;
+  function kleinLabel(id) {
+    // Routelabels beginnen met een hoofdletter; midden in een zin hoort die er
+    // niet te staan.
+    var nm = namen[id];
+    return nm ? nm.charAt(0).toLowerCase() + nm.slice(1) : 'een andere route';
   }
-  if (aanbevolenId && afwijkend.length) {
-    var namen = {};
-    for (i = 0; i < ec.rows.length; i++) namen[ec.rows[i].routeId] = ec.rows[i].label;
+  var oordeel = res.economicVerdict;
+
+  if (oordeel && oordeel.switched) {
+    html += signal('ok', '<strong>Het advies volgt deze tabel.</strong> ' +
+      'De aanbeveling hierboven is ' + kleinLabel(oordeel.recommendedId) + ', en dat is een andere route dan ' +
+      'de laagste box 2-heffing zou aanwijzen (' + kleinLabel(oordeel.previousId) + '). ' +
+      'De aanbeveling wijkt alleen af wanneer alle vier de doorgerekende tariefscenario’s dezelfde kant op ' +
+      'wijzen, en dat is hier zo. De tool neemt dus geen tarief aan.');
+  } else if (oordeel && oordeel.tariffDependent) {
     var lijst = [], gezien = {};
-    for (s = 0; s < afwijkend.length; s++) {
-      // Routelabels beginnen met een hoofdletter; midden in een zin hoort die
-      // er niet te staan.
-      var nm = namen[afwijkend[s].bestRouteId];
-      if (nm) nm = nm.charAt(0).toLowerCase() + nm.slice(1);
-      if (nm && !gezien[nm]) { gezien[nm] = true; lijst.push(nm); }
+    for (s = 0; s < oordeel.dissenting.length; s++) {
+      var nm = kleinLabel(oordeel.dissenting[s]);
+      if (!gezien[nm]) { gezien[nm] = true; lijst.push(nm); }
     }
-    html += signal('info', '<strong>De aanbevolen route is hier niet de goedkoopste.</strong> ' +
-      'Het advies hierboven rangschikt op de box 2-heffing en wijst ' + res.best.label.toLowerCase() +
-      ' aan; economisch komt ' + lijst.join(' of ') + ' lager uit in ' +
-      (afwijkend.length === ec.scenarios.length ? 'alle doorgerekende scenario’s'
-        : afwijkend.length + ' van de ' + ec.scenarios.length + ' scenario’s') + '. ' +
-      'Dat komt doordat een route die méér dividend uitkeert ook méér latente ' +
-      'aanmerkelijkbelangclaim afrekent; die vooruitbetaling telt in de heffing wel mee en in het ' +
-      'vermogen van de DGA niet. <strong>Het advies is hier niet op aangepast.</strong> Deze weergave ' +
-      'staat er om het gesprek met de klant te kunnen voeren, niet om de aanbeveling te vervangen.');
+    html += signal('warn', '<strong>Hier hangt de uitkomst aan het verwachte tarief.</strong> ' +
+      'Economisch komt ' + lijst.join(' of ') + ' in een deel van de scenario’s lager uit dan ' +
+      kleinLabel(oordeel.previousId) + ', maar niet in alle. De aanbeveling hierboven blijft daarom de ' +
+      'laagste box 2-heffing volgen: de tool neemt geen tarief aan dat zij niet kent. ' +
+      'Weet u wél waar de DGA later op uitkomt, lees dan de kolom die daarbij hoort.');
   }
 
-  if (ec.unanimousWinnerId) {
+  // Is het advies zojuist gewisseld, dan staat hierboven al dat alle vier de
+  // hoeken het eens zijn; die boodschap niet twee keer geven.
+  if (ec.unanimousWinnerId && !(oordeel && oordeel.switched)) {
     html += signal('ok', 'Dezelfde route is economisch de goedkoopste in alle vier de doorgerekende ' +
       'scenario’s (Vpb ' + pct(vpbLaag) + ' en ' + pct(vpbHoog) +
       ', box 2 ' + pct(box2Laag) + ' en ' + pct(box2Hoog) + '). ' +
@@ -4574,10 +4662,20 @@ function renderAdvies(res) {
   var saving = ineens.totals.box2Total - (best ? best.totals.box2Total : ineens.totals.box2Total);
   var hasSaving = best && best.fullyRepaid && saving > EPS;
 
+  /* Is de aanbevolen route zelf de eenjarige, dan staat er een streepje bij een
+     onderschrift dat een besparing belooft, en dat leest alsof er iets ontbreekt.
+     Sinds de rangschikking van 18-09-2026 komt dat geval vaker voor: een route
+     die snel aflost kan economisch winnen terwijl zij fiscaal duurder is. Dan
+     hoort er te staan wat er aan de hand is. */
+  var isIneens = best && best.fullyRepaid && best.years === 1;
   var panel1 = '<div class="advies-panel">' +
     '<div class="advies-panel-label">Besparing t.o.v. ineens</div>' +
     '<div class="advies-panel-value' + (hasSaving ? '' : ' muted') + '">' + (hasSaving ? euro(saving) : '—') + '</div>' +
-    '<div class="advies-panel-text">Minder box 2-heffing dan alles in één jaar uitkeren</div></div>';
+    '<div class="advies-panel-text">' +
+    (isIneens
+      ? 'De aanbevolen route ís alles in één jaar uitkeren, dus er valt niets mee te besparen'
+      : 'Minder box 2-heffing dan alles in één jaar uitkeren') +
+    '</div></div>';
 
   var panel2 = '';
   if (best && best.shape !== 'geen-actie') {
@@ -4648,6 +4746,33 @@ function renderAdvies(res) {
             ' jaar is er geen langere route die de schuld volledig aflost, dus verder spreiden is hier geen alternatief.';
         }
       }
+    }
+
+    /* De aanbeveling kan sinds 18-09-2026 afwijken van de route met de laagste
+       box 2-heffing, maar alleen wanneer alle vier de economische scenario's
+       dezelfde andere route aanwijzen. Gebeurt dat, dan moet er staan dát het is
+       gebeurd en waarom — anders leest de gebruiker in de routevergelijking een
+       lagere heffing bij een route die niet is aanbevolen en klopt er voor hem
+       iets niet. De bedragen komen uit de vergelijking zelf en niet uit een
+       aanname. */
+    var oordeel = res.economicVerdict;
+    if (oordeel && oordeel.switched && res.taxRankedBest) {
+      var fiscaal = res.taxRankedBest;
+      var minderHeffing = best.taxCost - fiscaal.taxCost;
+      tekst += ' <strong>Deze aanbeveling wijkt af van de laagste box 2-heffing.</strong> ' +
+        fiscaal.label.toLowerCase() + ' kost ' +
+        (minderHeffing > EPS ? euro(minderHeffing) + ' minder aan heffing' : 'nagenoeg evenveel heffing') +
+        ', maar laat de schuld langer staan' +
+        (fiscaal.totals.interest - best.totals.interest > EPS
+          ? ' en schrijft daardoor ' + euro(fiscaal.totals.interest - best.totals.interest) + ' meer rente bij'
+          : '') +
+        '. Die rente verdwijnt onderweg voor 39% tot 49% aan belasting, en dat weegt in alle vier de doorgerekende ' +
+        'tariefscenario’s zwaarder dan de lagere heffing. De kaart <strong>Economische vergelijking</strong> toont het verschil per scenario.';
+    } else if (oordeel && oordeel.tariffDependent) {
+      tekst += ' De aanbeveling volgt hier de laagste box 2-heffing. Economisch zou een andere route ' +
+        'goedkoper kunnen zijn, maar dat hangt af van het tarief waartegen het vermogen dat in de BV achterblijft ' +
+        'ooit wordt uitgekeerd: de doorgerekende scenario’s wijzen niet allemaal dezelfde kant op. ' +
+        'De tool neemt daarom geen tarief aan; zie de kaart <strong>Economische vergelijking</strong>.';
     }
   }
 
@@ -4931,6 +5056,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 11:09</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 11:37</div>
 </body>
 </html>
