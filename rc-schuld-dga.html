@@ -3187,6 +3187,53 @@ function withdrawalImpact(inp, route) {
   };
 }
 
+/* ────────────── WAT LANGER SPREIDEN ZOU KOSTEN ─────────────────────────────
+   Raakt de aanbevolen route het hoge tarief, dan is de eerste vraag van de
+   adviseur waarom er niet verder is gespreid. Het antwoord daarop hoort uit de
+   doorgerekende routes te komen en niet uit een vast verhaal. De adviestekst
+   noemde tot 18-09-2026 altijd de oplopende rentebijschrijving als reden, ook
+   bij een RC-rente van nul: gemeten in de browser bij schuld 800.000, rente 0%,
+   50.000 privé per jaar en 500.000 BV-kas werd zes jaar geadviseerd met die zin
+   erbij, terwijl er over de hele looptijd geen euro rente werd bijgeschreven.
+   De uitkomst was goed, de reden niet. Langer spreiden was daar duurder om een
+   andere grond dan rente.
+
+   Deze functie zet daarom de aanbevolen route naast de goedkoopste route met
+   een langere looptijd en geeft alleen de gemeten verschillen terug. Wat er in
+   de adviestekst als reden mag staan, volgt uit die getallen.
+
+   Als alternatief geldt alleen een route die volledig aflost en liquide is.
+   Goedkoopst is hier de nominale box 2-heffing, want dat is het getal dat in de
+   adviestekst naast de heffing van de aanbevolen route komt te staan.
+   ──────────────────────────────────────────────────────────────────────── */
+function longerRouteComparison(routes, best) {
+  if (!best || !best.fullyRepaid || !routes || !routes.length) return null;
+  var langer = null, i;
+  for (i = 0; i < routes.length; i++) {
+    var r = routes[i];
+    if (r === best || r.years <= best.years) continue;
+    if (!r.fullyRepaid || r.liquidityOk === false) continue;
+    if (!langer || r.totals.box2Total < langer.totals.box2Total - EPS) langer = r;
+  }
+  if (!langer) return { exists: false };
+  return {
+    exists: true,
+    years: langer.years,
+    tax: langer.totals.box2Total,
+    extraTax: langer.totals.box2Total - best.totals.box2Total,
+    /* Het verschil in rente wordt wel gemeten en niet als reden gebruikt. Het
+       ligt voor de hand om te zeggen dat de langere route duurder is doordat de
+       schuld verder oploopt, maar dat houdt geen stand. Nagemeten op 18-09-2026
+       bij schuld 800.000 en 5% rente: de route van acht jaar vraagt 92.389 meer
+       bruto dividend tegenover 4.418 meer rente, en lost 74.112 minder
+       rechtstreeks uit privégeld af. Het verschil zit dus in de inzet van
+       privégeld en niet in de bijschrijving; een reden die de rente noemt zou
+       daar even onjuist zijn als de zin die hier is weggehaald. */
+    extraInterest: langer.totals.interest - best.totals.interest,
+    extraGrossDividend: langer.totals.grossDividend - best.totals.grossDividend
+  };
+}
+
 /* ─────────────────────────── HOOFDINGANG ENGINE ───────────────────────────── */
 function solve(raw) {
   var inp;
@@ -3210,6 +3257,7 @@ function solve(raw) {
   var gates = evaluateGates(inp, opt.best);
   var excessive = excessiveLoanSignal(inp, opt.best);
   var withdrawal = withdrawalImpact(inp, opt.best);
+  var longerAlternative = longerRouteComparison(opt.routes, opt.best);
   var reverse = reverseSchedule(inp);
 
   return {
@@ -3227,6 +3275,7 @@ function solve(raw) {
     gates: gates,
     excessive: excessive,
     withdrawal: withdrawal,
+    longerAlternative: longerAlternative,
     reverse: reverse
   };
 }
@@ -4060,8 +4109,28 @@ function renderAdvies(res) {
       tekst += ' De ' + euro(best.totals.interest) + ' RC-rente over de looptijd is een interne geldstroom naar de eigen BV; de bijschrijving verhoogt de schuld en is daardoor al in de heffing verwerkt.';
     }
     if (best.totals.box2TaxHigh > EPS) {
-      tekst += ' Deze route gebruikt bewust ' + euro(best.totals.box2TaxHigh) +
-        ' aan heffing tegen het hoge tarief: langer spreiden zou door de oplopende rentebijschrijving per saldo méér heffing kosten.';
+      /* Waarom het hoge tarief hier toch de goedkoopste uitkomst is, komt uit de
+         vergelijking met de goedkoopste langere route (longerRouteComparison).
+         De tekst noemt alleen wat in die vergelijking is gemeten: hoeveel de
+         langere route aan heffing kost en hoeveel bruto dividend zij vraagt.
+         Waaruit dat verschil ontstaat wordt niet benoemd, want dat is uit de
+         totalen niet vast te stellen. Is er geen langere route die volledig
+         aflost, dan staat er geen reden maar dat feit. */
+      var alt = res.longerAlternative;
+      if (alt && alt.exists && alt.extraTax > EPS) {
+        var staart = alt.extraGrossDividend > EPS
+          ? ' en vraagt in totaal ' + euro(alt.extraGrossDividend) + ' meer bruto dividend'
+          : '';
+        tekst += ' Deze route gebruikt bewust ' + euro(best.totals.box2TaxHigh) +
+          ' aan heffing tegen het hoge tarief. Langer spreiden loont hier niet: de goedkoopste route met een langere looptijd, ' +
+          alt.years + ' jaar, kost ' + euro(alt.tax) + ' aan heffing, ' + euro(alt.extraTax) + ' méér' + staart + '.';
+      } else {
+        tekst += ' Deze route kost ' + euro(best.totals.box2TaxHigh) + ' aan heffing tegen het hoge tarief.';
+        if (alt && !alt.exists) {
+          tekst += ' Binnen de maximale looptijd van ' + inp.maxYears +
+            ' jaar is er geen langere route die de schuld volledig aflost, dus verder spreiden is hier geen alternatief.';
+        }
+      }
     }
   }
 
@@ -4338,6 +4407,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 09:46</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 10:39</div>
 </body>
 </html>
