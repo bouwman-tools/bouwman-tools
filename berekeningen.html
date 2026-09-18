@@ -1548,21 +1548,32 @@ function revisierenteAfkoopLijfrente({
     }
   }
 
+  // De rente wordt per premiejaar op hele euro's naar beneden afgekapt en die
+  // bedragen worden opgeteld. Art. 30i en art. 30fc AWR schrijven geen
+  // afrondingsmoment voor; de eigenaar heeft op 17-09-2026 gekozen aan te sluiten
+  // bij het bronmodel en de rekenhulp van de Belastingdienst, die beide per jaar
+  // afronden. Gevolg: de bedragen per jaar in de uitkomsttabel tellen op tot het
+  // getoonde totaal. `somExact` blijft ernaast staan, zodat het verschil met de
+  // onafgeronde optelling zichtbaar en toetsbaar blijft.
   const regels = [];
   let somExact = 0;
+  let somAfgerond = 0;
   for (const p of gebruikt) {
     const grondslag = p.premie * REVISIERENTE_NAVORDERING_DEEL;
     const vanaf = { jaar: p.jaar + 1, maand: BELASTINGRENTE_STARTMAANDEN + 1 };
     const totEnMet = { jaar: jaarAfkoop, maand: 12 };
     const r = belastingrenteOverTijdvak({ grondslag, vanaf, totEnMet });
     if (r.fout) return { fout: r.fout };
+    const renteAfgerond = afrondOmlaagOpEuro(r.rente);
     regels.push({
       jaar: p.jaar, premie: p.premie, grondslag,
       vanaf: r.maanden ? vanaf : null,
       totEnMet: r.maanden ? totEnMet : null,
-      maanden: r.maanden, percentage: r.percentage, rente: r.rente
+      maanden: r.maanden, percentage: r.percentage,
+      rente: r.rente, renteAfgerond
     });
     somExact += r.rente;
+    somAfgerond += renteAfgerond;
   }
 
   if (!regels.length) {
@@ -1571,8 +1582,14 @@ function revisierenteAfkoopLijfrente({
       'bedrag waarop de tegenbewijsregeling kan worden gebaseerd.' });
   }
 
-  const route = somExact < hoofdregel ? 'tegenbewijs' : 'hoofdregel';
-  const laagste = Math.min(hoofdregel, somExact);
+  // Vergelijk de twee routes op de bedragen die werkelijk in rekening worden
+  // gebracht, dus beide afgerond. Vergelijken op een onafgerond tegenbewijs
+  // tegen een afgeronde hoofdregel zou in een grensgeval de verkeerde route
+  // kunnen aanwijzen.
+  const hoofdregelBedrag = afrondOmlaagOpEuro(hoofdregel);
+  const route = somAfgerond < hoofdregelBedrag ? 'tegenbewijs' : 'hoofdregel';
+  const laagsteBedrag = Math.min(hoofdregelBedrag, somAfgerond);
+  const laagsteExact = Math.min(hoofdregel, somExact);
   if (route === 'hoofdregel' && regels.length) {
     meldingen.push({ soort: 'let', tekst:
       'Het tegenbewijs komt hoger uit dan de 20 percent van de hoofdregel. Een verzoek ' +
@@ -1584,11 +1601,11 @@ function revisierenteAfkoopLijfrente({
     'en het lagere bedrag aannemelijk maken (art. 30i lid 3 AWR).' });
 
   return {
-    hoofdregelExact: hoofdregel, hoofdregelBedrag: afrondOmlaagOpEuro(hoofdregel),
-    tegenbewijsOpen: true, tegenbewijsExact: somExact, tegenbewijsBedrag: afrondOmlaagOpEuro(somExact),
-    revisierenteExact: laagste, revisierente: afrondOmlaagOpEuro(laagste),
+    hoofdregelExact: hoofdregel, hoofdregelBedrag,
+    tegenbewijsOpen: true, tegenbewijsExact: somExact, tegenbewijsBedrag: somAfgerond,
+    revisierenteExact: laagsteExact, revisierente: laagsteBedrag,
     route, negatieveUitgaven,
-    deelVanGrondslag: negatieveUitgaven > 0 ? laagste / negatieveUitgaven : 0,
+    deelVanGrondslag: negatieveUitgaven > 0 ? laagsteBedrag / negatieveUitgaven : 0,
     kleineAfkoop: false, afkoopgrens: afkoopgrens === undefined ? null : afkoopgrens,
     saldoVermindering, saldoBegrensd, grondslagBox1: negatieveUitgaven,
     regels, meldingen
@@ -2511,7 +2528,7 @@ const ONDERWERPEN = [
     rijen: r.regels.map(x => [
       x.jaar, euro(x.premie), euro(x.grondslag),
       x.vanaf ? '1-' + x.vanaf.maand + '-' + x.vanaf.jaar + ' t/m 31-12-' + x.totEnMet.jaar : 'geen tijdvak',
-      x.maanden, procent(x.percentage, 4), euro(x.rente)
+      x.maanden, procent(x.percentage, 4), euro(x.renteAfgerond)
     ])
   } : null
 }
