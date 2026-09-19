@@ -26,7 +26,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | BankBridge | `/bankbridge.html` | Sylvainbouwman/BankBridge | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
-| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | 2026-09-16 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Bewaarplicht Checker | `/bewaarplicht.html` | bouwman-tools/bewaarplicht-checker | ja | 2026-09-16 | Sylvain Bouwman | belastingplan | 2026-09-16 |
 
 - **BankBridge**: Zet bankafschriften lokaal in de browser om naar MT940 en CAMT.053, met validatie voor export.
 - **Bewaarplicht Checker**: Toont bewaartermijnen per documenttype voor administratie, personeel en accountantsdossiers en berekent de einddatum met toepasselijke uitzonderingen
