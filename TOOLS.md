@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-18
+Bijgewerkt: 2026-09-19
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -19,7 +19,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 - **Auditfile App**: Analyseert XAF-auditfiles en exporteert gestructureerde overzichten per grootboekrekening of kostensoort
 - **Jaarrekening review**: Toetst een jaarrekening aan de kantoorstandaard voordat die naar de klant gaat
-- **XAF Raw Export**: Verwerkt XAF-auditfiles (3.2 en 4.0) naar Excel of CSV, volledig in de browser, ook bij bestanden van 700 MB en groter
+- **XAF Raw Export**: Verwerkt XAF-auditfiles (3.1, 3.2 en 4.0) naar Excel of CSV met een aansluitcheck en een kolommenbalans, volledig in de browser, ook bij bestanden van 700 MB en groter
 
 ## Administratie & Archief
 
@@ -50,7 +50,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-16 |
 
-- **Auto Fiscaal 2027**: Brengt de grote autowijzigingen per 1 januari 2027 samen: eindheffing, youngtimer-bijtelling en RDW-kentekenlookup
+- **Auto Fiscaal 2027**: Rekent de grote autowijzigingen per 1 januari 2027 door: eindheffing, youngtimer-bijtelling, bijtellingscontrole 2024 tot en met 2028 en RDW-kentekenlookup
 - **Auto van de Zaak**: Rekent door of een auto op de zaak of privé fiscaal gunstiger uitpakt
 
 ## BTW & Omzetbelasting
@@ -76,7 +76,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🔵 concept | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
@@ -88,7 +88,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Dividendscenario's**: Dividendscenario's voor de dga: scenariovergelijking en spreiding over jaren
 - **Earningsstripping**: Rekent de renteaftrekbeperking van art. 15b Wet Vpb door: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
 - **Gebruikelijk loon**: Toetst het DGA-loon aan de wettelijke norm: vergelijkingsloon, hoogste werknemer en afroommethode
-- **Herstructurering**: Rekent herstructureringstrajecten stap voor stap door en adviseert met AI
+- **Herstructurering**: Loopt herstructureringstrajecten stap voor stap langs en adviseert met AI
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
 - **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
