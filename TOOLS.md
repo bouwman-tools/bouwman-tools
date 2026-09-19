@@ -57,7 +57,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
+| 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-17 |
 | 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
 
@@ -107,13 +107,21 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
+| 🔵 concept | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
 
+- **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
+- **Eigen woning**: Volgt de eigen woning en de eigenwoningschuld per jaar: marktwaarde en waardeontwikkeling, eigenwoningforfait volgens de staffel, schuld en overwaarde, de verdeling over box 1 en box 3, en tot welk jaar de rente aftrekbaar is
+- **Familiebank**: Rekent een annuïtaire lening van een ouder aan een kind voor de eigen woning door: het aflosschema, de toets aan de aflossingseis van artikel 3.119c Wet IB 2001, het belastingeffect van de renteaftrek bij het kind en de jaarlijkse schenking getoetst aan de vrijstelling
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
 - **Hypotheek in BV**: Zet de bankhypotheek doorlopen, oversluiten naar de eigen BV en aflossen over een jaar naast elkaar, met box 1, box 2 en box 3, de toets op excessief lenen en de kwalificatie als eigenwoningschuld
 - **Tijdplan**: Zet leeftijden en mutatiemomenten van een gezin op een tijdlijn en rekent uit in welk jaar een leeftijd valt
+- **WW-uitkering**: Berekent de duur en de hoogte van een WW-uitkering op de eerste werkloosheidsdag: de opbouw uit fictief en feitelijk arbeidsverleden binnen de wettelijke ondergrens van drie en bovengrens van 24 maanden, en de uitkering per kalendermaand tegen 75 procent over de eerste twee maanden en 70 procent daarna, met het dagloon gemaximeerd op het maximumdagloon
 
 ## Kantoor
 
