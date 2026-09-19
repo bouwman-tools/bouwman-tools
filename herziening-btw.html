@@ -531,6 +531,12 @@ const SOORTEN = {
 // belasting. Dat is dus tien procent van het afgetrokken bedrag en niet tien procentpunt in het
 // gebruik.
 const MARGE = 0.10;
+// Bandbreedte waarbinnen de tool waarschuwt dat de samenhang tussen deelopdrachten telt bij de
+// drempel voor een investeringsdienst. Zelfgekozen en geen wettelijke grens: wet, beschikking en
+// het besluit van 20-08-2026 zeggen geen van drieën hoe je omgaat met een verbouwing die uit
+// meerdere deelopdrachten of facturen bestaat. De tool neemt daarover dus geen standpunt in en
+// waarschuwt alleen dat het een beoordeling per geval is. Besluit van Sylvain, 19-09-2026.
+const BAND_DREMPEL = 0.25;
 
 function regimeVoor(boekjaar) {
   if (!Number.isInteger(boekjaar)) return null;
@@ -540,6 +546,12 @@ function regimeVoor(boekjaar) {
   return null;
 }
 
+// Afronden op hele centen vóór elke vergelijking. Dit is een keuze en geen wettekst, en zij is
+// op 19-09-2026 door Sylvain bevestigd en daarmee vastgelegd. De reden: zonder die afronding
+// beslist het rekengedrag van de machine over een grensgeval. Het bronmodel deed dat en zat er
+// daardoor naast: Excel concludeerde dat 500,0000000000009 groter is dan 500,0000000000001 en
+// herzag € 500, negen boekjaren lang, dus € 4.500 aan aftrek die er niet was. Niet wijzigen
+// zonder de margetoets opnieuw tegen die gevallen te draaien.
 function afrondenCent(bedrag) {
   return Math.round((bedrag + Number.EPSILON) * 100) / 100;
 }
@@ -591,7 +603,10 @@ function controleerInvoer(invoer) {
     } else if (invoer.vergoeding < regime.drempelInvesteringsdienst) {
       fouten.push(
         'De vergoeding is lager dan € ' + regime.drempelInvesteringsdienst +
-        '. Dan is er geen investeringsdienst en wordt niet herzien.'
+        '. Dan is er geen investeringsdienst en wordt niet herzien. Let op: bestaat het werk uit ' +
+        'meerdere deelopdrachten of facturen die samenhangen, beoordeel dan eerst of zij samen ' +
+        'één investeringsdienst vormen. In dat geval kan de drempel alsnog worden gehaald. Wet, ' +
+        'beschikking en besluit geven daar geen maatstaf voor; dat is een beoordeling per geval.'
       );
     }
   }
@@ -809,11 +824,17 @@ function berekenHerziening(invoer) {
   // gecorrigeerd.
   // De tienprocentsmarge van artikel 13 lid 4 speelt hier niet: die hoort bij de herziening
   // in de volgende boekjaren.
-  const pBestemming = (invoer.aftrekpercentageBestemming === null || invoer.aftrekpercentageBestemming === undefined)
-    ? pStart
-    : invoer.aftrekpercentageBestemming;
+  // Laat de gebruiker het veld leeg, dan neemt de tool aan dat er precies naar het gebruik in
+  // het eerste boekjaar is afgetrokken, zodat de correctie nul is. Dat is dezelfde aanname als
+  // het bronmodel. Besluit van Sylvain, 19-09-2026: die aanname blijft staan en het veld wordt
+  // niet verplicht, want wie het niet weet zou dan niets meer kunnen berekenen. Wel moet zij
+  // zichtbaar zijn in de uitkomst, ook op de afdruk, in plaats van stil te blijven.
+  const bestemmingAangenomen = invoer.aftrekpercentageBestemming === null ||
+    invoer.aftrekpercentageBestemming === undefined;
+  const pBestemming = bestemmingAangenomen ? pStart : invoer.aftrekpercentageBestemming;
   const ingebruikneming = {
     boekjaar: eersteJaar,
+    aangenomen: bestemmingAangenomen,
     percentageBestemming: pBestemming,
     percentageGebruik: pStart,
     afgetrokkenNaarBestemming: afrondenCent(btw * pBestemming),
@@ -871,6 +892,17 @@ function berekenHerziening(invoer) {
         'dat boekjaar in om het mee te nemen.'
       );
     }
+  }
+
+  if (invoer.soort === 'investeringsdienst' && regime.drempelInvesteringsdienst !== null &&
+      Number.isFinite(invoer.vergoeding) &&
+      invoer.vergoeding <= regime.drempelInvesteringsdienst * (1 + BAND_DREMPEL)) {
+    meldingen.push(
+      'De vergoeding ligt dicht bij de drempel van € ' + regime.drempelInvesteringsdienst +
+      '. Bestaat het werk uit meerdere deelopdrachten of facturen, beoordeel dan of zij samen ' +
+      'één investeringsdienst vormen: dat bepaalt of de drempel wordt gehaald. Wet, beschikking ' +
+      'en besluit geven daar geen maatstaf voor, dus de tool neemt hierover geen standpunt in.'
+    );
   }
 
   const totaalHerzieningsjaren = afrondenCent(
@@ -1013,13 +1045,23 @@ function toonUitkomst(resultaat) {
 
   html += '<h3>Bij ingebruikneming in ' + resultaat.ingebruikneming.boekjaar + '</h3>';
   html += '<table><tbody>';
-  html += '<tr><td>Afgetrokken naar bestemming (' + procent(resultaat.ingebruikneming.percentageBestemming) + ')</td>' +
+  html += '<tr><td>Afgetrokken naar bestemming (' + procent(resultaat.ingebruikneming.percentageBestemming) + ')' +
+    (resultaat.ingebruikneming.aangenomen ? ' <strong>— aangenomen</strong>' : '') + '</td>' +
     '<td class="getal">' + euro(resultaat.ingebruikneming.afgetrokkenNaarBestemming) + '</td></tr>';
   html += '<tr><td>Aftrekbaar op basis van het gebruik in dit boekjaar (' + procent(resultaat.ingebruikneming.percentageGebruik) + ')</td>' +
     '<td class="getal">' + euro(resultaat.ingebruikneming.aftrekbaarNaarGebruik) + '</td></tr>';
   html += '<tr class="som"><td>Correctie bij ingebruikneming, ' + richting(resultaat.ingebruikneming.bedrag) + '</td>' +
     '<td class="getal">' + euro(resultaat.ingebruikneming.bedrag) + '</td></tr>';
   html += '</tbody></table>';
+  if (resultaat.ingebruikneming.aangenomen) {
+    html += '<div class="melding let-op"><strong>Let op: de aftrek naar bestemming is niet ' +
+      'ingevuld.</strong> De tool neemt daarom aan dat er bij de factuur precies naar het gebruik ' +
+      'in boekjaar ' + resultaat.ingebruikneming.boekjaar + ' is afgetrokken, zodat de correctie ' +
+      'bij ingebruikneming nul is. Dat is dezelfde aanname als het rekenmodel dat deze tool ' +
+      'vervangt. Week de bestemming daarvan af, vul haar dan in: die correctie loopt over de ' +
+      'volle voorbelasting en zonder tienprocentsmarge, en is vaak het grootste bedrag van het ' +
+      'dossier.</div>';
+  }
   html += '<p class="hint">Artikel 15 lid 4 Wet OB 1968 met artikel 12 lid 2 en 3 ' +
     'Uitvoeringsbeschikking OB 1968. De tienprocentsmarge geldt hier niet; die hoort bij de ' +
     'herziening in de volgende boekjaren.</p>';
