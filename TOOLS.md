@@ -47,7 +47,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Auto Fiscaal 2027 | `/auto-fiscaal-2027.html` | bouwman-tools/auto-fiscaal-2027 | ja | 2026-08-31 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | Auto van de Zaak | `/join-auto-rekenmodel.html` | bouwman-tools/auto-van-de-zaak | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-16 |
 
 - **Auto Fiscaal 2027**: Rekent de grote autowijzigingen per 1 januari 2027 door: eindheffing, youngtimer-bijtelling, bijtellingscontrole 2024 tot en met 2028 en RDW-kentekenlookup
