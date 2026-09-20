@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-19
+Bijgewerkt: 2026-09-20
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -36,7 +36,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟡 beta | DBA Risicoscan | `https://dba-risicoscan.streamlit.app/` | Sylvainbouwman/dba-risicoscan | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Transitievergoeding | `/transitievergoeding.html` | bouwman-tools/transitievergoeding | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | Werkgeversverklaring NHG | `/nhg-werkgeversverklaring-wizard.html` | bouwman-tools/Werkgeversverklaring | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **DBA Risicoscan**: Beoordeelt de arbeidsrelatie indicatief aan de negen gezichtspunten uit het Deliveroo/Uber-arrest
@@ -58,8 +58,8 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-17 |
-| 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
+| 🟡 beta | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
 - **BTW Teruggaaf EU**: Toont per EU-land de voorwaarden voor een btw-teruggaafverzoek, waaronder factuurvereisten, minimumbedragen, talen en indienen via een derde
 - **BUA en kantineregeling**: Berekent de uitsluiting van btw-aftrek voor personeelsvoorzieningen, de kantine en relatiegeschenken, met de drempel per begunstigde
@@ -72,9 +72,9 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟡 beta | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-08 |
 | 🔵 concept | DCF-rekenmodel | `/dcf-rekentool.html` | bouwman-tools/dcf-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
-| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-20 |
+| 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
+| 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟡 beta | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
@@ -112,7 +112,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🔵 concept | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
-| 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🔵 concept | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
@@ -164,7 +164,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟡 beta | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
