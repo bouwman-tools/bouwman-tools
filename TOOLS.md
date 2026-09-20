@@ -147,7 +147,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **Berekeningen**: Rekent zeventien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente
