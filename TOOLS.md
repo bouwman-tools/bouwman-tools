@@ -113,7 +113,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-20 |
-| 🔵 concept | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | **nee** | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
 - **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
 - **Eigen woning**: Volgt de eigen woning en de eigenwoningschuld per jaar: marktwaarde en waardeontwikkeling, eigenwoningforfait volgens de staffel, schuld en overwaarde, de verdeling over box 1 en box 3, en tot welk jaar de rente aftrekbaar is
