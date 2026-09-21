@@ -114,6 +114,38 @@ details.uitleg p{margin:6px 0}
 .klein{font-size:12px; color:var(--gedempt)}
 .legenda{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--gedempt); margin-bottom:8px}
 .legenda span.staal{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:5px; vertical-align:-1px; border:1px solid var(--lijn-zwaar)}
+/* --- het dossierstuk: op het scherm verborgen, op papier het enige wat er staat ---
+   Er is bewust geen tweede afdrukpagina. Het blok hieronder wordt gevuld uit
+   dossiergegevens(), dezelfde functie die de Excel-export vult, en die leest de
+   uitkomst die ook het scherm toont. */
+#dossierstuk{display:none}
+@media print{
+  :root{--vlak-2:#fff; --vlak-3:#fff; --accent-zacht:#fff}
+  body{background:#fff}
+  header.kop, main, .noprint{display:none !important}
+  #dossierstuk{display:block; padding:0; font-size:11px}
+  #dossierstuk h1{font-size:16px; margin:0 0 2px}
+  #dossierstuk h2{
+    font-size:12.5px; margin:14px 0 5px; padding:0 0 3px;
+    border-bottom:1px solid var(--lijn-zwaar); break-after:avoid;
+  }
+  #dossierstuk table.cijfers{font-size:10px; break-inside:auto}
+  #dossierstuk table.cijfers tr{break-inside:avoid}
+  #dossierstuk table.cijfers th,#dossierstuk table.cijfers td{padding:2px 5px}
+  #dossierstuk table.cijfers th.regel,#dossierstuk table.cijfers td.regel{min-width:0}
+  /* Op het scherm mag een tabel breder zijn dan het venster en horizontaal schuiven;
+     op papier kan dat niet en zou een vindplaats worden afgeknipt. Daarom breken de
+     cellen hier wel af. Gemeten: zonder deze regel loopt de tabel met de bronnen tot
+     1250 px terwijl er op A4 liggend met 12 mm marge 1032 px past. */
+  #dossierstuk table.cijfers td,#dossierstuk table.cijfers th{
+    white-space:normal; overflow-wrap:anywhere;
+  }
+  #dossierstuk .scroll{overflow:visible}
+  #dossierstuk ul{margin:4px 0; padding-left:18px}
+  #dossierstuk li{margin-bottom:2px}
+  #dossierstuk .voet{margin-top:12px; border-top:1px solid var(--lijn); padding-top:5px}
+  @page{size:A4 landscape; margin:12mm}
+}
 </style>
 </head>
 <body>
@@ -132,6 +164,12 @@ details.uitleg p{margin:6px 0}
         <option value="miljoen">miljoenen euro's</option>
       </select>
     </label>
+    <label class="veld" style="min-width:190px">
+      <span class="naam">Kenmerk of klantnaam</span>
+      <input type="text" id="kenmerk" placeholder="staat op het dossierstuk">
+    </label>
+    <button type="button" class="actie" id="knop-afdrukken">Dossierstuk afdrukken</button>
+    <button type="button" class="actie" id="knop-excel">Excel-export</button>
     <button type="button" class="actie" id="knop-opslaan">Casus opslaan</button>
     <button type="button" class="actie" id="knop-laden">Casus laden</button>
     <input type="file" id="bestand-laden" accept="application/json" class="verborgen">
@@ -232,6 +270,8 @@ details.uitleg p{margin:6px 0}
     </div>
   </section>
 </main>
+
+<section id="dossierstuk"></section>
 
 <script>
 // FISCALE KERN — BEGIN
@@ -1836,6 +1876,8 @@ function bereken(invoer) {
 var VANDAAG = new Date().toISOString().slice(0, 10);
 
 var staat = {
+  // Staat op het dossierstuk en in de bestandsnaam van de Excel-export.
+  kenmerk: '',
   modus: 'eenvoudig',
   eenheid: 'euro',
   moment: 'ultimo',
@@ -1980,6 +2022,7 @@ function zet(pad, waarde) {
 // type: bedrag (in de gekozen notatie), pct (invoer in procenten), getal, int,
 // dagen, keuze, tekst, aanvinken.
 function bouwVeld(def) {
+  onthoudVeld(def);
   var wrap = maak('label', 'veld');
   wrap.appendChild(maak('span', 'naam', def.etiket));
   var el;
@@ -3475,6 +3518,7 @@ function tekenAlles() {
     $('#eenheid').value = staat.eenheid;
 
     pasLengtesAan();
+    $('#kenmerk').value = staat.kenmerk || '';
     tekenAlgemeen();
     tekenEis();
     tekenBrug();
@@ -3518,9 +3562,871 @@ function tekenAlles() {
   }
 }
 
-/* --- casus opslaan en terugladen ----------------------------------------- */
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
 
-var BESTANDSVERSIE = 1;
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+/* --- de drie uitgangen: dossierstuk, Excel-export en casusbestand ---------
+   Er is één plek waar de inhoud van een uitgang wordt bepaald: dossiergegevens().
+   Het afdrukblok en de Excel-export lezen allebei die ene structuur, zodat papier
+   en werkblad niet uit elkaar kunnen lopen. Geen van beide rekent zelf: de
+   uitkomst komt uit hetzelfde uitkomst-object dat het scherm toont.
+   ------------------------------------------------------------------------ */
+
+// Versiestempel van de tool. Staat op het dossierstuk en in de Excel-export, zodat
+// een afdruk uit de klantmap later aan een versie is te koppelen. Verhoog hem bij
+// elke inhoudelijke wijziging van de rekenkern of van een fiscale waarde.
+var TOOLVERSIE = '2026-09-21';
+var TOOLNAAM = 'DCF-rekentool';
+
+// Etiketten en typen van de invoervelden. bouwVeld() vult dit met wat er werkelijk
+// op het scherm staat; DOSSIERVELDEN hieronder dekt de velden die de generieke
+// veldbouwer nooit tekent (de modusknoppen, de jaarreeksen, het raster) en dient
+// als terugval voor een paneel dat in deze modus niet is getekend. Een test toetst
+// dat elk veld in de beginstaat langs een van beide een etiket en een type krijgt.
+var VELDREGISTER = {};
+
+function onthoudVeld(def) {
+  if (!def || !def.pad) return;
+  VELDREGISTER[def.pad] = { etiket: def.etiket, type: def.type || 'getal', opties: def.opties };
+}
+
+var DOSSIERVELDEN = (function () {
+  var v = {
+    'kenmerk': { etiket: 'Kenmerk of klantnaam', type: 'tekst' },
+    'modus': { etiket: 'Modus', type: 'keuze', opties: [
+      { waarde: 'eenvoudig', etiket: 'snelle scan' },
+      { waarde: 'uitgebreid', etiket: 'uitgebreid' }] },
+    'eenheid': { etiket: 'Bedragen in', type: 'keuze', opties: Object.keys(EENHEDEN).map(function (k) {
+      return { waarde: k, etiket: EENHEDEN[k].etiket }; }) },
+    'moment': { etiket: 'Moment van de kasstroom', type: 'keuze', opties: [
+      { waarde: 'ultimo', etiket: 'einde van het jaar' },
+      { waarde: 'midden', etiket: 'halverwege het jaar' }] },
+    'methode': { etiket: 'Waarderingsmethode', type: 'keuze', opties: [
+      { waarde: 'dcfm', etiket: 'DCFM, constante gewogen kostenvoet' },
+      { waarde: 'apv', etiket: 'APV, tax shield afzonderlijk' }] },
+    'afkappenNaJaren': { etiket: 'Restwaarde afkappen na (jaren)', type: 'int' },
+    'iteratief': { etiket: 'Vermogensverhouding op marktwaarde bepalen (iteratief)',
+                   type: 'aanvinken' },
+    'algemeen.eersteJaar': { etiket: 'Eerste prognosejaar', type: 'int' },
+    'algemeen.aantalJaren': { etiket: 'Aantal prognosejaren', type: 'int' },
+    'algemeen.inflatie': { etiket: 'Groei in de restperiode', type: 'pct' },
+    'eenvoudig.bedrijfsresultaatBasis': { etiket: 'Bruto bedrijfsresultaat referentiejaar',
+                                          type: 'bedrag' },
+    'eenvoudig.groeiPerJaar': { etiket: 'Groei bedrijfsresultaat', type: 'pct', perJaar: true },
+    'eenvoudig.werkkapitaalNiveau': { etiket: 'Netto werkkapitaal', type: 'bedrag' },
+    'eenvoudig.afschrijvingen': { etiket: 'Afschrijvingen', type: 'bedrag', perJaar: true },
+    'eenvoudig.investeringen': { etiket: 'Investeringen', type: 'bedrag', perJaar: true },
+    'eenvoudig.investeringenGelijkAanAfschrijvingen':
+      { etiket: 'Investeringen gelijk aan afschrijvingen', type: 'aanvinken' },
+    'eenvoudig.verliesverrekening': { etiket: 'Voorwaartse verliesverrekening toepassen',
+                                      type: 'aanvinken' },
+    'eenvoudig.beginvoorraadVerlies': { etiket: 'Nog te verrekenen verlies', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.eersteJaar': { etiket: 'Eerste prognosejaar', type: 'int' },
+    'uitgebreid.uitgangspunten.aantalPrognosejaren': { etiket: 'Aantal prognosejaren', type: 'int' },
+    'uitgebreid.uitgangspunten.beginOmzet': { etiket: 'Omzet laatste realisatiejaar, groep',
+                                              type: 'bedrag', perGroep: true },
+    'uitgebreid.uitgangspunten.omzetgroei': { etiket: 'Omzetgroei groep', type: 'pct',
+                                              perGroep: true },
+    'uitgebreid.uitgangspunten.brutomarge': { etiket: 'Brutomarge groep', type: 'pct',
+                                              perGroep: true },
+    'uitgebreid.uitgangspunten.arbeidsquote': { etiket: 'Arbeidsquote van de brutomarge',
+                                                type: 'pct' },
+    'uitgebreid.uitgangspunten.indexatie': { etiket: 'Indexatie kostenblokken', type: 'pct' },
+    'uitgebreid.uitgangspunten.beginHuisvesting':
+      { etiket: 'Huisvestingskosten, laatste realisatiejaar', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.beginOverigeKosten':
+      { etiket: 'Overige kosten, laatste realisatiejaar', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.beginMva': { etiket: 'Materiële vaste activa, openingsstand',
+                                            type: 'bedrag' },
+    'uitgebreid.uitgangspunten.beginInvestering': { etiket: 'Investering eerste prognosejaar',
+                                                    type: 'bedrag' },
+    'uitgebreid.uitgangspunten.afschrijvingspercentage': { etiket: 'Afschrijvingspercentage',
+                                                           type: 'pct' },
+    'uitgebreid.uitgangspunten.voorraaddagen': { etiket: 'Voorraaddagen', type: 'getal' },
+    'uitgebreid.uitgangspunten.ohwDagen': { etiket: 'Onderhanden werk in dagen', type: 'getal' },
+    'uitgebreid.uitgangspunten.debiteurendagen': { etiket: 'Debiteurendagen', type: 'getal' },
+    'uitgebreid.uitgangspunten.crediteurendagen': { etiket: 'Crediteurendagen', type: 'getal' },
+    'uitgebreid.uitgangspunten.beginOverigeVorderingen':
+      { etiket: 'Overige vorderingen, openingsstand', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.beginOverigeSchulden':
+      { etiket: 'Overige schulden, openingsstand', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.btwTarief': { etiket: 'Omzetbelastingtarief', type: 'pct' },
+    'uitgebreid.uitgangspunten.btwTijdvak': { etiket: 'Aangiftetijdvak omzetbelasting',
+      type: 'keuze', opties: Object.keys(BTW_TIJDVAKKEN).map(function (k) {
+        return { waarde: k, etiket: BTW_TIJDVAKKEN[k].etiket }; }) },
+    'uitgebreid.uitgangspunten.beginRentedragendeSchuld':
+      { etiket: 'Rentedragende schuld, openingsstand', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.aflossingPerJaar': { etiket: 'Aflossing per jaar', type: 'bedrag' },
+    'uitgebreid.uitgangspunten.rentepercentage': { etiket: 'Rentepercentage', type: 'pct' },
+    'uitgebreid.uitgangspunten.beginWerkkapitaal': { etiket: 'Netto werkkapitaal, openingsstand',
+                                                     type: 'bedrag' },
+    'uitgebreid.uitgangspunten.groeiRestperiode': { etiket: 'Groei in de restperiode', type: 'pct' },
+    'uitgebreid.uitgangspunten.verliesverrekening':
+      { etiket: 'Voorwaartse verliesverrekening toepassen', type: 'aanvinken' },
+    'uitgebreid.uitgangspunten.beginvoorraadVerlies': { etiket: 'Nog te verrekenen verlies',
+                                                        type: 'bedrag' },
+    'eis.route': { etiket: 'Route van de rendementseis', type: 'keuze', opties: [
+      { waarde: 'buildup', etiket: 'eigen build-up' },
+      { waarde: 'referentie', etiket: 'referentie-invoer' },
+      { waarde: 'direct', etiket: 'directe invoer' }] },
+    'eis.risicovrijeVoet': { etiket: 'Risicovrije voet', type: 'pct' },
+    'eis.marktrisicopremie': { etiket: 'Marktrisicopremie', type: 'pct' },
+    'eis.betaUnlevered': { etiket: 'Unlevered beta', type: 'getal' },
+    'eis.vvAandeel': { etiket: 'Aandeel vreemd vermogen', type: 'pct' },
+    'eis.branche': { etiket: 'Vermogensverhouding', type: 'keuze',
+      opties: BRANCHE_VV.waarden.map(function (b) {
+        return { waarde: b.sleutel, etiket: b.etiket }; })
+        .concat([{ waarde: 'eigen', etiket: 'eigen verhouding invoeren' }]) },
+    'eis.kostenvoetVreemdVermogen': { etiket: 'Rente vreemd vermogen', type: 'pct' },
+    'eis.leningklasse': { etiket: 'Kostenvoet vreemd vermogen', type: 'keuze',
+      opties: MARKT.kostenvoetVreemdVermogen.klassen.map(function (k) {
+        return { waarde: k.sleutel, etiket: k.etiket }; })
+        .concat([{ waarde: 'eigen', etiket: 'eigen percentage invoeren' }]) },
+    'eis.opslagKleinschaligheid': { etiket: 'Opslag kleinschaligheid', type: 'pct' },
+    'eis.opslagBedrijfsspecifiek': { etiket: 'Bedrijfsspecifieke opslag', type: 'pct' },
+    'eis.opslagOverig': { etiket: 'Overige opslag', type: 'pct' },
+    'eis.onder': { etiket: 'Ondergrens van het interval', type: 'pct' },
+    'eis.midden': { etiket: 'Middenwaarde', type: 'pct' },
+    'eis.boven': { etiket: 'Bovengrens van het interval', type: 'pct' },
+    'eis.gekozen': { etiket: 'Gekozen rendementseis', type: 'pct' },
+    'eis.bronVindplaats': { etiket: 'Vindplaats van de bron', type: 'tekst' },
+    'eis.bronVersie': { etiket: 'Versie of editie', type: 'tekst' },
+    'eis.bronPeildatum': { etiket: 'Peildatum (jjjj-mm-dd)', type: 'tekst' },
+    'eis.kostenvoetEigenVermogen': { etiket: 'Rendementseis eigen vermogen', type: 'pct' },
+    'eis.onderbouwing': { etiket: 'Onderbouwing', type: 'tekst' },
+    'aanvullend.activadealAan': { etiket: 'Activadeal doorrekenen', type: 'aanvinken' },
+    'aanvullend.verdelingGebouw': { etiket: 'Deel koopsom: gebouw', type: 'pct' },
+    'aanvullend.verdelingOverigeActiva': { etiket: 'Deel koopsom: overige activa', type: 'pct' },
+    'aanvullend.verdelingGoodwill': { etiket: 'Deel koopsom: goodwill', type: 'pct' },
+    'aanvullend.termijnGebouw': { etiket: 'Afschrijvingstermijn gebouw', type: 'int' },
+    'aanvullend.termijnOverigeActiva': { etiket: 'Afschrijvingstermijn overige activa',
+                                         type: 'int' },
+    'aanvullend.termijnGoodwill': { etiket: 'Afschrijvingstermijn goodwill', type: 'int' },
+    'aanvullend.wozBodemwaarde': { etiket: 'WOZ-bodemwaarde van het gebouw', type: 'bedrag' },
+    'aanvullend.illiquiditeitsopslag': { etiket: 'Illiquiditeitsopslag', type: 'pct' },
+    'aanvullend.vasteTransactiekosten': { etiket: 'Vaste transactiekosten', type: 'bedrag' },
+    'aanvullend.normMaxNettoSchuldEbitda': { etiket: 'Norm: netto schuld / EBITDA',
+                                             type: 'getal' },
+    'aanvullend.normMinDscr': { etiket: 'Norm: dekking rente en aflossing', type: 'getal' },
+    'aanvullend.normMinSolvabiliteit': { etiket: 'Norm: solvabiliteit na financiering',
+                                         type: 'pct' },
+    'aanvullend.normTerugverdientermijn': { etiket: 'Norm: terugverdientermijn (jaren)',
+                                            type: 'int' }
+  };
+  BRUGPOSTEN.forEach(function (p) {
+    v['brug.' + p.sleutel] = { etiket: p.etiket, type: 'bedrag' };
+  });
+  Object.keys(RASTERREGELS).forEach(function (groep) {
+    RASTERREGELS[groep].forEach(function (r) {
+      v['uitgebreid.regels.' + r.sleutel] = { etiket: r.etiket, type: r.type, perJaar: true };
+    });
+  });
+  return v;
+})();
+
+// De tabbladkeuze is geen invoer van de casus: zij bepaalt alleen wat er op het
+// scherm zichtbaar is. Het kenmerk en de notatie staan al in het kopblok Casus;
+// die nog een keer in de invoerlijst zetten levert alleen een dubbele regel op.
+var DOSSIER_OVERSLAAN = { uittab: true, invtab: true, kenmerk: true, eenheid: true };
+
+function eersteJaarVanModus() {
+  return staat.modus === 'uitgebreid'
+    ? staat.uitgebreid.uitgangspunten.eersteJaar : staat.algemeen.eersteJaar;
+}
+
+// Zoekt bij een pad het etiket en het type. Een pad dat op een index eindigt hoort
+// bij een reeks: dan telt de basis, met het jaar of de groep achter het etiket.
+function veldInfo(pad) {
+  var direct = VELDREGISTER[pad] || DOSSIERVELDEN[pad];
+  if (direct) return { etiket: direct.etiket, type: direct.type, opties: direct.opties };
+  var knip = pad.lastIndexOf('.');
+  if (knip === -1) return null;
+  var basis = pad.slice(0, knip), staart = pad.slice(knip + 1);
+  if (!/^\d+$/.test(staart)) return null;
+  var reeks = DOSSIERVELDEN[basis] || VELDREGISTER[basis];
+  if (!reeks) return null;
+  var index = Number(staart);
+  var achter = reeks.perGroep ? ' ' + String.fromCharCode(65 + index)
+    : reeks.perJaar ? ' ' + (eersteJaarVanModus() + index)
+    : ' (' + (index + 1) + ')';
+  return { etiket: reeks.etiket + achter, type: reeks.type, opties: reeks.opties };
+}
+
+// Loopt een tak van de staat af en levert per bladwaarde één regel op. Alles wat
+// invoer is komt zo op het dossierstuk terecht, ook een veld dat op zijn
+// standaardwaarde is blijven staan; juist dat verklaart later een verschil.
+function invoerregelsVan(tak, voorvoegsel, uit) {
+  Object.keys(tak).forEach(function (sleutel) {
+    var pad = voorvoegsel ? voorvoegsel + '.' + sleutel : sleutel;
+    if (!voorvoegsel && DOSSIER_OVERSLAAN[sleutel]) return;
+    var w = tak[sleutel];
+    if (w !== null && typeof w === 'object') {
+      invoerregelsVan(w, pad, uit);
+      return;
+    }
+    var info = veldInfo(pad);
+    uit.push({
+      pad: pad,
+      etiket: info ? info.etiket : pad,
+      bekend: !!info,
+      cel: celVoorWaarde(w, info ? info.type : 'tekst', info ? info.opties : null)
+    });
+  });
+  return uit;
+}
+
+// Eén cel: de waarde plus wat zij is. De twee uitgangen maken er ieder hun eigen
+// vorm van; de waarde zelf wordt maar op één plek bepaald.
+function celVoorWaarde(w, type, opties) {
+  if (w === null || w === undefined || w === '') return { soort: 'leeg' };
+  if (type === 'aanvinken' || typeof w === 'boolean') {
+    return { soort: 'tekst', tekst: w ? 'ja' : 'nee' };
+  }
+  if (type === 'keuze') {
+    var gevonden = (opties || []).filter(function (o) { return o.waarde === w; })[0];
+    return { soort: 'tekst', tekst: gevonden ? gevonden.etiket : String(w) };
+  }
+  if (type === 'bedrag' && isGetal(w)) return { soort: 'bedrag', getal: w };
+  if (type === 'pct' && isGetal(w)) return { soort: 'pct', getal: w };
+  if (isGetal(w)) return { soort: 'getal', getal: w, decimalen: type === 'int' ? 0 : 2 };
+  return { soort: 'tekst', tekst: String(w) };
+}
+
+function celBedrag(euro) {
+  return isGetal(euro) ? { soort: 'bedrag', getal: euro } : { soort: 'leeg' };
+}
+function celPct(deel, d) {
+  return isGetal(deel) ? { soort: 'pct', getal: deel, decimalen: d } : { soort: 'leeg' };
+}
+function celGetalCel(x, d) {
+  return isGetal(x) ? { soort: 'getal', getal: x, decimalen: isGetal(d) ? d : 2 } : { soort: 'leeg' };
+}
+function celTekstCel(t) {
+  return { soort: 'tekst', tekst: t === null || t === undefined ? '' : String(t) };
+}
+
+/* De enige plek waar de inhoud van een uitgang wordt bepaald. -------------- */
+
+function dossiergegevens(uitkomst, iteratie) {
+  var u = uitkomst;
+  var eenheid = EENHEDEN[staat.eenheid];
+  var secties = [];
+
+  secties.push({
+    titel: 'Casus',
+    kop: ['Gegeven', 'Waarde'],
+    rijen: [
+      [celTekstCel('Kenmerk of klantnaam'), celTekstCel(staat.kenmerk || '(niet ingevuld)')],
+      [celTekstCel('Datum van dit stuk'), celTekstCel(nederlandseDatum(VANDAAG))],
+      [celTekstCel('Tool'), celTekstCel(TOOLNAAM + ', versie ' + TOOLVERSIE)],
+      [celTekstCel('Bestandsformaat casus'), celTekstCel('versie ' + BESTANDSVERSIE)],
+      [celTekstCel('Bedragen in'), celTekstCel(eenheid.etiket)]
+    ]
+  });
+
+  // Invoer. De tak van de modus die niet meerekent staat apart, zodat op het stuk
+  // te zien is welke waarden de uitkomst dragen en welke alleen zijn bewaard.
+  var actief = [], slapend = [];
+  invoerregelsVan(staat, '', actief);
+  var slapendeTak = staat.modus === 'uitgebreid' ? 'eenvoudig' : 'uitgebreid';
+  actief = actief.filter(function (r) {
+    if (r.pad === slapendeTak || r.pad.indexOf(slapendeTak + '.') === 0) {
+      slapend.push(r);
+      return false;
+    }
+    return true;
+  });
+  function naarRijen(lijst) {
+    return lijst.map(function (r) { return [celTekstCel(r.etiket), r.cel]; });
+  }
+  secties.push({ titel: 'Invoer', kop: ['Veld', 'Waarde'], rijen: naarRijen(actief) });
+  secties.push({
+    titel: 'Overige opgeslagen invoer, telt in deze modus niet mee',
+    kop: ['Veld', 'Waarde'], rijen: naarRijen(slapend)
+  });
+
+  // Uitkomst.
+  var bron = (u.methode === 'apv' && u.apv) ? u.apv : u.dcfm;
+  var kernrijen = [
+    [celTekstCel('Waarde van de aandelen'), celBedrag(u.aandelenwaarde)],
+    [celTekstCel('Ondernemingswaarde volgens ' + (u.methode === 'apv' ? 'APV' : 'DCFM')),
+     celBedrag(u.ondernemingswaarde)],
+    [celTekstCel('Contante waarde van de prognose'), celBedrag(bron.contantePrognose)],
+    [celTekstCel('Contante restwaarde'), celBedrag(bron.contanteRestwaarde)],
+    [celTekstCel('Aandeel restwaarde in de ondernemingswaarde'),
+     celPct(bron.contanteRestwaarde / u.ondernemingswaarde, 1)],
+    [celTekstCel('Rendementseis eigen vermogen'),
+     celPct(u.rendementseis.kostenvoetEigenVermogen)],
+    [celTekstCel('Gewogen kostenvoet'), celPct(u.rendementseis.wacc)],
+    [celTekstCel('Disconteringsvoet van deze methode'), celPct(bron.voet)],
+    [celTekstCel('Genormaliseerde kasstroom restperiode'),
+     celBedrag(u.prognose.restwaardeKasstroom)],
+    [celTekstCel('Groei in de restperiode'), celPct(u.prognose.restperiode.groei)]
+  ];
+  if (u.apv) {
+    kernrijen.push([celTekstCel('Ondernemingswaarde volgens DCFM'),
+                    celBedrag(u.dcfm.ondernemingswaarde)]);
+    kernrijen.push([celTekstCel('Ondernemingswaarde volgens APV'),
+                    celBedrag(u.apv.ondernemingswaarde)]);
+    kernrijen.push([celTekstCel('Contante tax shield uit de financiering'),
+                    celBedrag(u.apv.contanteTaxShield)]);
+  }
+  if (u.afkappenRestwaarde) {
+    kernrijen.push([celTekstCel('Contante restwaarde, afgekapt na ' +
+      u.afkappenRestwaarde.jaren + ' jaar'),
+      celBedrag(u.afkappenRestwaarde.contanteRestwaardeEindig)]);
+    kernrijen.push([celTekstCel('Ondernemingswaarde na afkappen'),
+      celBedrag(u.afkappenRestwaarde.ondernemingswaardeAfgekapt)]);
+  }
+  if (iteratie) {
+    kernrijen.push([celTekstCel('Iteratie vermogensverhouding: rondes'),
+                    celGetalCel(iteratie.rondes, 0)]);
+  }
+  secties.push({ titel: 'Uitkomst', kop: ['Post', 'Waarde'], rijen: kernrijen });
+
+  secties.push({
+    titel: 'Opbouw van de rendementseis',
+    kop: ['Element', 'Percentage', 'Herkomst'],
+    rijen: u.rendementseis.opbouw.map(function (o) {
+      return [celTekstCel(o.etiket + (o.detail ? ' (' + o.detail + ')' : '')),
+              celPct(o.waarde), celTekstCel(o.herkomst)];
+    }).concat([
+      [celTekstCel('Rendementseis eigen vermogen'),
+       celPct(u.rendementseis.kostenvoetEigenVermogen), celTekstCel('')],
+      [celTekstCel('Kostenvoet vreemd vermogen na belasting'),
+       celPct(u.rendementseis.kostenvoetVreemdVermogenNaBelasting),
+       celTekstCel('tarief ' + toonPercentage(u.rendementseis.tarief, 1))],
+      [celTekstCel('Aandeel vreemd vermogen'), celPct(u.rendementseis.vvAandeel), celTekstCel('')],
+      [celTekstCel('Gewogen kostenvoet'), celPct(u.rendementseis.wacc), celTekstCel('')]
+    ])
+  });
+
+  secties.push(kasstroomsectie(u));
+
+  secties.push({
+    titel: 'Contantmaking',
+    kop: ['Post', 'Kasstroom', 'Factor', 'Contant'],
+    rijen: bron.regels.map(function (r) {
+      return [celTekstCel('Jaar ' + r.periode), celBedrag(r.kasstroom),
+              celGetalCel(r.factor, 6), celBedrag(r.contant)];
+    }).concat([
+      [celTekstCel('Contante waarde van de prognose'), { soort: 'leeg' }, { soort: 'leeg' },
+       celBedrag(bron.contantePrognose)],
+      [celTekstCel('Restwaarde einde prognose'), { soort: 'leeg' }, { soort: 'leeg' },
+       celBedrag(bron.restwaardeEindeProgose)],
+      [celTekstCel('Contante restwaarde'), { soort: 'leeg' }, { soort: 'leeg' },
+       celBedrag(bron.contanteRestwaarde)],
+      [celTekstCel('Ondernemingswaarde'), { soort: 'leeg' }, { soort: 'leeg' },
+       celBedrag(bron.ondernemingswaarde)]
+    ])
+  });
+
+  secties.push({
+    titel: 'Waardebrug',
+    kop: ['Post', 'Bedrag'],
+    rijen: u.waardebrug.regels.map(function (r) {
+      return [celTekstCel(r.etiket), celBedrag(r.bedrag)];
+    })
+  });
+
+  secties.push(vindplaatsensectie());
+  secties.push(marktwaardensectie());
+
+  secties.push({ titel: 'Wat deze tool niet doet', regels: [
+    'De tool levert geen empirische dataset met rendementseisen per branche en ' +
+    'omvangsklasse mee; die datasets zijn licentiegebonden. Wie zo een bron heeft, ' +
+    'voert onder-, midden- en bovenwaarde zelf in via de referentieroute.',
+    'Geen achterwaartse verliesverrekening, en voorwaarts alleen binnen de ' +
+    'prognosehorizon. Een verlies dat aan het eind nog openstaat, verdwijnt.',
+    'Geen fiscale eenheid, geen deelnemingsvrijstelling en geen renteaftrekbeperkingen.',
+    'In de restperiode wordt de dotatie aan de voorzieningen niet teruggeteld; daar ' +
+    'geldt de veronderstelling dat dotatie en onttrekking elkaar in evenwicht houden.',
+    'Of een dotatie fiscaal aftrekbaar is, toetst de tool niet. Zij toont de drie ' +
+    'criteria van het Baksteenarrest en laat het oordeel bij de gebruiker.',
+    'De tool rekent met één vermogenskostenvoet, ook in de restperiode.',
+    'De bancaire normen in de financieringstoets zijn instelbare kengetallen en geen ' +
+    'wettelijke of door een bank vastgestelde waarden.',
+    'De tool rekent niet terug vóór ' + VPB_EERSTE_JAAR + '. Voor prognosejaren na ' +
+    VPB_LAATST_VASTGESTELD + ' wordt het geldende recht voortgezet.'
+  ] });
+
+  var meldingen = (u.meldingen || []).map(function (m) { return m.tekst; });
+  meldingen.push(MARKT.marktrisicopremie.voorbehoud);
+  secties.push({ titel: 'Meldingen bij deze casus', regels: meldingen });
+
+  return {
+    kenmerk: staat.kenmerk || '',
+    datum: VANDAAG,
+    toolnaam: TOOLNAAM,
+    toolversie: TOOLVERSIE,
+    eenheid: eenheid.etiket,
+    secties: secties
+  };
+}
+
+function kasstroomsectie(u) {
+  var p = u.prognose;
+  var regels = p.regels || p.projectie;
+  var kop = ['Post'].concat(p.jaren.map(String), ['restperiode ' + p.restperiode.jaar]);
+  var rijen = [];
+  function rij(etiket, lees, restVeld, restTeken) {
+    var cellen = [celTekstCel(etiket)];
+    regels.forEach(function (r) { cellen.push(celBedrag(lees(r))); });
+    cellen.push(restVeld === null ? { soort: 'leeg' }
+      : celBedrag((restTeken || 1) * p.restperiode[restVeld]));
+    rijen.push(cellen);
+  }
+  rij('Bedrijfsresultaat', function (r) { return r.bedrijfsresultaat; }, 'bedrijfsresultaat');
+  rij('Belasting', function (r) { return -r.belasting; }, 'belasting', -1);
+  var tarief = [celTekstCel('Effectief tarief')];
+  regels.forEach(function (r) { tarief.push(celPct(r.effectiefTarief, 1)); });
+  tarief.push(celPct(p.restperiode.effectiefTarief, 1));
+  rijen.push(tarief);
+  rij('Afschrijvingen', function (r) { return r.afschrijving; }, null);
+  if (u.modus === 'uitgebreid') {
+    rij('Dotatie voorzieningen (geen uitgave)',
+        function (r) { return r.mutatieVoorzieningen; }, null);
+    rij('Mutatie werkkapitaal', function (r) { return -r.mutatieWerkkapitaal; },
+        'werkkapitaalmutatie', -1);
+  } else {
+    rij('Mutatie werkkapitaal', function (r) { return -r.werkkapitaalmutatie; },
+        'werkkapitaalmutatie', -1);
+  }
+  rij('Investeringen', function (r) { return -r.investering; }, null);
+  rij('Vrije kasstroom', function (r) { return r.vrijeKasstroom; }, 'vrijeKasstroom');
+  return { titel: 'Vrije kasstroom per jaar', kop: kop, rijen: rijen };
+}
+
+function vindplaatsensectie() {
+  var t = VPB_PER_JAAR[VPB_LAATST_VASTGESTELD];
+  return {
+    titel: 'Vindplaatsen van de gebruikte fiscale waarden',
+    kop: ['Onderwerp', 'Vindplaats', 'Waarde', 'Status'],
+    rijen: [
+      ['Tarief vennootschapsbelasting', 'art. 22 Wet Vpb 1969',
+       'schijfgrens ' + toonGetal(t.schijfgrens, 0) + ' euro, ' +
+       toonPercentage(t.tariefLaag, 0) + ' en ' + toonPercentage(t.tariefHoog, 1),
+       'vastgesteld tot en met ' + VPB_LAATST_VASTGESTELD],
+      ['Voorwaartse verliesverrekening', 'art. 20 lid 2 Wet Vpb 1969',
+       '1.000.000 euro plus 50% van het meerdere', 'geldend recht'],
+      ['Afschrijving goodwill en activa', 'art. 3.30 lid 2 Wet IB 2001',
+       'ten hoogste 10% respectievelijk 20% per jaar', 'via art. 8 lid 1 Wet Vpb 1969'],
+      ['Afschrijving gebouwen', 'art. 3.30a Wet IB 2001',
+       'alleen boven de WOZ-bodemwaarde', 'geldend recht'],
+      ['Waardering onderhanden werk', 'art. 3.29b Wet IB 2001',
+       'toegerekend deel van de overeengekomen vergoeding', 'geldend recht'],
+      ['Betaaltermijn omzetbelasting', 'art. 19 lid 1 AWR',
+       'binnen één maand na het tijdvak', 'geldend recht'],
+      ['Criteria voor een passiefpost', 'HR 26-08-1998, ECLI:NL:HR:1998:AA2555 (Baksteen)',
+       'oorsprong, redelijke mate van zekerheid, toerekening aan het jaar', 'vaste leer']
+    ].map(function (r) { return r.map(celTekstCel); })
+  };
+}
+
+function marktwaardensectie() {
+  var rijen = [];
+  [MARKT.risicovrijeVoet, MARKT.marktrisicopremie].forEach(function (b) {
+    var h = toetsHoudbaarheid(b, VANDAAG);
+    rijen.push([celTekstCel(b.etiket), celPct(b.waarde), celTekstCel(b.peildatum),
+                celTekstCel(h.verouderd ? 'verouderd' : 'binnen houdbaarheid'),
+                celTekstCel(b.bron + ' — ' + b.vindplaats)]);
+  });
+  var kvv = MARKT.kostenvoetVreemdVermogen;
+  var hk = toetsHoudbaarheid(kvv, VANDAAG);
+  kvv.klassen.forEach(function (k) {
+    rijen.push([celTekstCel(k.etiket), celPct(k.waarde), celTekstCel(kvv.peildatum),
+                celTekstCel(hk.verouderd ? 'verouderd' : 'binnen houdbaarheid'),
+                celTekstCel(kvv.bron + ' — ' + kvv.vindplaats)]);
+  });
+  BRANCHE_VV.waarden.forEach(function (b) {
+    rijen.push([celTekstCel('Vreemd vermogen ' + b.etiket), celPct(b.vvAandeel, 1),
+                celTekstCel('verslagjaar ' + BRANCHE_VV.peiljaar),
+                celTekstCel('boekwaarden, geen MKB-mediaan'),
+                celTekstCel(BRANCHE_VV.bron + ' (' + BRANCHE_VV.licentie + ') — ' +
+                            BRANCHE_VV.vindplaats)]);
+  });
+  return { titel: 'Marktwaarden met peildatum en bron',
+           kop: ['Waarde', 'Percentage', 'Peildatum', 'Status', 'Bron'], rijen: rijen };
+}
+
+function nederlandseDatum(iso) {
+  var d = String(iso).split('-');
+  return d.length === 3 ? d[2] + '-' + d[1] + '-' + d[0] : String(iso);
+}
+
+/* --- uitgang 1: het afdrukbare dossierstuk -------------------------------- */
+
+function celNaarTekst(cel) {
+  if (!cel || cel.soort === 'leeg') return '';
+  if (cel.soort === 'bedrag') return toonBedrag(cel.getal);
+  if (cel.soort === 'pct') return toonPercentage(cel.getal, cel.decimalen);
+  if (cel.soort === 'getal') return toonGetal(cel.getal, cel.decimalen);
+  return cel.tekst;
+}
+
+function tekenDossierstuk(gegevens) {
+  var doel = $('#dossierstuk');
+  leeg(doel);
+  doel.appendChild(maak('h1', null, gegevens.toolnaam + ' — dossierstuk'));
+  doel.appendChild(maak('p', 'klein',
+    (gegevens.kenmerk ? gegevens.kenmerk + ' — ' : '') +
+    nederlandseDatum(gegevens.datum) + ' — versie ' + gegevens.toolversie +
+    ' — bedragen in ' + gegevens.eenheid));
+  gegevens.secties.forEach(function (s) {
+    if (s.regels) {
+      if (!s.regels.length) return;
+      doel.appendChild(maak('h2', null, s.titel));
+      var lijst = maak('ul');
+      s.regels.forEach(function (t) { lijst.appendChild(maak('li', null, t)); });
+      doel.appendChild(lijst);
+      return;
+    }
+    if (!s.rijen.length) return;
+    doel.appendChild(maak('h2', null, s.titel));
+    doel.appendChild(tabel(s.kop, s.rijen.map(function (r) {
+      return { cellen: r.map(celNaarTekst) };
+    })));
+  });
+  doel.appendChild(maak('p', 'voet klein',
+    'Dit stuk is opgesteld met ' + gegevens.toolnaam + ' versie ' + gegevens.toolversie +
+    '. De tool rekent; het oordeel over de uitgangspunten en over de aftrekbaarheid van ' +
+    'een post blijft bij de opsteller. De vindplaatsen hierboven zijn de bronnen van de ' +
+    'gebruikte fiscale waarden.'));
+}
+
+function drukAf() {
+  var uit;
+  try {
+    uit = rekenDoor();
+  } catch (e) {
+    tekenMeldingen([{ soort: 'fout', tekst: 'Er is niets afgedrukt: ' + e.message }]);
+    return false;
+  }
+  tekenDossierstuk(dossiergegevens(uit.uitkomst, uit.iteratie));
+  if (typeof window !== 'undefined' && window.print) window.print();
+  return true;
+}
+
+/* --- uitgang 2: de Excel-export ------------------------------------------- */
+
+// Het werkblad is bevroren: getallen, geen formules. De rekenregels staan op één
+// plek, in de kern van deze tool, en worden niet in Excel-formuletaal herhaald.
+// Wil de ontvanger een variant, dan varieert hij in de tool en exporteert opnieuw.
+function dossierNaarBlad(gegevens) {
+  var rijen = [];
+  rijen.push([celTekst(gegevens.toolnaam + ' — dossierstuk', true)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(gegevens.kenmerk || '(niet ingevuld)')]);
+  rijen.push([celTekst('Datum'), celTekst(nederlandseDatum(gegevens.datum))]);
+  rijen.push([celTekst('Versie van de tool'), celTekst(gegevens.toolversie)]);
+  rijen.push([celTekst('Bedragen in'), celTekst(gegevens.eenheid)]);
+  rijen.push([]);
+  gegevens.secties.forEach(function (s) {
+    if (s.regels) {
+      if (!s.regels.length) return;
+      rijen.push([celTekst(s.titel, true)]);
+      s.regels.forEach(function (t) { rijen.push([celTekst(t)]); });
+      rijen.push([]);
+      return;
+    }
+    if (!s.rijen.length) return;
+    rijen.push([celTekst(s.titel, true)]);
+    if (s.kop) rijen.push(s.kop.map(function (k) { return celTekst(k, true); }));
+    s.rijen.forEach(function (r) { rijen.push(r.map(celNaarWerkblad)); });
+    rijen.push([]);
+  });
+  var breedste = rijen.reduce(function (n, r) { return Math.max(n, r.length); }, 1);
+  var breedtes = [46];
+  for (var i = 1; i < breedste; i++) breedtes.push(16);
+  return { naam: 'Dossier', rijen: rijen, breedtes: breedtes };
+}
+
+function celNaarWerkblad(cel) {
+  if (!cel || cel.soort === 'leeg') return celTekst('');
+  if (cel.soort === 'bedrag') return celGetal(vanEuro(cel.getal, staat.eenheid), '#,##0.00');
+  if (cel.soort === 'pct') return celGetal(cel.getal, '0.00%');
+  if (cel.soort === 'getal') {
+    return celGetal(cel.getal, cel.decimalen === 0 ? '0'
+      : '0.' + new Array((cel.decimalen || 2) + 1).join('0'));
+  }
+  return celTekst(cel.tekst);
+}
+
+function slugKenmerk(ruw) {
+  var s = String(ruw || '').toLowerCase()
+    .replace(/[àáâä]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôö]/g, 'o').replace(/[ùúûü]/g, 'u').replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'dossier';
+}
+
+function exportBestandsnaam(gegevens) {
+  return 'dcf-rekenmodel-' + slugKenmerk(gegevens.kenmerk) + '-' + gegevens.datum + '.xlsx';
+}
+
+function bewaarBestand(inhoud, naam, type) {
+  var blob = new Blob([inhoud], { type: type });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function exporteerExcel() {
+  var uit;
+  try {
+    uit = rekenDoor();
+  } catch (e) {
+    tekenMeldingen([{ soort: 'fout', tekst: 'Er is niets geëxporteerd: ' + e.message }]);
+    return false;
+  }
+  var gegevens = dossiergegevens(uit.uitkomst, uit.iteratie);
+  bewaarBestand(xlsxBytes([dossierNaarBlad(gegevens)]), exportBestandsnaam(gegevens),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return true;
+}
+
+/* --- uitgang 3: casus opslaan en terugladen ------------------------------ */
+
+// Versie 2 voegt het kenmerk toe. Een bestand van versie 1 kent dat veld niet;
+// laden() maakt het kenmerk dan leeg en meldt dat, want anders blijft het kenmerk
+// van een vorige casus staan en komt er een verkeerde naam op het dossierstuk.
+var BESTANDSVERSIE = 2;
 
 function opslaan() {
   var inhoud = {
@@ -3572,14 +4478,25 @@ function laden(bestand) {
     Object.keys(inhoud.staat).forEach(function (sleutel) {
       if (sleutel in staat) staat[sleutel] = inhoud.staat[sleutel];
     });
+    // Het kenmerk komt op het dossierstuk en in de bestandsnaam van de export terecht.
+    // Een bestand van vóór versie 2 draagt het niet; samenvoegen zou dan het kenmerk
+    // van de vorige casus laten staan, en dat zet een verkeerde klantnaam op papier.
+    var kenmerkOntbrak = !Object.prototype.hasOwnProperty.call(inhoud.staat, 'kenmerk');
+    if (kenmerkOntbrak) staat.kenmerk = '';
     // tekenAlles() rekent meteen door en toont zelf een foutmelding zodra de
     // geladen staat niet klopt. Die melding mag hierna niet worden overschreven
     // met een "Casus geladen": anders meldt de tool succes terwijl er niets is
     // doorgerekend, en dat is precies de stille fout die hier wordt uitgesloten.
     var gelukt = tekenAlles();
     if (gelukt === false) return;
-    tekenMeldingen([{ soort: 'goed', tekst: 'Casus geladen, opgeslagen op ' +
-      String(inhoud.opgeslagen).slice(0, 10) + '.' }]);
+    var gemeld = [{ soort: 'goed', tekst: 'Casus geladen, opgeslagen op ' +
+      String(inhoud.opgeslagen).slice(0, 10) + '.' }];
+    if (kenmerkOntbrak) {
+      gemeld.push({ soort: 'waarschuwing', tekst: 'Dit bestand is opgeslagen met een oudere ' +
+        'versie en draagt geen kenmerk. Het veld is leeggemaakt; vul het opnieuw in voordat ' +
+        'u afdrukt of exporteert.' });
+    }
+    tekenMeldingen(gemeld);
   };
   lezer.readAsText(bestand);
 }
@@ -3614,6 +4531,9 @@ function start() {
     staat.invtab = b.dataset.invtab;
     tekenAlles();
   });
+  $('#kenmerk').addEventListener('input', function () { staat.kenmerk = $('#kenmerk').value; });
+  $('#knop-afdrukken').addEventListener('click', drukAf);
+  $('#knop-excel').addEventListener('click', exporteerExcel);
   $('#knop-opslaan').addEventListener('click', opslaan);
   $('#knop-laden').addEventListener('click', function () { $('#bestand-laden').click(); });
   $('#bestand-laden').addEventListener('change', function (e) {
