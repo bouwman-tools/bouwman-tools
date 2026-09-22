@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WW-uitkering: duur en hoogte</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+</style>
+</head>
+<body>
+
+<header class="noprint">
+  <a class="logo" href="https://joinadministraties.nl" target="_blank" rel="noopener">
+    <div class="logo-mark"><div class="lc"></div><div class="lc"></div></div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="logo-name">JOIN</span>
+      <span class="logo-sub">Administraties</span>
+    </div>
+  </a>
+  <div class="koptitel">WW-uitkering<br><span style="font-weight:400">duur en hoogte</span></div>
+</header>
+
+<main>
+  <h1 class="noprint">Duur en hoogte van een WW-uitkering</h1>
+  <p class="inleiding noprint">
+    Reken uit hoe lang een WW-uitkering duurt en hoe hoog zij per kalendermaand is, op basis
+    van de situatie op de eerste werkloosheidsdag. De tool rekent een situatie door en geeft
+    een uitkomst; zij doet geen voorstel en geeft geen advies.
+  </p>
+
+  <div class="kaart noprint">
+    <h2>Situatie</h2>
+    <p class="toelichting">Alle velden gaan over de situatie op de eerste werkloosheidsdag.</p>
+    <div class="rij">
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+      <div>
+        <label for="ewd">Eerste werkloosheidsdag
+          <span class="bron">bepaalt het geldende maximumdagloon</span></label>
+        <input type="date" id="ewd" value="2026-09-01">
+      </div>
+      <div>
+        <label for="geboortedatum">Geboortedatum
+          <span class="bron">voor het fictieve arbeidsverleden, art. 42 lid 6 onder c WW</span></label>
+        <input type="date" id="geboortedatum" value="1980-03-15">
+      </div>
+      <div>
+        <label for="jaarloon">SV-jaarloon referteperiode
+          <span class="bron">art. 1b lid 1 WW, jaar vóór het arbeidsurenverlies</span></label>
+        <input type="number" id="jaarloon" value="62000" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Voorwaarden</h2>
+    <p class="toelichting">
+      De wekeneis bepaalt of er recht bestaat. De arbeidsverledeneis bepaalt of de duur
+      langer is dan de wettelijke ondergrens van drie maanden.
+    </p>
+    <div class="rij">
+      <div>
+        <label>Wekeneis: in 36 kalenderweken ten minste 26 weken met ten minste één arbeidsuur
+          <span class="bron">art. 17 lid 1 WW</span></label>
+        <div class="keuze">
+          <label><input type="radio" name="wekeneis" value="ja" checked> ja</label>
+          <label><input type="radio" name="wekeneis" value="nee"> nee</label>
+        </div>
+      </div>
+      <div>
+        <label>Arbeidsverledeneis: in 4 van de 5 kalenderjaren vóór het jaar van werkloosheid
+          voldoende loon, of doorstroom vanuit een uitkering
+          <span class="bron">art. 42 lid 2 onder a en b WW</span></label>
+        <div class="keuze">
+          <label><input type="radio" name="avEis" value="ja" checked> ja</label>
+          <label><input type="radio" name="avEis" value="nee"> nee</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Feitelijk arbeidsverleden</h2>
+    <p class="toelichting">
+      Het aantal hele kalenderjaren dat meetelt. De jaren vóór 2016 en vanaf 2016 tellen
+      verschillend mee, daarom staan ze apart (art. 42 lid 2 en lid 6 WW).
+    </p>
+    <div class="rij">
+      <div>
+        <label for="jaren1998">Jaren 1998 tot en met 2012
+          <span class="bron">52 of meer dagen loon, art. 42 lid 6 onder b WW</span></label>
+        <input type="number" id="jaren1998" value="13" min="0" max="15" step="1">
+      </div>
+      <div>
+        <label for="jaren2013">Jaren 2013 tot en met 2015
+          <span class="bron">208 of meer uren loon, art. 42 lid 6 onder a WW</span></label>
+        <input type="number" id="jaren2013" value="3" min="0" max="3" step="1">
+      </div>
+      <div>
+        <label for="jaren2016">Jaren vanaf 2016
+          <span class="bron">208 of meer uren loon, tot het jaar vóór de eerste werkloosheidsdag</span></label>
+        <input type="number" id="jaren2016" value="10" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Inkomsten naast de uitkering</h2>
+    <p class="toelichting">
+      Laat op nul staan als er geen inkomsten zijn. Beide velden gaan over één kalendermaand
+      (art. 47 lid 1 WW, de letters B en E).
+    </p>
+    <div class="rij">
+      <div>
+        <label for="inkomen">Inkomen in de kalendermaand (B)
+          <span class="bron">loon uit arbeid dat wordt verrekend</span></label>
+        <input type="number" id="inkomen" value="0" min="0" step="1">
+      </div>
+      <div>
+        <label for="inkomenIvmArbeid">Inkomen in verband met arbeid (E)
+          <span class="bron">art. 47 lid 2 WW jo. Algemeen inkomensbesluit</span></label>
+        <input type="number" id="inkomenIvmArbeid" value="0" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Cao-aanvulling</h2>
+    <p class="toelichting">
+      Geen wettelijke regeling. Een aanvulling op de WW volgt uit de cao of de
+      arbeidsovereenkomst van deze werkgever; de tool kent haar niet en rekent alleen door wat
+      u hier invult. Laat op nul staan als er geen aanvulling is.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="caoPercentage">Aanvulling tot ... procent van het maandloon
+          <span class="bron">bijvoorbeeld 90 bij "aanvulling tot 90 procent van het laatstverdiende loon"</span></label>
+        <input type="number" id="caoPercentage" value="0" min="0" max="100" step="1">
+      </div>
+      <div>
+        <label for="caoMaanden">Gedurende ... maanden
+          <span class="bron">geteld vanaf de eerste werkloosheidsdag</span></label>
+        <input type="number" id="caoMaanden" value="0" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="rekenKnop">Bereken</button>
+    <button type="button" class="tweede" id="afdrukKnop">Afdrukken</button>
+    <button type="button" class="tweede" id="excelKnop">Excel-export</button>
+    <button type="button" class="tweede" id="opslaanKnop">Opslaan als bestand</button>
+    <button type="button" class="tweede" id="openenKnop">Bestand openen</button>
+    <input type="file" id="dossierInvoer" accept="application/json,.json" class="verborgen">
+  </div>
+  <p class="voorbehoud noprint" style="margin-top:-8px;margin-bottom:18px;">
+    Opslaan en openen gebeuren op uw eigen computer. De tool bewaart zelf niets en er gaat
+    niets naar een server.
+  </p>
+
+  <div id="dossierMelding" class="noprint" aria-live="polite"></div>
+  <div id="uitvoer" class="noprint" aria-live="polite"></div>
+
+  <div id="dossierstuk"></div>
+
+  <div class="kaart noprint">
+    <h2>Waarop de uitkomst is gebaseerd</h2>
+    <ul class="bronlijst">
+      <li><strong>Duur</strong> — art. 42 Werkloosheidswet: ten minste drie en ten hoogste
+        24 maanden; één maand per kalenderjaar arbeidsverleden tot tien jaar, daarboven een
+        halve maand per kalenderjaar na 2015 en een hele maand per kalenderjaar vóór 2016.</li>
+      <li><strong>Hoogte</strong> — art. 47 Werkloosheidswet: 75 procent van het maandloon
+        over de eerste twee maanden en 70 procent vanaf de derde maand, verminderd met
+        verrekend inkomen.</li>
+      <li><strong>Dag- en maandloon</strong> — art. 1b Werkloosheidswet: dagloon is 1/261 van
+        het loon uit de referteperiode, gemaximeerd; maandloon is 21,75 maal het dagloon.</li>
+      <li><strong>Maximumdagloon</strong> — art. 17 lid 1 Wet financiering sociale
+        verzekeringen; het bedrag wordt door de minister vastgesteld en in de Staatscourant
+        bekendgemaakt. De gebruikte bedragen en hun vindplaats staan in de rekenkern van dit
+        bestand en in <code>BRONNEN.md</code>.</li>
+    </ul>
+    <details>
+      <summary>Wat deze tool niet doet</summary>
+      <p class="voorbehoud">
+        De tool geeft geen advies en stelt geen keuze voor. Buiten de berekening blijven: de
+        gelijkstellingen van art. 42a WW (onder meer verzorgingsjaren, onbetaald verlof en
+        jaren met een arbeidsongeschiktheidsuitkering), de verlenging na een geëindigd recht
+        van art. 42b WW, de indexering van het dagloon tijdens de looptijd, en de
+        dagloonregels die bepalen welk loon precies in de referteperiode meetelt. De uitkomst
+        is een berekening en geen beschikking; het UWV stelt duur en hoogte vast.
+      </p>
+    </details>
+  </div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+
+// AOW-LEEFTIJD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De pensioengerechtigde leeftijd en de AOW-datum. Twee tools hebben ze nodig: aow-datum
+// rekent ze uit als eigen uitkomst, en ww-uitkering gebruikt de AOW-datum om te bepalen
+// wanneer het recht op uitkering eindigt (art. 19 lid 1 onder i jo. art. 20 lid 1 onder a
+// WW). De tabel met zes Staatscourant-vindplaatsen hoort daarom op één plek te staan.
+
+// De pensioengerechtigde leeftijd per kalenderjaar waarin zij wordt bereikt.
+//
+// Tot en met 2025 staat de leeftijd in de wettekst zelf, in art. 7a lid 1 AOW. Vanaf 2026
+// verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule van lid 2, die
+// de minister op grond van diezelfde bepaling in de Staatscourant bekendmaakt; lid 3 bepaalt
+// dat zo'n vaststelling pas vijf jaar later in werking treedt. Voor die jaren staat hier
+// daarom de mededeling als vindplaats en niet de wet.
+//
+// Bron van de wetsartikelen: geconsolideerde Algemene Ouderdomswet, BWBR0002221, versie
+// 2026-07-01, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 18-09-2026.
+const AOW_LEEFTIJD_PER_JAAR = {
+  2013: { jaren: 65, maanden: 1, vindplaats: 'art. 7a lid 1 onder b AOW' },
+  2014: { jaren: 65, maanden: 2, vindplaats: 'art. 7a lid 1 onder c AOW' },
+  2015: { jaren: 65, maanden: 3, vindplaats: 'art. 7a lid 1 onder d AOW' },
+  2016: { jaren: 65, maanden: 6, vindplaats: 'art. 7a lid 1 onder e AOW' },
+  2017: { jaren: 65, maanden: 9, vindplaats: 'art. 7a lid 1 onder f AOW' },
+  2018: { jaren: 66, maanden: 0, vindplaats: 'art. 7a lid 1 onder g AOW' },
+  2019: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder h AOW' },
+  2020: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder i AOW' },
+  2021: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder j AOW' },
+  2022: { jaren: 66, maanden: 7, vindplaats: 'art. 7a lid 1 onder k AOW' },
+  2023: { jaren: 66, maanden: 10, vindplaats: 'art. 7a lid 1 onder l AOW' },
+  2024: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder m AOW' },
+  2025: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder n AOW' },
+  // Vanaf hier komt de leeftijd uit de mededeling van de minister op grond van art. 7a
+  // lid 2 AOW. Elk van deze vijf is op 18-09-2026 op de Staatscourantpagina zelf
+  // gecontroleerd, op leeftijd, aanvangsleeftijd, kalenderjaar, dagtekening en kenmerk.
+  //
+  // Stcrt. 2020, 65110 — mededeling van 04-12-2020, nr. 2020-0000162440.
+  2026: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2020, 65110 (mededeling van 04-12-2020)' },
+  // Stcrt. 2021, 46409 — mededeling van 05-11-2021, nr. 2021-0000168058.
+  2027: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2021, 46409 (mededeling van 05-11-2021)' },
+  // Stcrt. 2022, 30748 — mededeling van 09-11-2022, nr. 2022-0000224155.
+  2028: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2022, 30748 (mededeling van 09-11-2022)' },
+  // Stcrt. 2023, 31782 — mededeling van 13-11-2023, nr. 2023-0000545753.
+  2029: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2023, 31782 (mededeling van 13-11-2023)' },
+  // Stcrt. 2024, 37287 — mededeling van 08-11-2024, nr. 2024-0000903093.
+  2030: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2024, 37287 (mededeling van 08-11-2024)' },
+  // Stcrt. 2025, 38647 — mededeling van 07-11-2025, nr. 2025-0000251283.
+  2031: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2025, 38647 (mededeling van 07-11-2025)' },
+};
+
+// Art. 7a lid 1 onder a AOW: vóór 1 januari 2013 was de pensioengerechtigde leeftijd
+// 65 jaar. Dat geldt voor ieder kalenderjaar vóór 2013 en vraagt dus geen eigen regel
+// per jaar.
+const LEEFTIJD_VOOR_2013 = { jaren: 65, maanden: 0, vindplaats: 'art. 7a lid 1 onder a AOW' };
+const EERSTE_JAAR_IN_DE_TABEL = 2013;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (maand === 2 && isSchrikkeljaar(jaar)) return 29;
+  return lengtes[maand - 1];
+}
+
+function ontleedDatum(tekst) {
+  if (typeof tekst !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tekst)) return null;
+  const jaar = Number(tekst.slice(0, 4));
+  const maand = Number(tekst.slice(5, 7));
+  const dag = Number(tekst.slice(8, 10));
+  if (maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+function alsTekst(datum) {
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return datum.jaar + '-' + tweeCijfers(datum.maand) + '-' + tweeCijfers(datum.dag);
+}
+
+// Telt een leeftijd in jaren en maanden bij een datum op. Valt de uitkomst op een dag die
+// in de doelmaand niet bestaat, bijvoorbeeld 31 mei plus drie maanden, dan wordt het de
+// laatste dag van die maand en wordt dat apart gemeld; de tool verzwijgt zo'n aanpassing
+// niet.
+function datumPlusLeeftijd(datum, leeftijd) {
+  const totaalMaanden = (datum.jaar + leeftijd.jaren) * 12 + (datum.maand - 1) + leeftijd.maanden;
+  const jaar = Math.floor(totaalMaanden / 12);
+  const maand = (totaalMaanden % 12) + 1;
+  const laatsteDag = dagenInMaand(jaar, maand);
+  return {
+    jaar,
+    maand,
+    dag: Math.min(datum.dag, laatsteDag),
+    dagAangepast: datum.dag > laatsteDag,
+  };
+}
+
+function leeftijdInJaar(jaar) {
+  if (jaar < EERSTE_JAAR_IN_DE_TABEL) return LEEFTIJD_VOOR_2013;
+  return AOW_LEEFTIJD_PER_JAAR[jaar] || null;
+}
+
+function laatstBekendeJaar() {
+  return Math.max(...Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number));
+}
+
+function leeftijdAlsTekst(leeftijd) {
+  const jaarDeel = leeftijd.jaren + (leeftijd.jaren === 1 ? ' jaar' : ' jaar');
+  if (leeftijd.maanden === 0) return jaarDeel;
+  return jaarDeel + ' en ' + leeftijd.maanden
+    + (leeftijd.maanden === 1 ? ' maand' : ' maanden');
+}
+
+// Art. 7a lid 1 AOW koppelt de leeftijd aan het kalenderjaar waarin zij wordt bereikt, maar
+// om te weten in welk jaar dat is moet je de leeftijd al kennen. De slotzin van lid 1 maakt
+// die rondgang eenduidig: wie in een kalenderjaar de pensioengerechtigde leeftijd heeft
+// bereikt, krijgt niet meer met de verhogingen van latere jaren te maken. Daarom telt het
+// vroegste kalenderjaar waarin de geboortedatum plus de dan geldende leeftijd binnen dat
+// jaar valt.
+function berekenAowDatum(geboortedatumTekst) {
+  const geboortedatum = ontleedDatum(geboortedatumTekst);
+  if (!geboortedatum) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{ soort: 'fout', tekst: 'Vul een geldige geboortedatum in.' }],
+    };
+  }
+
+  const meldingen = [];
+  const laatsteJaar = laatstBekendeJaar();
+
+  for (let jaar = geboortedatum.jaar + LEEFTIJD_VOOR_2013.jaren; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdInJaar(jaar);
+    if (!leeftijd) break;
+    const datum = datumPlusLeeftijd(geboortedatum, leeftijd);
+    if (datum.jaar !== jaar) continue;
+
+    if (datum.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De datum '
+             + 'is daarom op de laatste dag van die maand gezet. Laat dit geval bevestigen '
+             + 'door de Sociale Verzekeringsbank voordat u de datum in een dossier gebruikt.',
+      });
+    }
+    if (jaar < EERSTE_JAAR_IN_DE_TABEL) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De AOW-leeftijd is bereikt vóór 2013, toen zij nog 65 jaar was '
+             + '(art. 7a lid 1 onder a AOW).',
+      });
+    }
+
+    return {
+      heeftUitkomst: true,
+      meldingen,
+      geboortedatum: alsTekst(geboortedatum),
+      aowJaar: jaar,
+      leeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+      leeftijdTekst: leeftijdAlsTekst(leeftijd),
+      vindplaats: leeftijd.vindplaats,
+      aowDatum: alsTekst(datum),
+      dagAangepast: datum.dagAangepast,
+    };
+  }
+
+  return {
+    heeftUitkomst: false,
+    meldingen: [{
+      soort: 'fout',
+      tekst: 'Voor deze geboortedatum valt de AOW-leeftijd na ' + laatsteJaar + ', en voor dat '
+           + 'jaar is de pensioengerechtigde leeftijd nog niet vastgesteld. De tool rekent niet '
+           + 'door met de leeftijd van een ander jaar. Elke vaststelling wordt vijf jaar vooraf '
+           + 'in de Staatscourant bekendgemaakt (art. 7a lid 2 en 3 AOW). '
+           + 'De Sociale Verzekeringsbank publiceert voor geboortedata van 1 oktober 1964 tot en '
+           + 'met 31 december 2000 wel een verwachte AOW-leeftijd, op '
+           + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd. Dat is een raming op basis van de '
+           + 'levensverwachting die het CBS elk jaar in december bijstelt, en geen vastgestelde '
+           + 'leeftijd; zij hoort daarom niet als datum in een dossier.',
+    }],
+  };
+}
+// AOW-LEEFTIJD — EINDE
+
+// Maximumdagloon per periode. Grondslag: art. 17 lid 1, tweede volzin, Wet financiering
+// sociale verzekeringen (Wfsv) — het dagloon bedraagt ten hoogste het door de minister
+// vastgestelde maximumpremieloon, herleid naar een loontijdvak van een dag, waarbij het
+// kalenderjaar op 261 dagen wordt gesteld. Het bedrag staat niet in de wettekst zelf:
+// art. 18 lid 2 Wfsv schrijft bekendmaking in de Staatscourant voor.
+//
+// Elke periode loopt vanaf de genoemde dag tot en met de dag vóór de volgende periode.
+// Een eerste werkloosheidsdag buiten deze perioden levert geen uitkomst maar een melding.
+const MAXIMUMDAGLOON_PER_PERIODE = [
+  {
+    vanaf: '2026-01-01',
+    totEnMet: '2026-06-30',
+    bedrag: 304.25,
+    // Maximumpremieloon 2026: EUR 79.409 (onafgerond EUR 79.409,25), vastgesteld bij
+    // Regeling van de Minister van SZW van 2 december 2025, nr. 2025-0000276298, houdende
+    // de vaststelling premiepercentages werknemers- en volksverzekeringen, maximumpremieloon
+    // werknemersverzekeringen en opslag kinderopvangtoeslag 2026, Stcrt. 2025, 42324.
+    // Dagloon = 79.409,25 / 261 = 304,25. Gecontroleerd op 18-09-2026.
+    vindplaats: 'Stcrt. 2025, 42324 (maximumpremieloon 2026: EUR 79.409,25 onafgerond, gedeeld door 261)',
+  },
+  {
+    vanaf: '2026-07-01',
+    // Bewust tot en met 31-12-2026 en niet verder. Het maximumdagloon per 1 januari 2027
+    // was op 18-09-2026 nog niet vastgesteld; die regeling verschijnt gewoonlijk pas eind
+    // van het voorafgaande jaar in de Staatscourant. Doorrekenen met het bedrag van 2026
+    // zou een onopgemerkt verkeerde uitkomst geven, dus een latere datum levert een melding.
+    totEnMet: '2026-12-31',
+    bedrag: 309.91,
+    // Herziening per 1 juli 2026. Het percentage bedoeld in art. 1b lid 7 WW bedraagt
+    // 1,86 procent, bekendgemaakt in de Mededeling van de Minister van SZW en de Minister
+    // van Werk en Participatie van 1 juni 2026, nr. 2026-0000181472, over per 1 juli 2026
+    // gewijzigde bedragen in enkele wetten, besluiten en regelingen, Stcrt. 2026, 20221.
+    // 304,25 x 1,0186 = 309,909... = 309,91. Gecontroleerd op 18-09-2026; komt overeen met
+    // het door het UWV gepubliceerde maximumdagloon van EUR 309,91.
+    vindplaats: 'Stcrt. 2026, 20221 (herziening 1,86 procent per 01-07-2026, op EUR 304,25)',
+  },
+];
+
+// Art. 1b lid 1 WW: het dagloon is 1/261 deel van het loon uit de referteperiode van een jaar.
+const DAGEN_PER_JAAR = 261;
+
+// Art. 1b lid 2 onder a WW: het maandloon bedraagt 21,75 maal het dagloon over een
+// volledige kalendermaand.
+const DAGEN_PER_MAAND = 21.75;
+
+// Art. 42 lid 1 WW: de uitkeringsduur is ten minste drie en ten hoogste 24 maanden.
+const DUUR_ONDERGRENS_MAANDEN = 3;
+const DUUR_BOVENGRENS_MAANDEN = 24;
+
+// Art. 42 lid 2 onder 1 WW: tot en met tien kalenderjaren arbeidsverleden geldt een maand
+// per kalenderjaar.
+const JAREN_VOLLE_OPBOUW = 10;
+
+// Art. 42 lid 6 onder b en c WW: het feitelijke arbeidsverleden begint in 1998; de jaren
+// daarvoor tellen fictief mee vanaf het kalenderjaar van de achttiende verjaardag.
+const EERSTE_JAAR_FEITELIJK_ARBEIDSVERLEDEN = 1998;
+const LEEFTIJD_START_FICTIEF_ARBEIDSVERLEDEN = 18;
+
+// Art. 42 lid 6 onder a WW: vanaf 2013 geldt de urennorm in plaats van de dagennorm.
+const EERSTE_JAAR_URENNORM = 2013;
+
+// Art. 42 lid 2 onder 2 WW: kalenderjaren arbeidsverleden gelegen vóór 2016 leveren een
+// hele maand op, kalenderjaren gelegen na 2015 een halve maand.
+const EERSTE_JAAR_HALVE_OPBOUW = 2016;
+
+// Art. 42 lid 2 onder 2, slotzin, WW: een halve maand telt voor vijftien kalenderdagen.
+const DAGEN_PER_HALVE_MAAND = 15;
+
+// Art. 47 lid 1 WW: 0,75 over de eerste twee maanden, 0,7 vanaf de derde maand.
+const UITKERINGSPERCENTAGE_EERSTE_TWEE_MAANDEN = 0.75;
+const UITKERINGSPERCENTAGE_VANAF_DERDE_MAAND = 0.7;
+const MAANDEN_HOOG_PERCENTAGE = 2;
+
+function zoekMaximumdagloon(datum) {
+  if (typeof datum !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(datum)) return null;
+  for (const periode of MAXIMUMDAGLOON_PER_PERIODE) {
+    if (datum >= periode.vanaf && datum <= periode.totEnMet) return periode;
+  }
+  return null;
+}
+
+function afrondenOpCenten(bedrag) {
+  return Math.round((bedrag + Number.EPSILON) * 100) / 100;
+}
+
+// Datumrekenen voor het einde van het recht. dagenInMaand komt uit het gedeelde AOW-blok
+// hierboven; een test bewaakt dat die functie er is, want zonder haar rekent dit stil fout.
+function datumPlusDagen(datum, dagen) {
+  let jaar = datum.jaar;
+  let maand = datum.maand;
+  let dag = datum.dag + dagen;
+  for (;;) {
+    const lengte = dagenInMaand(jaar, maand);
+    if (dag <= lengte) break;
+    dag -= lengte;
+    maand += 1;
+    if (maand > 12) { maand = 1; jaar += 1; }
+  }
+  return { jaar, maand, dag };
+}
+
+function vorigeDag(datum) {
+  let jaar = datum.jaar;
+  let maand = datum.maand;
+  let dag = datum.dag - 1;
+  if (dag < 1) {
+    maand -= 1;
+    if (maand < 1) { maand = 12; jaar -= 1; }
+    dag = dagenInMaand(jaar, maand);
+  }
+  return { jaar, maand, dag };
+}
+
+// Art. 42 lid 1 WW: de uitkeringsduur telt "vanaf de eerste dag waarop het recht op uitkering
+// is ontstaan". De eerste werkloosheidsdag telt dus mee, en de uitkomst van deze functie is de
+// eerste dag waarop er géén recht meer is: art. 20 lid 1 onder b laat het recht eindigen "met
+// ingang van" de dag waarop de duur is verstreken.
+//
+// Let op de maanden: valt de einddatum op een dag die in die maand niet bestaat, zoals
+// 31 augustus plus zes maanden, dan wordt het de laatste dag van die maand. De WW regelt
+// dat zelf niet. Besluit van 21-09-2026: deze regel blijft staan. De enige officiële uitleg
+// van dezelfde rekenkundige vraag staat in de toelichting bij het initiatiefwetsvoorstel Wet
+// flexibilisering ingangsdatum AOW: "Wanneer men op een datum jarig is die geen
+// corresponderende dag heeft in andere maanden (bijv. op 30 januari; 30 februari bestaat
+// immers niet) dan wordt uitgegaan van de laatste dag van die korte maand" (Kamerstukken II
+// 2015/16, 34414, nr. 3, par. 2.5). Twee voorbehouden: dat voorstel is op 21-02-2017 door de
+// Tweede Kamer verworpen en is dus geen geldend recht, en het is een AOW-bron die voor
+// art. 42 WW hooguit naar analogie geldt. Gemeten op 21-09-2026 over 321.420 gevallen (elke
+// eerste werkloosheidsdag van 2016 tot en met 2035, elke duur van 3 tot 24 maanden met en
+// zonder de vijftien dagen): de andere denkbare regel, de eerste dag van de volgende maand,
+// ligt altijd precies één dag later en valt nooit in een ander kalenderjaar. De tool meldt
+// zo'n aanpassing daarom zichtbaar. Zie OPENSTAAND.md punt 12 en BRONNEN.md.
+function eersteDagZonderRecht(eersteWerkloosheidsdag, duur) {
+  const start = ontleedDatum(eersteWerkloosheidsdag);
+  if (!start) return null;
+  const naMaanden = datumPlusLeeftijd(start, { jaren: 0, maanden: duur.maanden });
+  const eind = duur.dagen ? datumPlusDagen(naMaanden, duur.dagen) : naMaanden;
+  return { datum: eind, dagAangepast: !!naMaanden.dagAangepast };
+}
+
+// Art. 42 lid 6 onder c WW: het aantal kalenderjaren vanaf en met inbegrip van het
+// kalenderjaar waarin de werknemer achttien werd, tot 1998.
+function fictiefArbeidsverleden(geboortejaar) {
+  const jaarAchttien = geboortejaar + LEEFTIJD_START_FICTIEF_ARBEIDSVERLEDEN;
+  return Math.max(0, EERSTE_JAAR_FEITELIJK_ARBEIDSVERLEDEN - jaarAchttien);
+}
+
+// Het hoogste aantal kalenderjaren dat feitelijk arbeidsverleden vanaf 2016 kan opleveren:
+// tot en met het kalenderjaar onmiddellijk voorafgaand aan het jaar van de eerste
+// werkloosheidsdag (art. 42 lid 6 onder a WW).
+function maximumJarenVanaf2016(jaarEersteWerkloosheidsdag) {
+  return Math.max(0, jaarEersteWerkloosheidsdag - EERSTE_JAAR_HALVE_OPBOUW);
+}
+
+function maximumJarenUrennormVoor2016() {
+  return EERSTE_JAAR_HALVE_OPBOUW - EERSTE_JAAR_URENNORM;
+}
+
+function maximumJarenDagennorm() {
+  return EERSTE_JAAR_URENNORM - EERSTE_JAAR_FEITELIJK_ARBEIDSVERLEDEN;
+}
+
+// Art. 42 lid 2 WW. De uitkomst wordt uitgedrukt in halve maanden, zodat de optelling van
+// hele en halve maanden exact blijft. De eerste tien kalenderjaren arbeidsverleden leveren
+// altijd een hele maand op; die tien worden chronologisch gevuld, dus eerst met de jaren
+// vóór 2016. Wat daarboven uitkomt, levert een hele maand op voor een kalenderjaar vóór
+// 2016 en een halve maand voor een kalenderjaar na 2015.
+function uitkeringsduurInHalveMaanden({ jarenVoor2016, jarenVanaf2016, voldoetArbeidsverledeneis }) {
+  if (!voldoetArbeidsverledeneis) return DUUR_ONDERGRENS_MAANDEN * 2;
+
+  const totaal = jarenVoor2016 + jarenVanaf2016;
+  const binnenEersteTien = Math.min(JAREN_VOLLE_OPBOUW, totaal);
+  const jarenVoor2016BovenTien = Math.max(0, jarenVoor2016 - JAREN_VOLLE_OPBOUW);
+  const jarenVanaf2016BinnenEersteTien = Math.max(0, JAREN_VOLLE_OPBOUW - jarenVoor2016);
+  const jarenVanaf2016BovenTien = Math.max(0, jarenVanaf2016 - jarenVanaf2016BinnenEersteTien);
+
+  const halveMaanden =
+    binnenEersteTien * 2 + jarenVoor2016BovenTien * 2 + jarenVanaf2016BovenTien;
+
+  return Math.min(
+    DUUR_BOVENGRENS_MAANDEN * 2,
+    Math.max(DUUR_ONDERGRENS_MAANDEN * 2, halveMaanden)
+  );
+}
+
+function halveMaandenNaarDuur(halveMaanden) {
+  return {
+    maanden: Math.floor(halveMaanden / 2),
+    dagen: (halveMaanden % 2) * DAGEN_PER_HALVE_MAAND,
+  };
+}
+
+// Art. 1b lid 1 WW: het dagloon is 1/261 van het loon uit de referteperiode, ten hoogste
+// het maximumdagloon. Het ongemaximeerde dagloon blijft nodig voor de letter D van
+// art. 47 lid 1 WW.
+function berekenDaglonen(jaarloonReferteperiode, maximumdagloon) {
+  const ongemaximeerd = jaarloonReferteperiode / DAGEN_PER_JAAR;
+  const gemaximeerd = Math.min(ongemaximeerd, maximumdagloon);
+  return {
+    ongemaximeerd,
+    gemaximeerd,
+    isGemaximeerd: ongemaximeerd > maximumdagloon,
+  };
+}
+
+// Art. 47 lid 1 WW: percentage x (A - B x C/D) - E, met A het maandloon, B het inkomen in
+// de kalendermaand, C het dagloon, D het dagloon zonder maximering en E het inkomen in
+// verband met arbeid.
+// De cao-aanvulling. Dit is geen wettelijke regel: een aanvulling volgt uit de cao of de
+// arbeidsovereenkomst van die werkgever en niet uit de WW. Er staat daarom geen percentage en
+// geen duur in deze tool vastgelegd; de gebruiker vult ze in en de uitkomst wordt overal apart
+// van het wettelijke deel getoond.
+//
+// Vorm: aanvulling tót een percentage van het maandloon, want zo staat het in de meeste
+// cao's ("aanvulling tot 90 procent van het laatstverdiende loon gedurende de eerste zes
+// maanden"). De aanvulling is dus het verschil tussen dat bedrag en de wettelijke uitkering,
+// en nooit minder dan nul: ligt de wettelijke uitkering al hoger, dan valt er niets aan te
+// vullen.
+function heleMaandenTussen(vanTekst, totTekst) {
+  const van = ontleedDatum(vanTekst);
+  const tot = ontleedDatum(totTekst);
+  if (!van || !tot) return 0;
+  let maanden = (tot.jaar - van.jaar) * 12 + (tot.maand - van.maand);
+  if (tot.dag < van.dag) maanden -= 1;
+  return Math.max(0, maanden);
+}
+
+function caoAanvullingPerMaand(doelPercentage, maandloon, wettelijkeUitkering) {
+  const doelbedrag = doelPercentage * maandloon;
+  return {
+    doelbedrag: afrondenOpCenten(doelbedrag),
+    aanvulling: afrondenOpCenten(Math.max(0, doelbedrag - wettelijkeUitkering)),
+    totaal: afrondenOpCenten(Math.max(doelbedrag, wettelijkeUitkering)),
+  };
+}
+
+function uitkeringPerKalendermaand({ percentage, maandloon, inkomen, dagloon, dagloonZonderMaximering, inkomenIvmArbeid }) {
+  const verrekendInkomen = inkomen * (dagloon / dagloonZonderMaximering);
+  const bruto = percentage * (maandloon - verrekendInkomen) - inkomenIvmArbeid;
+  // Art. 47 WW noemt geen ondergrens. Een negatieve uitkomst betekent dat er na
+  // verrekening niets resteert; de tool toont dan nul en meldt dat afzonderlijk.
+  return {
+    rekenkundig: afrondenOpCenten(bruto),
+    uitbetaald: afrondenOpCenten(Math.max(0, bruto)),
+  };
+}
+
+function berekenWW(invoer) {
+  const meldingen = [];
+  const {
+    eersteWerkloosheidsdag,
+    geboortedatum,
+    jaarloonReferteperiode,
+    voldoetWekeneis,
+    voldoetArbeidsverledeneis,
+    jarenDagennorm1998tot2013,
+    jarenUrennorm2013tot2016,
+    jarenUrennormVanaf2016,
+    inkomen = 0,
+    inkomenIvmArbeid = 0,
+    caoAanvullingPercentage = 0,
+    caoAanvullingMaanden = 0,
+  } = invoer;
+
+  const periode = zoekMaximumdagloon(eersteWerkloosheidsdag);
+  if (!periode) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{
+        soort: 'fout',
+        tekst: 'Voor deze eerste werkloosheidsdag is geen vastgesteld maximumdagloon in de tool '
+             + 'opgenomen. De tool rekent niet door met het bedrag van een ander tijdvak. '
+             + 'Opgenomen tijdvakken: '
+             + MAXIMUMDAGLOON_PER_PERIODE.map(p => p.vanaf + ' tot en met ' + p.totEnMet).join(', ') + '.',
+      }],
+    };
+  }
+
+  if (!voldoetWekeneis) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{
+        soort: 'fout',
+        tekst: 'Er ontstaat geen recht op een WW-uitkering, omdat niet aan de wekeneis van '
+             + 'art. 17 lid 1 WW is voldaan. Duur en hoogte worden daarom niet berekend.',
+      }],
+    };
+  }
+
+  // Art. 19 lid 1 onder i WW: geen recht op uitkering heeft de werknemer die de
+  // pensioengerechtigde leeftijd heeft bereikt. Art. 20 lid 1 onder a laat het recht eindigen
+  // "met ingang van" de dag waarop er op grond van art. 19 geen recht meer is. De AOW-datum is
+  // daarmee de eerste dag zonder uitkering, en niet de laatste dag met.
+  //
+  // Hiervoor is de volledige geboortedatum nodig en niet alleen het geboortejaar. Ontbreekt
+  // die, dan stopt de berekening: stilzwijgend doorrekenen zou de uitkering te lang laten
+  // lopen, en dat was juist de fout die deze toets herstelt.
+  if (!ontleedDatum(geboortedatum)) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{
+        soort: 'fout',
+        tekst: 'Vul een geldige geboortedatum in. Zonder die datum kan de tool niet vaststellen '
+             + 'wanneer de pensioengerechtigde leeftijd wordt bereikt, en dus niet of het recht '
+             + 'op uitkering eerder eindigt (art. 19 lid 1 onder i WW).',
+      }],
+    };
+  }
+
+  const aow = berekenAowDatum(geboortedatum);
+  if (aow.heeftUitkomst && aow.aowDatum <= eersteWerkloosheidsdag) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{
+        soort: 'fout',
+        tekst: 'Op de eerste werkloosheidsdag is de pensioengerechtigde leeftijd al bereikt '
+             + '(AOW-datum ' + aow.aowDatum + '). Er ontstaat dan geen recht op een '
+             + 'WW-uitkering (art. 19 lid 1 onder i WW). Duur en hoogte worden niet berekend.',
+      }],
+    };
+  }
+
+  const jaarEersteWerkloosheidsdag = Number(eersteWerkloosheidsdag.slice(0, 4));
+  const geboortejaar = Number(geboortedatum.slice(0, 4));
+  const fictief = fictiefArbeidsverleden(geboortejaar);
+
+  const bovengrensVanaf2016 = maximumJarenVanaf2016(jaarEersteWerkloosheidsdag);
+  if (jarenUrennormVanaf2016 > bovengrensVanaf2016) {
+    meldingen.push({
+      soort: 'fout',
+      tekst: 'Er zijn ' + jarenUrennormVanaf2016 + ' kalenderjaren vanaf 2016 opgegeven, terwijl er '
+           + 'tot het jaar vóór de eerste werkloosheidsdag hoogstens ' + bovengrensVanaf2016
+           + ' kunnen zijn. Controleer de invoer.',
+    });
+  }
+  if (jarenDagennorm1998tot2013 > maximumJarenDagennorm()) {
+    meldingen.push({
+      soort: 'fout',
+      tekst: 'De periode 1998 tot en met 2012 telt hoogstens ' + maximumJarenDagennorm()
+           + ' kalenderjaren. Controleer de invoer.',
+    });
+  }
+  if (jarenUrennorm2013tot2016 > maximumJarenUrennormVoor2016()) {
+    meldingen.push({
+      soort: 'fout',
+      tekst: 'De periode 2013 tot en met 2015 telt hoogstens ' + maximumJarenUrennormVoor2016()
+           + ' kalenderjaren. Controleer de invoer.',
+    });
+  }
+  if (!(caoAanvullingPercentage >= 0 && caoAanvullingPercentage <= 100)) {
+    meldingen.push({
+      soort: 'fout',
+      tekst: 'De cao-aanvulling moet een percentage van 0 tot en met 100 zijn. Het is een '
+           + 'aanvulling tót een deel van het maandloon, dus meer dan 100 procent kan niet.',
+    });
+  }
+  if (!(caoAanvullingMaanden >= 0)) {
+    meldingen.push({
+      soort: 'fout',
+      tekst: 'Het aantal maanden cao-aanvulling kan niet negatief zijn.',
+    });
+  }
+  if (meldingen.some(m => m.soort === 'fout')) {
+    return { heeftUitkomst: false, meldingen };
+  }
+
+  const jarenVoor2016 = fictief + jarenDagennorm1998tot2013 + jarenUrennorm2013tot2016;
+  const jarenVanaf2016 = jarenUrennormVanaf2016;
+
+  const halveMaanden = uitkeringsduurInHalveMaanden({
+    jarenVoor2016, jarenVanaf2016, voldoetArbeidsverledeneis,
+  });
+  const duur = halveMaandenNaarDuur(halveMaanden);
+
+  if (!voldoetArbeidsverledeneis) {
+    meldingen.push({
+      soort: 'info',
+      tekst: 'Er is niet voldaan aan de arbeidsverledeneis van art. 42 lid 2 WW. De duur blijft '
+           + 'daarom de wettelijke ondergrens van drie maanden; het arbeidsverleden speelt geen rol.',
+    });
+  }
+  const ongekorteHalveMaanden =
+    voldoetArbeidsverledeneis
+      ? (Math.min(JAREN_VOLLE_OPBOUW, jarenVoor2016 + jarenVanaf2016) * 2
+         + Math.max(0, jarenVoor2016 - JAREN_VOLLE_OPBOUW) * 2
+         + Math.max(0, jarenVanaf2016 - Math.max(0, JAREN_VOLLE_OPBOUW - jarenVoor2016)))
+      : halveMaanden;
+  if (ongekorteHalveMaanden > DUUR_BOVENGRENS_MAANDEN * 2) {
+    meldingen.push({
+      soort: 'let-op',
+      tekst: 'De opbouw komt uit op ' + (ongekorteHalveMaanden / 2).toString().replace('.', ',')
+           + ' maanden en is begrensd op het wettelijke maximum van '
+           + DUUR_BOVENGRENS_MAANDEN + ' maanden (art. 42 lid 1 WW).',
+    });
+  }
+
+  // Wanneer eindigt het recht? Art. 20 lid 1 WW noemt twee gronden die hier spelen: onder b
+  // het verstrijken van de uitkeringsduur, en onder a het wegvallen van het recht op grond van
+  // art. 19, waaronder het bereiken van de pensioengerechtigde leeftijd. Beide leveren een
+  // eerste dag zonder uitkering op; de vroegste van de twee telt.
+  //
+  // De uitkeringsduur zelf wordt hierdoor niet korter. Art. 42 bepaalt de duur en die blijft
+  // wat zij is; het recht eindigt alleen eerder. De tool toont daarom allebei.
+  const eindeDuur = eersteDagZonderRecht(eersteWerkloosheidsdag, duur);
+  const eindeWegensDuur = alsTekst(eindeDuur.datum);
+  let eindeRecht = eindeWegensDuur;
+  let eindeGrond = 'De uitkeringsduur is verstreken (art. 20 lid 1 onder b WW).';
+  let ingekortDoorAow = false;
+
+  if (eindeDuur.dagAangepast) {
+    meldingen.push({
+      soort: 'let-op',
+      tekst: 'De einddatum valt rekenkundig op een dag die in die maand niet bestaat en is '
+           + 'daarom op de laatste dag van die maand gezet. De WW regelt deze manier van '
+           + 'tellen zelf niet. De enige officiële uitleg van dezelfde vraag staat in de '
+           + 'toelichting bij het initiatiefwetsvoorstel Wet flexibilisering ingangsdatum AOW '
+           + '(Kamerstukken II 2015/16, 34414, nr. 3, par. 2.5) en wijst dezelfde kant op, '
+           + 'maar dat voorstel is verworpen en gaat bovendien over de AOW. Het scheelt '
+           + 'hoogstens één dag en nooit een kalenderjaar. Laat dit geval bevestigen wanneer '
+           + 'die ene dag in uw geval het verschil maakt.',
+    });
+  }
+
+  if (aow.heeftUitkomst && aow.aowDatum < eindeWegensDuur) {
+    eindeRecht = aow.aowDatum;
+    eindeGrond = 'De pensioengerechtigde leeftijd is bereikt (art. 20 lid 1 onder a jo. '
+               + 'art. 19 lid 1 onder i WW).';
+    ingekortDoorAow = true;
+    meldingen.push({
+      soort: 'let-op',
+      tekst: 'Het recht op uitkering eindigt eerder dan de uitkeringsduur. Op ' + aow.aowDatum
+           + ' wordt de pensioengerechtigde leeftijd van ' + aow.leeftijdTekst + ' bereikt, en '
+           + 'daarmee vervalt het recht (art. 19 lid 1 onder i WW). De uitkeringsduur van '
+           + duurAlsZin(duur) + ' zou anders doorlopen tot ' + eindeWegensDuur + '. Vindplaats '
+           + 'van de leeftijd: ' + aow.vindplaats + '.',
+    });
+    if (aow.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De '
+             + 'AOW-datum is daarom op de laatste dag van die maand gezet. Laat dit geval '
+             + 'bevestigen door de Sociale Verzekeringsbank.',
+      });
+    }
+  } else if (!aow.heeftUitkomst) {
+    // De AOW-leeftijd is voor dat kalenderjaar nog niet vastgesteld. Dan is de AOW-datum op
+    // zijn vroegst 1 januari van het eerste onbekende jaar; ligt het einde van de duur daar
+    // vóór, dan kan zij het recht onmogelijk eerder beëindigen en is er niets te melden.
+    const vroegstMogelijk = (laatstBekendeJaar() + 1) + '-01-01';
+    if (eindeWegensDuur > vroegstMogelijk) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De pensioengerechtigde leeftijd is voor het betrokken kalenderjaar nog niet '
+             + 'vastgesteld, dus de tool kan niet toetsen of het recht eerder eindigt doordat '
+             + 'die leeftijd wordt bereikt (art. 19 lid 1 onder i WW). De laatste vastgestelde '
+             + 'leeftijd geldt voor ' + laatstBekendeJaar() + '.',
+      });
+    }
+  }
+
+  // Art. 47 lid 1 WW kent een hoger percentage over de eerste twee maanden. Dat derde tijdvak
+  // bestaat alleen wanneer het recht daadwerkelijk langer loopt dan die twee maanden; eindigt
+  // het eerder door de AOW-datum, dan komt het niet meer aan de orde.
+  const naTweeMaanden = alsTekst(
+    datumPlusLeeftijd(ontleedDatum(eersteWerkloosheidsdag),
+                      { jaren: 0, maanden: MAANDEN_HOOG_PERCENTAGE }));
+
+  const daglonen = berekenDaglonen(jaarloonReferteperiode, periode.bedrag);
+  if (daglonen.isGemaximeerd) {
+    meldingen.push({
+      soort: 'let-op',
+      tekst: 'Het dagloon uit de referteperiode is hoger dan het maximumdagloon van '
+           + periode.bedrag.toFixed(2).replace('.', ',') + ' euro en is daarop gemaximeerd '
+           + '(art. 17 lid 1 Wfsv).',
+    });
+  }
+
+  const maandloon = daglonen.gemaximeerd * DAGEN_PER_MAAND;
+  const gedeeldeInvoer = {
+    maandloon,
+    inkomen,
+    dagloon: daglonen.gemaximeerd,
+    dagloonZonderMaximering: daglonen.ongemaximeerd,
+    inkomenIvmArbeid,
+  };
+
+  const eersteTweeMaanden = uitkeringPerKalendermaand({
+    percentage: UITKERINGSPERCENTAGE_EERSTE_TWEE_MAANDEN, ...gedeeldeInvoer,
+  });
+  const vanafDerdeMaand = uitkeringPerKalendermaand({
+    percentage: UITKERINGSPERCENTAGE_VANAF_DERDE_MAAND, ...gedeeldeInvoer,
+  });
+
+  // De cao-aanvulling, strikt gescheiden van het wettelijke deel. Zij vult aan tót een
+  // percentage van het maandloon, dus zij hangt af van wat de wettelijke uitkering al geeft en
+  // verschilt daardoor tussen de eerste twee maanden en de periode daarna.
+  //
+  // De aanvulling loopt niet door nadat het recht op uitkering is geëindigd. Er valt dan niets
+  // meer aan te vullen, en of de werkgever daarna nog iets betaalt volgt uit de cao en niet uit
+  // deze berekening.
+  const aanvullingActief = caoAanvullingPercentage > 0 && caoAanvullingMaanden > 0;
+  let caoAanvulling = null;
+  if (aanvullingActief) {
+    const doel = caoAanvullingPercentage / 100;
+    const eindeAanvulling = alsTekst(datumPlusLeeftijd(
+      ontleedDatum(eersteWerkloosheidsdag), { jaren: 0, maanden: caoAanvullingMaanden }));
+    const ingekort = eindeAanvulling > eindeRecht;
+    const werkelijkEinde = ingekort ? eindeRecht : eindeAanvulling;
+    caoAanvulling = {
+      doelPercentage: caoAanvullingPercentage,
+      maandenIngevuld: caoAanvullingMaanden,
+      eindeAanvulling: werkelijkEinde,
+      laatsteDag: alsTekst(vorigeDag(ontleedDatum(werkelijkEinde))),
+      werkelijkeMaanden: heleMaandenTussen(eersteWerkloosheidsdag, werkelijkEinde),
+      ingekortDoorEindeRecht: ingekort,
+      loeptVoorbijTweeMaanden: werkelijkEinde > naTweeMaanden,
+      eersteTweeMaanden: caoAanvullingPerMaand(doel, maandloon, eersteTweeMaanden.uitbetaald),
+      vanafDerdeMaand: caoAanvullingPerMaand(doel, maandloon, vanafDerdeMaand.uitbetaald),
+    };
+    if (ingekort) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De cao-aanvulling is ingevuld voor ' + caoAanvullingMaanden + ' maanden, maar het '
+             + 'recht op uitkering eindigt al met ingang van ' + eindeRecht + '. De tool rekent de '
+             + 'aanvulling daarom tot die dag. Of de werkgever daarna nog iets betaalt, volgt uit '
+             + 'de cao en niet uit deze berekening.',
+      });
+    }
+    if (caoAanvulling.eersteTweeMaanden.aanvulling === 0
+        && caoAanvulling.vanafDerdeMaand.aanvulling === 0) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De wettelijke uitkering ligt al op of boven ' + caoAanvullingPercentage
+             + ' procent van het maandloon, dus er valt niets aan te vullen.',
+      });
+    }
+    meldingen.push({
+      soort: 'info',
+      tekst: 'De cao-aanvulling volgt niet uit de WW maar uit de cao of de arbeidsovereenkomst '
+           + 'van deze werkgever. Percentage en duur zijn ingevuld en niet door de tool '
+           + 'vastgesteld; controleer ze aan de cao.',
+    });
+  }
+
+  if (eersteTweeMaanden.rekenkundig < 0 || vanafDerdeMaand.rekenkundig < 0) {
+    meldingen.push({
+      soort: 'let-op',
+      tekst: 'Na verrekening van het opgegeven inkomen resteert rekenkundig een negatief bedrag. '
+           + 'Er wordt dan niets uitbetaald. Of het recht zelf eindigt, volgt uit art. 20 WW en '
+           + 'valt buiten deze berekening.',
+    });
+  }
+
+  const duurtLangerDanTweeMaanden = eindeRecht > naTweeMaanden;
+
+  return {
+    heeftUitkomst: true,
+    meldingen,
+    duur,
+    duurInHalveMaanden: halveMaanden,
+    eindeRecht,
+    eindeGrond,
+    eindeWegensDuur,
+    laatsteUitkeringsdag: alsTekst(vorigeDag(ontleedDatum(eindeRecht))),
+    ingekortDoorAow,
+    aowDatum: aow.heeftUitkomst ? aow.aowDatum : null,
+    aowLeeftijdTekst: aow.heeftUitkomst ? aow.leeftijdTekst : null,
+    aowVindplaats: aow.heeftUitkomst ? aow.vindplaats : null,
+    arbeidsverleden: {
+      fictief,
+      feitelijkVoor2016: jarenDagennorm1998tot2013 + jarenUrennorm2013tot2016,
+      totaalVoor2016: jarenVoor2016,
+      vanaf2016: jarenVanaf2016,
+      totaal: jarenVoor2016 + jarenVanaf2016,
+    },
+    dagloon: afrondenOpCenten(daglonen.gemaximeerd),
+    dagloonZonderMaximering: afrondenOpCenten(daglonen.ongemaximeerd),
+    isGemaximeerd: daglonen.isGemaximeerd,
+    maximumdagloon: periode.bedrag,
+    maximumdagloonVindplaats: periode.vindplaats,
+    maandloon: afrondenOpCenten(maandloon),
+    eersteTweeMaanden,
+    vanafDerdeMaand,
+    duurtLangerDanTweeMaanden,
+    caoAanvulling,
+  };
+}
+// FISCALE KERN — EINDE
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Geen DOM en geen rekenregels: deze
+// functies zetten om wat de kern heeft berekend. Er is één functie die vastlegt wat er
+// in een uitgang hoort, zodat de afdruk en de export niet uiteen kunnen lopen.
+
+const TOOL_ID = 'ww-uitkering';
+const TOOL_NAAM = 'WW-uitkering: duur en hoogte';
+const TOOL_VERSIE = '0.2.0';
+const DOSSIER_FORMAATVERSIE = 2;
+
+// Migratie van een oudere formaatversie. Een pad mag hier alleen staan wanneer de oude versie
+// eenduidig naar de nieuwe is te vertalen; valt er iets te gokken, dan hoort het bestand
+// geweigerd te worden en niet aangevuld. Versie 1 kende de cao-aanvulling nog niet, en een
+// dossier zonder aanvulling is precies nul procent gedurende nul maanden.
+const DOSSIER_MIGRATIES = {
+  1: {
+    vul: { caoAanvullingPercentage: 0, caoAanvullingMaanden: 0 },
+    toelichting: 'Dit dossier is opgeslagen voordat de cao-aanvulling bestond. Die is op nul '
+               + 'gezet, wat overeenkomt met een dossier zonder aanvulling.',
+  },
+};
+
+const INVOERVELDEN = [
+  { sleutel: 'eersteWerkloosheidsdag', label: 'Eerste werkloosheidsdag', soort: 'datum' },
+  { sleutel: 'geboortedatum', label: 'Geboortedatum', soort: 'datum' },
+  { sleutel: 'jaarloonReferteperiode', label: 'SV-jaarloon referteperiode', soort: 'bedrag' },
+  { sleutel: 'voldoetWekeneis', label: 'Voldoet aan de wekeneis (art. 17 lid 1 WW)', soort: 'janee' },
+  { sleutel: 'voldoetArbeidsverledeneis', label: 'Voldoet aan de arbeidsverledeneis (art. 42 lid 2 WW)', soort: 'janee' },
+  { sleutel: 'jarenDagennorm1998tot2013', label: 'Kalenderjaren 1998 tot en met 2012', soort: 'aantal' },
+  { sleutel: 'jarenUrennorm2013tot2016', label: 'Kalenderjaren 2013 tot en met 2015', soort: 'aantal' },
+  { sleutel: 'jarenUrennormVanaf2016', label: 'Kalenderjaren vanaf 2016', soort: 'aantal' },
+  { sleutel: 'inkomen', label: 'Inkomen in de kalendermaand (B)', soort: 'bedrag' },
+  { sleutel: 'inkomenIvmArbeid', label: 'Inkomen in verband met arbeid (E)', soort: 'bedrag' },
+  { sleutel: 'caoAanvullingPercentage', label: 'Cao-aanvulling tot procent van het maandloon', soort: 'aantal' },
+  { sleutel: 'caoAanvullingMaanden', label: 'Cao-aanvulling gedurende maanden', soort: 'aantal' },
+];
+
+const VINDPLAATSEN = [
+  'Duur: art. 42 Werkloosheidswet. Ten minste drie en ten hoogste 24 maanden; een maand per '
+  + 'kalenderjaar arbeidsverleden tot tien jaar, daarboven een halve maand per kalenderjaar na '
+  + '2015 en een hele maand per kalenderjaar vóór 2016. Een halve maand telt voor vijftien '
+  + 'kalenderdagen.',
+  'Arbeidsverleden: art. 42 lid 6 WW. Feitelijk vanaf 1998, fictief vanaf het kalenderjaar van '
+  + 'de achttiende verjaardag.',
+  'Wekeneis: art. 17 lid 1 WW. Arbeidsverledeneis: art. 42 lid 2 onder a en b WW.',
+  'Hoogte: art. 47 lid 1 WW. 75 procent van het maandloon over de eerste twee maanden, 70 '
+  + 'procent vanaf de derde maand, verminderd met verrekend inkomen.',
+  'Dagloon en maandloon: art. 1b lid 1 en lid 2 onder a WW. Dagloon is 1/261 van het loon uit '
+  + 'de referteperiode; maandloon is 21,75 maal het dagloon.',
+  'Maximering van het dagloon: art. 17 lid 1 Wet financiering sociale verzekeringen.',
+  'Einde van het recht: art. 20 lid 1 WW. Onder b eindigt het recht met ingang van de dag '
+  + 'waarop de uitkeringsduur is verstreken; onder a met ingang van de dag waarop er op grond '
+  + 'van art. 19 geen recht meer is.',
+  'Pensioengerechtigde leeftijd: art. 19 lid 1 onder i WW. Geen recht op uitkering heeft de '
+  + 'werknemer die de pensioengerechtigde leeftijd heeft bereikt. De leeftijd en de AOW-datum '
+  + 'volgen uit art. 7a en art. 16 lid 1 Algemene Ouderdomswet.',
+];
+
+const AFBAKENING = [
+  'Deze tool rekent en adviseert niet. Zij geeft een uitkomst en doet geen voorstel.',
+  'De gelijkstellingen van art. 42a WW zijn niet verwerkt: verzorgingsjaren, onbetaald verlof '
+  + 'en jaren met een arbeidsongeschiktheidsuitkering tellen onder voorwaarden mee, soms voor '
+  + 'een half kalenderjaar. De invoer werkt met hele kalenderjaren.',
+  'De verlenging na een geëindigd recht (art. 42b WW) is niet verwerkt.',
+  'Van de uitsluitingsgronden van art. 19 lid 1 WW toetst de tool er één: het bereiken van de '
+  + 'pensioengerechtigde leeftijd (onderdeel i). De andere gronden, zoals detentie of een '
+  + 'andere uitkering, moet de gebruiker zelf beoordelen. Ook de overige eindgronden van '
+  + 'art. 20 lid 1 WW, zoals het hervatten van werk, blijven buiten de berekening.',
+  'De einddatum telt hele maanden vanaf de eerste werkloosheidsdag. Valt die datum op een dag '
+  + 'die in de doelmaand niet bestaat, dan wordt het de laatste dag van die maand; de tool '
+  + 'meldt dat. De WW regelt deze manier van tellen niet. De toelichting bij het verworpen '
+  + 'initiatiefwetsvoorstel Wet flexibilisering ingangsdatum AOW (Kamerstukken II 2015/16, '
+  + '34414, nr. 3, par. 2.5) legt dezelfde vraag zo uit, maar bindt niet en gaat over de AOW. '
+  + 'De keuze scheelt hoogstens één dag en nooit een kalenderjaar.',
+  'Gerekend wordt met het maximumdagloon dat geldt op de eerste werkloosheidsdag. Het dagloon '
+  + 'wordt tijdens de looptijd herzien zodra het minimumloon wordt herzien (art. 1b lid 7 WW); '
+  + 'met welk percentage dat na de ingangsdatum gebeurt, staat op dat moment nog niet vast.',
+  'De dagloonregels die bepalen welk loon in de referteperiode meetelt, zijn niet nagebouwd.',
+  'De cao-aanvulling is geen wettelijke regeling. Percentage en duur zijn ingevuld en niet '
+  + 'door de tool vastgesteld; de tool kent geen enkele cao. Zij rekent de aanvulling alleen '
+  + 'door zolang er een WW-uitkering is, want een aanvulling tót een percentage veronderstelt '
+  + 'iets om op aan te vullen. Wat de werkgever daarnaast of daarna betaalt, volgt uit de cao.',
+  'De uitkomst is een berekening en geen beschikking. Het UWV stelt duur en hoogte vast.',
+];
+
+function kernInvoerUit(ruweInvoer) {
+  const geboortedatum = ruweInvoer.geboortedatum;
+  return {
+    eersteWerkloosheidsdag: ruweInvoer.eersteWerkloosheidsdag,
+    geboortedatum,
+    jaarloonReferteperiode: ruweInvoer.jaarloonReferteperiode,
+    voldoetWekeneis: ruweInvoer.voldoetWekeneis,
+    voldoetArbeidsverledeneis: ruweInvoer.voldoetArbeidsverledeneis,
+    jarenDagennorm1998tot2013: ruweInvoer.jarenDagennorm1998tot2013,
+    jarenUrennorm2013tot2016: ruweInvoer.jarenUrennorm2013tot2016,
+    jarenUrennormVanaf2016: ruweInvoer.jarenUrennormVanaf2016,
+    inkomen: ruweInvoer.inkomen,
+    inkomenIvmArbeid: ruweInvoer.inkomenIvmArbeid,
+    caoAanvullingPercentage: ruweInvoer.caoAanvullingPercentage,
+    caoAanvullingMaanden: ruweInvoer.caoAanvullingMaanden,
+  };
+}
+
+function bedragAlsTekst(bedrag) {
+  return 'EUR ' + bedrag.toFixed(2).replace('.', ',');
+}
+
+function duurAlsZin(duur) {
+  const maandDeel = duur.maanden + (duur.maanden === 1 ? ' maand' : ' maanden');
+  return duur.dagen === 0 ? maandDeel : maandDeel + ' en ' + duur.dagen + ' kalenderdagen';
+}
+
+// Eén plek die vastlegt wat er in een uitgang staat. Zowel het dossierstuk als de
+// Excel-export leest deze structuur, zodat een getal niet op twee plekken kan ontstaan.
+function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
+  const invoerregels = INVOERVELDEN.map(function (veld) {
+    const waarde = ruweInvoer[veld.sleutel];
+    if (veld.soort === 'janee') {
+      return { label: veld.label, tekst: waarde ? 'ja' : 'nee' };
+    }
+    if (veld.soort === 'datum') {
+      return { label: veld.label, tekst: String(waarde) };
+    }
+    return {
+      label: veld.label,
+      tekst: veld.soort === 'bedrag' ? bedragAlsTekst(Number(waarde)) : String(waarde),
+      getal: Number(waarde),
+      formaat: veld.soort === 'bedrag' ? '#,##0.00' : '0',
+    };
+  });
+
+  const uitkomstregels = [];
+  if (uitkomst.heeftUitkomst) {
+    const av = uitkomst.arbeidsverleden;
+    uitkomstregels.push(
+      { label: 'Fictief arbeidsverleden, tot 1998', tekst: av.fictief + ' kalenderjaren',
+        getal: av.fictief, formaat: '0' },
+      { label: 'Feitelijk arbeidsverleden vóór 2016', tekst: av.feitelijkVoor2016 + ' kalenderjaren',
+        getal: av.feitelijkVoor2016, formaat: '0' },
+      { label: 'Arbeidsverleden vanaf 2016', tekst: av.vanaf2016 + ' kalenderjaren',
+        getal: av.vanaf2016, formaat: '0' },
+      { label: 'Totaal arbeidsverleden', tekst: av.totaal + ' kalenderjaren',
+        getal: av.totaal, formaat: '0' },
+      { label: 'Uitkeringsduur', tekst: duurAlsZin(uitkomst.duur) },
+      { label: 'Laatste dag met uitkering', tekst: uitkomst.laatsteUitkeringsdag },
+      { label: 'Het recht eindigt met ingang van', tekst: uitkomst.eindeRecht },
+      { label: 'Grond voor het einde', tekst: uitkomst.eindeGrond },
+      { label: 'Dagloon uit de referteperiode', tekst: bedragAlsTekst(uitkomst.dagloonZonderMaximering),
+        getal: uitkomst.dagloonZonderMaximering, formaat: '#,##0.00' },
+      { label: 'Maximumdagloon op de eerste werkloosheidsdag', tekst: bedragAlsTekst(uitkomst.maximumdagloon),
+        getal: uitkomst.maximumdagloon, formaat: '#,##0.00' },
+      { label: 'Dagloon na maximering', tekst: bedragAlsTekst(uitkomst.dagloon),
+        getal: uitkomst.dagloon, formaat: '#,##0.00' },
+      { label: 'Maandloon', tekst: bedragAlsTekst(uitkomst.maandloon),
+        getal: uitkomst.maandloon, formaat: '#,##0.00' },
+      { label: 'Uitkering over de eerste twee maanden', tekst: bedragAlsTekst(uitkomst.eersteTweeMaanden.uitbetaald),
+        getal: uitkomst.eersteTweeMaanden.uitbetaald, formaat: '#,##0.00' }
+    );
+    const cao = uitkomst.caoAanvulling;
+    if (cao) {
+      // Elk label zegt erbij dat dit geen wettelijk bedrag is. Een dossierstuk wordt later
+      // gelezen door iemand die er niet bij was; die moet in de regel zelf kunnen zien dat
+      // deze bedragen uit een cao komen en niet uit de WW.
+      uitkomstregels.push(
+        { label: 'Cao-aanvulling (niet wettelijk): aanvullen tot',
+          tekst: cao.doelPercentage + ' procent van het maandloon' },
+        { label: 'Cao-aanvulling (niet wettelijk): laatste dag', tekst: cao.laatsteDag },
+        { label: 'Cao-aanvulling (niet wettelijk) over de eerste twee maanden',
+          tekst: bedragAlsTekst(cao.eersteTweeMaanden.aanvulling),
+          getal: cao.eersteTweeMaanden.aanvulling, formaat: '#,##0.00' },
+        { label: 'Wettelijk plus aanvulling, eerste twee maanden',
+          tekst: bedragAlsTekst(cao.eersteTweeMaanden.totaal),
+          getal: cao.eersteTweeMaanden.totaal, formaat: '#,##0.00' }
+      );
+      if (cao.loeptVoorbijTweeMaanden) {
+        uitkomstregels.push(
+          { label: 'Cao-aanvulling (niet wettelijk) vanaf de derde maand',
+            tekst: bedragAlsTekst(cao.vanafDerdeMaand.aanvulling),
+            getal: cao.vanafDerdeMaand.aanvulling, formaat: '#,##0.00' },
+          { label: 'Wettelijk plus aanvulling, vanaf de derde maand',
+            tekst: bedragAlsTekst(cao.vanafDerdeMaand.totaal),
+            getal: cao.vanafDerdeMaand.totaal, formaat: '#,##0.00' }
+        );
+      }
+    }
+    if (uitkomst.ingekortDoorAow) {
+      uitkomstregels.push(
+        { label: 'AOW-datum', tekst: uitkomst.aowDatum },
+        { label: 'Pensioengerechtigde leeftijd', tekst: uitkomst.aowLeeftijdTekst },
+        { label: 'Vindplaats van de leeftijd', tekst: uitkomst.aowVindplaats },
+        { label: 'Einde zonder de AOW-grens', tekst: uitkomst.eindeWegensDuur }
+      );
+    }
+    if (uitkomst.duurtLangerDanTweeMaanden) {
+      uitkomstregels.push({
+        label: 'Uitkering vanaf de derde maand',
+        tekst: bedragAlsTekst(uitkomst.vanafDerdeMaand.uitbetaald),
+        getal: uitkomst.vanafDerdeMaand.uitbetaald, formaat: '#,##0.00',
+      });
+    } else {
+      uitkomstregels.push({
+        label: 'Uitkering vanaf de derde maand',
+        tekst: 'niet van toepassing, de uitkering duurt niet langer dan twee maanden',
+      });
+    }
+  }
+
+  return {
+    kop: {
+      toolNaam: TOOL_NAAM,
+      toolVersie: TOOL_VERSIE,
+      datum: datumISO,
+      kenmerk: (kenmerk || '').trim(),
+    },
+    heeftUitkomst: uitkomst.heeftUitkomst,
+    invoerregels,
+    uitkomstregels,
+    meldingen: uitkomst.meldingen.map(function (m) { return m.tekst; }),
+    vindplaatsen: VINDPLAATSEN,
+    afbakening: AFBAKENING,
+    maximumdagloonVindplaats: uitkomst.maximumdagloonVindplaats || '',
+  };
+}
+
+function exportBladen(uitgang) {
+  const rijen = [];
+  const leeg = function () { rijen.push([]); };
+  const kop = function (tekst) { rijen.push([celTekst(tekst, true)]); };
+  const paar = function (regel) {
+    rijen.push([
+      celTekst(regel.label),
+      typeof regel.getal === 'number' && isFinite(regel.getal)
+        ? celGetal(regel.getal, regel.formaat)
+        : celTekst(regel.tekst),
+      typeof regel.getal === 'number' && isFinite(regel.getal) ? celTekst(regel.tekst) : null,
+    ]);
+  };
+
+  kop(uitgang.kop.toolNaam);
+  rijen.push([celTekst('Versie'), celTekst(uitgang.kop.toolVersie)]);
+  rijen.push([celTekst('Datum van de export'), celTekst(uitgang.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(uitgang.kop.kenmerk || 'geen kenmerk ingevuld')]);
+  leeg();
+
+  kop('Invoer');
+  uitgang.invoerregels.forEach(paar);
+  leeg();
+
+  kop(uitgang.heeftUitkomst ? 'Uitkomst' : 'Geen uitkomst');
+  uitgang.uitkomstregels.forEach(paar);
+  leeg();
+
+  if (uitgang.meldingen.length) {
+    kop('Meldingen');
+    uitgang.meldingen.forEach(function (m) { rijen.push([celTekst(m)]); });
+    leeg();
+  }
+
+  kop('Vindplaatsen');
+  uitgang.vindplaatsen.forEach(function (v) { rijen.push([celTekst(v)]); });
+  if (uitgang.maximumdagloonVindplaats) {
+    rijen.push([celTekst('Maximumdagloon: ' + uitgang.maximumdagloonVindplaats)]);
+  }
+  leeg();
+
+  kop('Afbakening');
+  uitgang.afbakening.forEach(function (a) { rijen.push([celTekst(a)]); });
+
+  return [{ naam: 'WW-uitkering', rijen, breedtes: [52, 22, 30] }];
+}
+
+function slug(tekst) {
+  const schoon = String(tekst || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return schoon || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
+  const invoer = {};
+  INVOERVELDEN.forEach(function (veld) { invoer[veld.sleutel] = ruweInvoer[veld.sleutel]; });
+  return {
+    tool: TOOL_ID,
+    formaatVersie: DOSSIER_FORMAATVERSIE,
+    toolVersie: TOOL_VERSIE,
+    opgeslagen: datumISO,
+    kenmerk: (kenmerk || '').trim(),
+    invoer,
+  };
+}
+
+// Strikte typetoetsen. Number() zou van true, [], [5] en " " stil een getal maken, en dan
+// opent een handmatig aangepast of ouder bestand met een andere grondslag dan waarmee het
+// is bewaard, zonder dat iemand het merkt.
+function isEchtGetal(waarde) {
+  return typeof waarde === 'number' && Number.isFinite(waarde);
+}
+function isDatumTekst(waarde) {
+  return typeof waarde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(waarde);
+}
+
+function leesDossier(tekst) {
+  let rauw;
+  try {
+    rauw = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Het bestand is geen leesbare JSON. Er is niets gewijzigd.' };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fout: 'Het bestand bevat geen dossiergegevens. Er is niets gewijzigd.' };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit bestand hoort bij een andere tool (' + String(rauw.tool)
+      + ') en niet bij ' + TOOL_ID + '. Er is niets gewijzigd.' };
+  }
+  if (!isEchtGetal(rauw.formaatVersie)) {
+    return { ok: false, fout: 'Het bestand heeft geen leesbare formaatversie. Er is niets gewijzigd.' };
+  }
+  if (rauw.formaatVersie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fout: 'Dit bestand is geschreven met formaatversie ' + rauw.formaatVersie
+      + ', terwijl deze tool versie ' + DOSSIER_FORMAATVERSIE + ' kent. Werk de tool bij. '
+      + 'Er is niets gewijzigd.' };
+  }
+  const migratie = rauw.formaatVersie < DOSSIER_FORMAATVERSIE
+    ? DOSSIER_MIGRATIES[rauw.formaatVersie]
+    : null;
+  if (rauw.formaatVersie < DOSSIER_FORMAATVERSIE && !migratie) {
+    return { ok: false, fout: 'Dit bestand heeft formaatversie ' + rauw.formaatVersie
+      + '. Er is voor die versie geen migratiepad vastgelegd, dus het wordt niet geopend. '
+      + 'Er is niets gewijzigd.' };
+  }
+  if (!rauw.invoer || typeof rauw.invoer !== 'object' || Array.isArray(rauw.invoer)) {
+    return { ok: false, fout: 'Het bestand bevat geen invoergegevens. Er is niets gewijzigd.' };
+  }
+
+  const ruweInvoer = {};
+  const gebreken = [];
+  const aangevuld = migratie ? migratie.vul : {};
+  INVOERVELDEN.forEach(function (veld) {
+    const waarde = veld.sleutel in aangevuld && rauw.invoer[veld.sleutel] === undefined
+      ? aangevuld[veld.sleutel]
+      : rauw.invoer[veld.sleutel];
+    if (waarde === undefined) {
+      gebreken.push('het veld "' + veld.label + '" ontbreekt');
+      return;
+    }
+    if (veld.soort === 'janee') {
+      if (typeof waarde !== 'boolean') {
+        gebreken.push('"' + veld.label + '" moet ja of nee zijn');
+        return;
+      }
+    } else if (veld.soort === 'datum') {
+      if (!isDatumTekst(waarde)) {
+        gebreken.push('"' + veld.label + '" moet een datum zijn in de vorm jjjj-mm-dd');
+        return;
+      }
+    } else {
+      if (!isEchtGetal(waarde)) {
+        gebreken.push('"' + veld.label + '" moet een getal zijn');
+        return;
+      }
+      if (waarde < 0) {
+        gebreken.push('"' + veld.label + '" mag niet negatief zijn');
+        return;
+      }
+    }
+    ruweInvoer[veld.sleutel] = waarde;
+  });
+
+  if (gebreken.length) {
+    return { ok: false, fout: 'Het bestand is niet geopend, want ' + gebreken.join(', ')
+      + '. De huidige invoer en uitkomst blijven staan.' };
+  }
+
+  const meldingen = [];
+  if (migratie) meldingen.push(migratie.toelichting);
+  if (rauw.toolVersie !== TOOL_VERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met toolversie ' + String(rauw.toolVersie)
+      + ' en wordt geopend in versie ' + TOOL_VERSIE + '. De uitkomst wordt opnieuw berekend '
+      + 'en kan daardoor afwijken van wat er destijds stond.');
+  }
+  return {
+    ok: true,
+    ruweInvoer,
+    kenmerk: typeof rauw.kenmerk === 'string' ? rauw.kenmerk : '',
+    meldingen,
+  };
+}
+// UITGANGEN — EINDE
+
+const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
+
+const duurAlsTekst = duurAlsZin;
+
+function vandaagISO() {
+  const d = new Date();
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + tweeCijfers(d.getMonth() + 1) + '-' + tweeCijfers(d.getDate());
+}
+
+function leesInvoer() {
+  return {
+    eersteWerkloosheidsdag: document.getElementById('ewd').value,
+    geboortedatum: document.getElementById('geboortedatum').value,
+    jaarloonReferteperiode: Number(document.getElementById('jaarloon').value),
+    voldoetWekeneis: document.querySelector('input[name="wekeneis"]:checked').value === 'ja',
+    voldoetArbeidsverledeneis: document.querySelector('input[name="avEis"]:checked').value === 'ja',
+    jarenDagennorm1998tot2013: Number(document.getElementById('jaren1998').value),
+    jarenUrennorm2013tot2016: Number(document.getElementById('jaren2013').value),
+    jarenUrennormVanaf2016: Number(document.getElementById('jaren2016').value),
+    inkomen: Number(document.getElementById('inkomen').value),
+    inkomenIvmArbeid: Number(document.getElementById('inkomenIvmArbeid').value),
+    caoAanvullingPercentage: Number(document.getElementById('caoPercentage').value),
+    caoAanvullingMaanden: Number(document.getElementById('caoMaanden').value),
+  };
+}
+
+function schrijfInvoer(ruweInvoer, kenmerk) {
+  document.getElementById('ewd').value = ruweInvoer.eersteWerkloosheidsdag;
+  document.getElementById('geboortedatum').value = ruweInvoer.geboortedatum;
+  document.getElementById('jaarloon').value = ruweInvoer.jaarloonReferteperiode;
+  document.querySelector('input[name="wekeneis"][value="'
+    + (ruweInvoer.voldoetWekeneis ? 'ja' : 'nee') + '"]').checked = true;
+  document.querySelector('input[name="avEis"][value="'
+    + (ruweInvoer.voldoetArbeidsverledeneis ? 'ja' : 'nee') + '"]').checked = true;
+  document.getElementById('jaren1998').value = ruweInvoer.jarenDagennorm1998tot2013;
+  document.getElementById('jaren2013').value = ruweInvoer.jarenUrennorm2013tot2016;
+  document.getElementById('jaren2016').value = ruweInvoer.jarenUrennormVanaf2016;
+  document.getElementById('inkomen').value = ruweInvoer.inkomen;
+  document.getElementById('inkomenIvmArbeid').value = ruweInvoer.inkomenIvmArbeid;
+  document.getElementById('caoPercentage').value = ruweInvoer.caoAanvullingPercentage;
+  document.getElementById('caoMaanden').value = ruweInvoer.caoAanvullingMaanden;
+  document.getElementById('kenmerk').value = kenmerk;
+}
+
+function ontbrekendeInvoer(ruweInvoer) {
+  const ontbreekt = [];
+  if (!ruweInvoer.eersteWerkloosheidsdag) ontbreekt.push('de eerste werkloosheidsdag');
+  if (!ruweInvoer.geboortedatum) ontbreekt.push('de geboortedatum');
+  const getallen = [
+    ['het SV-jaarloon', ruweInvoer.jaarloonReferteperiode],
+    ['het aantal jaren 1998 tot en met 2012', ruweInvoer.jarenDagennorm1998tot2013],
+    ['het aantal jaren 2013 tot en met 2015', ruweInvoer.jarenUrennorm2013tot2016],
+    ['het aantal jaren vanaf 2016', ruweInvoer.jarenUrennormVanaf2016],
+    ['het inkomen in de kalendermaand', ruweInvoer.inkomen],
+    ['het inkomen in verband met arbeid', ruweInvoer.inkomenIvmArbeid],
+    ['het percentage cao-aanvulling', ruweInvoer.caoAanvullingPercentage],
+    ['het aantal maanden cao-aanvulling', ruweInvoer.caoAanvullingMaanden],
+  ];
+  for (const [naam, waarde] of getallen) {
+    if (!Number.isFinite(waarde) || waarde < 0) ontbreekt.push(naam);
+  }
+  return ontbreekt;
+}
+
+function toonMeldingen(meldingen) {
+  return meldingen.map(m =>
+    '<div class="melding ' + m.soort + '">' + m.tekst + '</div>'
+  ).join('');
+}
+
+function toon(uitkomst) {
+  const doel = document.getElementById('uitvoer');
+  if (!uitkomst.heeftUitkomst) {
+    doel.innerHTML = '<div class="kaart">' + toonMeldingen(uitkomst.meldingen) + '</div>';
+    return;
+  }
+
+  const av = uitkomst.arbeidsverleden;
+  const tweede = uitkomst.duurtLangerDanTweeMaanden
+    ? '<div class="blok"><div class="etiket">Vanaf de derde maand</div>'
+      + '<div class="waarde">' + euro.format(uitkomst.vanafDerdeMaand.uitbetaald) + '</div>'
+      + '<div class="onder">70 procent, art. 47 lid 1 onder b WW</div></div>'
+    : '<div class="blok"><div class="etiket">Vanaf de derde maand</div>'
+      + '<div class="waarde" style="color:var(--dim);font-size:18px">niet van toepassing</div>'
+      + '<div class="onder">de uitkering duurt niet langer dan twee maanden</div></div>';
+
+  doel.innerHTML =
+    '<div class="kaart">'
+    + toonMeldingen(uitkomst.meldingen)
+    + '<div class="uitkomst">'
+    + '<div class="blok"><div class="etiket">Uitkeringsduur</div>'
+    + '<div class="waarde">' + duurAlsTekst(uitkomst.duur) + '</div>'
+    + '<div class="onder">art. 42 WW, bij ' + av.totaal + ' kalenderjaren arbeidsverleden</div></div>'
+    + '<div class="blok"><div class="etiket">Laatste dag met uitkering</div>'
+    + '<div class="waarde"' + (uitkomst.ingekortDoorAow ? ' style="color:var(--geel)"' : '') + '>'
+    + uitkomst.laatsteUitkeringsdag + '</div>'
+    + '<div class="onder">' + (uitkomst.ingekortDoorAow
+        ? 'ingekort: de AOW-datum valt eerder (art. 19 lid 1 onder i WW)'
+        : 'de uitkeringsduur is dan verstreken (art. 20 lid 1 onder b WW)') + '</div></div>'
+    + '<div class="blok"><div class="etiket">Eerste twee maanden</div>'
+    + '<div class="waarde">' + euro.format(uitkomst.eersteTweeMaanden.uitbetaald) + '</div>'
+    + '<div class="onder">75 procent, art. 47 lid 1 onder a WW</div></div>'
+    + tweede
+    + '</div>'
+    + (uitkomst.caoAanvulling
+        ? '<div class="kaart" style="margin-top:18px">'
+          + '<h2>Cao-aanvulling</h2>'
+          + '<p class="toelichting">Geen wettelijke uitkering. Deze bedragen volgen uit de cao '
+          + 'of de arbeidsovereenkomst en zijn door u ingevuld: aanvullen tot '
+          + uitkomst.caoAanvulling.doelPercentage + ' procent van het maandloon, tot en met '
+          + uitkomst.caoAanvulling.laatsteDag + '.</p>'
+          + '<table>'
+          + '<tr><th>Periode</th><th class="getal">Wettelijk</th>'
+          + '<th class="getal">Aanvulling</th><th class="getal">Samen</th></tr>'
+          + '<tr><td>Eerste twee maanden</td>'
+          + '<td class="getal">' + euro.format(uitkomst.eersteTweeMaanden.uitbetaald) + '</td>'
+          + '<td class="getal">' + euro.format(uitkomst.caoAanvulling.eersteTweeMaanden.aanvulling) + '</td>'
+          + '<td class="getal">' + euro.format(uitkomst.caoAanvulling.eersteTweeMaanden.totaal) + '</td></tr>'
+          + (uitkomst.caoAanvulling.loeptVoorbijTweeMaanden
+              ? '<tr><td>Vanaf de derde maand</td>'
+                + '<td class="getal">' + euro.format(uitkomst.vanafDerdeMaand.uitbetaald) + '</td>'
+                + '<td class="getal">' + euro.format(uitkomst.caoAanvulling.vanafDerdeMaand.aanvulling) + '</td>'
+                + '<td class="getal">' + euro.format(uitkomst.caoAanvulling.vanafDerdeMaand.totaal) + '</td></tr>'
+              : '')
+          + '</table></div>'
+        : '')
+    + '<details open><summary>Hoe de uitkomst is opgebouwd</summary>'
+    + '<table>'
+    + '<tr><th>Onderdeel</th><th class="getal">Waarde</th><th>Grondslag</th></tr>'
+    + (uitkomst.ingekortDoorAow
+        ? '<tr><td>AOW-datum, eerste dag zonder recht</td><td class="getal">' + uitkomst.aowDatum
+          + '</td><td>art. 19 lid 1 onder i WW; ' + uitkomst.aowVindplaats + '</td></tr>'
+          + '<tr><td>Einde zonder de AOW-grens</td><td class="getal">' + uitkomst.eindeWegensDuur
+          + '</td><td>art. 42 lid 1 WW</td></tr>'
+        : '')
+    + '<tr><td>Fictief arbeidsverleden, tot 1998</td><td class="getal">' + av.fictief + ' jaar</td>'
+    + '<td>art. 42 lid 6 onder c WW</td></tr>'
+    + '<tr><td>Feitelijk arbeidsverleden vóór 2016</td><td class="getal">' + av.feitelijkVoor2016 + ' jaar</td>'
+    + '<td>art. 42 lid 6 onder a en b WW</td></tr>'
+    + '<tr><td>Arbeidsverleden vanaf 2016</td><td class="getal">' + av.vanaf2016 + ' jaar</td>'
+    + '<td>halve maand per jaar, art. 42 lid 2 onder 2 WW</td></tr>'
+    + '<tr><td>Totaal arbeidsverleden</td><td class="getal">' + av.totaal + ' jaar</td><td></td></tr>'
+    + '<tr><td>Dagloon uit de referteperiode</td><td class="getal">'
+    + euro.format(uitkomst.dagloonZonderMaximering) + '</td><td>art. 1b lid 1 WW, 1/261 deel</td></tr>'
+    + '<tr><td>Maximumdagloon op de eerste werkloosheidsdag</td><td class="getal">'
+    + euro.format(uitkomst.maximumdagloon) + '</td><td>' + uitkomst.maximumdagloonVindplaats + '</td></tr>'
+    + '<tr><td>Dagloon na maximering</td><td class="getal">' + euro.format(uitkomst.dagloon) + '</td>'
+    + '<td>art. 17 lid 1 Wfsv</td></tr>'
+    + '<tr><td>Maandloon</td><td class="getal">' + euro.format(uitkomst.maandloon) + '</td>'
+    + '<td>21,75 maal het dagloon, art. 1b lid 2 onder a WW</td></tr>'
+    + '</table></details>'
+    + '</div>';
+}
+
+// De toestand waarop de uitgangen zijn gebaseerd. De export en de afdruk lezen deze en
+// rekenen zelf niet, zodat zij nooit iets anders tonen dan wat er op het scherm stond.
+let laatsteUitgang = null;
+
+function toonDossierstuk(uitgang) {
+  const e = xmlTekst;
+  const regels = lijst => lijst.map(r =>
+    '<tr><td>' + e(r.label) + '</td><td class="getal">' + e(r.tekst) + '</td></tr>').join('');
+
+  document.getElementById('dossierstuk').innerHTML =
+    '<div class="kaart">'
+    + '<h2>Dossierstuk</h2>'
+    + '<div class="kenmerkregel">'
+    + '<span><strong>Kenmerk:</strong> ' + e(uitgang.kop.kenmerk || 'niet ingevuld') + '</span>'
+    + '<span><strong>Datum:</strong> ' + e(uitgang.kop.datum) + '</span>'
+    + '</div>'
+    + '<h3>Invoer</h3><table>' + regels(uitgang.invoerregels) + '</table>'
+    + (uitgang.heeftUitkomst
+        ? '<h3>Uitkomst</h3><table>' + regels(uitgang.uitkomstregels) + '</table>'
+        : '<h3>Geen uitkomst</h3>')
+    + (uitgang.meldingen.length
+        ? '<h3>Meldingen</h3><ul class="afbakening">'
+          + uitgang.meldingen.map(m => '<li>' + e(m) + '</li>').join('') + '</ul>'
+        : '')
+    + '<h3>Vindplaatsen</h3><ul class="vindplaatsen">'
+    + uitgang.vindplaatsen.map(v => '<li>' + e(v) + '</li>').join('')
+    + (uitgang.maximumdagloonVindplaats
+        ? '<li>Maximumdagloon: ' + e(uitgang.maximumdagloonVindplaats) + '</li>' : '')
+    + '</ul>'
+    + '<h3>Afbakening</h3><ul class="afbakening">'
+    + uitgang.afbakening.map(a => '<li>' + e(a) + '</li>').join('') + '</ul>'
+    + '<p class="stempel">' + e(uitgang.kop.toolNaam) + ', versie '
+    + e(uitgang.kop.toolVersie) + '. Deze berekening is geen beschikking.</p>'
+    + '</div>';
+}
+
+function toonInvoerfout(ontbreekt) {
+  laatsteUitgang = null;
+  document.getElementById('uitvoer').innerHTML =
+    '<div class="kaart"><div class="melding fout">Vul eerst ' + ontbreekt.join(', ')
+    + ' in. De tool rekent niet met een ontbrekende of negatieve waarde.</div></div>';
+  document.getElementById('dossierstuk').innerHTML = '';
+}
+
+function reken() {
+  const ruweInvoer = leesInvoer();
+  const ontbreekt = ontbrekendeInvoer(ruweInvoer);
+  if (ontbreekt.length > 0) {
+    toonInvoerfout(ontbreekt);
+    return;
+  }
+  const uitkomst = berekenWW(kernInvoerUit(ruweInvoer));
+  toon(uitkomst);
+  laatsteUitgang = bouwUitgang(
+    ruweInvoer, uitkomst, document.getElementById('kenmerk').value, vandaagISO()
+  );
+  toonDossierstuk(laatsteUitgang);
+}
+
+function toonDossierMelding(tekst, soort) {
+  document.getElementById('dossierMelding').innerHTML =
+    '<div class="kaart"><div class="melding ' + soort + '">' + xmlTekst(tekst) + '</div></div>';
+}
+
+function wisDossierMelding() {
+  document.getElementById('dossierMelding').innerHTML = '';
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exporteerExcel() {
+  wisDossierMelding();
+  if (!laatsteUitgang) {
+    toonDossierMelding('Er is nog niets berekend om te exporteren. Vul de invoer aan en '
+      + 'druk op Bereken.', 'fout');
+    return;
+  }
+  bewaarBestand(
+    xlsxBytes(exportBladen(laatsteUitgang)),
+    bestandsnaam(laatsteUitgang.kop.kenmerk, laatsteUitgang.kop.datum, 'xlsx'),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+}
+
+function slaDossierOp() {
+  wisDossierMelding();
+  const ruweInvoer = leesInvoer();
+  const ontbreekt = ontbrekendeInvoer(ruweInvoer);
+  if (ontbreekt.length > 0) {
+    toonDossierMelding('Het dossier is niet opgeslagen, want ' + ontbreekt.join(', ')
+      + ' ontbreekt nog.', 'fout');
+    return;
+  }
+  const kenmerk = document.getElementById('kenmerk').value;
+  const datum = vandaagISO();
+  const dossier = schrijfDossier(ruweInvoer, kenmerk, datum);
+  bewaarBestand(
+    new TextEncoder().encode(JSON.stringify(dossier, null, 2)),
+    bestandsnaam(kenmerk, datum, 'json'),
+    'application/json'
+  );
+  toonDossierMelding('Het dossier is als bestand aangeboden. Het is nergens anders bewaard.', 'info');
+}
+
+function verwerkDossierbestand(bestand) {
+  const lezer = new FileReader();
+  lezer.onerror = function () {
+    toonDossierMelding('Het bestand kon niet worden gelezen. Er is niets gewijzigd.', 'fout');
+  };
+  // Zonder onabort eindigt een afgebroken keuze in stilte, terwijl de gebruiker denkt dat
+  // er iets is geladen.
+  lezer.onabort = function () {
+    toonDossierMelding('Het lezen van het bestand is afgebroken. Er is niets gewijzigd.', 'fout');
+  };
+  lezer.onload = function () {
+    const uitslag = leesDossier(String(lezer.result));
+    if (!uitslag.ok) {
+      toonDossierMelding(uitslag.fout, 'fout');
+      return;
+    }
+    schrijfInvoer(uitslag.ruweInvoer, uitslag.kenmerk);
+    reken();
+    toonDossierMelding(
+      uitslag.meldingen.length
+        ? uitslag.meldingen.join(' ')
+        : 'Het dossier is geopend en de uitkomst is opnieuw berekend met de huidige tool.',
+      uitslag.meldingen.length ? 'let-op' : 'info'
+    );
+  };
+  lezer.readAsText(bestand);
+}
+
+document.getElementById('rekenKnop').addEventListener('click', reken);
+document.getElementById('afdrukKnop').addEventListener('click', function () {
+  reken();
+  window.print();
+});
+document.getElementById('excelKnop').addEventListener('click', exporteerExcel);
+document.getElementById('opslaanKnop').addEventListener('click', slaDossierOp);
+document.getElementById('openenKnop').addEventListener('click', function () {
+  wisDossierMelding();
+  document.getElementById('dossierInvoer').click();
+});
+document.getElementById('dossierInvoer').addEventListener('change', function (gebeurtenis) {
+  const bestand = gebeurtenis.target.files && gebeurtenis.target.files[0];
+  gebeurtenis.target.value = '';
+  if (bestand) verwerkDossierbestand(bestand);
+});
+reken();
+</script>
+</body>
+</html>
