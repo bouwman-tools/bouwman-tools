@@ -843,7 +843,7 @@
           <div class="fmsg" id="msg-bal-bedongenLijfrente"></div>
         </div>
         <div class="fld">
-          <label for="bal-terugkeerreserve">Terugkeerreserve (art. 3.54a) <span class="tipw"><span class="tip" title="Bestaat alleen na een eerdere geruisloze terugkeer uit een BV (art. 14c Wet Vpb 1969). Een negatieve terugkeerreserve verhoogt de verkrijgingsprijs met tweemaal haar grootte. Een positieve terugkeerreserve is niet uitgezocht en wordt geweigerd.">?</span></span></label>
+          <label for="bal-terugkeerreserve">Terugkeerreserve (art. 3.54a) <span class="tipw"><span class="tip" title="Bestaat alleen na een eerdere geruisloze terugkeer uit een BV (art. 14c Wet Vpb 1969). Een negatieve terugkeerreserve verhoogt de verkrijgingsprijs met tweemaal haar grootte. Een positieve terugkeerreserve valt bij de omzetting vrij in de winst; die behandeling is nog niet in de tool ingebouwd en het veld wordt daarom geweigerd.">?</span></span></label>
           <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="bal-terugkeerreserve" value="0" step="5000" inputmode="numeric"></div>
           <div class="fmsg" id="msg-bal-terugkeerreserve"></div>
         </div>
@@ -3061,8 +3061,20 @@ const BVJN = (function () {
    *
    * Bij overschrijding valt de vrijstelling geheel weg, niet alleen over het meerdere.
    *
-   * Open punt: of de inkomensafhankelijke bijdrage Zvw ook onder de goedkeuring van
-   * onderdeel 3.6 valt is niet vastgesteld. De tool houdt die daarom binnen de toets.
+   * De inkomensafhankelijke bijdrage Zvw valt NIET onder de goedkeuring van onderdeel 3.6.
+   * Die keurt goed dat een creditering "voor de door de inbrenger verschuldigde
+   * inkomstenbelasting en premie volksverzekeringen" buiten art. 5 lid 2 UBBR blijft, en
+   * noemt de Zvw niet. Een creditering daarvoor telt dus mee in de tienprocentstoets, zoals
+   * deze functie haar behandelt. Vastgesteld op 22-09-2026 bij de geldende tekst van het
+   * Besluit Ondernemingsfaciliteiten (BWBR0050370, versie 10-06-2026).
+   *
+   * Het verschil met de vierde standaardvoorwaarde is echt en geen omissie in deze code. Die
+   * staat creditering toe voor "de op het overgangstijdstip materieel verschuldigde
+   * inkomstenbelasting en premie voor de volksverzekeringen, en het op het overgangstijdstip
+   * materieel verschuldigde inkomensafhankelijke deel van de premie Zorgverzekeringswet", dus
+   * inclusief de Zvw. Het zijn twee verschillende regelingen: de vierde standaardvoorwaarde
+   * gaat over de creditering bij een GERUISLOZE omzetting voor de inkomstenbelasting,
+   * onderdeel 3.6 over die bij een RUISENDE omzetting voor de overdrachtsbelasting.
    */
   function bijbetalingsgrensOvb(gestort, credit, creditVoorIbPvv, lijfrenteVoorziening, metArt365) {
     const c = pos(credit);
@@ -3490,13 +3502,20 @@ const BVJN = (function () {
         + 'art. 2:178 BW geen minimum, dus € 1 mag.');
     }
 
-    // Een positieve terugkeerreserve is niet uitgezocht. Art. 3.65 lid 1 sluit art. 3.54a
-    // uit van de niet-stakingsfictie en art. 3.54a lid 4 is niet woordelijk nagegaan.
+    // Een positieve terugkeerreserve valt bij de omzetting vrij in de winst. Art. 3.65 lid 1
+    // zegt dat de onderneming "behalve voor de toepassing van artikel 3.54a" geacht wordt
+    // niet te zijn gestaakt, dus voor dat artikel is er wel een staking, en art. 3.54a lid 4
+    // neemt een positieve terugkeerreserve uiterlijk bij staking in de winst op. Dezelfde
+    // systematiek als bij de oudedagsreserve (art. 10a.29 lid 6). Lid 2 van art. 3.65 regelt
+    // alleen de NEGATIEVE terugkeerreserve; voor de positieve is geen afwijking gemaakt.
+    // Woordelijk nagegaan op 22-09-2026. De vrijval is nog niet in de stakingswinst
+    // ingebouwd, dus het veld blijft voorlopig geweigerd; zie OPENSTAAND.md.
     if (b.terugkeerreserve > 0) {
-      fout('terugkeerreserve', 'Hoe een positieve terugkeerreserve bij een omzetting op de voet van art. 3.65 '
-        + 'uitwerkt is niet vastgesteld: art. 3.65 lid 1 sluit art. 3.54a uit van de niet-stakingsfictie en '
-        + 'art. 3.54a lid 4 is niet woordelijk nagegaan. Leg dit geval vaktechnisch voor. Een negatieve '
-        + 'terugkeerreserve kunt u wel invullen.');
+      fout('terugkeerreserve', 'Een positieve terugkeerreserve valt bij de omzetting vrij in de winst: '
+        + 'art. 3.65 lid 1 zondert art. 3.54a uit van de niet-stakingsfictie, en art. 3.54a lid 4 neemt '
+        + 'haar uiterlijk bij staking in de winst op. Die vrijval is nog niet in de berekening van de '
+        + 'stakingswinst verwerkt, dus de tool rekent dit geval niet door. Een negatieve terugkeerreserve '
+        + 'kunt u wel invullen.');
     }
 
     if (fouten.length) return { ok: false, leeg: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
@@ -6524,7 +6543,13 @@ const BVJN = (function () {
     el('bal-vp-toel').textContent = 'Zesde standaardvoorwaarde, onderdeel 10. Rechtstreeks berekend en niet '
       + 'afgeleid uit het eigen vermogen op de balans: dan zouden de reserves, de lijfrenteverplichting en de '
       + 'creditering dubbel worden geteld. Een negatieve uitkomst is toegestaan (art. 4.21 lid 4 Wet IB 2001) '
-      + 'en wordt niet afgekapt.';
+      + 'en wordt niet afgekapt. Dit is een berekening en geen vaststelling: de inspecteur stelt de '
+      + 'verkrijgingsprijs vast bij voor bezwaar vatbare beschikking (art. 4.36), pas na oprichting van de '
+      + 'vennootschap, en kan die binnen vijf jaar herzien als zij te hoog blijkt (art. 4.37; twaalf jaar bij '
+      + 'een niet-ingezetene). Stort u naast de onderneming nog een bedrag in geld op de aandelen, dan telt de '
+      + 'tool dat niet mee: de standaardvoorwaarde stelt de verkrijgingsprijs op de fiscale boekwaarden en '
+      + 'zwijgt over een aanvullende storting, terwijl art. 4.21 lid 1 op die extra tegenprestatie zou wijzen. '
+      + 'Er is hierover geen bron, dus de tool neemt niets aan. Stem dat geval af bij het verzoek.';
     vulTabel('bal-tb-vp', g.verkrijgingsprijsOpbouw
       .map(function (o) { return [o.post, o.bedrag]; })
       .concat([['Verkrijgingsprijs', g.verkrijgingsprijs, undefined, 'tot']]));
@@ -6718,6 +6743,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 21 sep 2026, 18:16</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 22 sep 2026, 16:12</div>
 </body>
 </html>
