@@ -3011,10 +3011,28 @@ const BVJN = (function () {
    * art. 3.65 lid 3 aan de beschikking verbindt. Het maximum was tot 04-11-2025 EUR 25.000.
    * De grens geldt per deelnemer afzonderlijk en de 5% loopt over het op ZIJN aandelen
    * gestorte bedrag, niet over het totale kapitaal.
+   *
+   * De grondslag "hetgeen op de aandelen is gestort" is wat er ná beide crediteringen nog
+   * in aandelen wordt voldaan, en niet het ingebrachte vermogen vóór creditering: het
+   * systeem van art. 3.65 knoopt de omvang van het aandelenkapitaal en de verkrijgingsprijs
+   * steeds aan de fiscale boekwaarden vast (de zesde standaardvoorwaarde rekent de
+   * verkrijgingsprijs rechtstreeks uit het ingebrachte vermogen, verminderd met onder meer
+   * de creditering), en een creditering staat tegenover een verlaging van diezelfde
+   * grondslag, niet ernaast. Fiscale beslissing Sylvain Bouwman, 22-09-2026: de grondslag is
+   * de fiscale waarde en niet de economische waarde inclusief goodwill en stille reserves.
+   *
+   * Dat maakt de 5%-toets circulair: de afrondingscreditering zelf verlaagt ook de
+   * grondslag waarover zij wordt getoetst. Bij een grondslag B vóór aftrek van de materieel
+   * verschuldigde creditering m en de afrondingscreditering a geldt a <= 5% x (B - m - a),
+   * dus a <= (B - m) / 21 (opgelost: a x 1,05 <= 5% x (B - m)). Eerder rekende de tool
+   * 5% x B, over de volle grondslag mét wat er zelf als schuld op blijft staan; dat gaf een
+   * te hoge afrondingsruimte.
    */
   function crediteringsruimte(materieelVerschuldigd, gestortOpEigenAandelen) {
     const materieel = pos(materieelVerschuldigd);
-    const afronding = Math.min(pos(gestortOpEigenAandelen) * TARIEVEN.inbreng.crediteringPct,
+    const basisNaMaterieel = Math.max(0, pos(gestortOpEigenAandelen) - materieel);
+    const afronding = Math.min(
+      basisNaMaterieel * TARIEVEN.inbreng.crediteringPct / (1 + TARIEVEN.inbreng.crediteringPct),
       TARIEVEN.inbreng.crediteringMax);
     return { materieel: materieel, afronding: afronding, max: materieel + afronding };
   }
@@ -6743,6 +6761,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 22 sep 2026, 16:12</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 22 sep 2026, 16:49</div>
 </body>
 </html>
