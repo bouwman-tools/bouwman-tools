@@ -894,7 +894,7 @@
             <option value="kasstroom" selected>jaarlijkse kasstroom (gemiste afschrijving)</option>
             <option value="balanspost">balanspost in de economische waardering</option>
           </select>
-          <div class="hint">Kies &#233;&#233;n spoor. De routevergelijking hierboven gebruikt de kasstroom; wie de goodwill ook als balanspost leest, telt het nadeel van geruisloos dubbel.</div>
+          <div class="hint">De routevergelijking hierboven telt de gemiste afschrijving over de goodwill altijd mee. Is er goodwill, dan blokkeert de openingsbalans hieronder zodra hier &#8216;balanspost&#8217; wordt gekozen, om te voorkomen dat hetzelfde nadeel twee keer wordt gelezen.</div>
         </div>
       </div>
       <div class="fmsg" id="msg-bal-algemeen"></div>
@@ -3541,6 +3541,19 @@ const BVJN = (function () {
         + 'kunt u wel invullen.');
     }
 
+    // Niet-geactiveerde goodwill: de routevergelijking op dit tabblad telt de gemiste
+    // afschrijving altijd mee (berekenInbreng), ongeacht dit veld. Kiest men hier ook nog
+    // 'balanspost', dan komt er een tweede weergave van hetzelfde feit bij, en dat leest het
+    // nadeel van de geruisloze route dubbel. Een waarschuwing bleek onvoldoende: de kaart
+    // blokkeert daarom zichzelf, net als een balans die niet sluit.
+    if (b.goodwillSpoor === 'balanspost' && i.goodwill > 0) {
+      fout('goodwillSpoor', 'De niet-geactiveerde goodwill staat op ‘balanspost in de economische '
+        + 'waardering’, terwijl de routevergelijking hierboven de gemiste afschrijving over diezelfde '
+        + 'goodwill altijd al als nadeel van de geruisloze route meeneemt. Wie beide sporen tegelijk leest, '
+        + 'telt dat nadeel dubbel. Kies eerst ‘jaarlijkse kasstroom (gemiste afschrijving)’ bij '
+        + '‘Niet-geactiveerde goodwill verwerken als’ om de openingsbalans te kunnen tonen.');
+    }
+
     if (fouten.length) return { ok: false, leeg: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
 
     const ruisend = openingsbalansRuisend(raw, inbreng);
@@ -3569,14 +3582,6 @@ const BVJN = (function () {
       + 'economische waardering, en die is een waarderingsopstelling voor het advies en geen jaarrekening. '
       + 'Art. 2:384 lid 1 BW geeft een keuze van waarderingsgrondslag; welke commerci\u00eble presentatie juist is '
       + 'volgt uit de Richtlijnen voor de jaarverslaggeving en is hier niet beoordeeld.');
-
-    /* ---------- het goodwillspoor ---------- */
-    if (b.goodwillSpoor === 'balanspost' && i.goodwill > 0) {
-      waarschuw('goodwillSpoor', 'De niet-geactiveerde goodwill staat als balanspost in de economische '
-        + 'waardering, terwijl de routevergelijking hierboven de gemiste afschrijving over diezelfde goodwill '
-        + 'al als nadeel van de geruisloze route meeneemt. Wie beide sporen leest, telt dat nadeel dubbel. '
-        + 'Kies \u00e9\u00e9n spoor.');
-    }
 
     /* ---------- onttrokken vermogensbestanddelen ---------- */
     if (b.onttrokkenMeerwaarde > 0 || b.onttrokkenBestanddelen > 0) {
@@ -6511,10 +6516,13 @@ const BVJN = (function () {
       uitG.style.display = 'none';
       el('bal-kaart').open = true;
       // De hint mag niet blijven staan dat de balans sluit terwijl de foutmelding het
-      // tegendeel zegt.
-      el('hint-bal-sluit').textContent = 'De balans is niet opgesteld: corrigeer eerst de '
-        + 'gemelde invoer. Activa minus schulden moet gelijk zijn aan het fiscale '
-        + 'ondernemingsvermogen; de tool boekt geen sluitpost bij.';
+      // tegendeel zegt. Het goodwillspoor is geen aansluitingsfout, dus die krijgt een
+      // eigen tekst in plaats van de melding over activa minus schulden.
+      el('hint-bal-sluit').textContent = v.veldFouten.goodwillSpoor
+        ? 'De balans is niet opgesteld: kies eerst één spoor voor de niet-geactiveerde goodwill.'
+        : 'De balans is niet opgesteld: corrigeer eerst de '
+          + 'gemelde invoer. Activa minus schulden moet gelijk zijn aan het fiscale '
+          + 'ondernemingsvermogen; de tool boekt geen sluitpost bij.';
       return;
     }
 
@@ -6777,6 +6785,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 23 sep 2026, 21:20</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 23 sep 2026, 22:18</div>
 </body>
 </html>
