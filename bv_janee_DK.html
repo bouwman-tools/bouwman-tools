@@ -990,8 +990,8 @@
           <div class="fmsg" id="msg-fir-arbeidsbeloning"></div>
         </div>
         <div class="fld">
-          <label for="fir-gebruikelijkLoon">Gebruikelijk loon uit de BV <span class="tipw"><span class="tip" title="Art. 12a Wet LB 1964 geldt voor de DGA van een BV die firmant is, voor de werkzaamheden die hij voor die BV verricht. Nihil is verdedigbaar zolang het winstaandeel van de BV aantoonbaar een kapitaal- en risicovergoeding is. Er is geen verrekening met de arbeidsbeloning uit de firma. De tool berekent dit loon nooit: de afroommethode mag niet worden gebruikt als het winstaandeel van de BV een percentage van het resultaat is.">?</span></span></label>
-          <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fir-gebruikelijkLoon" value="0" step="1000" min="0" inputmode="numeric"></div>
+          <label for="fir-gebruikelijkLoon">Gebruikelijk loon uit de BV <span class="tipw"><span class="tip" title="Art. 12a Wet LB 1964 geldt voor de DGA van een BV die firmant is, voor de werkzaamheden die hij voor die BV verricht. Dit is een bewuste keuze en geen stille standaard: vul een bedrag in, of typ nadrukkelijk 0 als nihil verdedigbaar is omdat het winstaandeel van de BV aantoonbaar een kapitaal- en risicovergoeding is. Er is geen verrekening met de arbeidsbeloning uit de firma. De tool berekent dit loon nooit: de afroommethode mag niet worden gebruikt als het winstaandeel van de BV een percentage van het resultaat is.">?</span></span></label>
+          <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="fir-gebruikelijkLoon" value="" step="1000" min="0" inputmode="numeric" placeholder="verplicht"></div>
           <div class="fmsg" id="msg-fir-gebruikelijkLoon"></div>
         </div>
         <div class="fld">
@@ -4175,6 +4175,7 @@ const BVJN = (function () {
       // winstaandeel van de BV een percentage van het resultaat is (HR 09-11-2012,
       // ECLI:NL:HR:2012:BW4167, r.o. 5.2).
       gebruikelijkLoon: pos(r.gebruikelijkLoon),
+      gebruikelijkLoonGegeven: gegeven(r.gebruikelijkLoon),
       // Art. 3.6 lid 1: ten minste 1225 uren EN het grootste deel van de totale arbeidstijd.
       // Een gelijke verdeling is niet genoeg.
       urenFirma: pos(num(r.urenFirma, 1800)),
@@ -4611,6 +4612,12 @@ const BVJN = (function () {
       fout('arbeidsbeloning', 'De arbeidsbeloning en de rentevergoedingen samen zijn hoger dan de winst, '
         + 'dus de restwinst is negatief. Verdeling van een negatieve restwinst is niet uitgezocht.');
     }
+    if (!i.gebruikelijkLoonGegeven) {
+      fout('gebruikelijkLoon', 'Vul het gebruikelijk loon uit de BV in. Art. 12a Wet LB 1964 geldt voor de '
+        + 'DGA van een BV die firmant is, voor de werkzaamheden die hij voor die BV verricht: dit is een '
+        + 'bewuste keuze en geen stille standaard. Is nihil verdedigbaar omdat het winstaandeel van de BV '
+        + 'aantoonbaar een kapitaal- en risicovergoeding is, vul dan nadrukkelijk 0 in.');
+    }
 
     if (fouten.length) {
       return { ok: false, bepaalbaar: true, blokkade: null,
@@ -4641,11 +4648,10 @@ const BVJN = (function () {
 
     /* ---------- gebruikelijk loon ---------- */
     if (i.gebruikelijkLoon === 0) {
-      waarschuw('gebruikelijkLoon', 'Er is geen gebruikelijk loon ingevuld. Art. 12a Wet LB 1964 geldt voor '
-        + 'de DGA van een BV die firmant is, voor de werkzaamheden die hij voor die BV verricht. Nihil is '
-        + 'verdedigbaar zolang het winstaandeel van de BV aantoonbaar een kapitaal- en risicovergoeding is '
-        + 'en niet een beloning voor arbeid, maar dat is een standpunt dat u moet kunnen onderbouwen. De '
-        + 'ondergrens van lid 4 is \u20ac ' + TARIEVEN.firma.gebruikelijkLoonOndergrens.toLocaleString('nl-NL') + '.');
+      waarschuw('gebruikelijkLoon', 'Er is gekozen voor nihil gebruikelijk loon. Nihil is verdedigbaar zolang '
+        + 'het winstaandeel van de BV aantoonbaar een kapitaal- en risicovergoeding is en niet een beloning '
+        + 'voor arbeid, maar dat is een standpunt dat u moet kunnen onderbouwen in het dossier. De ondergrens '
+        + 'van lid 4 is \u20ac ' + TARIEVEN.firma.gebruikelijkLoonOndergrens.toLocaleString('nl-NL') + '.');
     } else {
       waarschuw('gebruikelijkLoon', 'Het gebruikelijk loon verlaagt het winstaandeel van de BV en verhoogt '
         + 'het box 1-inkomen. Er is GEEN verrekening met de arbeidsbeloning uit de firma: dat zijn twee '
@@ -6077,11 +6083,12 @@ const BVJN = (function () {
   function leesFirma() {
     const basis = leesInvoer();
     const ab = el('fir-arbeidsbeloning').value;
+    const gl = el('fir-gebruikelijkLoon').value;
     return Object.assign({}, basis, {
       rechtsvorm: el('fir-rechtsvorm').value,
       pctBV: el('fir-pctBV').value,
       arbeidsbeloning: ab === '' ? undefined : ab,
-      gebruikelijkLoon: el('fir-gebruikelijkLoon').value,
+      gebruikelijkLoon: gl === '' ? undefined : gl,
       renteOndernemer: el('fir-renteOndernemer').value,
       renteBV: el('fir-renteBV').value,
       dividendFirmaBV: el('fir-dividend').value,
@@ -6791,6 +6798,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 23 sep 2026, 23:07</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 23 sep 2026, 23:16</div>
 </body>
 </html>
