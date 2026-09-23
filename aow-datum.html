@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AOW-datum</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+</style>
+</head>
+<body>
+
+<header class="noprint">
+  <a class="logo" href="https://joinadministraties.nl" target="_blank" rel="noopener">
+    <div class="logo-mark"><div class="lc"></div><div class="lc"></div></div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="logo-name">JOIN</span>
+      <span class="logo-sub">Administraties</span>
+    </div>
+  </a>
+  <div class="koptitel">AOW-datum<br><span style="font-weight:400">leeftijd en ingangsdatum</span></div>
+</header>
+
+<main>
+  <h1 class="noprint">AOW-leeftijd en AOW-datum</h1>
+  <p class="inleiding noprint">
+    Reken uit welke pensioengerechtigde leeftijd voor een geboortedatum geldt en op welke dag
+    het ouderdomspensioen ingaat. De tool geeft een uitkomst en doet geen voorstel.
+  </p>
+
+  <div class="kaart noprint">
+    <h2>Gegevens</h2>
+    <p class="toelichting">De geboortedatum bepaalt alles; de rest is voor het dossierstuk.</p>
+    <div class="rij">
+      <div>
+        <label for="geboortedatum">Geboortedatum
+          <span class="bron">bepaalt de pensioengerechtigde leeftijd, art. 7a AOW</span></label>
+        <input type="date" id="geboortedatum" value="1962-05-14">
+      </div>
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+    </div>
+  </div>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="rekenKnop">Bereken</button>
+    <button type="button" class="tweede" id="afdrukKnop">Afdrukken</button>
+    <button type="button" class="tweede" id="excelKnop">Excel-export</button>
+    <button type="button" class="tweede" id="opslaanKnop">Opslaan als bestand</button>
+    <button type="button" class="tweede" id="openenKnop">Bestand openen</button>
+    <input type="file" id="dossierInvoer" accept="application/json,.json" class="verborgen">
+  </div>
+  <p class="voorbehoud noprint" style="margin-top:-8px;margin-bottom:18px;">
+    Opslaan en openen gebeuren op uw eigen computer. De tool bewaart zelf niets en er gaat
+    niets naar een server.
+  </p>
+
+  <div id="dossierMelding" class="noprint" aria-live="polite"></div>
+  <div id="uitvoer" class="noprint" aria-live="polite"></div>
+
+  <div id="dossierstuk"></div>
+
+  <div class="kaart noprint">
+    <h2>Waarop de uitkomst is gebaseerd</h2>
+    <ul class="bronlijst">
+      <li><strong>Pensioengerechtigde leeftijd</strong> — art. 7a lid 1 Algemene Ouderdomswet.
+        Tot en met 2025 noemt de wet de leeftijd per kalenderjaar met zoveel woorden. Voor
+        2026 en later verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule
+        van lid 2, die de minister in de Staatscourant bekendmaakt en die pas vijf jaar later
+        in werking treedt.</li>
+      <li><strong>Welk kalenderjaar telt</strong> — art. 7a lid 1, slotzin, AOW: wie in een
+        kalenderjaar de pensioengerechtigde leeftijd heeft bereikt, krijgt niet meer met de
+        verhogingen van latere jaren te maken.</li>
+      <li><strong>Ingangsdatum</strong> — art. 16 lid 1 AOW: het ouderdomspensioen gaat in op
+        de dag waarop de belanghebbende aan de voorwaarden voldoet.</li>
+    </ul>
+    <details>
+      <summary>Wat deze tool niet doet</summary>
+      <p class="voorbehoud">
+        De tool geeft geen advies en stelt geen keuze voor. Zij toetst niet of iemand
+        verzekerd is geweest en rekent dus geen korting op het ouderdomspensioen wegens
+        niet-verzekerde jaren; zij berekent alleen de leeftijd en de datum. De uitkomst is een
+        berekening en geen beslissing: de Sociale Verzekeringsbank stelt het recht vast.
+      </p>
+    </details>
+  </div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// Een geboortedag die in de doelmaand niet bestaat wordt de laatste dag van die maand; zie
+// datumPlusLeeftijd hieronder. Vindplaats: Kamerstukken II 2015/16, 34414, nr. 3, par. 2.5
+// en nr. 6, par. 2.6, waar diezelfde regel voor de AOW met zoveel woorden staat. Dat
+// initiatiefwetsvoorstel is op 21-02-2017 verworpen, dus het is geen geldend recht; het is
+// wel de enige officiële uitleg van deze rekenregel binnen de AOW. De verantwoording staat
+// in BRONNEN.md.
+
+// AOW-LEEFTIJD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De pensioengerechtigde leeftijd en de AOW-datum. Twee tools hebben ze nodig: aow-datum
+// rekent ze uit als eigen uitkomst, en ww-uitkering gebruikt de AOW-datum om te bepalen
+// wanneer het recht op uitkering eindigt (art. 19 lid 1 onder i jo. art. 20 lid 1 onder a
+// WW). De tabel met zes Staatscourant-vindplaatsen hoort daarom op één plek te staan.
+
+// De pensioengerechtigde leeftijd per kalenderjaar waarin zij wordt bereikt.
+//
+// Tot en met 2025 staat de leeftijd in de wettekst zelf, in art. 7a lid 1 AOW. Vanaf 2026
+// verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule van lid 2, die
+// de minister op grond van diezelfde bepaling in de Staatscourant bekendmaakt; lid 3 bepaalt
+// dat zo'n vaststelling pas vijf jaar later in werking treedt. Voor die jaren staat hier
+// daarom de mededeling als vindplaats en niet de wet.
+//
+// Bron van de wetsartikelen: geconsolideerde Algemene Ouderdomswet, BWBR0002221, versie
+// 2026-07-01, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 18-09-2026.
+const AOW_LEEFTIJD_PER_JAAR = {
+  2013: { jaren: 65, maanden: 1, vindplaats: 'art. 7a lid 1 onder b AOW' },
+  2014: { jaren: 65, maanden: 2, vindplaats: 'art. 7a lid 1 onder c AOW' },
+  2015: { jaren: 65, maanden: 3, vindplaats: 'art. 7a lid 1 onder d AOW' },
+  2016: { jaren: 65, maanden: 6, vindplaats: 'art. 7a lid 1 onder e AOW' },
+  2017: { jaren: 65, maanden: 9, vindplaats: 'art. 7a lid 1 onder f AOW' },
+  2018: { jaren: 66, maanden: 0, vindplaats: 'art. 7a lid 1 onder g AOW' },
+  2019: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder h AOW' },
+  2020: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder i AOW' },
+  2021: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder j AOW' },
+  2022: { jaren: 66, maanden: 7, vindplaats: 'art. 7a lid 1 onder k AOW' },
+  2023: { jaren: 66, maanden: 10, vindplaats: 'art. 7a lid 1 onder l AOW' },
+  2024: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder m AOW' },
+  2025: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder n AOW' },
+  // Vanaf hier komt de leeftijd uit de mededeling van de minister op grond van art. 7a
+  // lid 2 AOW. Elk van deze vijf is op 18-09-2026 op de Staatscourantpagina zelf
+  // gecontroleerd, op leeftijd, aanvangsleeftijd, kalenderjaar, dagtekening en kenmerk.
+  //
+  // Stcrt. 2020, 65110 — mededeling van 04-12-2020, nr. 2020-0000162440.
+  2026: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2020, 65110 (mededeling van 04-12-2020)' },
+  // Stcrt. 2021, 46409 — mededeling van 05-11-2021, nr. 2021-0000168058.
+  2027: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2021, 46409 (mededeling van 05-11-2021)' },
+  // Stcrt. 2022, 30748 — mededeling van 09-11-2022, nr. 2022-0000224155.
+  2028: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2022, 30748 (mededeling van 09-11-2022)' },
+  // Stcrt. 2023, 31782 — mededeling van 13-11-2023, nr. 2023-0000545753.
+  2029: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2023, 31782 (mededeling van 13-11-2023)' },
+  // Stcrt. 2024, 37287 — mededeling van 08-11-2024, nr. 2024-0000903093.
+  2030: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2024, 37287 (mededeling van 08-11-2024)' },
+  // Stcrt. 2025, 38647 — mededeling van 07-11-2025, nr. 2025-0000251283.
+  2031: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2025, 38647 (mededeling van 07-11-2025)' },
+};
+
+// Art. 7a lid 1 onder a AOW: vóór 1 januari 2013 was de pensioengerechtigde leeftijd
+// 65 jaar. Dat geldt voor ieder kalenderjaar vóór 2013 en vraagt dus geen eigen regel
+// per jaar.
+const LEEFTIJD_VOOR_2013 = { jaren: 65, maanden: 0, vindplaats: 'art. 7a lid 1 onder a AOW' };
+const EERSTE_JAAR_IN_DE_TABEL = 2013;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (maand === 2 && isSchrikkeljaar(jaar)) return 29;
+  return lengtes[maand - 1];
+}
+
+function ontleedDatum(tekst) {
+  if (typeof tekst !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tekst)) return null;
+  const jaar = Number(tekst.slice(0, 4));
+  const maand = Number(tekst.slice(5, 7));
+  const dag = Number(tekst.slice(8, 10));
+  if (maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+function alsTekst(datum) {
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return datum.jaar + '-' + tweeCijfers(datum.maand) + '-' + tweeCijfers(datum.dag);
+}
+
+// Telt een leeftijd in jaren en maanden bij een datum op. Valt de uitkomst op een dag die
+// in de doelmaand niet bestaat, bijvoorbeeld 31 mei plus drie maanden, dan wordt het de
+// laatste dag van die maand en wordt dat apart gemeld; de tool verzwijgt zo'n aanpassing
+// niet.
+function datumPlusLeeftijd(datum, leeftijd) {
+  const totaalMaanden = (datum.jaar + leeftijd.jaren) * 12 + (datum.maand - 1) + leeftijd.maanden;
+  const jaar = Math.floor(totaalMaanden / 12);
+  const maand = (totaalMaanden % 12) + 1;
+  const laatsteDag = dagenInMaand(jaar, maand);
+  return {
+    jaar,
+    maand,
+    dag: Math.min(datum.dag, laatsteDag),
+    dagAangepast: datum.dag > laatsteDag,
+  };
+}
+
+function leeftijdInJaar(jaar) {
+  if (jaar < EERSTE_JAAR_IN_DE_TABEL) return LEEFTIJD_VOOR_2013;
+  return AOW_LEEFTIJD_PER_JAAR[jaar] || null;
+}
+
+function laatstBekendeJaar() {
+  return Math.max(...Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number));
+}
+
+function leeftijdAlsTekst(leeftijd) {
+  const jaarDeel = leeftijd.jaren + (leeftijd.jaren === 1 ? ' jaar' : ' jaar');
+  if (leeftijd.maanden === 0) return jaarDeel;
+  return jaarDeel + ' en ' + leeftijd.maanden
+    + (leeftijd.maanden === 1 ? ' maand' : ' maanden');
+}
+
+// Art. 7a lid 1 AOW koppelt de leeftijd aan het kalenderjaar waarin zij wordt bereikt, maar
+// om te weten in welk jaar dat is moet je de leeftijd al kennen. De slotzin van lid 1 maakt
+// die rondgang eenduidig: wie in een kalenderjaar de pensioengerechtigde leeftijd heeft
+// bereikt, krijgt niet meer met de verhogingen van latere jaren te maken. Daarom telt het
+// vroegste kalenderjaar waarin de geboortedatum plus de dan geldende leeftijd binnen dat
+// jaar valt.
+function berekenAowDatum(geboortedatumTekst) {
+  const geboortedatum = ontleedDatum(geboortedatumTekst);
+  if (!geboortedatum) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{ soort: 'fout', tekst: 'Vul een geldige geboortedatum in.' }],
+    };
+  }
+
+  const meldingen = [];
+  const laatsteJaar = laatstBekendeJaar();
+
+  for (let jaar = geboortedatum.jaar + LEEFTIJD_VOOR_2013.jaren; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdInJaar(jaar);
+    if (!leeftijd) break;
+    const datum = datumPlusLeeftijd(geboortedatum, leeftijd);
+    if (datum.jaar !== jaar) continue;
+
+    if (datum.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De datum '
+             + 'is daarom op de laatste dag van die maand gezet. Laat dit geval bevestigen '
+             + 'door de Sociale Verzekeringsbank voordat u de datum in een dossier gebruikt.',
+      });
+    }
+    if (jaar < EERSTE_JAAR_IN_DE_TABEL) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De AOW-leeftijd is bereikt vóór 2013, toen zij nog 65 jaar was '
+             + '(art. 7a lid 1 onder a AOW).',
+      });
+    }
+
+    return {
+      heeftUitkomst: true,
+      meldingen,
+      geboortedatum: alsTekst(geboortedatum),
+      aowJaar: jaar,
+      leeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+      leeftijdTekst: leeftijdAlsTekst(leeftijd),
+      vindplaats: leeftijd.vindplaats,
+      aowDatum: alsTekst(datum),
+      dagAangepast: datum.dagAangepast,
+    };
+  }
+
+  return {
+    heeftUitkomst: false,
+    meldingen: [{
+      soort: 'fout',
+      tekst: 'Voor deze geboortedatum valt de AOW-leeftijd na ' + laatsteJaar + ', en voor dat '
+           + 'jaar is de pensioengerechtigde leeftijd nog niet vastgesteld. De tool rekent niet '
+           + 'door met de leeftijd van een ander jaar. Elke vaststelling wordt vijf jaar vooraf '
+           + 'in de Staatscourant bekendgemaakt (art. 7a lid 2 en 3 AOW). '
+           + 'De Sociale Verzekeringsbank publiceert voor geboortedata van 1 oktober 1964 tot en '
+           + 'met 31 december 2000 wel een verwachte AOW-leeftijd, op '
+           + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd. Dat is een raming op basis van de '
+           + 'levensverwachting die het CBS elk jaar in december bijstelt, en geen vastgestelde '
+           + 'leeftijd; zij hoort daarom niet als datum in een dossier.',
+    }],
+  };
+}
+// AOW-LEEFTIJD — EINDE
+// FISCALE KERN — EINDE
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Geen DOM en geen rekenregels: deze functies
+// zetten om wat de kern heeft berekend. Er is één functie die vastlegt wat er in een uitgang
+// hoort, zodat de afdruk en de export niet uiteen kunnen lopen.
+
+const TOOL_ID = 'aow-datum';
+const TOOL_NAAM = 'AOW-leeftijd en AOW-datum';
+const TOOL_VERSIE = '0.1.0';
+const DOSSIER_FORMAATVERSIE = 1;
+
+const INVOERVELDEN = [
+  { sleutel: 'geboortedatum', label: 'Geboortedatum', soort: 'datum' },
+];
+
+const VINDPLAATSEN = [
+  'Pensioengerechtigde leeftijd: art. 7a lid 1 Algemene Ouderdomswet. Tot en met 2025 noemt '
+  + 'de wet de leeftijd per kalenderjaar; voor 2026 en later verwijst onderdeel o naar een '
+  + 'jaarlijkse vaststelling volgens de formule van lid 2, die de minister in de Staatscourant '
+  + 'bekendmaakt en die pas vijf jaar later in werking treedt (lid 3).',
+  'Welk kalenderjaar telt: art. 7a lid 1, slotzin, AOW. Wie in een kalenderjaar de '
+  + 'pensioengerechtigde leeftijd heeft bereikt, krijgt niet meer met de verhogingen van '
+  + 'latere jaren te maken.',
+  'Ingangsdatum: art. 16 lid 1 AOW. Het ouderdomspensioen gaat in op de dag waarop de '
+  + 'belanghebbende aan de voorwaarden voldoet.',
+  'Verwachte leeftijden staan niet in deze tool. De Sociale Verzekeringsbank publiceert ze voor '
+  + 'geboortedata van 1 oktober 1964 tot en met 31 december 2000 op '
+  + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd, als raming op basis van de levensverwachting '
+  + 'die het CBS elk jaar in december bijstelt. Geraadpleegd op 19-09-2026.',
+];
+
+const AFBAKENING = [
+  'Deze tool rekent en adviseert niet. Zij geeft een uitkomst en doet geen voorstel.',
+  'De tool toetst niet of iemand verzekerd is geweest en rekent dus geen korting op het '
+  + 'ouderdomspensioen wegens niet-verzekerde jaren. Zij berekent alleen de leeftijd en de datum.',
+  'Voor geboortedata waarvoor de AOW-leeftijd na het laatst bekendgemaakte kalenderjaar valt, '
+  + 'geeft de tool geen uitkomst maar een melding. De Sociale Verzekeringsbank publiceert voor '
+  + 'die jaren een verwachting; die is geen vastgestelde leeftijd en staat hier daarom niet in.',
+  'De uitkomst is een berekening en geen beslissing. De Sociale Verzekeringsbank stelt het '
+  + 'recht op ouderdomspensioen vast.',
+];
+
+function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
+  const invoerregels = INVOERVELDEN.map(function (veld) {
+    return { label: veld.label, tekst: String(ruweInvoer[veld.sleutel]) };
+  });
+
+  const uitkomstregels = [];
+  if (uitkomst.heeftUitkomst) {
+    uitkomstregels.push(
+      { label: 'Pensioengerechtigde leeftijd', tekst: uitkomst.leeftijdTekst },
+      { label: 'Kalenderjaar waarin die leeftijd wordt bereikt', tekst: String(uitkomst.aowJaar),
+        getal: uitkomst.aowJaar, formaat: '0' },
+      { label: 'AOW-datum', tekst: uitkomst.aowDatum },
+      { label: 'Vindplaats van de leeftijd', tekst: uitkomst.vindplaats }
+    );
+  }
+
+  return {
+    kop: {
+      toolNaam: TOOL_NAAM,
+      toolVersie: TOOL_VERSIE,
+      datum: datumISO,
+      kenmerk: (kenmerk || '').trim(),
+    },
+    heeftUitkomst: uitkomst.heeftUitkomst,
+    invoerregels,
+    uitkomstregels,
+    meldingen: uitkomst.meldingen.map(function (m) { return m.tekst; }),
+    vindplaatsen: VINDPLAATSEN,
+    afbakening: AFBAKENING,
+  };
+}
+
+function exportBladen(uitgang) {
+  const rijen = [];
+  const leeg = function () { rijen.push([]); };
+  const kop = function (tekst) { rijen.push([celTekst(tekst, true)]); };
+  const paar = function (regel) {
+    rijen.push([
+      celTekst(regel.label),
+      typeof regel.getal === 'number' && isFinite(regel.getal)
+        ? celGetal(regel.getal, regel.formaat)
+        : celTekst(regel.tekst),
+    ]);
+  };
+
+  kop(uitgang.kop.toolNaam);
+  rijen.push([celTekst('Versie'), celTekst(uitgang.kop.toolVersie)]);
+  rijen.push([celTekst('Datum van de export'), celTekst(uitgang.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(uitgang.kop.kenmerk || 'geen kenmerk ingevuld')]);
+  leeg();
+
+  kop('Invoer');
+  uitgang.invoerregels.forEach(paar);
+  leeg();
+
+  kop(uitgang.heeftUitkomst ? 'Uitkomst' : 'Geen uitkomst');
+  uitgang.uitkomstregels.forEach(paar);
+  leeg();
+
+  if (uitgang.meldingen.length) {
+    kop('Meldingen');
+    uitgang.meldingen.forEach(function (m) { rijen.push([celTekst(m)]); });
+    leeg();
+  }
+
+  kop('Vindplaatsen');
+  uitgang.vindplaatsen.forEach(function (v) { rijen.push([celTekst(v)]); });
+  leeg();
+
+  kop('Afbakening');
+  uitgang.afbakening.forEach(function (a) { rijen.push([celTekst(a)]); });
+
+  return [{ naam: 'AOW-datum', rijen, breedtes: [46, 40] }];
+}
+
+function slug(tekst) {
+  const schoon = String(tekst || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return schoon || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
+  const invoer = {};
+  INVOERVELDEN.forEach(function (veld) { invoer[veld.sleutel] = ruweInvoer[veld.sleutel]; });
+  return {
+    tool: TOOL_ID,
+    formaatVersie: DOSSIER_FORMAATVERSIE,
+    toolVersie: TOOL_VERSIE,
+    opgeslagen: datumISO,
+    kenmerk: (kenmerk || '').trim(),
+    invoer,
+  };
+}
+
+// Strikte typetoets. Number() zou van true, [], [5] en " " stil een waarde maken, en dan
+// opent een handmatig aangepast of ouder bestand met een andere grondslag dan waarmee het is
+// bewaard, zonder dat iemand het merkt.
+function isEchtGetal(waarde) {
+  return typeof waarde === 'number' && Number.isFinite(waarde);
+}
+
+function leesDossier(tekst) {
+  let rauw;
+  try {
+    rauw = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Het bestand is geen leesbare JSON. Er is niets gewijzigd.' };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fout: 'Het bestand bevat geen dossiergegevens. Er is niets gewijzigd.' };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit bestand hoort bij een andere tool (' + String(rauw.tool)
+      + ') en niet bij ' + TOOL_ID + '. Er is niets gewijzigd.' };
+  }
+  if (!isEchtGetal(rauw.formaatVersie)) {
+    return { ok: false, fout: 'Het bestand heeft geen leesbare formaatversie. Er is niets gewijzigd.' };
+  }
+  if (rauw.formaatVersie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fout: 'Dit bestand is geschreven met formaatversie ' + rauw.formaatVersie
+      + ', terwijl deze tool versie ' + DOSSIER_FORMAATVERSIE + ' kent. Werk de tool bij. '
+      + 'Er is niets gewijzigd.' };
+  }
+  if (rauw.formaatVersie < DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fout: 'Dit bestand heeft formaatversie ' + rauw.formaatVersie
+      + '. Er is voor die versie geen migratiepad vastgelegd, dus het wordt niet geopend. '
+      + 'Er is niets gewijzigd.' };
+  }
+  if (!rauw.invoer || typeof rauw.invoer !== 'object' || Array.isArray(rauw.invoer)) {
+    return { ok: false, fout: 'Het bestand bevat geen invoergegevens. Er is niets gewijzigd.' };
+  }
+
+  const ruweInvoer = {};
+  const gebreken = [];
+  INVOERVELDEN.forEach(function (veld) {
+    const waarde = rauw.invoer[veld.sleutel];
+    if (waarde === undefined) {
+      gebreken.push('het veld "' + veld.label + '" ontbreekt');
+      return;
+    }
+    // De geboortedatum wordt niet alleen op vorm getoetst maar ook op bestaan: 30 februari
+    // heeft de juiste vorm en is toch geen datum.
+    if (veld.soort === 'datum' && ontleedDatum(waarde) === null) {
+      gebreken.push('"' + veld.label + '" is geen bestaande datum in de vorm jjjj-mm-dd');
+      return;
+    }
+    ruweInvoer[veld.sleutel] = waarde;
+  });
+
+  if (gebreken.length) {
+    return { ok: false, fout: 'Het bestand is niet geopend, want ' + gebreken.join(', ')
+      + '. De huidige invoer en uitkomst blijven staan.' };
+  }
+
+  const meldingen = [];
+  if (rauw.toolVersie !== TOOL_VERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met toolversie ' + String(rauw.toolVersie)
+      + ' en wordt geopend in versie ' + TOOL_VERSIE + '. De uitkomst wordt opnieuw berekend '
+      + 'en kan daardoor afwijken van wat er destijds stond.');
+  }
+  return {
+    ok: true,
+    ruweInvoer,
+    kenmerk: typeof rauw.kenmerk === 'string' ? rauw.kenmerk : '',
+    meldingen,
+  };
+}
+// UITGANGEN — EINDE
+
+let laatsteUitgang = null;
+
+function vandaagISO() {
+  const d = new Date();
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + tweeCijfers(d.getMonth() + 1) + '-' + tweeCijfers(d.getDate());
+}
+
+function leesInvoer() {
+  return { geboortedatum: document.getElementById('geboortedatum').value };
+}
+
+function schrijfInvoer(ruweInvoer, kenmerk) {
+  document.getElementById('geboortedatum').value = ruweInvoer.geboortedatum;
+  document.getElementById('kenmerk').value = kenmerk;
+}
+
+function toonMeldingen(meldingen) {
+  return meldingen.map(m =>
+    '<div class="melding ' + m.soort + '">' + xmlTekst(m.tekst) + '</div>'
+  ).join('');
+}
+
+function toon(uitkomst) {
+  const doel = document.getElementById('uitvoer');
+  if (!uitkomst.heeftUitkomst) {
+    doel.innerHTML = '<div class="kaart">' + toonMeldingen(uitkomst.meldingen) + '</div>';
+    return;
+  }
+  const e = xmlTekst;
+  doel.innerHTML =
+    '<div class="kaart">'
+    + toonMeldingen(uitkomst.meldingen)
+    + '<div class="uitkomst">'
+    + '<div class="blok"><div class="etiket">AOW-datum</div>'
+    + '<div class="waarde">' + e(uitkomst.aowDatum) + '</div>'
+    + '<div class="onder">art. 16 lid 1 AOW, de dag waarop het pensioen ingaat</div></div>'
+    + '<div class="blok"><div class="etiket">Pensioengerechtigde leeftijd</div>'
+    + '<div class="waarde">' + e(uitkomst.leeftijdTekst) + '</div>'
+    + '<div class="onder">' + e(uitkomst.vindplaats) + '</div></div>'
+    + '<div class="blok"><div class="etiket">Kalenderjaar</div>'
+    + '<div class="waarde">' + e(String(uitkomst.aowJaar)) + '</div>'
+    + '<div class="onder">het jaar waarin die leeftijd wordt bereikt</div></div>'
+    + '</div></div>';
+}
+
+function toonDossierstuk(uitgang) {
+  const e = xmlTekst;
+  const regels = lijst => lijst.map(r =>
+    '<tr><td>' + e(r.label) + '</td><td>' + e(r.tekst) + '</td></tr>').join('');
+
+  document.getElementById('dossierstuk').innerHTML =
+    '<div class="kaart">'
+    + '<h2>Dossierstuk</h2>'
+    + '<div class="kenmerkregel">'
+    + '<span><strong>Kenmerk:</strong> ' + e(uitgang.kop.kenmerk || 'niet ingevuld') + '</span>'
+    + '<span><strong>Datum:</strong> ' + e(uitgang.kop.datum) + '</span>'
+    + '</div>'
+    + '<h3>Invoer</h3><table>' + regels(uitgang.invoerregels) + '</table>'
+    + (uitgang.heeftUitkomst
+        ? '<h3>Uitkomst</h3><table>' + regels(uitgang.uitkomstregels) + '</table>'
+        : '<h3>Geen uitkomst</h3>')
+    + (uitgang.meldingen.length
+        ? '<h3>Meldingen</h3><ul class="afbakening">'
+          + uitgang.meldingen.map(m => '<li>' + e(m) + '</li>').join('') + '</ul>'
+        : '')
+    + '<h3>Vindplaatsen</h3><ul class="vindplaatsen">'
+    + uitgang.vindplaatsen.map(v => '<li>' + e(v) + '</li>').join('') + '</ul>'
+    + '<h3>Afbakening</h3><ul class="afbakening">'
+    + uitgang.afbakening.map(a => '<li>' + e(a) + '</li>').join('') + '</ul>'
+    + '<p class="stempel">' + e(uitgang.kop.toolNaam) + ', versie '
+    + e(uitgang.kop.toolVersie) + '. Deze berekening is geen beslissing.</p>'
+    + '</div>';
+}
+
+function reken() {
+  const ruweInvoer = leesInvoer();
+  const uitkomst = berekenAowDatum(ruweInvoer.geboortedatum);
+  toon(uitkomst);
+  laatsteUitgang = bouwUitgang(
+    ruweInvoer, uitkomst, document.getElementById('kenmerk').value, vandaagISO()
+  );
+  toonDossierstuk(laatsteUitgang);
+}
+
+function toonDossierMelding(tekst, soort) {
+  document.getElementById('dossierMelding').innerHTML =
+    '<div class="kaart"><div class="melding ' + soort + '">' + xmlTekst(tekst) + '</div></div>';
+}
+
+function wisDossierMelding() {
+  document.getElementById('dossierMelding').innerHTML = '';
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exporteerExcel() {
+  wisDossierMelding();
+  if (!laatsteUitgang) {
+    toonDossierMelding('Er is nog niets berekend om te exporteren.', 'fout');
+    return;
+  }
+  bewaarBestand(
+    xlsxBytes(exportBladen(laatsteUitgang)),
+    bestandsnaam(laatsteUitgang.kop.kenmerk, laatsteUitgang.kop.datum, 'xlsx'),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+}
+
+function slaDossierOp() {
+  wisDossierMelding();
+  const ruweInvoer = leesInvoer();
+  if (ontleedDatum(ruweInvoer.geboortedatum) === null) {
+    toonDossierMelding('Het dossier is niet opgeslagen, want de geboortedatum ontbreekt of '
+      + 'is geen bestaande datum.', 'fout');
+    return;
+  }
+  const kenmerk = document.getElementById('kenmerk').value;
+  const datum = vandaagISO();
+  bewaarBestand(
+    new TextEncoder().encode(JSON.stringify(schrijfDossier(ruweInvoer, kenmerk, datum), null, 2)),
+    bestandsnaam(kenmerk, datum, 'json'),
+    'application/json'
+  );
+  toonDossierMelding('Het dossier is als bestand aangeboden. Het is nergens anders bewaard.', 'info');
+}
+
+function verwerkDossierbestand(bestand) {
+  const lezer = new FileReader();
+  lezer.onerror = function () {
+    toonDossierMelding('Het bestand kon niet worden gelezen. Er is niets gewijzigd.', 'fout');
+  };
+  // Zonder onabort eindigt een afgebroken keuze in stilte, terwijl de gebruiker denkt dat
+  // er iets is geladen.
+  lezer.onabort = function () {
+    toonDossierMelding('Het lezen van het bestand is afgebroken. Er is niets gewijzigd.', 'fout');
+  };
+  lezer.onload = function () {
+    const uitslag = leesDossier(String(lezer.result));
+    if (!uitslag.ok) {
+      toonDossierMelding(uitslag.fout, 'fout');
+      return;
+    }
+    schrijfInvoer(uitslag.ruweInvoer, uitslag.kenmerk);
+    reken();
+    toonDossierMelding(
+      uitslag.meldingen.length
+        ? uitslag.meldingen.join(' ')
+        : 'Het dossier is geopend en de uitkomst is opnieuw berekend met de huidige tool.',
+      uitslag.meldingen.length ? 'let-op' : 'info'
+    );
+  };
+  lezer.readAsText(bestand);
+}
+
+document.getElementById('rekenKnop').addEventListener('click', reken);
+document.getElementById('afdrukKnop').addEventListener('click', function () {
+  reken();
+  window.print();
+});
+document.getElementById('excelKnop').addEventListener('click', exporteerExcel);
+document.getElementById('opslaanKnop').addEventListener('click', slaDossierOp);
+document.getElementById('openenKnop').addEventListener('click', function () {
+  wisDossierMelding();
+  document.getElementById('dossierInvoer').click();
+});
+document.getElementById('dossierInvoer').addEventListener('change', function (gebeurtenis) {
+  const bestand = gebeurtenis.target.files && gebeurtenis.target.files[0];
+  gebeurtenis.target.value = '';
+  if (bestand) verwerkDossierbestand(bestand);
+});
+reken();
+</script>
+</body>
+</html>
