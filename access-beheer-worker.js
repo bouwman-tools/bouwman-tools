@@ -105,6 +105,10 @@ const APP_IDS = {
   'vastgoedrendement.html':              '73dde839-43d7-44d7-82ec-3a15486203b4',
   'herziening-btw.html':                 '556659b5-e5c2-454f-9c3e-699f9f21ddfa',
   'modellen-naar-tools.html':            '91e5043d-b47c-44cd-a1be-5a26bbcd2fe5',
+  'ww-uitkering.html': '9a9b83d6-c064-4ba5-b698-38345488bf67',
+  'aow-datum.html': '4d830b89-6389-4e5a-832d-8437035b04b1',
+  'familiebank.html': '7e166f74-a0cc-42e8-b3ea-9d4677f2341d',
+  'eigen-woning.html': '068adb42-9aa6-42c8-8ef3-66649bf8973d',
 };
 
 export default {
