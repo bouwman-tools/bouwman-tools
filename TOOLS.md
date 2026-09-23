@@ -107,7 +107,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🔵 concept | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
+| 🟢 live | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-23 |
 | 🔵 concept | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
