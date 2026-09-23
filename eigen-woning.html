@@ -2121,13 +2121,25 @@ function verloopVanLening(lening, startjaar, aantalJaren, rooster, bovenDeVerwer
     // Na de verkoop van de woning waar deze lening bij hoort is er geen eigenwoningschuld
     // meer, dus ook geen aftrekbare rente. Die jaren staan alleen in de tabel om haar even
     // lang te houden als die van de andere woning.
-    const aftrekbaar = r.naHetEinde ? false : renteIsAftrekbaar({
+    // Dezelfde toets beslist twee dingen, en dat is geen toeval: art. 3.120 lid 1 onder a
+    // maakt alleen de renten van de eigenwoningschuld aftrekbaar, en art. 2.14 lid 3 onder a
+    // Wet IB 2001 stuurt een schuld die in verband met een eigen woning is aangegaan maar
+    // niet tot de eigenwoningschuld behoort uitdrukkelijk naar box 3. Houdt de schuld op
+    // eigenwoningschuld te zijn — omdat zij niet aan art. 3.119a lid 1 voldoet, omdat de
+    // dertigjaarstermijn van art. 10bis.10 lid 1 is verstreken, of omdat de 360 maanden van
+    // art. 3.119a lid 6 onder e voorbij zijn — dan vervalt niet alleen de aftrek maar
+    // verhuist ook de schuld zelf.
+    const behoortTotDeEigenwoningschuld = renteIsAftrekbaar({
       jaar: r.jaar,
       regime: lening.regime,
       beginjaarAftrektermijn: lening.beginjaarAftrektermijn,
       voldoetAanVoorwaarden: lening.voldoetAanVoorwaarden,
       verstrekenLooptijdMaanden: voorsprongMaanden > 0 ? verstreken : undefined,
     });
+    // Na de verkoop van de woning waar deze lening bij hoort is er geen aftrek meer; de
+    // schuld zelf is dan afgelost, dus de verdeling over de boxen raakt niets.
+    const aftrekbaar = r.naHetEinde ? false : behoortTotDeEigenwoningschuld;
+    const box1Deel = behoortTotDeEigenwoningschuld ? box1Fractie : 0;
     const renteBox1Deel = r.rente * box1Fractie;
     return {
       jaar: r.jaar,
@@ -2138,9 +2150,10 @@ function verloopVanLening(lening, startjaar, aantalJaren, rooster, bovenDeVerwer
       afgelostUitKapitaal: afrondenOpCenten(r.afgelostUitKapitaal || 0),
       schuldOpPeilmoment: r.schuldOpPeilmoment === undefined ? null : r.schuldOpPeilmoment,
       schuldEind: r.schuldEind,
-      schuldInBox1: afrondenOpCenten(r.schuldEind * box1Fractie),
-      schuldInBox3: afrondenOpCenten(r.schuldEind * (1 - box1Fractie)),
+      schuldInBox1: afrondenOpCenten(r.schuldEind * box1Deel),
+      schuldInBox3: afrondenOpCenten(r.schuldEind * (1 - box1Deel)),
       verstrekenLooptijdMaanden: verstreken,
+      behoortTotDeEigenwoningschuld,
       renteAftrekbaar: aftrekbaar,
       aftrekbareRente: afrondenOpCenten(aftrekbaar ? renteBox1Deel : 0),
     };
@@ -2707,7 +2720,10 @@ function berekenEigenWoning(invoer) {
     const verkoopIndex = verkoop.jaar - startjaar;
     for (const lening of perLening) {
       const rij = lening.jaren[verkoopIndex];
-      const box1Deel = lening.invoer.hoofdsom > 0
+      // Art. 3.119aa lid 1 Wet IB 2001 trekt van de tegenprestatie de EIGENWONINGSCHULD af.
+      // Is de schuld op het moment van vervreemding geen eigenwoningschuld meer, dan komt zij
+      // hier dus niet in mindering en valt het vervreemdingssaldo hoger uit.
+      const box1Deel = lening.invoer.hoofdsom > 0 && rij.behoortTotDeEigenwoningschuld
         ? (lening.invoer.hoofdsom - lening.buitenEigenwoningschuld) / lening.invoer.hoofdsom
         : 0;
       schuldInBox1BijVerkoop += rij.afgelostBijVerkoop * box1Deel;
@@ -3058,8 +3074,10 @@ function berekenEigenWoning(invoer) {
         soort: 'let-op',
         tekst: 'De dertigjaarstermijn van art. 10bis.10 lid 1 Wet IB 2001 loopt voor '
              + lening.naam + ' af na ' + laatste.jaar + '. Vanaf ' + (laatste.jaar + 1)
-             + ' is die rente niet meer aftrekbaar, terwijl het eigenwoningforfait blijft '
-             + 'gelden.',
+             + ' is die rente niet meer aftrekbaar en behoort de schuld niet meer tot de '
+             + 'eigenwoningschuld (art. 3.119a lid 6 onder e jo. lid 7 Wet IB 2001); zij gaat '
+             + 'dan naar box 3 op grond van art. 2.14 lid 3 onder a. Het eigenwoningforfait '
+             + 'blijft wel gelden.',
       });
     }
     if (l.regime !== 'bestaand' && laatste && laatste.jaar < laatsteJaarInRooster
@@ -3070,7 +3088,8 @@ function berekenEigenWoning(invoer) {
         tekst: 'Voor ' + lening.naam + ' zijn na ' + laatste.jaar + ' de '
              + MAXIMALE_LOOPTIJD_MAANDEN + ' maanden van art. 3.119a lid 6 onder e Wet IB 2001 '
              + 'verstreken. Vanaf ' + (laatste.jaar + 1) + ' behoort die schuld niet meer tot '
-             + 'de eigenwoningschuld en is de rente niet meer aftrekbaar, terwijl het '
+             + 'de eigenwoningschuld en is de rente niet meer aftrekbaar; zij gaat dan naar '
+             + 'box 3 op grond van art. 2.14 lid 3 onder a, terwijl het '
              + 'eigenwoningforfait blijft gelden. Dat komt doordat het renteaftrekverleden van '
              + 'lid 7 en de looptijd uit de aflossingsstand al meetellen voordat deze schuld '
              + 'haar eerste maand loopt.',
@@ -4418,7 +4437,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'eigen-woning';
 const TOOL_NAAM = 'Eigen woning en eigenwoningschuld';
-const TOOL_VERSIE = '0.8.0';
+const TOOL_VERSIE = '0.8.1';
 // Versie 2 van 21-09-2026: de invoer kent drie leningen in plaats van één. Een bestand van
 // versie 1 wordt niet geopend, want er is geen migratiepad vastgelegd; de oude invoer zou na
 // de omzetting stilzwijgend op een andere grondslag uitkomen. De tool is niet gepubliceerd,
