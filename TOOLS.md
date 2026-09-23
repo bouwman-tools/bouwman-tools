@@ -71,7 +71,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | BV Ja/Nee | `/bv_janee_DK.html` | bouwman-tools/BV-Ja_Nee | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Belastinglatentie | `/belastinglatentie.html` | bouwman-tools/belastinglatentie | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-08 |
-| 🔵 concept | DCF-rekenmodel | `/dcf-rekentool.html` | bouwman-tools/dcf-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | DCF-rekenmodel | `/dcf-rekentool.html` | bouwman-tools/dcf-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-20 |
 | 🟡 beta | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟡 beta | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-20 |
