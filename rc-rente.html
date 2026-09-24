@@ -674,6 +674,58 @@ function isLeegRij(rij) {
   return !rij || rij.every((c) => c === null || c === undefined || String(c).trim() === "");
 }
 
+// Regels die geen mutatie zijn maar een stand: de beginbalans boven de kaart en het
+// eindsaldo eronder. Zij dragen geen datum en vielen daardoor buiten de berekening, terwijl
+// juist zij de beginstand en de sluitcontrole voeden. "Totaal" staat hier bewust niet bij:
+// bij veel pakketten is dat de som van de debet- en de creditkolom en niet het saldo.
+const BEGINBALANS_WOORDEN = /^\s*(beginbalans|beginsaldo|beginstand|aanvangssaldo|beginwaarde|saldo\s*overgenomen|overgenomen\s*saldo|saldo\s*per\s*0?1[-\/. ]0?1|opening\s*balance|opening\s*bal\.?|balance\s*b\/?f|beginning\s*balance)\b/i;
+const EINDSALDO_WOORDEN = /^\s*(eindsaldo|eindstand|eindbalans|saldo\s*ultimo|ultimo\s*saldo|saldo\s*per\s*3?1[-\/. ]12|slotsaldo|sluitsaldo|closing\s*balance|closing\s*bal\.?|balance\s*c\/?f|ending\s*balance)\b/i;
+
+// Zoekt in alle cellen van een regel, want het label staat lang niet altijd in de kolom die
+// als omschrijving is aangewezen. Op de kaart uit de aanleiding staat "Beginbalans" in de
+// eerste kolom, terwijl de omschrijvingskolom de zesde is.
+function standsoortVanRij(rij) {
+  for (const cel of rij || []) {
+    const t = String(cel === null || cel === undefined ? "" : cel).trim();
+    if (t === "") continue;
+    if (BEGINBALANS_WOORDEN.test(t)) return "beginbalans";
+    if (EINDSALDO_WOORDEN.test(t)) return "eindsaldo";
+  }
+  return null;
+}
+
+// Toetst of een kolom zich als saldokolom gedraagt: verandert de stand van regel op regel
+// precies met het geboekte bedrag? Zonder die toets wordt elke overgebleven getallenkolom
+// als saldo aangemerkt, en een boekstuk- of volgnummer is ook een getallenkolom. Dat is op
+// 24-09-2026 misgegaan op een kaart waarvan het boekstuknummer als eindsaldo in de
+// sluitcontrole belandde. Het teken van de kolom ligt in de bron niet vast, dus beide
+// richtingen worden geprobeerd; de beste wint.
+function saldoAansluiting(gegevens, saldoKolom, bedragVanRij, tolerantie) {
+  const t = tolerantie === undefined ? 0.005 : tolerantie;
+  const punten = [];
+  for (const rij of gegevens || []) {
+    const saldo = parseBedrag(rij[saldoKolom]);
+    if (saldo === null) continue;
+    punten.push({ saldo, bedrag: bedragVanRij(rij) });
+  }
+  if (punten.length < 2) return { fractie: 0, tekenSaldo: 1, paren: 0, treffers: 0 };
+
+  let beste = { fractie: 0, tekenSaldo: 1, paren: 0, treffers: 0 };
+  for (const tekenSaldo of [1, -1]) {
+    let paren = 0, treffers = 0;
+    for (let i = 1; i < punten.length; i++) {
+      const bedrag = punten[i].bedrag;
+      if (bedrag === null) continue;
+      paren += 1;
+      const verschil = tekenSaldo * (punten[i].saldo - punten[i - 1].saldo);
+      if (Math.abs(verschil - bedrag) <= t) treffers += 1;
+    }
+    const fractie = paren === 0 ? 0 : treffers / paren;
+    if (fractie > beste.fractie) beste = { fractie, tekenSaldo, paren, treffers };
+  }
+  return beste;
+}
+
 // Interpreteert een tabel (array van arrays) en gokt welke kolom wat is. Dit is de brug
 // waar later een AI-implementatie naast kan staan; de uitvoer heeft daarom een vaste vorm.
 function interpreteerTabel(rijen) {
@@ -734,15 +786,49 @@ function interpreteerTabel(rijen) {
     if (numeriek.length >= 3) {
       kolommen.debet = numeriek[0];
       kolommen.credit = numeriek[1];
-      if (kolommen.saldo === null) kolommen.saldo = numeriek[2];
-    } else if (numeriek.length === 2) {
-      kolommen.bedrag = numeriek[0];
-      if (kolommen.saldo === null) kolommen.saldo = numeriek[1];
-    } else if (numeriek.length === 1) {
+    } else if (numeriek.length >= 1) {
       kolommen.bedrag = numeriek[0];
     }
-  } else if (kolommen.saldo === null && numeriek.length > 0) {
-    kolommen.saldo = numeriek[numeriek.length - 1];
+  }
+
+  // Een kolom is pas een saldokolom als zij zich als saldo gedraagt. Eerder werd de laatst
+  // overgebleven getallenkolom ervoor aangezien, en dan wordt een boekstuk- of volgnummer de
+  // stand waartegen de sluitcontrole afrekent. Zonder aansluiting blijft de saldokolom leeg
+  // en zegt de tool dat, in plaats van met een verkeerd getal door te rekenen.
+  const bedragVanRij = (rij) => {
+    if (kolommen.bedrag !== null) {
+      const b = parseBedrag(rij[kolommen.bedrag]);
+      if (b !== null) return b;
+    }
+    if (kolommen.debet === null && kolommen.credit === null) return null;
+    const debet = kolommen.debet === null ? null : parseBedrag(rij[kolommen.debet]);
+    const credit = kolommen.credit === null ? null : parseBedrag(rij[kolommen.credit]);
+    if (debet === null && credit === null) return null;
+    return (credit === null ? 0 : Math.abs(credit)) - (debet === null ? 0 : Math.abs(debet));
+  };
+  const saldoKandidaten = [];
+  if (kolommen.saldo !== null) saldoKandidaten.push(kolommen.saldo);
+  for (const k of numeriek) {
+    if (k !== kolommen.bedrag && k !== kolommen.debet && k !== kolommen.credit && !saldoKandidaten.includes(k)) {
+      saldoKandidaten.push(k);
+    }
+  }
+  const benoemdeSaldokolom = kolommen.saldo;
+  kolommen.saldo = null;
+  let besteSaldo = null;
+  for (const k of saldoKandidaten) {
+    const toets = saldoAansluiting(gegevens, k, bedragVanRij);
+    if (!besteSaldo || toets.fractie > besteSaldo.fractie) besteSaldo = { kolom: k, ...toets };
+  }
+  // Een kolom die volgens haar kop het saldo is, krijgt het voordeel van de twijfel zodra de
+  // aansluiting klopt; een kaart van twee regels levert immers maar één paar op. Een kolom
+  // zonder zo'n kop moet zich over minstens twee overgangen bewijzen, want anders haalt een
+  // enkel toeval een volgnummer alsnog binnen.
+  const minimumParen = besteSaldo && besteSaldo.kolom === benoemdeSaldokolom ? 1 : 2;
+  if (besteSaldo && besteSaldo.fractie >= 0.8 && besteSaldo.paren >= minimumParen) {
+    kolommen.saldo = besteSaldo.kolom;
+  } else if (benoemdeSaldokolom !== null) {
+    opmerkingen.push("De kolom die volgens haar kop een saldokolom is, sluit niet aan op de mutaties en is niet als saldo gebruikt.");
   }
 
   // Omschrijving: de breedste tekstkolom die nog vrij is.
@@ -762,7 +848,7 @@ function interpreteerTabel(rijen) {
     opmerkingen.push("Geen bedragkolom gevonden. Wijs debet en credit aan, of één bedragkolom.");
   }
   if (kolommen.saldo === null) {
-    opmerkingen.push("Geen saldokolom gevonden. Zonder saldo kan de beginstand niet worden afgeleid en is de sluitcontrole handwerk.");
+    opmerkingen.push("Geen saldokolom gevonden. De beginstand en het eindsaldo voor de sluitcontrole komen dan uit een beginbalans- of eindsaldoregel van de bron, of moeten zelf worden ingevuld.");
   }
 
   let punten = 0;
@@ -851,6 +937,8 @@ function bouwMutaties(rijen, kolommen, opties) {
   const mutaties = [];
   const overgeslagen = [];
   const saldoRegels = [];
+  let beginbalans = null;
+  let eindsaldoRegel = null;
 
   for (let i = start; i < gevuld.length; i++) {
     const rij = gevuld[i];
@@ -873,7 +961,24 @@ function bouwMutaties(rijen, kolommen, opties) {
     }
 
     if (iso === null || bedragRuw === null) {
-      overgeslagen.push({ rijnr, iso, omschrijving, saldo: saldoRuw === null ? null : factor * saldoRuw, rij });
+      // Een regel zonder datum kan een stand zijn in plaats van een mutatie: de beginbalans
+      // boven de kaart of het eindsaldo eronder. Die twee dragen de beginstand en de
+      // sluitcontrole, dus ze worden hier eruit gelicht. Alleen regels zonder bruikbare datum
+      // komen hiervoor in aanmerking; een beginbalans mét datum blijft een gewone mutatie en
+      // kan dus niet dubbel tellen.
+      const soort = iso === null ? standsoortVanRij(rij) : null;
+      const label = soort === null ? "" : String(rij.find((c) => {
+        const t = String(c === null || c === undefined ? "" : c).trim();
+        return t !== "" && (BEGINBALANS_WOORDEN.test(t) || EINDSALDO_WOORDEN.test(t));
+      })).trim();
+      let stand = bedragRuw;
+      if (stand === null && saldoRuw !== null) stand = saldoRuw;
+      if (soort === "beginbalans" && stand !== null && beginbalans === null) {
+        beginbalans = { rijnr, bedrag: factor * stand, label };
+      } else if (soort === "eindsaldo" && stand !== null) {
+        eindsaldoRegel = { rijnr, bedrag: factor * stand, label };
+      }
+      overgeslagen.push({ rijnr, iso, omschrijving, standsoort: soort, saldo: saldoRuw === null ? null : factor * saldoRuw, rij });
       continue;
     }
     mutaties.push({
@@ -887,18 +992,30 @@ function bouwMutaties(rijen, kolommen, opties) {
   }
 
   mutaties.sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : a.rijnr - b.rijnr));
-  return { mutaties, overgeslagen, factor, aantalSaldi: saldoRegels.length };
+  return { mutaties, overgeslagen, factor, aantalSaldi: saldoRegels.length, beginbalans, eindsaldoRegel };
 }
 
-// Leidt de beginstand af uit de saldokolom. Het teken van die kolom is in de bron niet
-// altijd te zien, dus beide varianten worden geprobeerd en de variant met de meeste
-// treffers wint. Klopt geen van beide, dan komt er geen voorstel en moet de gebruiker de
-// beginstand invullen.
+// Leidt de beginstand af. Twee routes, in deze volgorde: een beginbalansregel in de bron
+// gaat voor, want die noemt de stand zelf; pas daarna wordt zij uit de saldokolom
+// teruggerekend. Het teken van de saldokolom is in de bron niet altijd te zien, dus beide
+// varianten worden geprobeerd en de variant met de meeste treffers wint. Lukt geen van beide,
+// dan komt er geen voorstel en vult de gebruiker de beginstand zelf in.
 function leidBeginstandAf(mutaties, opties) {
   const o = opties || {};
   const tolerantie = o.tolerantie === undefined ? 0.005 : o.tolerantie;
+  if (o.beginbalans && Number.isFinite(o.beginbalans.bedrag)) {
+    return {
+      gelukt: true,
+      beginstand: afrond2(o.beginbalans.bedrag),
+      tekenSaldo: 1,
+      herkomst: "beginbalansregel",
+      label: o.beginbalans.label || "beginbalans",
+      rijnr: o.beginbalans.rijnr,
+      reden: null,
+    };
+  }
   const metSaldo = mutaties.filter((m) => m.saldoBron !== null);
-  if (metSaldo.length === 0) return { gelukt: false, reden: "geen saldi in de bron" };
+  if (metSaldo.length === 0) return { gelukt: false, herkomst: null, reden: "geen saldi in de bron" };
 
   let cumulatief = 0;
   const inBronvolgorde = mutaties.slice().sort((a, b) => (a.rijnr || 0) - (b.rijnr || 0));
@@ -926,6 +1043,7 @@ function leidBeginstandAf(mutaties, opties) {
     tekenSaldo: beste.tekenSaldo,
     treffers: beste.treffers,
     totaal: beste.totaal,
+    herkomst: deel >= 0.8 ? "saldokolom" : null,
     reden: deel >= 0.8 ? null : "de saldokolom sluit niet aan op de mutaties",
   };
 }
@@ -1066,6 +1184,9 @@ function bouwStaffel(invoer) {
 
 // Vat de dagstaffel samen in perioden met een gelijk saldo en gelijk percentage. Dit is de
 // staffel die leesbaar is voor het dossier; er wordt niets anders gerekend.
+// Elk segment draagt de mutatie van zijn eerste dag: dat is het bedrag waarmee het saldo
+// ten opzichte van het vorige segment is veranderd. Bij een segment dat alleen begint omdat
+// het percentage omslaat is dat nul, en dat is dan ook wat er staat.
 function dichtStaffel(dagen) {
   const rijen = [];
   for (const d of dagen) {
@@ -1075,7 +1196,7 @@ function dichtStaffel(dagen) {
       laatste.dagen += 1;
       laatste.rente += d.dagrente;
     } else {
-      rijen.push({ van: d.iso, tot: d.iso, dagen: 1, saldo: d.saldo, pct: d.pct, rente: d.dagrente });
+      rijen.push({ van: d.iso, tot: d.iso, dagen: 1, mutatie: d.mutatie, saldo: d.saldo, pct: d.pct, rente: d.dagrente });
     }
   }
   return rijen;
@@ -2417,7 +2538,14 @@ function toonKolomtabel() {
     html += "<tr>";
     for (let k = 0; k < breedte; k++) {
       const waarde = rij[k];
-      html += `<td>${esc(waarde === null || waarde === undefined ? "" : waarde)}</td>`;
+      // Een getal uit een xlsx komt als JavaScript-getal binnen en werd hier ongewijzigd
+      // getoond, dus met een punt als decimaalteken en met de ruis van binaire afronding
+      // ("2927.0700000000002"). In een bedragkolom staat het nu in Nederlandse notatie.
+      const soort = soortVanKolom(k);
+      const bedragkolom = soort === "debet" || soort === "credit" || soort === "bedrag" || soort === "saldo";
+      const tekst = waarde === null || waarde === undefined ? ""
+        : (typeof waarde === "number" && bedragkolom ? fmt(waarde) : waarde);
+      html += `<td${bedragkolom ? ' class="num"' : ""}>${esc(tekst)}</td>`;
     }
     html += "</tr>";
   }
@@ -2466,13 +2594,14 @@ function vulUitgangspunten() {
   if (!$("jaar").value) $("jaar").value = String(jaarInfo.jaar);
   const jaar = Number($("jaar").value) || jaarInfo.jaar;
 
-  const afgeleid = leidBeginstandAf(opbouw.mutaties);
+  const afgeleid = leidBeginstandAf(opbouw.mutaties, { beginbalans: opbouw.beginbalans });
   if (afgeleid.gelukt) {
     if (!$("beginstand").dataset.handmatig) {
       $("beginstand").value = fmt(afgeleid.beginstand);
     }
-    $("beginstand-hint").textContent =
-      `afgeleid uit de saldokolom (${afgeleid.treffers} van ${afgeleid.totaal} regels sluiten aan)`;
+    $("beginstand-hint").textContent = afgeleid.herkomst === "beginbalansregel"
+      ? `overgenomen uit de regel "${afgeleid.label}" van de bron (regel ${afgeleid.rijnr})`
+      : `afgeleid uit de saldokolom (${afgeleid.treffers} van ${afgeleid.totaal} regels sluiten aan)`;
   } else {
     $("beginstand-hint").textContent = `beginstand zelf invullen (${afgeleid.reden})`;
     meldingen.push(`De beginstand kon niet uit de bron worden afgeleid: ${afgeleid.reden}.`);
@@ -2502,18 +2631,44 @@ function vulUitgangspunten() {
   // doorgerekend, niet bij het einde van de bron. Anders blokkeert de sluitcontrole zodra
   // van een meerjarige kaart maar één jaar wordt doorgerekend.
   const laatsteJaar = alleJaren ? jaarInfo.jaren[jaarInfo.jaren.length - 1] : jaar;
-  const bronsaldo = saldoVolgensBronEindeJaar(opbouw.mutaties, laatsteJaar, afgeleid.gelukt ? afgeleid.tekenSaldo : 1);
+  // Een expliciete eindsaldoregel onder aan de kaart gaat voor op de saldokolom: die regel
+  // noemt de stand zelf en geldt voor de hele kaart. Zij telt alleen mee als de kaart één
+  // jaar beslaat of als alle jaren worden doorgerekend; anders hoort de stand bij het einde
+  // van het doorgerekende jaar en komt zij uit de saldokolom.
+  const heleBron = alleJaren || jaarInfo.jaren.length === 1;
+  const uitRegel = heleBron && opbouw.eindsaldoRegel ? opbouw.eindsaldoRegel : null;
+  const bronsaldo = uitRegel
+    ? { bekend: true, saldo: uitRegel.bedrag, iso: null, laterInBron: false, label: uitRegel.label, rijnr: uitRegel.rijnr }
+    : saldoVolgensBronEindeJaar(opbouw.mutaties, laatsteJaar, afgeleid.tekenSaldo === undefined ? 1 : afgeleid.tekenSaldo);
   const hint = $("eindsaldo-bron").parentElement.querySelector(".hint");
   if (bronsaldo.bekend && !$("eindsaldo-bron").dataset.handmatig) {
     $("eindsaldo-bron").value = fmt(bronsaldo.saldo);
   }
   if (hint) {
-    hint.textContent = bronsaldo.bekend
-      ? `stand volgens de bron per ${fmtDatum(bronsaldo.iso)}; exclusief nog te boeken rente`
-      : "voor de sluitcontrole, exclusief nog te boeken rente";
+    hint.textContent = uitRegel
+      ? `overgenomen uit de regel "${uitRegel.label}" van de bron; exclusief nog te boeken rente`
+      : bronsaldo.bekend
+        ? `stand volgens de bron per ${fmtDatum(bronsaldo.iso)}; exclusief nog te boeken rente`
+        : "voor de sluitcontrole, exclusief nog te boeken rente";
   }
   if (bronsaldo.bekend && bronsaldo.laterInBron && !alleJaren) {
     meldingen.push(`Het eindsaldo voor de sluitcontrole is de stand per ${fmtDatum(bronsaldo.iso)}; de bron loopt daarna nog door.`);
+  }
+  if (!bronsaldo.bekend) {
+    meldingen.push("Er is geen eindsaldo in de bron gevonden. Vul het zelf in, anders vervalt de sluitcontrole.");
+  }
+
+  // Wat de gekozen tekenconventie voor déze bron betekent, in geld. De sluitcontrole ziet een
+  // omgekeerde keuze niet: draait het teken om, dan draaien de beginstand en het eindsaldo
+  // mee en sluit de berekening in beide richtingen. Alleen de gebruiker kan zien welke kant
+  // klopt, en daarvoor moet de uitkomst van de keuze zichtbaar zijn voordat er wordt gerekend.
+  const standNa = (afgeleid.gelukt ? afgeleid.beginstand : 0)
+    + opbouw.mutaties.filter((m) => Number(m.iso.slice(0, 4)) <= laatsteJaar).reduce((t, m) => t + m.bedrag, 0);
+  const conventieHint = $("conventie").parentElement.querySelector(".hint");
+  if (conventieHint) {
+    conventieHint.textContent = standNa < 0
+      ? `Met deze keuze is de stand per 31-12-${laatsteJaar} een schuld van de DGA aan de BV van ${fmtEuro(Math.abs(standNa))}.`
+      : `Met deze keuze is de stand per 31-12-${laatsteJaar} een vordering van de DGA op de BV van ${fmtEuro(standNa)}.`;
   }
 
   if (controle.dubbel.length) {
@@ -2522,8 +2677,12 @@ function vulUitgangspunten() {
   if (controle.nietChronologisch) {
     meldingen.push("De regels in de bron staan niet op datum; de berekening gebruikt de datum en niet de volgorde van de kaart.");
   }
+  const gebruikt = [];
+  if (opbouw.beginbalans) gebruikt.push(`"${opbouw.beginbalans.label}" als beginstand`);
+  if (uitRegel) gebruikt.push(`"${uitRegel.label}" als eindsaldo voor de sluitcontrole`);
   if (opbouw.overgeslagen.length) {
-    meldingen.push(`${opbouw.overgeslagen.length} regel(s) zonder bruikbare datum of bedrag zijn overgeslagen, bijvoorbeeld een beginbalans- of totaalregel.`);
+    meldingen.push(`${opbouw.overgeslagen.length} regel(s) zonder bruikbare datum of bedrag tellen niet als mutatie mee`
+      + (gebruikt.length ? `; daarvan is ${gebruikt.join(" en ")} overgenomen.` : ", bijvoorbeeld een totaalregel."));
   }
 
   zetMeldingen("kolom-meldingen", meldingen.length
@@ -2645,6 +2804,12 @@ function reken() {
     },
     conventie: $("conventie").value,
     eindsaldoBron,
+    // Waar de beginstand en het eindsaldo vandaan komen hoort in het dossier: overgenomen
+    // uit een regel van de bron, teruggerekend uit de saldokolom of met de hand ingevuld.
+    herkomst: {
+      beginstand: $("beginstand").dataset.handmatig ? null : (opbouw.beginbalans ? opbouw.beginbalans.label : null),
+      eindsaldo: $("eindsaldo-bron").dataset.handmatig ? null : (opbouw.eindsaldoRegel ? opbouw.eindsaldoRegel.label : null),
+    },
     meerjarig: jaren.length > 1,
   };
   toonUitkomst(staat.laatsteUitkomst);
@@ -2799,14 +2964,15 @@ function staffelHtml(jaar, meerjarig) {
   const s = jaar.staffel;
   const segmenten = dichtStaffel(s.dagen);
   let html = `<div class="scroll"><table><thead><tr>
-      <th>Van</th><th>Tot en met</th><th class="num">Dagen</th><th class="num">Saldo</th><th class="num">%</th><th class="num">Rente</th>
+      <th>Van</th><th>Tot en met</th><th class="num">Dagen</th><th class="num">Mutatie</th><th class="num">Saldo</th><th class="num">%</th><th class="num">Rente</th>
     </tr></thead><tbody>`;
   for (const r of segmenten) {
     html += `<tr><td>${fmtDatum(r.van)}</td><td>${fmtDatum(r.tot)}</td><td class="num">${r.dagen}</td>
+      <td class="num ${klasse(r.mutatie)}">${r.mutatie ? fmt(r.mutatie) : ""}</td>
       <td class="num ${klasse(r.saldo)}">${fmt(r.saldo)}</td><td class="num">${nlBedrag.format(r.pct)}</td>
       <td class="num ${klasse(r.rente)}">${fmt(r.rente)}</td></tr>`;
   }
-  html += `</tbody><tfoot><tr><th colspan="5">Totaal ${jaar.jaar} (${s.noemer} dagen)</th>
+  html += `</tbody><tfoot><tr><th colspan="6">Totaal ${jaar.jaar} (${s.noemer} dagen)</th>
     <th class="num ${klasse(s.totaleRente)}">${fmt(s.totaleRente)}</th></tr></tfoot></table></div>`;
   return html;
 }
@@ -2838,6 +3004,20 @@ function vergelijkingHtml(u) {
   return html;
 }
 
+// Een overgeslagen regel is niet hetzelfde als een genegeerde regel: een beginbalans- of
+// eindsaldoregel telt niet als mutatie maar draagt wel de beginstand en de sluitcontrole.
+// Het dossier hoort dat onderscheid te maken, anders lijkt bewijs weggelaten.
+function overgeslagenTekst(u) {
+  const regels = u.opbouw.overgeslagen || [];
+  if (regels.length === 0) return "";
+  const standen = regels.filter((g) => g.standsoort !== null && g.standsoort !== undefined).length;
+  const rest = regels.length - standen;
+  const delen = [];
+  if (standen) delen.push(`${standen} standregel(s) uit de bron overgenomen`);
+  if (rest) delen.push(`${rest} regel(s) zonder bruikbare datum of bedrag overgeslagen`);
+  return `, ${delen.join(" en ")}`;
+}
+
 function onderbouwingHtml(u) {
   const r = u.uitkomst;
   const laatste = r.jaren[r.jaren.length - 1];
@@ -2856,13 +3036,13 @@ function onderbouwingHtml(u) {
   return `<details open><summary>Onderbouwing voor het dossier</summary>
     <dl class="kv">
       <dt>Periode</dt><dd>${u.meerjarig ? `${r.jaren[0].jaar} t/m ${laatste.jaar}, elk jaar met zijn eigen aantal dagen` : `${laatste.jaar} (${laatste.staffel.noemer} dagen, actual/actual)`}</dd>
-      <dt>Beginstand ${r.jaren[0].jaar}</dt><dd>${fmtEuro(u.beginstand)}</dd>
-      <dt>Mutaties</dt><dd>${r.jaren.reduce((n, j) => n + j.staffel.aantalMutaties, 0)} in de periode${u.opbouw.overgeslagen.length ? `, ${u.opbouw.overgeslagen.length} regel(s) overgeslagen` : ""}</dd>
+      <dt>Beginstand ${r.jaren[0].jaar}</dt><dd>${fmtEuro(u.beginstand)}${u.herkomst && u.herkomst.beginstand ? `, overgenomen uit de regel "${esc(u.herkomst.beginstand)}" van de bron` : ", met de hand ingevuld of uit de saldokolom afgeleid"}</dd>
+      <dt>Mutaties</dt><dd>${r.jaren.reduce((n, j) => n + j.staffel.aantalMutaties, 0)} in de periode${overgeslagenTekst(u)}</dd>
       <dt>Rente</dt><dd>${rentetekst}</dd>
       <dt>Rentemoment</dt><dd>een mutatie rendeert vanaf de dag zelf; de rente wordt per 31-12 vastgesteld en binnen het jaar niet samengesteld</dd>
       <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
       <dt>Tekenconventie</dt><dd>positief is een vordering van de DGA op de BV; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = vordering DGA)" : "administratie van de BV (debet = schuld DGA)"}</dd>
-      <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}</dd>
+      <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
       <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}</dd>
       <dt>Inlezen</dt><dd>${inlezenTekst(u)}</dd>
       <dt>Vindplaatsen</dt><dd>${bronnen.map((b) => esc(b)).join("<br />")}</dd>
@@ -2955,9 +3135,9 @@ function exporteerCsv(u) {
     const p = u.perJaar[jaar.jaar][0];
     regels.push([`Jaar ${jaar.jaar}`, `${s.noemer} dagen`, `rente ${p.pctCredit}%${p.pctCredit === p.pctDebet ? "" : ` credit, ${p.pctDebet}% debet`}`]);
     regels.push(["Stand 1-1", afrond2(jaar.beginstand)]);
-    regels.push(["Van", "Tot en met", "Dagen", "Saldo", "Percentage", "Rente"]);
+    regels.push(["Van", "Tot en met", "Dagen", "Mutatie", "Saldo", "Percentage", "Rente"]);
     for (const seg of dichtStaffel(s.dagen)) {
-      regels.push([seg.van, seg.tot, seg.dagen, afrond2(seg.saldo), seg.pct, afrond2(seg.rente)]);
+      regels.push([seg.van, seg.tot, seg.dagen, afrond2(seg.mutatie), afrond2(seg.saldo), seg.pct, afrond2(seg.rente)]);
     }
     regels.push(["Creditrente", afrond2(s.creditrente)]);
     regels.push(["Debetrente", afrond2(s.debetrente)]);
