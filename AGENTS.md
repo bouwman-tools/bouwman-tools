@@ -45,6 +45,38 @@ niet). Commit nooit vanuit een kopie waarvan je de achterstand niet hebt
 gecontroleerd; `--ff-only` maakt een scheefgelopen kopie zichtbaar in plaats van
 stil te mergen.
 
+## Een sessie pusht hier nooit rechtstreeks naar de hoofdbranch
+
+**Elke wijziging die een sessie hier maakt gaat via een voorstel, ook een wijziging van
+één veld in `tools.json`.** Dit is de publieke verzamelrepository: wat hier op de
+hoofdbranch staat, staat op bouwman.tools. Een voorstel geeft het moment waarop Sylvain
+ziet wat er verandert voordat het publiek is.
+
+De regel werd al afgedwongen door de mandaatpoort, die een los `git push` naar de
+hoofdbranch hier weigert. Op 24-09-2026 is zij toch twee keer overtreden, en de reden is
+leerzaam genoeg om hier vast te leggen: de poort leest de **tekst van het commando** dat
+een sessie uitvoert, en die sessie pushte via een eigen hulpscript. `python push.py
+bouwman-tools` bevat geen `git push`, dus de poort zag niets terwijl het script intern
+wel pushte. De wijzigingen waren inhoudelijk juist en `check_tools.py` meldde geen drift,
+maar het reviewmoment ontbrak.
+
+Twee dingen zijn daarop veranderd. De regel staat nu hier, waar elke sessie hem leest en
+niet alleen wie het juiste script draait. En `claude-pos/bin/push.py` kent de regel zelf,
+zodat een gereedschap dat namens een sessie handelt de poort niet langer omzeilt. Dat
+geldt breder: **elk script dat een sessie namens zichzelf laat handelen, staat buiten het
+zicht van de poort** en moet haar regels dus overnemen.
+
+**Dit wordt niet met branchbeveiliging afgedwongen, en dat is een bewuste keuze.**
+Gemeten op 24-09-2026: 34 repositories pushen via hun sync-workflow rechtstreeks naar de
+hoofdbranch hier. "Vereist een pull request" breekt die alle 34 tegelijk, en dat merk je
+pas doordat een publicatie stil uitblijft. Een uitzondering voor de workflows helpt
+bovendien niet, want zij pushen onder dezelfde GitHub-identiteit als een sessie. De
+afdwinging zit daarom in de mandaatpoort, die lokaal meekijkt met wat een sessie doet en
+de workflows op GitHub ongemoeid laat.
+
+Wat hier dus wel rechtstreeks op de hoofdbranch landt: de commits van de sync-workflows.
+Die kopiëren één tool-HTML en zijn geen wijziging van een sessie.
+
 ## tools.json is de enige bron van de toolportefeuille
 
 `tools.json` legt per tool vast: naam, de korte beschrijving, bestand of URL, categorie,
