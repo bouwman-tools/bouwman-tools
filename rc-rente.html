@@ -98,6 +98,29 @@
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
   .scroll table { border: none; }
+
+  /* Stap 2 laat een handvol voorbeeldregels zien om de toewijzing te kunnen controleren.
+     Een omschrijvingskolom uit een grootboek is al gauw zestig tekens breed en duwde de
+     bedragkolommen daarmee buiten beeld, terwijl het juist om die bedragen gaat. Elke cel
+     krijgt daarom een maximumbreedte en kapt af; de volledige waarde staat in de titel. */
+  #kolomtabel th, #kolomtabel td { padding: 6px 7px; }
+  #kolomtabel .cel {
+    display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #kolomtabel td.num .cel { max-width: 110px; margin-left: auto; }
+  #kolomtabel th .cel { max-width: 130px; font-size: 11px; }
+  select.kolomkeuze {
+    width: 100%; min-width: 96px; font-size: 13px; padding: 5px 24px 5px 8px; font-weight: 600;
+    appearance: none;
+    background: var(--mint-light) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%231E2D4E' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center/9px 6px;
+    border: 1px solid var(--mint); color: var(--navy);
+  }
+  /* Een kolom die niet meedoet valt bewust terug naar neutraal, zodat in één oogopslag te
+     zien is welke kolommen de berekening dragen. */
+  select.kolomkeuze[data-gekozen="negeren"] {
+    background-color: #fafbfc; border-color: var(--border); color: var(--muted); font-weight: 400;
+  }
   tr.overgeslagen td { color: var(--muted); background: #fbfbfc; }
   .melding {
     border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
@@ -161,13 +184,15 @@
     De rente wordt per dag berekend over het werkelijke saldo: dagrente is saldo maal
     jaarrente gedeeld door het aantal dagen van dat jaar, en een mutatie rendeert vanaf de
     dag zelf. De rente wordt per 31 december vastgesteld en binnen het jaar niet
-    samengesteld. Dagen met een vordering van de DGA leveren creditrente op, dagen met een
-    schuld debetrente; het saldo van die twee is de totale rente.
+    samengesteld. Dagen waarop de BV een vordering op de DGA heeft leveren rentebaten op,
+    dagen waarop zij een schuld aan hem heeft rentelasten; het saldo van die twee is de
+    totale rente.
   </p>
   <p class="uitleg">
-    In de uitkomst is een positief bedrag altijd een vordering van de DGA op de BV. Een
-    grootboekkaart uit de administratie van de BV heeft het andersom; dat wordt bij het
-    inlezen omgezet en de gekozen richting staat in de onderbouwing.
+    De berekening wordt gemaakt voor de BV en volgt haar grootboekkaart: een positief bedrag
+    is een vordering van de BV op de DGA, oftewel een schuld van de DGA. Levert een bron het
+    andersom, dan wordt dat bij het inlezen omgezet en staat de gekozen richting in de
+    onderbouwing. De fiscale kwalificatie bij de DGA is het spiegelbeeld en staat er apart bij.
   </p>
   <p class="uitleg">
     <strong>De sluitcontrole is de belangrijkste vangrail.</strong> Wijkt het berekende
@@ -289,26 +314,27 @@
     <div class="veld">
       <label for="beginstand">Beginstand per 1 januari</label>
       <input type="text" id="beginstand" class="bedrag" style="width:150px" />
-      <span class="hint" id="beginstand-hint">positief = vordering DGA op BV</span>
+      <span class="hint" id="beginstand-hint">positief = vordering van de BV op de DGA</span>
     </div>
     <div class="veld">
       <label for="rente">Rente per jaar (%)</label>
       <input type="text" id="rente" class="bedrag" style="width:110px" />
-      <span class="hint">de zakelijkheid beoordeelt de adviseur</span>
+      <span class="hint" id="rente-hint">de zakelijkheid beoordeelt de adviseur</span>
     </div>
-    <div class="veld" id="veld-rente-debet" hidden>
-      <label for="rente-debet">Rente bij schuld DGA (%)</label>
-      <input type="text" id="rente-debet" class="bedrag" style="width:110px" />
+    <div class="veld" id="veld-rente-schuld-bv" hidden>
+      <label for="rente-schuld-bv">Rente over de schuld van de BV (%)</label>
+      <input type="text" id="rente-schuld-bv" class="bedrag" style="width:110px" />
+      <span class="hint">voor dagen waarop de DGA geld van de BV tegoed heeft</span>
     </div>
   </div>
   <div class="rij">
     <div class="veld">
       <label for="conventie">Tekenconventie van de bron</label>
       <select id="conventie">
-        <option value="bv">Administratie van de BV: debet = schuld van de DGA</option>
-        <option value="dga">Omgekeerd: debet = vordering van de DGA</option>
+        <option value="bv">Administratie van de BV: debet = vordering van de BV op de DGA</option>
+        <option value="dga">Omgekeerd: debet = schuld van de BV aan de DGA</option>
       </select>
-      <span class="hint">In de uitkomst is positief altijd een vordering van de DGA op de BV.</span>
+      <span class="hint">In de uitkomst is positief altijd een vordering van de BV op de DGA.</span>
     </div>
     <div class="veld">
       <label for="eindsaldo-bron">Eindsaldo volgens de bron</label>
@@ -317,7 +343,7 @@
     </div>
   </div>
   <div style="margin-bottom:12px; display:flex; flex-direction:column; gap:6px">
-    <label style="font-size:13px"><input type="checkbox" id="rente-apart" /> aparte rente voor debet- en creditstanden</label>
+    <label style="font-size:13px"><input type="checkbox" id="rente-apart" /> een aparte rente voor de dagen waarop de BV geld aan de DGA schuldig is</label>
     <label style="font-size:13px" id="veld-alle-jaren" hidden><input type="checkbox" id="alle-jaren" /> <span id="alle-jaren-tekst">alle jaren uit de bron doorrekenen</span></label>
     <label style="font-size:13px" id="veld-per-jaar-anders" hidden><input type="checkbox" id="per-jaar-anders" /> afwijkende rente per jaar</label>
     <label style="font-size:13px"><input type="checkbox" id="rente-bijschrijven" /> rente per 31 december bijschrijven op de rekening-courant</label>
@@ -477,9 +503,14 @@ const EXCESSIEF_LENEN_KRING_BRON = "art. 4.14a lid 3 en art. 4.14b leden 1 en 2 
 // adviseur. Beide teksten volgen de omslag die Besluit ROW 2026, onderdeel 3.9 beschrijft:
 // zolang de DGA een vordering heeft ligt de rekening-courant in box 1, slaat zij om in een
 // schuld dan verschuift zij naar box 3.
+// De twee fiscale kwalificaties bij de DGA. De sleutels dragen het perspectief van de BV,
+// want zo staat de rekening-courant op haar grootboekkaart: "schuldBv" is een creditstand
+// bij de BV en dus een vordering van de DGA, "vorderingBv" een debetstand en dus een schuld
+// van de DGA. Tot 24-09-2026 heetten zij credit en debet en hing de betekenis aan het teken
+// in DGA-perspectief; de teksten zelf zijn ongewijzigd en dragen dezelfde vindplaatsen.
 const KWALIFICATIE = {
-  credit: {
-    kort: "box 1, resultaat uit overige werkzaamheden",
+  schuldBv: {
+    kort: "bij de DGA: box 1, resultaat uit overige werkzaamheden",
     // Art. 3.92 lid 2 onderdeel a onder 1° Wet IB 2001 stelt het hebben van een
     // schuldvordering op de vennootschap waarin de belastingplichtige een aanmerkelijk
     // belang heeft gelijk met terbeschikkingstelling; het voordeel is dan resultaat uit
@@ -495,8 +526,8 @@ const KWALIFICATIE = {
     tekst: "Een rekening-courantvordering van de DGA op zijn vennootschap wordt gelijkgesteld met terbeschikkingstelling, zodat de rente bij hem resultaat uit overige werkzaamheden is en in box 1 valt. Daarna geldt de terbeschikkingstellingsvrijstelling van 12%, en die wordt berekend over het gezamenlijke resultaat uit de werkzaamheden waarop zij van toepassing is: de werkzaamheden van de artikelen 3.91 en 3.92, met uitzondering van artikel 3.91, eerste lid, onderdeel c. Dat is dus niet het resultaat uit alle werkzaamheden van de belastingplichtige. De tool rekent de vrijstelling niet uit, want daarvoor is meer nodig dan deze rekening-courant.",
     bron: "Art. 3.92 lid 1 onderdeel a en lid 2 onderdeel a onder 1° Wet IB 2001, tbs-vrijstelling art. 3.99b leden 1 en 2; Besluit ROW 2026, onderdeel 3.9 (tot en met 2025: Verzamelbesluit ROW, onderdeel 8.4, gelijkluidend)",
   },
-  debet: {
-    kort: "box 3; schuldrente kan meetellen bij tegenbewijs",
+  vorderingBv: {
+    kort: "bij de DGA: box 3; schuldrente kan meetellen bij tegenbewijs",
     // Het forfaitaire stelsel kent geen kostenaftrek: de schuld verlaagt de
     // rendementsgrondslag (art. 5.3 lid 3). Onder de tegenbewijsregeling is de verschuldigde
     // rente wel een negatief regulier voordeel (art. 5.27 lid 2 onderdeel a), maar het
@@ -804,7 +835,7 @@ function interpreteerTabel(rijen) {
     const debet = kolommen.debet === null ? null : parseBedrag(rij[kolommen.debet]);
     const credit = kolommen.credit === null ? null : parseBedrag(rij[kolommen.credit]);
     if (debet === null && credit === null) return null;
-    return (credit === null ? 0 : Math.abs(credit)) - (debet === null ? 0 : Math.abs(debet));
+    return (debet === null ? 0 : Math.abs(debet)) - (credit === null ? 0 : Math.abs(credit));
   };
   const saldoKandidaten = [];
   if (kolommen.saldo !== null) saldoKandidaten.push(kolommen.saldo);
@@ -925,10 +956,10 @@ function valideerInterpretatie(voorstel, rijen) {
   return { geldig: fouten.length === 0, fouten, kopIndex, kolommen, betrouwbaarheid, opmerkingen };
 }
 
-// Zet de rijen om in mutaties. Tekenconventie: het resultaat is altijd DGA-perspectief,
-// waarin positief een vordering van de DGA op de BV is. Bij conventie "bv" (de gangbare
-// grootboekkaart uit de administratie van de BV) is debet een schuld van de DGA en dus
-// negatief; bij "dga" wordt het teken omgedraaid.
+// Zet de rijen om in mutaties. Tekenconventie: het resultaat is altijd BV-perspectief,
+// waarin positief een vordering van de BV op de DGA is, oftewel een schuld van de DGA. Bij
+// conventie "bv" (de gangbare grootboekkaart uit de administratie van de BV) telt debet dus
+// positief, precies zoals de kaart hem toont; bij "dga" wordt het teken omgedraaid.
 function bouwMutaties(rijen, kolommen, opties) {
   const o = opties || {};
   const factor = o.conventie === "dga" ? -1 : 1;
@@ -956,7 +987,7 @@ function bouwMutaties(rijen, kolommen, opties) {
       const debet = kolommen.debet === null ? null : parseBedrag(rij[kolommen.debet]);
       const credit = kolommen.credit === null ? null : parseBedrag(rij[kolommen.credit]);
       if (debet !== null || credit !== null) {
-        bedragRuw = (credit === null ? 0 : Math.abs(credit)) - (debet === null ? 0 : Math.abs(debet));
+        bedragRuw = (debet === null ? 0 : Math.abs(debet)) - (credit === null ? 0 : Math.abs(credit));
       }
     }
 
@@ -1127,8 +1158,14 @@ function percentageOpDag(rentePeriodes, dagIso) {
 // - het saldo van dag D is de beginstand plus alle mutaties met datum <= D, dus een
 //   mutatie rendeert vanaf de dag zelf;
 // - de dagrente is saldo x jaarrente / dagen in dat jaar (actual/actual);
-// - creditrente is de som over dagen met een positief saldo, debetrente over dagen met
-//   een negatief saldo. Er wordt binnen het jaar niet samengesteld.
+// - renteVorderingBv is de som over dagen met een positief saldo, renteSchuldBv over dagen
+//   met een negatief saldo. Er wordt binnen het jaar niet samengesteld.
+//
+// Tekenconventie: positief is een vordering van de BV op de DGA. De berekening wordt gemaakt
+// voor de BV en volgt daarom haar grootboekkaart: een debetstand daarop is een vordering en
+// dus positief. Tot 24-09-2026 rekende de kern in DGA-perspectief, met het omgekeerde teken;
+// wie een oudere uitdraai naast een nieuwe legt, ziet alle tekens gespiegeld terwijl de
+// bedragen gelijk zijn.
 function bouwStaffel(invoer) {
   const jaar = invoer.jaar;
   if (!Number.isInteger(jaar)) throw new Error("jaar ontbreekt");
@@ -1136,6 +1173,11 @@ function bouwStaffel(invoer) {
   if (rentePeriodes.length === 0) throw new Error("geen renteperiode opgegeven");
   const eersteDag = `${jaar}-01-01`;
   if (rentePeriodes[0].vanaf > eersteDag) throw new Error("de eerste renteperiode moet op of voor 1 januari beginnen");
+  for (const p of rentePeriodes) {
+    if (!Number.isFinite(p.pctVordering) || !Number.isFinite(p.pctSchuld)) {
+      throw new Error("elke renteperiode heeft pctVordering en pctSchuld nodig");
+    }
+  }
 
   const noemer = dagenInJaar(jaar);
   const beginstand = invoer.beginstand || 0;
@@ -1150,7 +1192,7 @@ function bouwStaffel(invoer) {
   const dag0 = dagnummer(eersteDag);
   const dagen = [];
   let saldo = beginstand;
-  let creditrente = 0, debetrente = 0;
+  let renteVorderingBv = 0, renteSchuldBv = 0;
   let minSaldo = Infinity, maxSaldo = -Infinity, minDatum = null, maxDatum = null;
 
   for (let i = 0; i < noemer; i++) {
@@ -1158,10 +1200,10 @@ function bouwStaffel(invoer) {
     const mutatie = perDatum.get(iso) || 0;
     saldo += mutatie;
     const periode = percentageOpDag(rentePeriodes, iso);
-    const pct = saldo >= 0 ? periode.pctCredit : periode.pctDebet;
+    const pct = saldo >= 0 ? periode.pctVordering : periode.pctSchuld;
     const dagrente = (saldo * (pct / 100)) / noemer;
-    if (dagrente > 0) creditrente += dagrente;
-    else if (dagrente < 0) debetrente += dagrente;
+    if (dagrente > 0) renteVorderingBv += dagrente;
+    else if (dagrente < 0) renteSchuldBv += dagrente;
     if (saldo < minSaldo) { minSaldo = saldo; minDatum = iso; }
     if (saldo > maxSaldo) { maxSaldo = saldo; maxDatum = iso; }
     dagen.push({ iso, mutatie, saldo, pct, dagrente });
@@ -1172,11 +1214,11 @@ function bouwStaffel(invoer) {
     noemer,
     beginstand,
     dagen,
-    creditrente,
-    debetrente,
-    totaleRente: creditrente + debetrente,
+    renteVorderingBv,
+    renteSchuldBv,
+    totaleRente: renteVorderingBv + renteSchuldBv,
     eindsaldo: saldo,
-    eindsaldoInclusiefRente: saldo + creditrente + debetrente,
+    eindsaldoInclusiefRente: saldo + renteVorderingBv + renteSchuldBv,
     minSaldo, maxSaldo, minDatum, maxDatum,
     aantalMutaties: binnen.length,
   };
@@ -1227,19 +1269,19 @@ function renteOpPeriodebasis(invoer) {
     throw new Error("alleen 52 weken of 12 maanden worden ondersteund");
   }
 
-  let creditrente = 0, debetrente = 0;
+  let renteVorderingBv = 0, renteSchuldBv = 0;
   const rijen = [];
   for (let k = 0; k < grenzen.length; k++) {
     const iso = grenzen[k];
     let saldo = beginstand;
     for (const m of mutaties) if (m.iso <= iso) saldo += m.bedrag;
     const periode = percentageOpDag(rentePeriodes, iso);
-    const pct = saldo >= 0 ? periode.pctCredit : periode.pctDebet;
+    const pct = saldo >= 0 ? periode.pctVordering : periode.pctSchuld;
     const rente = (saldo * (pct / 100)) / perioden;
-    if (rente > 0) creditrente += rente; else if (rente < 0) debetrente += rente;
+    if (rente > 0) renteVorderingBv += rente; else if (rente < 0) renteSchuldBv += rente;
     rijen.push({ nummer: k + 1, iso, saldo, pct, rente });
   }
-  return { perioden, rijen, creditrente, debetrente, totaleRente: creditrente + debetrente };
+  return { perioden, rijen, renteVorderingBv, renteSchuldBv, totaleRente: renteVorderingBv + renteSchuldBv };
 }
 
 // Rekent meerdere kalenderjaren achter elkaar door. De rente van een jaar wordt alleen op
@@ -1276,8 +1318,8 @@ function bouwMeerjarigeStaffel(invoer) {
   return {
     jaren: uitkomsten,
     renteBijschrijven: bijschrijven,
-    creditrente: som((s) => s.creditrente),
-    debetrente: som((s) => s.debetrente),
+    renteVorderingBv: som((s) => s.renteVorderingBv),
+    renteSchuldBv: som((s) => s.renteSchuldBv),
     totaleRente: som((s) => s.totaleRente),
     eindsaldo: stand,
     totaalBijgeschreven: bijgeschreven,
@@ -1313,7 +1355,9 @@ function toetsKleineStanden(jaar, minSaldo, maxSaldo) {
 // en verder dan de partner, zie EXCESSIEF_LENEN_KRING hierboven.
 function toetsExcessiefLenen(jaar, saldoPeildatum) {
   const waarden = FISCAAL_PER_JAAR[jaar];
-  const schuld = saldoPeildatum < 0 ? -saldoPeildatum : 0;
+  // Positief is een vordering van de BV op de DGA, dus precies de schuld die art. 4.14a
+  // Wet IB 2001 bedoelt. Een negatieve stand is een schuld van de BV en telt hier niet.
+  const schuld = saldoPeildatum > 0 ? saldoPeildatum : 0;
   if (!waarden) {
     return { bekend: false, jaar, schuldPeildatum: schuld, melding: `Voor ${jaar} staat geen maximumbedrag in de tool; er is niet gesignaleerd.` };
   }
@@ -1335,21 +1379,25 @@ function toetsExcessiefLenen(jaar, saldoPeildatum) {
 }
 
 // Journaalpostvoorstel vanuit de administratie van de BV, spiegelbeeldig aan de
-// kwalificatie bij de DGA: creditrente hoort bij een vordering van de DGA en is voor de BV
-// een last, debetrente hoort bij een schuld van de DGA en is voor de BV een bate. Beide
+// kwalificatie bij de DGA: rente over een vordering van de BV is voor haar een bate en bij
+// de DGA een box 3-post, rente over een schuld van de BV is voor haar een last en bij de
+// DGA een tbs-bate in box 1. Beide
 // componenten worden apart geboekt en niet gesaldeerd, omdat zij bij de DGA in
 // verschillende boxen vallen.
-function journaalpost(creditrente, debetrente) {
+function journaalpost(renteVorderingBv, renteSchuldBv) {
   const regels = [];
-  const credit = afrond2(creditrente);
-  const debet = afrond2(-debetrente);
-  if (credit > 0) {
-    regels.push({ grootboek: "Rentelasten rekening-courant DGA", debet: credit, credit: 0 });
-    regels.push({ grootboek: "Rekening-courant DGA", debet: 0, credit: credit });
+  // Rente over een vordering van de BV verhoogt die vordering en is voor de BV een bate; de
+  // rekening-courant wordt gedebiteerd. Rente over een schuld van de BV verhoogt die schuld
+  // en is een last; de rekening-courant wordt gecrediteerd.
+  const bate = afrond2(renteVorderingBv);
+  const last = afrond2(-renteSchuldBv);
+  if (bate > 0) {
+    regels.push({ grootboek: "Rekening-courant DGA", debet: bate, credit: 0 });
+    regels.push({ grootboek: "Rentebaten rekening-courant DGA", debet: 0, credit: bate });
   }
-  if (debet > 0) {
-    regels.push({ grootboek: "Rekening-courant DGA", debet: debet, credit: 0 });
-    regels.push({ grootboek: "Rentebaten rekening-courant DGA", debet: 0, credit: debet });
+  if (last > 0) {
+    regels.push({ grootboek: "Rentelasten rekening-courant DGA", debet: last, credit: 0 });
+    regels.push({ grootboek: "Rekening-courant DGA", debet: 0, credit: last });
   }
   return regels;
 }
@@ -1383,6 +1431,16 @@ function fmtDatum(iso) {
   const d = String(iso).split("-");
   return `${d[2]}-${d[1]}-${d[0]}`;
 }
+// Een bedrag gaat als tekst de CSV in, in dezelfde notatie als op het scherm: punt voor de
+// duizendtallen en komma voor de decimalen. Een Nederlandse Excel leest dat als getal, en de
+// kolom is meteen leesbaar zonder opmaken. Dit geldt uitsluitend voor bedragen: een jaartal
+// of een aantal dagen is een geheel getal en zou met een duizendscheider ("2.025") onleesbaar
+// worden, dus die lopen langs csvVeld.
+function csvBedrag(x) {
+  if (x === null || x === undefined || !Number.isFinite(x)) return "";
+  return nlBedrag.format(afrond2(x));
+}
+
 function klasse(x) { return x < 0 ? "negatief" : ""; }
 
 function melding(soort, titel, tekst, lijst) {
@@ -2529,8 +2587,12 @@ function toonKolomtabel() {
     const opties = KOLOMSOORTEN.map((s) =>
       `<option value="${s}"${soortVanKolom(k) === s ? " selected" : ""}>${s === "negeren" ? "- negeren -" : s}</option>`
     ).join("");
-    html += `<th><select data-kolom="${k}" class="kolomkeuze">${opties}</select>`;
-    if (kopregel) html += `<div class="bron">${esc(kopregel[k] === null || kopregel[k] === undefined ? "" : kopregel[k])}</div>`;
+    const soort = soortVanKolom(k);
+    html += `<th><select data-kolom="${k}" class="kolomkeuze" data-gekozen="${soort}">${opties}</select>`;
+    if (kopregel) {
+      const kop = kopregel[k] === null || kopregel[k] === undefined ? "" : String(kopregel[k]);
+      html += `<div class="bron" title="${esc(kop)}"><span class="cel">${esc(kop)}</span></div>`;
+    }
     html += "</th>";
   }
   html += "</tr></thead><tbody>";
@@ -2545,7 +2607,7 @@ function toonKolomtabel() {
       const bedragkolom = soort === "debet" || soort === "credit" || soort === "bedrag" || soort === "saldo";
       const tekst = waarde === null || waarde === undefined ? ""
         : (typeof waarde === "number" && bedragkolom ? fmt(waarde) : waarde);
-      html += `<td${bedragkolom ? ' class="num"' : ""}>${esc(tekst)}</td>`;
+      html += `<td${bedragkolom ? ' class="num"' : ""} title="${esc(tekst)}"><span class="cel">${esc(tekst)}</span></td>`;
     }
     html += "</tr>";
   }
@@ -2666,9 +2728,9 @@ function vulUitgangspunten() {
     + opbouw.mutaties.filter((m) => Number(m.iso.slice(0, 4)) <= laatsteJaar).reduce((t, m) => t + m.bedrag, 0);
   const conventieHint = $("conventie").parentElement.querySelector(".hint");
   if (conventieHint) {
-    conventieHint.textContent = standNa < 0
-      ? `Met deze keuze is de stand per 31-12-${laatsteJaar} een schuld van de DGA aan de BV van ${fmtEuro(Math.abs(standNa))}.`
-      : `Met deze keuze is de stand per 31-12-${laatsteJaar} een vordering van de DGA op de BV van ${fmtEuro(standNa)}.`;
+    conventieHint.textContent = standNa > 0
+      ? `Met deze keuze is de stand per 31-12-${laatsteJaar} een vordering van de BV op de DGA van ${fmtEuro(standNa)}, oftewel een schuld van de DGA.`
+      : `Met deze keuze is de stand per 31-12-${laatsteJaar} een schuld van de BV aan de DGA van ${fmtEuro(Math.abs(standNa))}, oftewel een vordering van de DGA.`;
   }
 
   if (controle.dubbel.length) {
@@ -2692,11 +2754,14 @@ function vulUitgangspunten() {
 
 // --- stap 4: rekenen en weergeven -----------------------------------------------
 
+// Het hoofdveld geldt voor de vordering van de BV op de DGA, de gangbare situatie. Alleen
+// wanneer de gebruiker een aparte rente aanvinkt, krijgt de schuld van de BV een eigen
+// percentage; anders geldt overal hetzelfde.
 function renteVelden() {
-  const credit = parseBedrag($("rente").value);
+  const vordering = parseBedrag($("rente").value);
   const apart = $("rente-apart").checked;
-  const debet = apart ? parseBedrag($("rente-debet").value) : credit;
-  return { credit, debet, apart };
+  const schuld = apart ? parseBedrag($("rente-schuld-bv").value) : vordering;
+  return { vordering, schuld, apart };
 }
 
 // De jaren die worden doorgerekend: het ingevulde jaar, of alle jaren uit de bron.
@@ -2714,12 +2779,12 @@ function rentePeriodesPerJaar(jaren, rente) {
   const perJaar = {};
   for (const jaar of jaren) {
     const eigen = $(`rente-${jaar}`);
-    const eigenDebet = $(`rente-debet-${jaar}`);
-    const credit = eigen && eigen.value !== "" ? parseBedrag(eigen.value) : rente.credit;
-    const debet = rente.apart
-      ? (eigenDebet && eigenDebet.value !== "" ? parseBedrag(eigenDebet.value) : rente.debet)
-      : credit;
-    perJaar[jaar] = [{ vanaf: `${jaar}-01-01`, pctCredit: credit, pctDebet: debet }];
+    const eigenSchuld = $(`rente-schuld-bv-${jaar}`);
+    const vordering = eigen && eigen.value !== "" ? parseBedrag(eigen.value) : rente.vordering;
+    const schuld = rente.apart
+      ? (eigenSchuld && eigenSchuld.value !== "" ? parseBedrag(eigenSchuld.value) : rente.schuld)
+      : vordering;
+    perJaar[jaar] = [{ vanaf: `${jaar}-01-01`, pctVordering: vordering, pctSchuld: schuld }];
   }
   return perJaar;
 }
@@ -2735,14 +2800,14 @@ function toonRenteTabel() {
 
   const jaren = gekozenJaren(huidigeMutaties());
   const hoofd = $("rente").value;
-  let html = `<table><thead><tr><th>Jaar</th><th class="num">Rente (%)</th>${$("rente-apart").checked ? '<th class="num">Rente bij schuld DGA (%)</th>' : ""}</tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Jaar</th><th class="num">Vordering op de DGA (%)</th>${$("rente-apart").checked ? '<th class="num">Schuld aan de DGA (%)</th>' : ""}</tr></thead><tbody>`;
   for (const jaar of jaren) {
     const bestaand = $(`rente-${jaar}`);
-    const bestaandDebet = $(`rente-debet-${jaar}`);
+    const bestaandSchuld = $(`rente-schuld-bv-${jaar}`);
     html += `<tr><td>${jaar}</td>
       <td class="num"><input type="text" class="bedrag" id="rente-${jaar}" style="width:90px" value="${esc(bestaand ? bestaand.value : hoofd)}" /></td>
       ${$("rente-apart").checked
-        ? `<td class="num"><input type="text" class="bedrag" id="rente-debet-${jaar}" style="width:90px" value="${esc(bestaandDebet ? bestaandDebet.value : $("rente-debet").value || hoofd)}" /></td>`
+        ? `<td class="num"><input type="text" class="bedrag" id="rente-schuld-bv-${jaar}" style="width:90px" value="${esc(bestaandSchuld ? bestaandSchuld.value : $("rente-schuld-bv").value || hoofd)}" /></td>`
         : ""}</tr>`;
   }
   html += "</tbody></table>";
@@ -2758,13 +2823,13 @@ function reken() {
 
   if (jaren.some((j) => !Number.isInteger(j) || j < 2000 || j > 2099)) fouten.push("Vul een kalenderjaar in.");
   if (beginstand === null) fouten.push("Vul de beginstand in.");
-  if (rente.credit === null) fouten.push("Vul het rentepercentage in.");
-  if (rente.apart && rente.debet === null) fouten.push("Vul ook de rente voor debetstanden in.");
+  if (rente.vordering === null) fouten.push("Vul het rentepercentage in.");
+  if (rente.apart && rente.schuld === null) fouten.push("Vul ook de rente over de schuld van de BV in.");
   const perJaar = fouten.length ? null : rentePeriodesPerJaar(jaren, rente);
   if (perJaar) {
     for (const jaar of jaren) {
       const p = perJaar[jaar][0];
-      if (p.pctCredit === null || p.pctDebet === null) fouten.push(`Vul het rentepercentage voor ${jaar} in.`);
+      if (p.pctVordering === null || p.pctSchuld === null) fouten.push(`Vul het rentepercentage voor ${jaar} in.`);
     }
   }
   if (fouten.length) {
@@ -2857,8 +2922,8 @@ function kaartenHtml(u) {
   const laatsteJaar = u.jaren[u.jaren.length - 1];
   const periode = u.meerjarig ? `${u.jaren[0]} t/m ${laatsteJaar}` : String(laatsteJaar);
   return `<div class="kaarten">
-    <div class="kaart accent"><div class="kop">Creditrente</div><div class="waarde">${fmtEuro(r.creditrente)}</div><div class="sub">dagen met een vordering van de DGA; ${KWALIFICATIE.credit.kort}${u.meerjarig ? " (" + periode + ")" : ""}</div></div>
-    <div class="kaart"><div class="kop">Debetrente</div><div class="waarde ${klasse(r.debetrente)}">${fmtEuro(r.debetrente)}</div><div class="sub">dagen met een schuld van de DGA; ${KWALIFICATIE.debet.kort}</div></div>
+    <div class="kaart accent"><div class="kop">Rentebaten BV</div><div class="waarde">${fmtEuro(r.renteVorderingBv)}</div><div class="sub">dagen met een vordering van de BV op de DGA; ${KWALIFICATIE.vorderingBv.kort}${u.meerjarig ? " (" + periode + ")" : ""}</div></div>
+    <div class="kaart"><div class="kop">Rentelasten BV</div><div class="waarde ${klasse(r.renteSchuldBv)}">${fmtEuro(r.renteSchuldBv)}</div><div class="sub">dagen met een schuld van de BV aan de DGA; ${KWALIFICATIE.schuldBv.kort}</div></div>
     <div class="kaart"><div class="kop">Rente per saldo</div><div class="waarde ${klasse(r.totaleRente)}">${fmtEuro(r.totaleRente)}</div><div class="sub">${u.meerjarig ? "over " + periode : "bij te schrijven per 31-12-" + laatsteJaar}</div></div>
     <div class="kaart"><div class="kop">Stand per 31-12-${laatsteJaar}</div><div class="waarde ${klasse(r.eindsaldo)}">${fmtEuro(r.eindsaldo)}</div><div class="sub">${u.bijschrijven
       ? "waarvan " + fmtEuro(r.totaalBijgeschreven) + " bijgeschreven rente"
@@ -2878,16 +2943,16 @@ function jaaroverzichtHtml(u) {
       <td>${jaar.jaar}</td>
       <td class="num ${klasse(jaar.beginstand)}">${fmt(jaar.beginstand)}</td>
       <td class="num">${s.noemer}</td>
-      <td class="num">${fmt(s.creditrente)}</td>
-      <td class="num ${klasse(s.debetrente)}">${fmt(s.debetrente)}</td>
+      <td class="num">${fmt(s.renteVorderingBv)}</td>
+      <td class="num ${klasse(s.renteSchuldBv)}">${fmt(s.renteSchuldBv)}</td>
       <td class="num ${klasse(s.totaleRente)}">${fmt(s.totaleRente)}</td>
       <td class="num ${klasse(s.eindsaldo)}">${fmt(s.eindsaldo)}</td>
       ${u.bijschrijven ? `<td class="num">${fmt(jaar.bijschrijving)}</td>` : ""}
     </tr>`;
   }
   html += `</tbody><tfoot><tr><th>Totaal</th><th></th><th></th>
-    <th class="num">${fmt(u.uitkomst.creditrente)}</th>
-    <th class="num ${klasse(u.uitkomst.debetrente)}">${fmt(u.uitkomst.debetrente)}</th>
+    <th class="num">${fmt(u.uitkomst.renteVorderingBv)}</th>
+    <th class="num ${klasse(u.uitkomst.renteSchuldBv)}">${fmt(u.uitkomst.renteSchuldBv)}</th>
     <th class="num ${klasse(u.uitkomst.totaleRente)}">${fmt(u.uitkomst.totaleRente)}</th>
     <th class="num ${klasse(u.uitkomst.eindsaldo)}">${fmt(u.uitkomst.eindsaldo)}</th>
     ${u.bijschrijven ? `<th class="num">${fmt(u.uitkomst.totaalBijgeschreven)}</th>` : ""}
@@ -2935,8 +3000,8 @@ function toetsenHtml(u) {
 function kwalificatieHtml(u) {
   const r = u.uitkomst;
   const delen = [];
-  if (r.creditrente > 0.005) delen.push(["Creditrente", KWALIFICATIE.credit]);
-  if (r.debetrente < -0.005) delen.push(["Debetrente", KWALIFICATIE.debet]);
+  if (r.renteVorderingBv > 0.005) delen.push(["Rente over de vordering van de BV", KWALIFICATIE.vorderingBv]);
+  if (r.renteSchuldBv < -0.005) delen.push(["Rente over de schuld van de BV", KWALIFICATIE.schuldBv]);
   if (!delen.length) return "";
   return `<details><summary>Fiscale kwalificatie bij de DGA</summary>
     ${delen.map(([kop, k]) => `<p class="uitleg" style="margin-top:10px"><strong>${kop}: ${esc(k.kort)}.</strong> ${esc(k.tekst)}</p>
@@ -2951,7 +3016,9 @@ function planHtml(u) {
   const s = laatste.staffel;
   const excessief = toetsExcessiefLenen(laatste.jaar, s.eindsaldo);
   if (!(excessief.schuldPeildatum > 0)) return "";
-  const groeit = s.eindsaldo < laatste.beginstand - 0.005;
+  // Positief is een vordering van de BV, dus de schuld van de DGA groeit bij een stijgend
+  // saldo. Vóór 24-09-2026 stond hier de omgekeerde vergelijking.
+  const groeit = s.eindsaldo > laatste.beginstand + 0.005;
   if (!(groeit || excessief.deelVanMax >= 0.6 || excessief.boven)) return "";
   return `<div class="melding let-op"><strong>Een plan maken?</strong>
     ${groeit ? "De schuld van de DGA is in dit jaar toegenomen. " : ""}De tool <em>RC-schuld DGA</em> rekent aflossingsroutes via dividend en privéstortingen door en gebruikt de stand per 31 december als beginstand.
@@ -3029,8 +3096,8 @@ function onderbouwingHtml(u) {
   }
   const rentetekst = r.jaren.map((jaar) => {
     const p = u.perJaar[jaar.jaar][0];
-    const zelfde = p.pctCredit === p.pctDebet;
-    return `${u.meerjarig ? jaar.jaar + ": " : ""}${nlBedrag.format(p.pctCredit)}%${zelfde ? "" : ` credit en ${nlBedrag.format(p.pctDebet)}% debet`}`;
+    const zelfde = p.pctVordering === p.pctSchuld;
+    return `${u.meerjarig ? jaar.jaar + ": " : ""}${nlBedrag.format(p.pctVordering)}%${zelfde ? "" : ` over de vordering van de BV en ${nlBedrag.format(p.pctSchuld)}% over haar schuld`}`;
   }).join("; ");
 
   return `<details open><summary>Onderbouwing voor het dossier</summary>
@@ -3041,7 +3108,7 @@ function onderbouwingHtml(u) {
       <dt>Rente</dt><dd>${rentetekst}</dd>
       <dt>Rentemoment</dt><dd>een mutatie rendeert vanaf de dag zelf; de rente wordt per 31-12 vastgesteld en binnen het jaar niet samengesteld</dd>
       <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
-      <dt>Tekenconventie</dt><dd>positief is een vordering van de DGA op de BV; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = vordering DGA)" : "administratie van de BV (debet = schuld DGA)"}</dd>
+      <dt>Tekenconventie</dt><dd>positief is een vordering van de BV op de DGA, oftewel een schuld van de DGA; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)"}</dd>
       <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
       <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}</dd>
       <dt>Inlezen</dt><dd>${inlezenTekst(u)}</dd>
@@ -3073,7 +3140,7 @@ function bouwUitkomstHtml(u) {
   // De rente van een jaar hoort in dat jaar te worden geboekt, dus bij meer dan één jaar
   // volgt er een post per jaar en niet één post over de hele periode.
   const postenPerJaar = u.uitkomst.jaren
-    .map((jaar) => ({ jaar: jaar.jaar, posten: journaalpost(jaar.staffel.creditrente, jaar.staffel.debetrente) }))
+    .map((jaar) => ({ jaar: jaar.jaar, posten: journaalpost(jaar.staffel.renteVorderingBv, jaar.staffel.renteSchuldBv) }))
     .filter((p) => p.posten.length);
   if (postenPerJaar.length) {
     html += `<h3 class="blokkop">Journaalpostvoorstel (administratie van de BV)</h3>
@@ -3085,7 +3152,7 @@ function bouwUitkomstHtml(u) {
       });
     }
     html += `</tbody></table></div>
-      <p class="bron">Dit is de administratie van de BV, spiegelbeeldig aan de kwalificatie bij de DGA: creditrente is voor de BV een last, debetrente een bate. De tegenrekening is de rekening-courant zolang de rente wordt bijgeschreven; wordt zij in geld afgerekend, dan boekt u tegen de bank. De boeking hoort op 31 december van het jaar waarop zij betrekking heeft. Past u de goedkeuring voor kleine standen toe, dan hoort de vennootschap juist geen rente in aanmerking te nemen en vervalt deze post (Besluit ROW 2026, onderdeel 3.9, tweede voorwaarde).</p>`;
+      <p class="bron">Dit is de administratie van de BV, spiegelbeeldig aan de kwalificatie bij de DGA: rente over een vordering van de BV is voor haar een bate, rente over een schuld een last. De tegenrekening is de rekening-courant zolang de rente wordt bijgeschreven; wordt zij in geld afgerekend, dan boekt u tegen de bank. De boeking hoort op 31 december van het jaar waarop zij betrekking heeft. Past u de goedkeuring voor kleine standen toe, dan hoort de vennootschap juist geen rente in aanmerking te nemen en vervalt deze post (Besluit ROW 2026, onderdeel 3.9, tweede voorwaarde).</p>`;
   }
 
   html += vergelijkingHtml(u) + onderbouwingHtml(u);
@@ -3125,36 +3192,36 @@ function exporteerCsv(u) {
   const regels = [];
   regels.push(["RC-rente uit mutaties", VERSIE]);
   regels.push(["Periode", u.meerjarig ? `${r.jaren[0].jaar} t/m ${r.jaren[r.jaren.length - 1].jaar}` : r.jaren[0].jaar]);
-  regels.push(["Beginstand", afrond2(u.beginstand)]);
-  regels.push(["Tekenconventie", "positief = vordering DGA op BV"]);
+  regels.push(["Beginstand", csvBedrag(u.beginstand)]);
+  regels.push(["Tekenconventie", "positief = vordering van de BV op de DGA"]);
   regels.push(["Rente per 31-12 bijgeschreven", u.bijschrijven ? "ja" : "nee"]);
   regels.push([]);
 
   for (const jaar of r.jaren) {
     const s = jaar.staffel;
     const p = u.perJaar[jaar.jaar][0];
-    regels.push([`Jaar ${jaar.jaar}`, `${s.noemer} dagen`, `rente ${p.pctCredit}%${p.pctCredit === p.pctDebet ? "" : ` credit, ${p.pctDebet}% debet`}`]);
-    regels.push(["Stand 1-1", afrond2(jaar.beginstand)]);
+    regels.push([`Jaar ${jaar.jaar}`, `${s.noemer} dagen`, `rente ${p.pctVordering}%${p.pctVordering === p.pctSchuld ? "" : ` over de vordering van de BV, ${p.pctSchuld}% over haar schuld`}`]);
+    regels.push(["Stand 1-1", csvBedrag(jaar.beginstand)]);
     regels.push(["Van", "Tot en met", "Dagen", "Mutatie", "Saldo", "Percentage", "Rente"]);
     for (const seg of dichtStaffel(s.dagen)) {
-      regels.push([seg.van, seg.tot, seg.dagen, afrond2(seg.mutatie), afrond2(seg.saldo), seg.pct, afrond2(seg.rente)]);
+      regels.push([seg.van, seg.tot, seg.dagen, csvBedrag(seg.mutatie), csvBedrag(seg.saldo), seg.pct, csvBedrag(seg.rente)]);
     }
-    regels.push(["Creditrente", afrond2(s.creditrente)]);
-    regels.push(["Debetrente", afrond2(s.debetrente)]);
-    regels.push(["Rente per saldo", afrond2(s.totaleRente)]);
-    regels.push(["Stand 31-12", afrond2(s.eindsaldo)]);
-    if (u.bijschrijven) regels.push(["Bijgeschreven op de rekening-courant", afrond2(jaar.bijschrijving)]);
+    regels.push(["Rentebaten BV (vordering op de DGA)", csvBedrag(s.renteVorderingBv)]);
+    regels.push(["Rentelasten BV (schuld aan de DGA)", csvBedrag(s.renteSchuldBv)]);
+    regels.push(["Rente per saldo", csvBedrag(s.totaleRente)]);
+    regels.push(["Stand 31-12", csvBedrag(s.eindsaldo)]);
+    if (u.bijschrijven) regels.push(["Bijgeschreven op de rekening-courant", csvBedrag(jaar.bijschrijving)]);
     regels.push([]);
   }
 
   if (u.meerjarig) {
-    regels.push(["Totaal creditrente", afrond2(r.creditrente)]);
-    regels.push(["Totaal debetrente", afrond2(r.debetrente)]);
-    regels.push(["Totaal rente per saldo", afrond2(r.totaleRente)]);
+    regels.push(["Totaal rentebaten BV", csvBedrag(r.renteVorderingBv)]);
+    regels.push(["Totaal rentelasten BV", csvBedrag(r.renteSchuldBv)]);
+    regels.push(["Totaal rente per saldo", csvBedrag(r.totaleRente)]);
   }
-  regels.push(["Eindstand", afrond2(r.eindsaldo)]);
-  if (u.bijschrijven) regels.push(["Eindstand zonder bijgeschreven rente", afrond2(r.eindsaldoZonderBijschrijving)]);
-  regels.push(["Sluitcontrole", u.sluit.bekend ? (u.sluit.sluit ? "sluit aan" : "verschil " + afrond2(u.sluit.verschil)) : "niet uitgevoerd"]);
+  regels.push(["Eindstand", csvBedrag(r.eindsaldo)]);
+  if (u.bijschrijven) regels.push(["Eindstand zonder bijgeschreven rente", csvBedrag(r.eindsaldoZonderBijschrijving)]);
+  regels.push(["Sluitcontrole", u.sluit.bekend ? (u.sluit.sluit ? "sluit aan" : "verschil " + csvBedrag(u.sluit.verschil)) : "niet uitgevoerd"]);
 
   const csv = "﻿" + regels.map((rij) => rij.map(csvVeld).join(";")).join("\r\n");
   const naam = `rc-rente-${r.jaren[0].jaar}${u.meerjarig ? "-" + r.jaren[r.jaren.length - 1].jaar : ""}.csv`;
@@ -3184,9 +3251,9 @@ async function kopieerPlan(u) {
     "Uitgangspunten voor de tool RC-schuld DGA",
     `Jaar: ${laatste.jaar}`,
     `Stand rekening-courant per 31-12-${laatste.jaar}: ${fmt(stand)}${u.bijschrijven ? " (inclusief bijgeschreven rente)" : " (exclusief nog te boeken rente)"}`,
-    `Schuld van de DGA aan de BV: ${fmt(stand < 0 ? -stand : 0)}`,
-    `Rente per jaar: ${nlBedrag.format(p.pctCredit)}%`,
-    `Rente over ${laatste.jaar}: credit ${fmt(s.creditrente)}, debet ${fmt(s.debetrente)}, per saldo ${fmt(s.totaleRente)}`,
+    `Schuld van de DGA aan de BV: ${fmt(stand > 0 ? stand : 0)}`,
+    `Rente per jaar: ${nlBedrag.format(p.pctVordering)}%`,
+    `Rente over ${laatste.jaar}: ${fmt(s.renteVorderingBv)} over de vordering van de BV, ${fmt(s.renteSchuldBv)} over haar schuld, per saldo ${fmt(s.totaleRente)}`,
   ].join("\n");
   try {
     await navigator.clipboard.writeText(tekst);
@@ -3345,7 +3412,7 @@ function start() {
   for (const id of ["rente-apart", "alle-jaren", "per-jaar-anders", "rente-bijschrijven", "ai-aan"]) {
     $(id).checked = false;
   }
-  $("veld-rente-debet").hidden = true;
+  $("veld-rente-schuld-bv").hidden = true;
   koppelAiPaneel();
 
   $("tab-plak").addEventListener("click", () => kiesTab("plak"));
@@ -3397,8 +3464,8 @@ function start() {
   });
 
   $("rente-apart").addEventListener("change", (e) => {
-    $("veld-rente-debet").hidden = !e.target.checked;
-    if (e.target.checked && !$("rente-debet").value) $("rente-debet").value = $("rente").value;
+    $("veld-rente-schuld-bv").hidden = !e.target.checked;
+    if (e.target.checked && !$("rente-schuld-bv").value) $("rente-schuld-bv").value = $("rente").value;
     toonRenteTabel();
   });
 
