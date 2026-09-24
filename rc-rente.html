@@ -96,6 +96,13 @@
   th, td { padding: 6px 9px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
   th { background: #fafbfc; font-weight: 600; white-space: nowrap; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  details.zakelijkheid {
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; background: #fafbfc;
+  }
+  details.zakelijkheid > summary { font-weight: 600; cursor: pointer; }
+  details.zakelijkheid .uitleg, details.zakelijkheid .bron { margin: 8px 0; }
+  ol.vragen { margin: 6px 0 10px; padding-left: 20px; font-size: 13px; color: var(--muted); }
+  ol.vragen li { margin-bottom: 5px; }
   .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
   .scroll table { border: none; }
 
@@ -161,6 +168,9 @@
   .kv dt { color: var(--muted); }
   .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
   footer.voet { color: var(--muted); font-size: 12px; margin-top: 30px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .afdrukkop { margin: -4px 0 16px; }
+  .afdrukkop .partijen { font-size: 17px; font-weight: 700; color: var(--navy); }
+  .afdrukkop .onderwerp { font-size: 13px; color: var(--muted); margin-top: 2px; }
   @media print {
     body { background: #fff; }
     .niet-printen { display: none !important; }
@@ -308,6 +318,18 @@
   <h2><span class="nr">3</span> Uitgangspunten</h2>
   <div class="rij">
     <div class="veld">
+      <label for="naam-bv">Naam van de BV</label>
+      <input type="text" id="naam-bv" style="width:260px" placeholder="bijvoorbeeld Holding B.V." />
+      <span class="hint">komt op de afdruk te staan; blijft in deze browser</span>
+    </div>
+    <div class="veld">
+      <label for="naam-dga">Naam van de DGA</label>
+      <input type="text" id="naam-dga" style="width:220px" />
+      <span class="hint">optioneel</span>
+    </div>
+  </div>
+  <div class="rij">
+    <div class="veld">
       <label for="jaar">Kalenderjaar</label>
       <input type="number" id="jaar" min="2000" max="2099" step="1" style="width:110px" />
     </div>
@@ -327,6 +349,7 @@
       <span class="hint">voor dagen waarop de DGA geld van de BV tegoed heeft</span>
     </div>
   </div>
+  <div id="zakelijkheid" style="margin-bottom:14px"></div>
   <div class="rij">
     <div class="veld">
       <label for="conventie">Tekenconventie van de bron</label>
@@ -359,6 +382,7 @@
 
 <section class="stap" id="stap-uitkomst" hidden>
   <h2><span class="nr">4</span> Uitkomst</h2>
+  <div id="afdrukkop" class="afdrukkop" hidden></div>
   <div id="uitkomst"></div>
 </section>
 
@@ -1332,6 +1356,84 @@ function bouwMeerjarigeStaffel(invoer) {
 
 // Goedkeuring voor kleine rekening-courantstanden: de toets loopt over de dagsaldi van het
 // hele kalenderjaar en over zowel positieve als negatieve standen.
+// --- de zakelijkheid van de rente ------------------------------------------------
+// De tool beoordeelt de zakelijkheid niet en kan dat ook niet: er bestaat geen vastgesteld
+// percentage voor een rekening-courant tussen DGA en BV. Wat zij wel kan is het toetsingskader
+// tonen en één hard ijkpunt per jaar geven, zodat de gebruiker niet uit het niets een
+// percentage hoeft te kiezen. Elk getal hieronder draagt zijn vindplaats.
+
+// De wettelijke rente van art. 6:119 BW, per periode. Dit is de rente die geldt wanneer over
+// een geldsom niets is afgesproken, en daarmee het dichtstbijzijnde harde ijkpunt voor een
+// rekening-courant zonder overeenkomst. Het is nadrukkelijk géén zakelijke leningsrente: zij
+// is bedoeld als vergoeding bij verzuim en houdt geen rekening met zekerheden, looptijd of
+// kredietwaardigheid. Zie ZAKELIJKHEID hieronder voor wat de zakelijkheid wel bepaalt.
+//
+// Tot en met 31-12-2022 stond het percentage in het Besluit wettelijke rente (BWBR0002744,
+// art. 1, geldend van 01-01-2015 t/m 31-12-2022); vanaf 01-01-2023 in het Besluit vaststelling
+// wettelijke rente (BWBR0047640, art. 1), dat sindsdien vier keer is gewijzigd. Elke periode
+// hieronder is afzonderlijk in de geconsolideerde tekst van die versie gelezen.
+// Gecontroleerd 2026-09-24.
+const WETTELIJKE_RENTE = [
+  { vanaf: "2015-01-01", tot: "2022-12-31", pct: 2,
+    bron: "Besluit wettelijke rente, art. 1 (BWBR0002744)" },
+  { vanaf: "2023-01-01", tot: "2023-06-30", pct: 4,
+    bron: "Besluit vaststelling wettelijke rente, art. 1 (Stb. 2022, 520)" },
+  { vanaf: "2023-07-01", tot: "2023-12-31", pct: 6,
+    bron: "Besluit vaststelling wettelijke rente, art. 1 (Stb. 2023, 235)" },
+  { vanaf: "2024-01-01", tot: "2024-12-31", pct: 7,
+    bron: "Besluit vaststelling wettelijke rente, art. 1 (Stb. 2023, 484)" },
+  { vanaf: "2025-01-01", tot: "2025-12-31", pct: 6,
+    bron: "Besluit vaststelling wettelijke rente, art. 1 (Stb. 2024, 395)" },
+  // Geldend van 01-01-2026 t/m heden, gecontroleerd op 24-09-2026: geen wijziging met een
+  // latere ingangsdatum en geen wijziging zonder datum van inwerkingtreding.
+  { vanaf: "2026-01-01", tot: null, pct: 4,
+    bron: "Besluit vaststelling wettelijke rente, art. 1 (Stb. 2025, 438)" },
+];
+
+// Welke wettelijke rente golden er in een kalenderjaar? Meestal één, maar 2023 kende er twee.
+// Een jaar waarvoor niets is vastgelegd levert een lege lijst op, en de tool meldt dat in
+// plaats van stil op een ander jaar terug te vallen.
+function wettelijkeRenteInJaar(jaar) {
+  const start = `${jaar}-01-01`;
+  const eind = `${jaar}-12-31`;
+  return WETTELIJKE_RENTE
+    .filter((p) => p.vanaf <= eind && (p.tot === null || p.tot >= start))
+    .map((p) => ({
+      van: p.vanaf > start ? p.vanaf : start,
+      tot: p.tot !== null && p.tot < eind ? p.tot : eind,
+      heelJaar: p.vanaf <= start && (p.tot === null || p.tot >= eind),
+      pct: p.pct,
+      bron: p.bron,
+    }));
+}
+
+// Het toetsingskader zelf, als tekst met vindplaats in de kern en niet los in de opmaak.
+// De Hoge Raad corrigeert bij een gelieerde lening uitsluitend het rentepercentage en neemt
+// de overige voorwaarden zoals partijen die zijn overeengekomen; daarom gaan de vragen
+// hieronder over precies die voorwaarden. Blijkt er geen rente te bepalen waartegen een
+// onafhankelijke derde dezelfde lening zou verstrekken, dan is niet de rente maar de lening
+// zelf onzakelijk, met gevolgen die buiten deze tool vallen.
+const ZAKELIJKHEID = {
+  kort: "Er bestaat geen vastgesteld percentage: zakelijk is wat een onafhankelijke derde onder dezelfde voorwaarden zou zijn overeengekomen.",
+  kern: "Bij een lening tussen gelieerde partijen wordt voor de fiscale winstberekening uitgegaan van een rente die aan het at arm's length-beginsel voldoet. Daarbij wordt behoudens het rentepercentage uitgegaan van wat partijen zijn overeengekomen, zoals de zekerheden en de looptijd. De zakelijke rente volgt dus uit de voorwaarden van deze rekening-courant en niet uit een tabel.",
+  vragen: [
+    "Is er een overeenkomst, en staan daarin een looptijd, een aflossingsschema en een opeisbaarheidsregeling?",
+    "Zijn er zekerheden gesteld, en zo ja welke? Zonder zekerheid hoort daar een hogere rente bij dan met.",
+    "Wordt de rente betaald of alleen bijgeschreven? Een schuld die alleen maar aangroeit, gedraagt zich niet als een lening die een derde zou verstrekken.",
+    "Wat zou een onafhankelijke verstrekker onder diezelfde voorwaarden hebben gerekend, gelet op de kredietwaardigheid van de DGA?",
+  ],
+  onzakelijkeLening: "Is er geen rente te bepalen waartegen een onafhankelijke derde dezelfde lening onder overigens dezelfde voorwaarden zou verstrekken, dan wordt verondersteld dat de vennootschap een debiteurenrisico heeft aanvaard dat een derde niet zou hebben genomen. De lening is dan onzakelijk en een verlies erop komt niet ten laste van de winst. Dat is een andere vraag dan de hoogte van de rente, en deze tool beantwoordt haar niet.",
+  bron: "HR 25 november 2011, ECLI:NL:HR:2011:BN3442, r.o. 3.3.2 en 3.3.3 (zaaknummer 08/05323)",
+  // De belastingrente is een tweede ijkpunt dat een lezer zelf kan opzoeken. Er staat hier
+  // bewust geen getal bij: art. 30hb AWR delegeert het percentage naar het Besluit belasting-
+  // en invorderingsrente, dat het als formule geeft (de ECB-herfinancieringsrente plus een
+  // opslag, met een minimum) en dat meermaals per jaar is gewijzigd. Een jaartabel daarvan
+  // zou hier stil verouderen, en de belastingrente is bovendien een verzuimrente en geen
+  // leningsrente. Gecontroleerd 2026-09-24.
+  tweedeIjkpunt: "De belastingrente is een tweede ijkpunt dat u zelf kunt opzoeken. Het percentage volgt uit art. 30hb AWR en het Besluit belasting- en invorderingsrente, dat het geeft als de herfinancieringsrente van de ECB plus een opslag met een minimum, en dat verschilt per belastingmiddel. Ook de belastingrente is een verzuimrente en geen leningsrente.",
+  tweedeIjkpuntBron: "art. 30hb AWR jo. Besluit belasting- en invorderingsrente (BWBR0043680)",
+};
+
 function toetsKleineStanden(jaar, minSaldo, maxSaldo) {
   const waarden = FISCAAL_PER_JAAR[jaar];
   if (!waarden) {
@@ -2688,6 +2790,7 @@ function vulUitgangspunten() {
     meldingen.push(`${controle.buitenPeriode.length} mutatie(s) vallen buiten ${jaar} en blijven buiten de berekening.`);
   }
   toonRenteTabel();
+  $("zakelijkheid").innerHTML = zakelijkheidHtml(jaar);
 
   // Het eindsaldo voor de sluitcontrole hoort bij het einde van de periode die wordt
   // doorgerekend, niet bij het einde van de bron. Anders blokkeert de sluitcontrole zodra
@@ -2869,6 +2972,10 @@ function reken() {
     },
     conventie: $("conventie").value,
     eindsaldoBron,
+    // De namen horen bij deze uitkomst en niet bij de invoervelden van dit moment, zodat een
+    // afdruk toont wat er is doorgerekend. Zij blijven in het geheugen van de pagina: niet in
+    // de opslag van de browser en niet in een verzonden bericht.
+    partijen: { bv: $("naam-bv").value.trim(), dga: $("naam-dga").value.trim() },
     // Waar de beginstand en het eindsaldo vandaan komen hoort in het dossier: overgenomen
     // uit een regel van de bron, teruggerekend uit de saldokolom of met de hand ingevuld.
     herkomst: {
@@ -2915,6 +3022,51 @@ function sluitcontroleHtml(u) {
   }
   return melding("blokkerend", "Sluitcontrole klopt niet",
     `Berekend eindsaldo ${fmtEuro(stand)} tegen ${fmtEuro(u.eindsaldoBron)} volgens de bron, een verschil van ${fmtEuro(u.sluit.verschil)}. Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd.`);
+}
+
+// Het uitklapblok bij het rentepercentage. Het toont het toetsingskader en één hard ijkpunt
+// per jaar, en nooit een oordeel: de tool beoordeelt de zakelijkheid niet. Het percentage
+// wordt hier ook niet voorgevuld, want een getal dat vanzelf in het veld verschijnt wordt
+// overgenomen zonder dat iemand de vragen eronder leest.
+// De kop boven het dossierstuk: wie de partijen zijn en waar het stuk over gaat. Zonder
+// ingevulde namen blijft zij leeg, want een stuk met "onbekend" erboven is slechter dan een
+// stuk zonder kop. De namen komen uit het uitkomstobject en niet uit de invoervelden, zodat
+// een afdruk laat zien wat er is doorgerekend en niet wat er intussen is getypt.
+function afdrukkopHtml(u) {
+  const bv = (u.partijen && u.partijen.bv ? String(u.partijen.bv) : "").trim();
+  const dga = (u.partijen && u.partijen.dga ? String(u.partijen.dga) : "").trim();
+  if (!bv && !dga) return "";
+  const laatste = u.jaren[u.jaren.length - 1];
+  const periode = u.meerjarig ? `${u.jaren[0]} tot en met ${laatste}` : String(laatste);
+  const partijen = bv && dga ? `${esc(bv)} en ${esc(dga)}` : esc(bv || dga);
+  return `<div class="partijen">${partijen}</div>
+    <div class="onderwerp">Rente over de rekening-courantverhouding, ${periode}</div>`;
+}
+
+function zakelijkheidHtml(jaar) {
+  const periodes = wettelijkeRenteInJaar(jaar);
+  const ijkpunt = periodes.length === 0
+    ? `<p class="bron">Voor ${jaar} staat geen wettelijke rente in de tool, dus er is geen ijkpunt te tonen. Zoek het percentage zelf op voordat u het rentepercentage vaststelt.</p>`
+    : `<p class="uitleg" style="margin-top:12px"><strong>Ter vergelijking: de wettelijke rente in ${jaar}</strong></p>
+       <div class="scroll"><table><thead><tr><th>Periode</th><th class="num">Wettelijke rente</th><th>Vindplaats</th></tr></thead><tbody>`
+      + periodes.map((p) => `<tr>
+          <td>${p.heelJaar ? "het hele jaar" : `${fmtDatum(p.van)} t/m ${fmtDatum(p.tot)}`}</td>
+          <td class="num">${Number.isInteger(p.pct) ? p.pct : nlBedrag.format(p.pct)}%</td>
+          <td>${esc(p.bron)}</td>
+        </tr>`).join("")
+      + `</tbody></table></div>
+       <p class="bron">Dit is de rente die geldt wanneer over een geldsom niets is afgesproken (art. 6:119 BW). Zij is geen zakelijke leningsrente: zij houdt geen rekening met zekerheden, looptijd of kredietwaardigheid, en is bedoeld als vergoeding bij verzuim. Zij geeft wel de orde van grootte van het renteklimaat in dat jaar.</p>`;
+
+  return `<details class="niet-printen zakelijkheid"><summary>Wat geldt als een zakelijke rente?</summary>
+    <p class="uitleg" style="margin-top:10px"><strong>${esc(ZAKELIJKHEID.kort)}</strong> ${esc(ZAKELIJKHEID.kern)}</p>
+    <p class="uitleg">Loop daarvoor deze vragen langs:</p>
+    <ol class="vragen">${ZAKELIJKHEID.vragen.map((v) => `<li>${esc(v)}</li>`).join("")}</ol>
+    <p class="uitleg">${esc(ZAKELIJKHEID.onzakelijkeLening)}</p>
+    <p class="bron">Vindplaats: ${esc(ZAKELIJKHEID.bron)}.</p>
+    ${ijkpunt}
+    <p class="bron">${esc(ZAKELIJKHEID.tweedeIjkpunt)} Vindplaats: ${esc(ZAKELIJKHEID.tweedeIjkpuntBron)}.</p>
+    <p class="bron">De tool rekent met het percentage dat u invult en beoordeelt de zakelijkheid niet.</p>
+  </details>`;
 }
 
 function kaartenHtml(u) {
@@ -3110,6 +3262,7 @@ function onderbouwingHtml(u) {
       <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
       <dt>Tekenconventie</dt><dd>positief is een vordering van de BV op de DGA, oftewel een schuld van de DGA; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)"}</dd>
       <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
+      ${u.partijen && (u.partijen.bv || u.partijen.dga) ? `<dt>Partijen</dt><dd>${esc([u.partijen.bv, u.partijen.dga].filter(Boolean).join(" en "))}</dd>` : ""}
       <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}</dd>
       <dt>Inlezen</dt><dd>${inlezenTekst(u)}</dd>
       <dt>Vindplaatsen</dt><dd>${bronnen.map((b) => esc(b)).join("<br />")}</dd>
@@ -3168,6 +3321,9 @@ function bouwUitkomstHtml(u) {
 
 // De enige plek waar de uitkomst het DOM in gaat.
 function toonUitkomst(u) {
+  const kop = afdrukkopHtml(u);
+  $("afdrukkop").innerHTML = kop;
+  $("afdrukkop").hidden = kop === "";
   $("uitkomst").innerHTML = bouwUitkomstHtml(u);
   if ($("btn-csv")) $("btn-csv").addEventListener("click", () => exporteerCsv(u));
   if ($("btn-print")) $("btn-print").addEventListener("click", () => window.print());
@@ -3191,6 +3347,9 @@ function exporteerCsv(u) {
   const r = u.uitkomst;
   const regels = [];
   regels.push(["RC-rente uit mutaties", VERSIE]);
+  if (u.partijen && (u.partijen.bv || u.partijen.dga)) {
+    regels.push(["Partijen", [u.partijen.bv, u.partijen.dga].filter(Boolean).join(" en ")]);
+  }
   regels.push(["Periode", u.meerjarig ? `${r.jaren[0].jaar} t/m ${r.jaren[r.jaren.length - 1].jaar}` : r.jaren[0].jaar]);
   regels.push(["Beginstand", csvBedrag(u.beginstand)]);
   regels.push(["Tekenconventie", "positief = vordering van de BV op de DGA"]);
