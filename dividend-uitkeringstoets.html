@@ -146,6 +146,13 @@
     table.pg tr.divrow { background: var(--mint-light); }
     table.pg tr.negrow td.eind { color: var(--warn); font-weight: 800; }
     table.pg input { width: 108px; padding: 5px 7px; font-size: 12.5px; text-align: right; border-radius: 6px; font-variant-numeric: tabular-nums; }
+    table.pg.bl { min-width: 560px; }
+    table.pg.bl tbody th { position: static; background: #fff; text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--navy); white-space: normal; text-align: left; }
+    table.pg.bl tbody th .sub { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+    table.pg.bl tr.bl-kop th { background: #f8faff; text-transform: uppercase; font-size: 11px; letter-spacing: .4px; color: var(--muted); }
+    table.pg.bl tr.bl-totaal th, table.pg.bl tr.bl-totaal td { font-weight: 800; border-top: 2px solid var(--border); }
+    table.pg.bl input { width: 140px; }
+    table.pg.bl td.neg { color: var(--warn); }
     table.pg input.beslissend { border-color: var(--warn); box-shadow: 0 0 0 2px rgba(200, 60, 40, .12); font-weight: 700; }
     .pg-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
     .pg-tools .qf { max-width: 220px; }
@@ -330,6 +337,7 @@
             <option value="interim">Interim-uitkering over het lopende boekjaar</option>
             <option value="reserves">Uitkering ten laste van de overige reserves</option>
           </select>
+          <span class="sub" id="aardGeld">De tool toetst alleen uitkeringen in geld. Bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van het bestuur van lid 2 wel nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).</span>
         </label>
       </div>
       <div>
@@ -420,6 +428,7 @@
           <span class="sub">Totaal eigen vermogen volgens de (tussentijdse) balans, ná verwerking van het resultaat. Een negatief bedrag mag worden ingevoerd.</span>
           <input type="text" inputmode="decimal" class="money" id="eigenVermogen" placeholder="0,00" autocomplete="off" />
           <span class="field-echo" id="echo_eigenVermogen"></span>
+          <span class="sub" id="evUitBalans" style="display:none;">In de balansroute overgenomen uit de balans op de peildatum in stap 4.</span>
         </label>
       </div>
       <div>
@@ -498,7 +507,102 @@
 
   <!-- Stap 4: Liquiditeitsprognose -->
   <div class="card">
-    <h2><span class="step-badge">4</span> Liquiditeitsprognose — art. 2:216 lid 2 BW</h2>
+    <h2><span class="step-badge">4</span> Goedkeuring door het bestuur — art. 2:216 lid 2 BW</h2>
+
+    <fieldset>
+      <legend>Hoe onderbouwt het bestuur de goedkeuring?
+        <span class="sub">De wet schrijft geen methode voor (Kamerstukken II 2006/07, 31 058, nr. 3, p. 30). De maandprognose is de zorgvuldigste onderbouwing. Voldoende eigen vermogen is onder normale bedrijfsomstandigheden een sterke aanwijzing dat aan de uitkeringstest is voldaan, tenzij specifieke omstandigheden op problemen wijzen (idem, p. 71), en zonder signalen van continuïteitsproblemen kan het bestuur ook zonder prognose voldoende inzicht hebben (NBA-handreiking 1133, p. 8). Dat de tool daarvoor twee balansen gebruikt en alleen groen geeft na twee bevestigingen, is een modelkeuze.</span>
+      </legend>
+      <div class="radios">
+        <label class="ro"><input type="radio" name="route" value="prognose" checked /> <span>Maandelijkse liquiditeitsprognose</span></label>
+        <label class="ro"><input type="radio" name="route" value="balans" /> <span>Balans op de peildatum en een verwachte balans ongeveer een jaar na de betaalbaarstelling</span></label>
+      </div>
+    </fieldset>
+
+    <hr class="divider" />
+
+    <div id="balansrouteWrap" style="display:none;">
+    <p class="lead">
+      Vul de balans in op de peildatum van stap 3 en een verwachte balans ongeveer een jaar na de betaalbaarstelling, beide
+      <strong>zonder</strong> rekening te houden met deze uitkering: de tool trekt de uitkering op beide momenten af van de liquide
+      middelen en het eigen vermogen. Het eigen vermogen op de peildatum is ook het eigen vermogen van de balanstest in stap 3.
+      Een balans laat alleen twee momenten zien; een tekort tussendoor, bijvoorbeeld door een aflossing of de betaling van de
+      uitkering zelf, blijft onzichtbaar. Daarom telt deze route alleen als indicator.
+    </p>
+    <div class="grid2">
+      <div>
+        <label for="datumVerwacht">Datum van de verwachte balans
+          <span class="sub">Ten minste elf kalendermaanden na de maand van de betaalbaarstelling, net als het einde van de maandprognose (een modelkeuze van de tool; de bron noemt in de regel ongeveer een jaar); bijvoorbeeld de eerstvolgende balansdatum die daarna valt.</span>
+          <input type="date" id="datumVerwacht" />
+        </label>
+      </div>
+      <div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="pg bl" id="blTable">
+        <thead>
+          <tr>
+            <th scope="col">Post</th>
+            <th scope="col" id="blKopPeil">Balans op de peildatum</th>
+            <th scope="col" id="blKopVerwacht">Verwachte balans</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="bl-kop"><th scope="rowgroup" colspan="3">Activa</th></tr>
+          <tr><th scope="row">Vaste activa<span class="sub">materiële, immateriële en financiële vaste activa</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_vast" data-post="vasteActiva" placeholder="0,00" autocomplete="off" aria-label="Vaste activa, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_vast" data-post="vasteActiva" placeholder="0,00" autocomplete="off" aria-label="Vaste activa, verwachte balans" /></td></tr>
+          <tr><th scope="row">Voorraden<span class="sub">inclusief onderhanden werk</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_voorraad" data-post="voorraden" placeholder="0,00" autocomplete="off" aria-label="Voorraden, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_voorraad" data-post="voorraden" placeholder="0,00" autocomplete="off" aria-label="Voorraden, verwachte balans" /></td></tr>
+          <tr><th scope="row">Vorderingen en overige vlottende activa<span class="sub">debiteuren, overige vorderingen en overlopende activa, zonder liquide middelen</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_vord" data-post="vorderingen" placeholder="0,00" autocomplete="off" aria-label="Vorderingen en overige vlottende activa, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_vord" data-post="vorderingen" placeholder="0,00" autocomplete="off" aria-label="Vorderingen en overige vlottende activa, verwachte balans" /></td></tr>
+          <tr><th scope="row">Liquide middelen<span class="sub">bank en kas; een negatief banksaldo hoort bij de kortlopende schulden</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_liq" data-post="liquide" placeholder="0,00" autocomplete="off" aria-label="Liquide middelen, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_liq" data-post="liquide" placeholder="0,00" autocomplete="off" aria-label="Liquide middelen, verwachte balans" /></td></tr>
+          <tr class="bl-totaal"><th scope="row">Totaal activa</th><td class="num" id="bp_tot_act"></td><td class="num" id="bv_tot_act"></td></tr>
+          <tr class="bl-kop"><th scope="rowgroup" colspan="3">Passiva</th></tr>
+          <tr><th scope="row">Eigen vermogen<span class="sub">mag negatief zijn; bij pensioen in eigen beheer op de grondslag die u in stap 5 bevestigt</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_ev" data-post="eigenVermogen" placeholder="0,00" autocomplete="off" aria-label="Eigen vermogen, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_ev" data-post="eigenVermogen" placeholder="0,00" autocomplete="off" aria-label="Eigen vermogen, verwachte balans" /></td></tr>
+          <tr><th scope="row">Voorzieningen<span class="sub">inclusief een pensioenvoorziening in eigen beheer</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_voorz" data-post="voorzieningen" placeholder="0,00" autocomplete="off" aria-label="Voorzieningen, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_voorz" data-post="voorzieningen" placeholder="0,00" autocomplete="off" aria-label="Voorzieningen, verwachte balans" /></td></tr>
+          <tr><th scope="row">Langlopende schulden<span class="sub">looptijd langer dan een jaar</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_lang" data-post="langSchulden" placeholder="0,00" autocomplete="off" aria-label="Langlopende schulden, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_lang" data-post="langSchulden" placeholder="0,00" autocomplete="off" aria-label="Langlopende schulden, verwachte balans" /></td></tr>
+          <tr><th scope="row">Kortlopende schulden<span class="sub">looptijd tot een jaar, inclusief het kortlopende deel van leningen</span></th>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bp_kort" data-post="kortSchulden" placeholder="0,00" autocomplete="off" aria-label="Kortlopende schulden, balans op de peildatum" /></td>
+            <td><input type="text" inputmode="decimal" class="money bl-post" id="bv_kort" data-post="kortSchulden" placeholder="0,00" autocomplete="off" aria-label="Kortlopende schulden, verwachte balans" /></td></tr>
+          <tr class="bl-totaal"><th scope="row">Totaal passiva</th><td class="num" id="bp_tot_pas"></td><td class="num" id="bv_tot_pas"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="field-echo err" id="balansMelding" role="alert"></div>
+
+    <div class="confirm" id="bvGeenSignalenWrap" style="margin-top:14px;">
+      <input type="checkbox" id="bvGeenSignalen" />
+      <label for="bvGeenSignalen">
+        Er zijn geen signalen van betalingsproblemen: geen achterstanden bij crediteuren, de Belastingdienst of de bank, geen
+        overschreden kredietlimiet en geen schuldeiser die op betaling aandringt.
+        <span class="sub" style="font-weight:400;">Voldoende eigen vermogen is onder normale bedrijfsomstandigheden een sterke aanwijzing dat de vennootschap haar schulden kan blijven betalen, tenzij specifieke omstandigheden wijzen op problemen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71). Zonder prognose kan het bestuur voldoende inzicht hebben bij een onderneming zonder signalen van continuïteitsproblemen (NBA-handreiking 1133, p. 8).</span>
+      </label>
+    </div>
+    <div class="confirm" id="bvVerwerktWrap" style="margin-top:10px;">
+      <input type="checkbox" id="bvVerwerkt" />
+      <label for="bvVerwerkt">
+        De bekende aflossingen en grote uitgaven tot de datum van de verwachte balans zijn daarin verwerkt, net als de
+        verplichtingen die daarna al voorzienbaar zijn, zoals een aflossing ineens of een belastingschuld met uitstel.
+        <span class="sub" style="font-weight:400;">De wetgever noemt zelf het voorbeeld van een grote belastingschuld die over anderhalf jaar moet worden afgelost (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71). Kunt u een van beide vakjes niet aanvinken, gebruik dan de maandprognose.</span>
+      </label>
+    </div>
+
+    <div class="calc-box" id="brCalc"></div>
+    <div id="brResultaat"></div>
+    </div><!-- #balansrouteWrap -->
+
+    <div id="prognoseWrap">
     <p class="lead">
       Het bestuur weigert de goedkeuring als het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de
       uitkering <strong>niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden</strong>. Daarvoor is een
@@ -670,13 +774,14 @@
 
     <div class="calc-box" id="liqCalc"></div>
     <div id="liqResultaat"></div>
+    </div><!-- #prognoseWrap -->
   </div>
 
   <!-- Stap 5: Bevestigingen -->
   <div class="card">
     <h2><span class="step-badge">5</span> Bevestigingen door het bestuur</h2>
 
-    <fieldset>
+    <fieldset id="naPeriodeVeld">
       <legend>Zijn er buiten deze prognoseperiode bekende of redelijkerwijs voorzienbare verplichtingen of omstandigheden die de continuïteit kunnen beïnvloeden?
         <span class="sub">
           De beoordeling ziet in de regel op ongeveer een jaar vanaf de uitkering. Zijn op het moment van het besluit
@@ -1285,6 +1390,122 @@ function pensioendekking(s) {
 }
 
 /* ============================================================
+   Balansroute voor lid 2 (alternatief voor de maandprognose)
+   ============================================================ */
+
+/*
+ * Besloten op 26 september 2026 door de eigenaar (OPENSTAAND punt 10, analyse in
+ * analyse-balansroute.md). De gebruiker kiest voor lid 2 tussen de maandelijkse
+ * liquiditeitsprognose en twee balansen: de balans op de peildatum en een verwachte
+ * balans ongeveer een jaar na de betaalbaarstelling. Het dividend gaat er op beide
+ * momenten af.
+ *
+ * Waarom een balans lid 2 hooguit als indicator kan dragen. De wet schrijft geen methode
+ * voor en een "vastomlijnd toetsingskader" is niet goed mogelijk (Kamerstukken II
+ * 2006/07, 31 058, nr. 3, p. 30). Voldoende eigen vermogen is onder normale
+ * bedrijfsomstandigheden een sterke aanwijzing, tenzij specifieke omstandigheden op
+ * problemen wijzen (idem, p. 71). Zonder prognose kan het bestuur voldoende inzicht
+ * hebben bij een onderneming die steeds winstgevend is met een liquiditeitsoverschot en
+ * zonder signalen van continuïteitsproblemen (NBA-handreiking 1133, p. 8). Dat is een
+ * voorbeeld en geen vrijstelling; nagelezen door de bron-controleur op 26-09-2026. Daarom kan de uitkomst alleen groen worden
+ * na twee bevestigingen van het bestuur; zonder die bevestigingen is een maandprognose
+ * nodig.
+ *
+ * Modelkeuzes zonder eigen bron (update-bram-dividend-uitkeringstoets.md, §4, M16 tot en
+ * met M21):
+ * - M16 de toets op het werkkapitaal: vlottende activa min kortlopende schulden na de
+ *   uitkering, op beide momenten niet negatief. Een tekort geeft oranje, nooit rood.
+ * - M17 de roodgrens: rood alleen als de liquide middelen op de peildatum de uitkering
+ *   niet dekken.
+ * - M18 de DK-normen zijn een intern signaal van DK Accountants en geen wettelijke eis;
+ *   geen bron geeft een getal (analyse-balansroute.md, §4). Eronder wordt het oranje,
+ *   nooit rood: lid 2 laat weigeren "slechts" toe bij een voorzien betalingsprobleem.
+ * - M19 de verwachte balans ligt ten minste elf kalendermaanden na de maand van de
+ *   betaalbaarstelling, net als het einde van de maandprognose (M10).
+ * - M20 verwachte liquide middelen die na de uitkering negatief zijn, geven oranje.
+ * - M21 een balans die niet sluit blokkeert; een ratio zonder kortlopende schulden is
+ *   niet van toepassing (het DK-model deelde dan door 1).
+ */
+const DK_NORM = { solvabiliteit: 0.20, current: 1, quick: 1 };   // interne DK-norm, geen wettelijke eis
+const BALANS_ACTIEF = ['vasteActiva', 'voorraden', 'vorderingen', 'liquide'];
+const BALANS_PASSIEF = ['eigenVermogen', 'voorzieningen', 'langSchulden', 'kortSchulden'];
+const BALANS_MIN_MAANDEN = 11;                                    // M19: gelijk aan het einde van de maandprognose
+
+/** Kengetallen van één balans na aftrek van de uitkering. Bedragen in centen. */
+function balansNaUitkering(b, dividend) {
+  const som = (posten) => posten.reduce((t, k) => t + (b[k] || 0), 0);
+  const totaalActief = som(BALANS_ACTIEF);
+  const totaalPassief = som(BALANS_PASSIEF);
+  const liquideNa = b.liquide - dividend;
+  const vlottendNa = b.voorraden + b.vorderingen + liquideNa;
+  const quickNa = b.vorderingen + liquideNa;
+  const evNa = b.eigenVermogen - dividend;
+  const totaalNa = totaalActief - dividend;
+  // Zonder kortlopende schulden bestaat de ratio niet. Het DK-model deelde dan door 1,
+  // waardoor de ratio een bedrag werd; hier heet hij dan "niet van toepassing".
+  const ratio = (teller) => b.kortSchulden > 0 ? teller / b.kortSchulden : null;
+  const solvabiliteit = totaalNa > 0 ? evNa / totaalNa : null;
+  const current = ratio(vlottendNa);
+  const quick = ratio(quickNa);
+  return {
+    totaalActief: totaalActief,
+    totaalPassief: totaalPassief,
+    sluit: totaalActief === totaalPassief,
+    verschil: totaalActief - totaalPassief,
+    liquideNa: liquideNa,
+    vlottendNa: vlottendNa,
+    werkkapitaal: vlottendNa - b.kortSchulden,
+    evNa: evNa,
+    totaalNa: totaalNa,
+    solvabiliteit: solvabiliteit,
+    current: current,
+    quick: quick,
+    onderNorm: {
+      solvabiliteit: solvabiliteit !== null && solvabiliteit < DK_NORM.solvabiliteit,
+      current: current !== null && current < DK_NORM.current,
+      quick: quick !== null && quick < DK_NORM.quick
+    }
+  };
+}
+
+function balansroute(s) {
+  const peil = balansNaUitkering(s.balansPeil, s.dividend);
+  const verwacht = balansNaUitkering(s.balansVerwacht, s.dividend);
+  const maandenNa = (s.datumUitkering && s.datumVerwacht) ? maandVerschil(s.datumUitkering, s.datumVerwacht) : null;
+  const dekkingPeil = s.balansPeil.liquide >= s.dividend;                     // M17
+  const werkkapitaalOk = peil.werkkapitaal >= 0 && verwacht.werkkapitaal >= 0; // M16
+  const bevestigd = s.bvGeenSignalen === true && s.bvVerwerkt === true;
+  const onderNorm = (m) => m.onderNorm.solvabiliteit || m.onderNorm.current || m.onderNorm.quick;
+  return {
+    peil: peil,
+    verwacht: verwacht,
+    maandenNa: maandenNa,
+    periodeKort: maandenNa !== null && maandenNa >= 0 && maandenNa < BALANS_MIN_MAANDEN,
+    dekkingPeil: dekkingPeil,
+    werkkapitaalOk: werkkapitaalOk,
+    verwachtLiquideNegatief: verwacht.liquideNa < 0,                           // M20
+    bevestigd: bevestigd,
+    normSignaal: onderNorm(peil) || onderNorm(verwacht),                        // M18
+    // Alleen de roodgrens beslist over rood; al het andere is een indicator.
+    geslaagd: s.dividend > 0 && dekkingPeil
+  };
+}
+
+/**
+ * Brengt de invoer in lijn met de gekozen route. In de balansroute komt het eigen
+ * vermogen voor de balanstest van lid 1 uit de balans op de peildatum, zodat lid 1 met
+ * de wettelijke en statutaire reserves wordt getoetst en niet, zoals in het DK-model,
+ * als "eigen vermogen niet negatief" (OPENSTAAND punt 11a). Muteert s, net als valideer.
+ */
+function pasRouteToe(s) {
+  if (s.route === 'balans' && s.balansPeil) {
+    s.eigenVermogen = s.balansPeil.eigenVermogen;
+    s.evFout = null;                 // een fout in de balans meldt valideer bij de balans zelf
+  }
+  return s;
+}
+
+/* ============================================================
    Validatie
    ============================================================ */
 
@@ -1302,18 +1523,21 @@ function veldFout(fout, algemeneMelding) {
  * aandeelhouder — terug op de invoerstand, omdat de documenten die gebruiken.
  * Dat is het enige neveneffect in dit blok; verder wordt niets gemuteerd.
  */
-function valideer(s, bt, lp, pd) {
+function valideer(s, bt, lp, pd, br) {
   const fouten = [];   // blokkerend
   const punten = [];   // reden voor "nadere beoordeling"
+  // Velden en meldingen van de maandprognose gelden alleen in die route; in de
+  // balansroute staan ze verborgen en tellen ze niet mee.
+  const prognose = s.route !== 'balans';
 
   if (s.evFout) fouten.push(veldFout(s.evFout, 'Het eigen vermogen is geen geldig bedrag.'));
   if (s.resFout) fouten.push(veldFout(s.resFout, 'De wettelijke en statutaire reserves vormen geen geldig bedrag.'));
   if (s.divFout) fouten.push(veldFout(s.divFout, 'De voorgenomen uitkering is geen geldig bedrag.'));
-  if (s.liqFout) fouten.push(veldFout(s.liqFout, 'De liquide middelen bij aanvang vormen geen geldig bedrag.'));
-  if (s.besFout) fouten.push(veldFout(s.besFout, 'De bestaande kortlopende schulden vormen geen geldig bedrag.'));
-  if (s.kredietFout) fouten.push(veldFout(s.kredietFout, 'De kredietlimiet is geen geldig bedrag.'));
-  if (s.bufferFout) fouten.push(veldFout(s.bufferFout, 'De gewenste minimale liquiditeitsbuffer is geen geldig bedrag.'));
-  if (s.pgFouten > 0) fouten.push('De liquiditeitsprognose bevat ' + s.pgFouten + ' ongeldig(e) bedrag(en).');
+  if (prognose && s.liqFout) fouten.push(veldFout(s.liqFout, 'De liquide middelen bij aanvang vormen geen geldig bedrag.'));
+  if (prognose && s.besFout) fouten.push(veldFout(s.besFout, 'De bestaande kortlopende schulden vormen geen geldig bedrag.'));
+  if (prognose && s.kredietFout) fouten.push(veldFout(s.kredietFout, 'De kredietlimiet is geen geldig bedrag.'));
+  if (prognose && s.bufferFout) fouten.push(veldFout(s.bufferFout, 'De gewenste minimale liquiditeitsbuffer is geen geldig bedrag.'));
+  if (prognose && s.pgFouten > 0) fouten.push('De liquiditeitsprognose bevat ' + s.pgFouten + ' ongeldig(e) bedrag(en).');
 
   if (!s.naamBV) fouten.push('Vul de naam van de B.V. in.');
   if (!s.plaats) fouten.push('Vul de plaats van het besluit in.');
@@ -1325,14 +1549,14 @@ function valideer(s, bt, lp, pd) {
     const diff = parseISO(s.datumUitkering) - parseISO(s.datumBesluit);
     if (diff < 0) {
       fouten.push('De uitkeringsdatum (' + fmtDatum(s.datumUitkering) + ') ligt vóór de besluitdatum (' + fmtDatum(s.datumBesluit) + ').');
-    } else if (!lp.binnenPeriode) {
+    } else if (prognose && !lp.binnenPeriode) {
       fouten.push('De betaalbaarstelling valt in de ' + lp.divMaand + 'e kalendermaand vanaf de besluitmaand en daarmee buiten de twaalf maanden die de prognose bestrijkt. De tool telt hele kalendermaanden: januari tot en met december is maand 1 tot en met 12, ongeacht de dag van de maand. Pas de data aan of beoordeel een langere periode buiten deze tool.');
     }
   }
   if (s.peildatum && s.datumBesluit && parseISO(s.peildatum) > parseISO(s.datumBesluit)) {
     fouten.push('De peildatum van het eigen vermogen (' + fmtDatum(s.peildatum) + ') ligt na de besluitdatum (' + fmtDatum(s.datumBesluit) + ').');
   }
-  if (s.kredietEinde && s.datumBesluit && parseISO(s.kredietEinde) < parseISO(s.datumBesluit)) {
+  if (prognose && s.kredietEinde && s.datumBesluit && parseISO(s.kredietEinde) < parseISO(s.datumBesluit)) {
     fouten.push('De einddatum van de kredietfaciliteit ligt vóór de besluitdatum. Een faciliteit die op de besluitdatum al is geëindigd, telt niet mee.');
   }
 
@@ -1373,7 +1597,7 @@ function valideer(s, bt, lp, pd) {
     fouten.push('U hebt "enig aandeelhouder" gekozen, maar meer dan één aandeelhouder ingevoerd.');
   }
 
-  if (s.naPeriode === 'ja') {
+  if (prognose && s.naPeriode === 'ja') {
     punten.push('Het bestuur heeft aangegeven dat er buiten de prognoseperiode bekende of voorzienbare verplichtingen of omstandigheden zijn. Deze moeten in de beoordeling van art. 2:216 lid 2 BW worden meegewogen.');
     if (!s.naPeriodeToelichting) fouten.push('Geef een toelichting op de bekende verplichtingen of omstandigheden na de prognoseperiode.');
   }
@@ -1410,6 +1634,11 @@ function valideer(s, bt, lp, pd) {
     if (!s.pebDekking) {
       punten.push('Niet bevestigd is dat afzonderlijk is beoordeeld of de vennootschap ook na de uitkering, op korte en lange termijn, voldoende vermogen behoudt om de pensioen-, ODV- of stamrechtverplichting na te komen, gewaardeerd op waarde in het economisch verkeer. Deze tool berekent die dekking niet; schiet zij tekort, dan kan de volledige aanspraak in de heffing worden betrokken.');
     }
+  }
+
+  if (!prognose) {
+    valideerBalansroute(s, br, fouten, punten);
+    return { fouten: fouten, punten: punten };
   }
 
   // Liquiditeit, kredietfaciliteit en buffer
@@ -1476,14 +1705,68 @@ function valideer(s, bt, lp, pd) {
   return { fouten: fouten, punten: punten };
 }
 
+/** Kengetal als percentage of ratio, of "n.v.t." als het niet bestaat. */
+function fmtKengetal(waarde, procent) {
+  if (waarde === null) return 'n.v.t.';
+  return procent
+    ? (waarde * 100).toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+    : waarde.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const ADVIES_PROGNOSE = 'Gebruik in dat geval de maandelijkse liquiditeitsprognose: een balans laat niet zien of de vennootschap tussen de twee balansdata haar opeisbare schulden kan blijven betalen.';
+
+function valideerBalansroute(s, br, fouten, punten) {
+  const momenten = [['de balans op de peildatum', 'peil'], ['de verwachte balans', 'verwacht']];
+  if (s.balansFout) fouten.push(s.balansFout);
+  if (!s.datumVerwacht) {
+    fouten.push('Vul de datum van de verwachte balans in, ongeveer een jaar na de betaalbaarstelling.');
+  } else if (s.datumUitkering && parseISO(s.datumVerwacht) <= parseISO(s.datumUitkering)) {
+    fouten.push('De datum van de verwachte balans (' + fmtDatum(s.datumVerwacht) + ') ligt niet na de betaalbaarstelling (' + fmtDatum(s.datumUitkering) + ').');
+  }
+  momenten.forEach(([naam, k]) => {
+    const m = br[k];
+    if (!m.sluit) fouten.push('De ' + naam.slice(3) + ' sluit niet: de activa zijn ' + eur(m.totaalActief) + ' en de passiva ' + eur(m.totaalPassief) + ' (verschil ' + eur(m.verschil) + ').');
+  });
+
+  if (br.periodeKort) {
+    punten.push('De verwachte balans ligt ' + br.maandenNa + ' kalendermaand' + (br.maandenNa === 1 ? '' : 'en') + ' na de maand van de betaalbaarstelling. De beoordeling van lid 2 ziet in de regel op ongeveer een jaar na de uitkering (Kamerstukken II 2006/07, 31 058, nr. 3, p. 30 en 71). Kies een balansdatum die ten minste ' + BALANS_MIN_MAANDEN + ' kalendermaanden na de betaalbaarstelling ligt, of gebruik de maandprognose.');
+  }
+  momenten.forEach(([naam, k]) => {
+    const m = br[k];
+    if (m.werkkapitaal < 0) {
+      punten.push('Op ' + naam + ' is het werkkapitaal na de uitkering negatief (' + eur(m.werkkapitaal) + '): de vlottende activa dekken de kortlopende schulden niet. Dat is gelijk aan een current ratio onder 1. Dit is een modelkeuze van de tool en geen wettelijke grens, maar het is wel een signaal dat de vennootschap haar opeisbare schulden mogelijk niet kan blijven betalen. ' + ADVIES_PROGNOSE);
+    }
+  });
+  if (br.verwachtLiquideNegatief) {
+    punten.push('Op de verwachte balans zijn de liquide middelen na aftrek van de uitkering negatief (' + eur(br.verwacht.liquideNa) + '). De vennootschap is dan voor haar betalingen aangewezen op financiering. ' + ADVIES_PROGNOSE);
+  }
+  momenten.forEach(([naam, k]) => {
+    const m = br[k];
+    const onder = [];
+    if (m.onderNorm.solvabiliteit) onder.push('de solvabiliteit ' + fmtKengetal(m.solvabiliteit, true) + ' (norm ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ')');
+    // Een current ratio onder 1 valt samen met een negatief werkkapitaal en staat daar al.
+    if (m.onderNorm.quick) onder.push('de quick ratio ' + fmtKengetal(m.quick) + ' (norm ' + fmtKengetal(DK_NORM.quick) + ')');
+    if (onder.length) {
+      punten.push('Op ' + naam + ' ligt ' + onder.join(' en ') + ' na de uitkering onder de interne DK-norm. Die norm is geen wettelijke eis: de wet en de parlementaire geschiedenis noemen geen getal, en het bestuur mag de goedkeuring alleen weigeren als het een betalingsprobleem weet of redelijkerwijs behoort te voorzien (art. 2:216 lid 2 BW). Beoordeel en leg vast waarom de uitkering desondanks verantwoord is.');
+    }
+  });
+  if (!s.bvGeenSignalen) {
+    punten.push('Niet bevestigd is dat er geen signalen zijn van betalingsproblemen, zoals achterstanden bij crediteuren of de Belastingdienst, een overschreden kredietlimiet of een schuldeiser die op betaling aandringt. Voldoende eigen vermogen is alleen een sterke aanwijzing als geen specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71; NBA-handreiking 1133, p. 8). ' + ADVIES_PROGNOSE);
+  }
+  if (!s.bvVerwerkt) {
+    punten.push('Niet bevestigd is dat de bekende aflossingen en grote uitgaven in de periode tot de verwachte balans, en de verplichtingen die daarna al voorzienbaar zijn, in de verwachte balans zijn verwerkt. ' + ADVIES_PROGNOSE);
+  }
+}
+
 /**
  * De uitkomst in drie kleuren. Rood zodra een wettelijke deeltoets niet slaagt of
  * de invoer onvolledig is; oranje zodra er punten zijn die het bestuur eerst moet
  * beoordelen; groen alleen als er niets meer te beoordelen resteert.
  */
-function bepaalStatus(s, bt, lp, v) {
+function bepaalStatus(s, bt, lp, v, br) {
   if (s.dividend <= 0) return 'leeg';
-  if (!bt.geslaagd || !lp.geslaagd) return 'rood';
+  const lid2 = s.route === 'balans' ? (br && br.geslaagd) : lp.geslaagd;
+  if (!bt.geslaagd || !lid2) return 'rood';
   if (v.fouten.length > 0) return 'rood';
   if (!s.statutenOk || v.punten.length > 0) return 'oranje';
   return 'groen';
@@ -1710,6 +1993,32 @@ function leesInvoer() {
   const buf = leesGeld('buffer', { min: 0, minMsg: 'De buffer kan niet negatief zijn.' });
   s.buffer = buf.cents; s.bufferFout = buf.fout;
 
+  // Balansroute. Alleen het eigen vermogen mag negatief zijn; een negatief banksaldo
+  // hoort bij de kortlopende schulden.
+  s.route = radioVal('route') || 'prognose';
+  s.datumVerwacht = $('datumVerwacht').value;
+  s.bvGeenSignalen = $('bvGeenSignalen').checked;
+  s.bvVerwerkt = $('bvVerwerkt').checked;
+  s.balansFout = null;
+  const leesBalans = (prefix) => {
+    const b = {};
+    document.querySelectorAll('.bl-post[id^="' + prefix + '_"]').forEach(n => {
+      const r = parseCents(n.value);
+      const negatief = r.valid && !r.empty && r.cents < 0 && n.dataset.post !== 'eigenVermogen';
+      const fout = !r.valid || negatief;
+      n.classList.toggle('invalid', fout && s.route === 'balans');
+      if (fout && !s.balansFout) {
+        s.balansFout = negatief
+          ? 'Een post van de balans, behalve het eigen vermogen, is negatief. Vul een bedrag van nul of hoger in; een negatief banksaldo hoort bij de kortlopende schulden.'
+          : 'De balans bevat een ongeldig bedrag.';
+      }
+      b[n.dataset.post] = (!fout && !r.empty) ? r.cents : 0;
+    });
+    return b;
+  };
+  s.balansPeil = leesBalans('bp');
+  s.balansVerwacht = leesBalans('bv');
+
   // De prognose loopt tot en met de twaalfde maand gerekend vanaf de maand van de
   // uitkering. Rijen buiten die horizon blijven staan maar tellen niet mee.
   const offsetH = (s.datumBesluit && s.datumUitkering) ? maandVerschil(s.datumBesluit, s.datumUitkering) : null;
@@ -1927,6 +2236,73 @@ function renderPrognose(s, lp) {
   out.appendChild(wrap);
 }
 
+function renderBalansroute(s, br) {
+  const zet = (id, cents) => { const n = $(id); n.textContent = eur(cents); };
+  zet('bp_tot_act', br.peil.totaalActief); zet('bp_tot_pas', br.peil.totaalPassief);
+  zet('bv_tot_act', br.verwacht.totaalActief); zet('bv_tot_pas', br.verwacht.totaalPassief);
+  ['bp_tot_act', 'bp_tot_pas'].forEach(id => $(id).classList.toggle('neg', !br.peil.sluit));
+  ['bv_tot_act', 'bv_tot_pas'].forEach(id => $(id).classList.toggle('neg', !br.verwacht.sluit));
+  $('blKopPeil').textContent = 'Balans op de peildatum' + (s.peildatum ? ' (' + fmtDatum(s.peildatum) + ')' : '');
+  $('blKopVerwacht').textContent = 'Verwachte balans' + (s.datumVerwacht ? ' (' + fmtDatum(s.datumVerwacht) + ')' : '');
+  const sluitNiet = [];
+  if (!br.peil.sluit) sluitNiet.push('de balans op de peildatum (verschil ' + eur(br.peil.verschil) + ')');
+  if (!br.verwacht.sluit) sluitNiet.push('de verwachte balans (verschil ' + eur(br.verwacht.verschil) + ')');
+  $('balansMelding').textContent = (s.balansFout ? s.balansFout + ' ' : '')
+    + (sluitNiet.length ? 'Activa en passiva zijn niet gelijk bij ' + sluitNiet.join(' en ') + '.' : '');
+
+  const box = $('brCalc');
+  box.textContent = '';
+  const kop = el('div', 'calc-row total');
+  kop.appendChild(el('span', 'calc-label', 'Na aftrek van de uitkering'));
+  kop.appendChild(el('span', 'calc-val', 'peildatum  |  verwacht'));
+  box.appendChild(kop);
+  const rij = (label, a, b, slechtA, slechtB) => {
+    const r = el('div', 'calc-row');
+    r.appendChild(el('span', 'calc-label', label));
+    const v = el('span', 'calc-val');
+    v.appendChild(el('span', slechtA ? 'neg' : '', a));
+    v.appendChild(document.createTextNode('  |  '));
+    v.appendChild(el('span', slechtB ? 'neg' : '', b));
+    r.appendChild(v);
+    box.appendChild(r);
+  };
+  const p = br.peil, w = br.verwacht;
+  rij('Liquide middelen', eur(p.liquideNa), eur(w.liquideNa), p.liquideNa < 0, w.liquideNa < 0);
+  rij('Werkkapitaal (vlottende activa min kortlopende schulden)', eur(p.werkkapitaal), eur(w.werkkapitaal), p.werkkapitaal < 0, w.werkkapitaal < 0);
+  rij('Eigen vermogen', eur(p.evNa), eur(w.evNa), p.evNa < 0, w.evNa < 0);
+  rij('Solvabiliteit (interne DK-norm ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ', geen wettelijke eis)', fmtKengetal(p.solvabiliteit, true), fmtKengetal(w.solvabiliteit, true), p.onderNorm.solvabiliteit, w.onderNorm.solvabiliteit);
+  rij('Current ratio (interne DK-norm ' + fmtKengetal(DK_NORM.current) + ', geen wettelijke eis)', fmtKengetal(p.current), fmtKengetal(w.current), p.onderNorm.current, w.onderNorm.current);
+  rij('Quick ratio (interne DK-norm ' + fmtKengetal(DK_NORM.quick) + ', geen wettelijke eis)', fmtKengetal(p.quick), fmtKengetal(w.quick), p.onderNorm.quick, w.onderNorm.quick);
+
+  const out = $('brResultaat');
+  out.textContent = '';
+  let cls, icon, html;
+  if (s.dividend <= 0) {
+    cls = 'neutral'; icon = 'i';
+    html = 'Vul een uitkeringsbedrag in om de balansen te beoordelen.';
+  } else if (!br.dekkingPeil) {
+    cls = 'warn'; icon = '×';
+    html = '<strong>Liquide middelen dekken de uitkering niet.</strong> Op de peildatum is er ' + eur(s.balansPeil.liquide) + ' aan liquide middelen, minder dan de uitkering van ' + eur(s.dividend) + '. Op basis van de balans kan de uitkering niet worden goedgekeurd. Dat is een modelkeuze van de tool: een kastekort op de peildatum is niet op zichzelf in strijd met art. 2:216 BW, maar de balans laat dan niet zien waaruit de vennootschap betaalt. Wordt de uitkering gefinancierd, bijvoorbeeld uit een kredietfaciliteit, onderbouw de goedkeuring dan met de maandprognose.';
+  } else if (!br.werkkapitaalOk || br.verwachtLiquideNegatief || !br.bevestigd || br.periodeKort) {
+    cls = 'amber'; icon = '!';
+    html = '<strong>Balans alleen niet voldoende.</strong> De liquide middelen dekken de uitkering op de peildatum, maar '
+      + (!br.bevestigd ? 'niet beide bevestigingen zijn gegeven' : (br.periodeKort ? 'de verwachte balans ligt te kort na de betaalbaarstelling' : 'het werkkapitaal of de liquide middelen worden na de uitkering negatief'))
+      + '. ' + ADVIES_PROGNOSE;
+  } else if (br.normSignaal) {
+    cls = 'amber'; icon = '!';
+    html = '<strong>Balanstoets doorstaan, met een signaal.</strong> Het werkkapitaal blijft op beide momenten positief, maar een kengetal ligt onder de interne DK-norm. Dat is geen wettelijke eis en op zichzelf geen reden om de goedkeuring te weigeren; leg vast waarom de uitkering verantwoord is.';
+  } else {
+    cls = 'ok'; icon = '✓';
+    html = '<strong>Balanstoets doorstaan.</strong> De liquide middelen dekken de uitkering op de peildatum, het werkkapitaal blijft op beide momenten positief en de kengetallen liggen op of boven de interne DK-norm. Met de twee bevestigingen kan een maandprognose achterwege blijven (NBA-handreiking 1133, p. 8). Het oordeel blijft aan het bestuur.';
+  }
+  const wrap = el('div', 'toets-result ' + cls);
+  wrap.appendChild(el('div', 'tr-icon', icon));
+  const body = el('div', 'tr-body');
+  body.innerHTML = html;
+  wrap.appendChild(body);
+  out.appendChild(wrap);
+}
+
 function renderDekking(s, pd) {
   const box = $('pebCalc');
   const uit = $('pebResultaat');
@@ -1995,7 +2371,7 @@ function renderValidatie(v) {
   card.appendChild(c);
 }
 
-function renderConclusie(s, bt, lp, v, status) {
+function renderConclusie(s, bt, lp, v, status, br) {
   const card = $('conclusieCard');
   card.textContent = '';
   if (s.dividend <= 0) return;
@@ -2025,7 +2401,12 @@ function renderConclusie(s, bt, lp, v, status) {
         : (bt.geslaagd
           ? 'doorstaan — uitkeringsruimte ' + eur(bt.ruimte) + ', na uitkering resteert ' + eur(bt.restRuimte) + '.'
           : 'niet doorstaan — maximaal uitkeerbaar ' + eur(bt.maxUitkering) + '.')) },
-    { ok: lp.geslaagd, txt: '<strong>Liquiditeitsprognose over ' + lp.maanden + ' maanden (art. 2:216 lid 2 BW):</strong> ' + (lp.geslaagd
+    s.route === 'balans'
+      ? { ok: !br.dekkingPeil ? false : (br.werkkapitaalOk && !br.verwachtLiquideNegatief && br.bevestigd && !br.periodeKort && !br.normSignaal ? true : null),
+          txt: '<strong>Balansen (art. 2:216 lid 2 BW):</strong> ' + (!br.dekkingPeil
+            ? 'de liquide middelen op de peildatum (' + eur(s.balansPeil.liquide) + ') dekken de uitkering niet.'
+            : 'liquide middelen dekken de uitkering op de peildatum; werkkapitaal na de uitkering ' + eur(br.peil.werkkapitaal) + ' op de peildatum en ' + eur(br.verwacht.werkkapitaal) + ' op de verwachte balans.') }
+      : { ok: lp.geslaagd, txt: '<strong>Liquiditeitsprognose over ' + lp.maanden + ' maanden (art. 2:216 lid 2 BW):</strong> ' + (lp.geslaagd
         ? 'doorstaan — ' + liqDetail + ', eindstand ' + eur(lp.eindstand) + '.'
         : (lp.binnenPeriode ? 'niet doorstaan — ' + liqDetail + '.' : 'onvolledig — de uitkering valt buiten de prognoseperiode.')) }
   ];
@@ -2035,7 +2416,9 @@ function renderConclusie(s, bt, lp, v, status) {
     h.appendChild(el('div', 'c-title', 'Uitkering kan op basis van de ingevoerde gegevens niet worden goedgekeurd'));
     c.appendChild(h);
     const p = el('div');
-    p.innerHTML = 'De voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> voldoet niet aan de vereisten van art. 2:216 BW zoals die uit de ingevoerde gegevens volgen.';
+    p.innerHTML = (s.route === 'balans' && bt.geslaagd && v.fouten.length === 0)
+      ? 'De liquide middelen op de peildatum dekken de voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> niet. Volgens een modelkeuze van deze tool kan de goedkeuring dan niet op de balans steunen; dat is niet op zichzelf een strijdigheid met art. 2:216 BW. Onderbouw de goedkeuring met de maandprognose.'
+      : 'De voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> voldoet niet aan de vereisten van art. 2:216 BW zoals die uit de ingevoerde gegevens volgen.';
     b.appendChild(p);
     b.appendChild(lijst(deeltoetsen));
     const na = el('div');
@@ -2050,7 +2433,9 @@ function renderConclusie(s, bt, lp, v, status) {
     h.appendChild(el('div', 'c-title', 'Nadere beoordeling noodzakelijk'));
     c.appendChild(h);
     const p = el('div');
-    p.innerHTML = 'De beide rekenkundige deeltoetsen zijn doorstaan, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.';
+    p.innerHTML = s.route === 'balans'
+      ? 'De balanstest van lid 1 is doorstaan en de liquide middelen dekken de uitkering op de peildatum, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.'
+      : 'De beide rekenkundige deeltoetsen zijn doorstaan, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.';
     b.appendChild(p);
     b.appendChild(lijst(deeltoetsen));
     const items = v.punten.map(t => ({ ok: null, txt: t }));
@@ -2072,7 +2457,9 @@ function renderConclusie(s, bt, lp, v, status) {
     const bevestigd = [
       { ok: true, txt: 'Statuten gecontroleerd en geen belemmerende bepaling gemeld.' },
       { ok: true, txt: 'Eigen vermogen per ' + fmtDatum(s.peildatum) + '; bevestigd dat dit op de besluitdatum nog aansluit.' },
-      { ok: true, txt: 'Geen bekende of voorzienbare verplichtingen of omstandigheden buiten de prognoseperiode gemeld.' }
+      s.route === 'balans'
+        ? { ok: true, txt: 'Geen signalen van betalingsproblemen; bekende aflossingen, grote uitgaven en daarna voorzienbare verplichtingen zijn in de verwachte balans verwerkt.' }
+        : { ok: true, txt: 'Geen bekende of voorzienbare verplichtingen of omstandigheden buiten de prognoseperiode gemeld.' }
     ];
     if (s.aard === 'slot') bevestigd.splice(1, 0, { ok: true, txt: 'Jaarrekening over boekjaar ' + s.boekjaar + ' vastgesteld.' });
     bevestigd.push(s.peb === 'ja'
@@ -2382,7 +2769,91 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   return L.join('\n');
 }
 
-function maakBestuursbesluit(s, bt, lp, v, pd) {
+/** Paragraaf 4 van het bestuursbesluit in de balansroute. */
+function balansrouteRegels(s, br) {
+  const L = [];
+  const B = 44;
+  const kol = (a, b) => padL(a, KOL) + padL(b, KOL);
+  const regel = (label, a, b) => pad(label, B) + kol(a, b);
+  const bedrag = (c) => eur(c, { bare: true });
+  L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur heeft daarvoor twee balansen gebruikt: de balans per ' + fmtDatum(s.peildatum) + ' en een verwachte balans per ' + fmtDatum(s.datumVerwacht) + '. Beide zijn opgesteld zonder rekening te houden met deze uitkering; hieronder is de uitkering op beide momenten in mindering gebracht op de liquide middelen en het eigen vermogen. Bedragen in euro.', 74));
+  L.push('');
+  L.push(pad('', B) + kol(fmtDatum(s.peildatum).replace(/^(\d+) (\w{3})\w* /, '$1 $2 '), fmtDatum(s.datumVerwacht).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ')));
+  L.push('-'.repeat(B + 2 * KOL));
+  const namen = {
+    vasteActiva: 'Vaste activa', voorraden: 'Voorraden', vorderingen: 'Vorderingen en overige vlottende activa',
+    liquide: 'Liquide middelen', eigenVermogen: 'Eigen vermogen', voorzieningen: 'Voorzieningen',
+    langSchulden: 'Langlopende schulden', kortSchulden: 'Kortlopende schulden'
+  };
+  BALANS_ACTIEF.forEach(k => L.push(regel(namen[k], bedrag(s.balansPeil[k]), bedrag(s.balansVerwacht[k]))));
+  L.push(regel('Totaal activa', bedrag(br.peil.totaalActief), bedrag(br.verwacht.totaalActief)));
+  L.push('');
+  BALANS_PASSIEF.forEach(k => L.push(regel(namen[k], bedrag(s.balansPeil[k]), bedrag(s.balansVerwacht[k]))));
+  L.push(regel('Totaal passiva', bedrag(br.peil.totaalPassief), bedrag(br.verwacht.totaalPassief)));
+  L.push('-'.repeat(B + 2 * KOL));
+  L.push(regel('Voorgenomen uitkering', '-' + bedrag(s.dividend), '-' + bedrag(s.dividend)));
+  L.push(regel('Liquide middelen na de uitkering', bedrag(br.peil.liquideNa), bedrag(br.verwacht.liquideNa)));
+  L.push(regel('Werkkapitaal na de uitkering', bedrag(br.peil.werkkapitaal), bedrag(br.verwacht.werkkapitaal)));
+  L.push(regel('Eigen vermogen na de uitkering', bedrag(br.peil.evNa), bedrag(br.verwacht.evNa)));
+  L.push(regel('Solvabiliteit (DK-norm* ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ')', fmtKengetal(br.peil.solvabiliteit, true), fmtKengetal(br.verwacht.solvabiliteit, true)));
+  L.push(regel('Current ratio (DK-norm* ' + fmtKengetal(DK_NORM.current) + ')', fmtKengetal(br.peil.current), fmtKengetal(br.verwacht.current)));
+  L.push(regel('Quick ratio (DK-norm* ' + fmtKengetal(DK_NORM.quick) + ')', fmtKengetal(br.peil.quick), fmtKengetal(br.verwacht.quick)));
+  L.push('-'.repeat(B + 2 * KOL));
+  L.push('* interne DK-norm, geen wettelijke eis');
+  L.push('');
+  L.push(...wrapTekst('Het werkkapitaal is het totaal van voorraden, vorderingen en liquide middelen na de uitkering, verminderd met de kortlopende schulden. De solvabiliteit is het eigen vermogen gedeeld door het balanstotaal, beide na de uitkering. De current ratio deelt de vlottende activa door de kortlopende schulden, de quick ratio doet dat zonder de voorraden.', 74));
+  L.push('');
+  L.push(...wrapTekst(br.dekkingPeil
+    ? 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken de uitkering.'
+    : 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken de uitkering niet.', 74));
+  L.push('');
+  L.push(...wrapTekst(br.werkkapitaalOk
+    ? 'Het werkkapitaal blijft na de uitkering op beide momenten positief of nul.'
+    : 'Het werkkapitaal is na de uitkering niet op beide momenten positief: ' + eurD(br.peil.werkkapitaal) + ' op de peildatum en ' + eurD(br.verwacht.werkkapitaal) + ' op de verwachte balans.', 74));
+  if (br.verwachtLiquideNegatief) {
+    L.push('');
+    L.push(...wrapTekst('Op de verwachte balans zijn de liquide middelen na de uitkering negatief (' + eurD(br.verwacht.liquideNa) + ').', 74));
+  }
+  L.push('');
+  L.push(...wrapTekst('De normen voor de kengetallen zijn een interne norm van DK Accountants en geen wettelijke eis. De wet en de parlementaire geschiedenis noemen geen getal; een kengetal onder de norm is een signaal voor het oordeel van het bestuur en op zichzelf geen reden om de goedkeuring te onthouden.'
+    + (br.normSignaal ? ' Op ten minste een van beide momenten ligt een kengetal onder die norm; het bestuur heeft dat in zijn oordeel betrokken.' : ' Op beide momenten liggen de kengetallen op of boven die norm, voor zover zij van toepassing zijn.'), 74));
+  L.push('');
+  L.push('Het bestuur verklaart:');
+  L.push('');
+  L.push(...wrapTekst('- ' + (s.bvGeenSignalen
+    ? 'dat er geen signalen zijn van betalingsproblemen, zoals achterstanden bij crediteuren, de Belastingdienst of de bank, een overschreden kredietlimiet of een schuldeiser die op betaling aandringt;'
+    : 'NIET bevestigd: dat er geen signalen zijn van betalingsproblemen;'), 74, '  '));
+  L.push(...wrapTekst('- ' + (s.bvVerwerkt
+    ? 'dat de bekende aflossingen en grote uitgaven tot de datum van de verwachte balans daarin zijn verwerkt.'
+    : 'NIET bevestigd: dat de bekende aflossingen en grote uitgaven tot de datum van de verwachte balans daarin zijn verwerkt.'), 74, '  '));
+  L.push('');
+  const voorwaarden = [];
+  if (!br.dekkingPeil) voorwaarden.push('de liquide middelen dekken de uitkering op de peildatum niet');
+  if (!br.werkkapitaalOk) voorwaarden.push('het werkkapitaal is na de uitkering niet op beide momenten positief');
+  if (br.verwachtLiquideNegatief) voorwaarden.push('de liquide middelen zijn op de verwachte balans na de uitkering negatief');
+  if (br.periodeKort) voorwaarden.push('de verwachte balans ligt minder dan ' + BALANS_MIN_MAANDEN + ' kalendermaanden na de betaalbaarstelling');
+  if (!s.bvGeenSignalen) voorwaarden.push('niet bevestigd is dat signalen van betalingsproblemen ontbreken');
+  if (!s.bvVerwerkt) voorwaarden.push('niet bevestigd is dat de bekende en voorzienbare verplichtingen in de verwachte balans zijn verwerkt');
+  // Signalen die de voorwaarden niet doorkruisen maar wel gewogen moeten worden.
+  const signalen = [];
+  if (br.normSignaal) signalen.push('een kengetal ligt onder de interne DK-norm');
+  if (br.peil.evNa < 0 || br.verwacht.evNa < 0) signalen.push('het eigen vermogen is na de uitkering negatief');
+  let slot;
+  if (voorwaarden.length > 0) {
+    slot = 'Niet aan alle voorwaarden is voldaan om de goedkeuring op deze balansen te laten steunen: ' + voorwaarden.join('; ') + '. Voldoende eigen vermogen is een sterke aanwijzing dat de vennootschap haar opeisbare schulden kan blijven betalen, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71), en ook de verplichtingen in de periode moeten in het oordeel zijn betrokken (idem). Het bestuur legt hieronder vast hoe het de liquiditeit alsnog heeft beoordeeld, bij voorkeur met een maandelijkse liquiditeitsprognose. Zonder die beoordeling wordt de goedkeuring niet verleend.';
+  } else {
+    slot = 'De liquide middelen dekken de uitkering, het werkkapitaal blijft op beide momenten positief of nul, er zijn geen signalen van betalingsproblemen en de bekende en voorzienbare verplichtingen zijn in de verwachte balans verwerkt. Voldoende eigen vermogen is onder normale bedrijfsomstandigheden een sterke aanwijzing dat de vennootschap aan de uitkeringstest voldoet, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71). Bij een onderneming zonder signalen van continuïteitsproblemen kan het bestuur ook zonder prognose voldoende inzicht hebben (NBA-handreiking 1133, p. 8). '
+      + (signalen.length === 0
+        ? 'Het bestuur is van oordeel dat een maandelijkse liquiditeitsprognose daarom achterwege kan blijven.'
+        : 'Wel geldt: ' + signalen.join('; ') + '. Het bestuur legt hieronder vast waarom een maandelijkse liquiditeitsprognose desondanks achterwege kan blijven.');
+  }
+  L.push(...wrapTekst(slot, 74));
+  L.push('');
+  return L;
+}
+
+function maakBestuursbesluit(s, bt, lp, v, pd, br) {
+  const balans = s.route === 'balans' && !!br;
   const L = [];
   const vb = voorbehoudBlok(v, s);
   if (vb) L.push(vb);
@@ -2439,9 +2910,11 @@ function maakBestuursbesluit(s, bt, lp, v, pd) {
       L.push(...wrapTekst('Het eigen vermogen is na de uitkering negatief. Het bestuur heeft afzonderlijk beoordeeld waarom dat in dit geval verantwoord is; die beoordeling is hieronder vastgelegd.', 74));
     }
   } else if (bt.restRuimte === 0) {
-    // Uitkeren tot exact de verplichte reserves berust op de lezing dat "voor zover"
-    // het bedrag begrenst en niet eist dat er daarna nog een surplus resteert.
-    L.push(...wrapTekst('Het eigen vermogen is na de uitkering gelijk aan de reserves die krachtens de wet of de statuten moeten worden aangehouden; de volledige uitkeringsruimte wordt dus benut. Dat berust op de lezing dat de woorden "voor zover het eigen vermogen groter is dan de reserves" in artikel 2:216 lid 1 BW het uitkeerbare bedrag begrenzen en niet eisen dat daarna nog een surplus resteert. Bij een strikter lezing van die bepaling zou de laatste euro niet uitkeerbaar zijn.', 74));
+    // Uitkeren tot exact de verplichte reserves: "voor zover het eigen vermogen groter is
+    // dan de reserves" begrenst het bedrag en eist niet dat er daarna nog een surplus
+    // resteert. Gesloten op 26 september 2026 door de eigenaar (OPENSTAAND punt 1); de
+    // zin over een strikter lezing is daarom vervallen.
+    L.push(...wrapTekst('Het eigen vermogen is na de uitkering gelijk aan de reserves die krachtens de wet of de statuten moeten worden aangehouden; de volledige uitkeringsruimte wordt dus benut. De woorden "voor zover het eigen vermogen groter is dan de reserves" in artikel 2:216 lid 1 BW begrenzen het uitkeerbare bedrag en eisen niet dat daarna nog een surplus resteert.', 74));
   } else {
     L.push(...wrapTekst('Het eigen vermogen blijft na de uitkering groter dan de reserves die krachtens de wet of de statuten moeten worden aangehouden. Aan de voorwaarde van artikel 2:216 lid 1 BW is daarmee voldaan.', 74));
   }
@@ -2485,6 +2958,11 @@ function maakBestuursbesluit(s, bt, lp, v, pd) {
     }
   }
   L.push('');
+  if (balans) {
+    L.push('4. BALANSEN (ART. 2:216 LID 2 BW)');
+    L.push('');
+    L.push(...balansrouteRegels(s, br));
+  } else {
   L.push('4. LIQUIDITEITSPROGNOSE (ART. 2:216 LID 2 BW)');
   L.push('');
   L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Daartoe is een maandelijkse liquiditeitsprognose opgesteld over ' + lp.maanden + ' maanden, van ' + maandLabel(s.datumBesluit, 0) + ' tot en met ' + maandLabel(s.datumBesluit, lp.maanden - 1) + '. De periode loopt tot en met de twaalfde maand gerekend vanaf de maand van de uitkering, omdat de beoordeling ziet op de situatie na de uitkering. De prognose toetst de stand per maandeinde' + (lp.tussentijdsGebruikt ? ', en voor de hierna genoemde maanden een lagere stand binnen de maand' : '') + '. Bedragen in euro.', 74));
@@ -2555,12 +3033,17 @@ function maakBestuursbesluit(s, bt, lp, v, pd) {
     L.push(...wrapTekst('Van de op de startdatum bestaande kortlopende schulden van ' + eurD(s.bestaandeSchulden) + ' is ' + eurD(lp.verplGepland) + ' in de prognose ingepland in de maand van betaling. Toekomstige ontvangsten en uitgaven zijn in de kolom kasmutatie opgenomen; bestaande schulden zijn niet dubbel geteld.', 74));
     L.push('');
   }
+  }
   L.push('');
-  L.push('5. VERPLICHTINGEN EN OMSTANDIGHEDEN BUITEN DE PROGNOSEPERIODE');
+  L.push(balans ? '5. VERPLICHTINGEN EN OMSTANDIGHEDEN NA DE VERWACHTE BALANS' : '5. VERPLICHTINGEN EN OMSTANDIGHEDEN BUITEN DE PROGNOSEPERIODE');
   L.push('');
   L.push(...wrapTekst('De beoordeling strekt zich in de regel uit over ongeveer een jaar vanaf de uitkering; die periode is een uitgangspunt en geen wettelijk maximum. Zijn op het moment van het besluit relevante verplichtingen of omstandigheden bekend die daarna liggen, dan zijn ook die in de beoordeling betrokken.', 74));
   L.push('');
-  if (s.naPeriode === 'ja') {
+  if (balans) {
+    L.push(...wrapTekst(s.bvVerwerkt
+      ? 'Het bestuur verklaart dat de verplichtingen en omstandigheden die na de datum van de verwachte balans al voorzienbaar zijn, in de verwachte balans en in dit oordeel zijn verwerkt.'
+      : 'Niet bevestigd is dat de verplichtingen en omstandigheden die na de datum van de verwachte balans al voorzienbaar zijn, in de verwachte balans zijn verwerkt. Dit moet worden nagegaan voordat de goedkeuring wordt verleend.', 74));
+  } else if (s.naPeriode === 'ja') {
     L.push('Het bestuur heeft de volgende verplichtingen of omstandigheden gemeld:');
     L.push('');
     s.naPeriodeToelichting.split(/\r?\n/).forEach(r => {
@@ -2576,9 +3059,14 @@ function maakBestuursbesluit(s, bt, lp, v, pd) {
   L.push('');
   L.push('6. CONCLUSIE VAN HET BESTUUR');
   L.push('');
+  // De conclusie volgt de uitkomst en is nooit een vaste tekst (OPENSTAAND punt 11d):
+  // in het DK-model verklaarde de slottekst ook bij een te hoog dividend dat de
+  // vennootschap haar schulden kon blijven betalen.
   const conclusieTekst = (v.punten.length === 0)
     ? 'Op grond van het bovenstaande weet het bestuur niet, en behoort het redelijkerwijs niet te voorzien, dat de vennootschap na de uitkering niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur ziet daarom geen grond om de goedkeuring te weigeren.'
-    : 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de rekenkundige toetsen geen belemmering opleveren, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.';
+    : (balans
+      ? 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de balanstest van artikel 2:216 lid 1 BW ' + (bt.vanToepassing ? 'is doorstaan' : 'geen belemmering oplevert omdat zij niet van toepassing is') + ' en dat de liquide middelen de uitkering op de peildatum dekken, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Zolang die niet zijn beoordeeld, kan het bestuur op grond van de balansen niet vaststellen dat de vennootschap na de uitkering haar opeisbare schulden kan blijven betalen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.'
+      : 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de rekenkundige toetsen geen belemmering opleveren, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.');
   L.push(...wrapTekst(conclusieTekst, 74));
   L.push('');
   if (v.punten.length > 0) {
@@ -2845,7 +3333,19 @@ function meldHulp(id, tekst) {
 
 function bereken() {
   renderHulpen();
-  const s = leesInvoer();
+  const s = pasRouteToe(leesInvoer());
+  const balans = s.route === 'balans';
+  $('balansrouteWrap').style.display = balans ? 'block' : 'none';
+  $('prognoseWrap').style.display = balans ? 'none' : 'block';
+  $('naPeriodeVeld').style.display = balans ? 'none' : '';
+  $('eigenVermogen').disabled = balans;
+  $('evUitBalans').style.display = balans ? 'block' : 'none';
+  if (balans) {
+    $('eigenVermogen').value = eur(s.eigenVermogen, { bare: true });
+    $('echo_eigenVermogen').textContent = '';
+  }
+  $('bvGeenSignalenWrap').classList.toggle('checked', s.bvGeenSignalen);
+  $('bvVerwerktWrap').classList.toggle('checked', s.bvVerwerkt);
 
   // afhankelijke velden tonen/verbergen
   $('orgaanAnderWrap').style.display = s.orgaan === 'ander' ? 'block' : 'none';
@@ -2870,17 +3370,19 @@ function bereken() {
   const bt = balanstest(s);
   const lp = liquiditeitsprognose(s);
   const pd = pensioendekking(s);
-  const v = valideer(s, bt, lp, pd);
+  const br = balansroute(s);
+  const v = valideer(s, bt, lp, pd, br);
   markeerAhBedragen(v);
 
   renderBalans(s, bt);
   renderPrognose(s, lp);
+  renderBalansroute(s, br);
   renderDekking(s, pd);
   renderValidatie(v);
 
-  const status = bepaalStatus(s, bt, lp, v);
+  const status = bepaalStatus(s, bt, lp, v, br);
 
-  renderConclusie(s, bt, lp, v, status === 'leeg' ? 'rood' : status);
+  renderConclusie(s, bt, lp, v, status === 'leeg' ? 'rood' : status, br);
   if (status === 'leeg') $('conclusieCard').textContent = '';
   renderFiscaal(status === 'rood' || status === 'leeg' ? { dividend: 0 } : s);
 
@@ -2889,7 +3391,7 @@ function bereken() {
   $('docsSection').style.display = mogen ? 'block' : 'none';
   if (mogen) {
     $('tekstAh').textContent = maakAandeelhoudersbesluit(s, bt, lp, v);
-    $('tekstBestuur').textContent = maakBestuursbesluit(s, bt, lp, v, pd);
+    $('tekstBestuur').textContent = maakBestuursbesluit(s, bt, lp, v, pd, br);
   } else {
     $('tekstAh').textContent = '';
     $('tekstBestuur').textContent = '';
@@ -2915,6 +3417,11 @@ function switchTab(tab) {
   const vandaag = todayISO();
   $('datumBesluit').value = vandaag;
   $('datumUitkering').value = addDaysISO(vandaag, 14);
+  let verwachtZelf = false;
+  const zetVerwacht = () => { if (!verwachtZelf) $('datumVerwacht').value = addMonthsISO($('datumUitkering').value, 12); };
+  zetVerwacht();
+  $('datumUitkering').addEventListener('change', zetVerwacht);
+  $('datumVerwacht').addEventListener('change', () => { verwachtZelf = true; });
 
   // Peildatum: standaard de balansdatum van het gekozen boekjaar. De datum wordt
   // alleen meegewijzigd zolang de gebruiker hem niet zelf op een andere dag zette.
@@ -3032,7 +3539,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 15:21</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 16:57</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
