@@ -375,6 +375,15 @@
         <div class="pw"><input type="text" id="kenmerk" maxlength="120" placeholder="bijv. dossier 2026-014" style="color:var(--white);font-family:inherit;font-size:14px;font-weight:600;padding:10px 13px;outline:none;"></div>
         <div class="field-note">Met de knop Afdrukken onder de uitkomst maakt u het dossierstuk: kenmerk, datum, versie, alle invoer inclusief de RDW-gegevens, de uitkomst met de tussenstappen, de vindplaatsen en de afbakening. Kies in het afdrukvenster "Opslaan als pdf" om het als bestand in de klantmap te bewaren. De tool bewaart het kenmerk niet en verstuurt het nergens heen.</div>
       </div>
+      <div class="field">
+        <div class="act-row" style="margin-top:0;">
+          <button type="button" class="btn-ghost" onclick="opslaanDossierbestand()">💾 Bewaar dossierbestand</button>
+          <button type="button" class="btn-ghost" onclick="document.getElementById('dossierbestand_input').click()">📂 Open dossierbestand</button>
+        </div>
+        <input type="file" id="dossierbestand_input" accept="application/json,.json" style="display:none;" onchange="openDossierbestand(this.files[0]); this.value='';">
+        <div class="field-note" id="dossierbestand_melding" style="display:none;"></div>
+        <div class="field-note">Bewaren zet de huidige invoer in een <code>.json</code>-bestand dat u zelf in de klantmap opslaat; er gaat niets naar een server. Openen leest zo'n bestand terug in en berekent met de huidige tool en de regels van het opgeslagen rekenjaar opnieuw &mdash; het bestand is geen bewijs van de oorspronkelijke uitkomst. Bewaar daarvoor het dossierstuk of de Excel-export.</div>
+      </div>
     </div>
 
     <!-- SITUATIE -->
@@ -703,7 +712,7 @@
         </div>
         <div class="act-row">
           <button class="btn-ghost" onclick="drukDossierstukAf()">🖨️ Afdrukken</button>
-          <button class="btn-solid-sm" onclick="alert('Neem contact op via joinadministraties.nl voor een volledig PDF-rapport.')">📄 Exporteer rapport</button>
+          <button class="btn-solid-sm" onclick="exporteerExcel()">📄 Exporteer Excel</button>
         </div>
       </div>
     </div>
@@ -3633,22 +3642,28 @@ function vulDossierstuk() {
   document.getElementById('pk_melding').textContent = heeftUitkomst ? '' :
     'Er is geen uitkomst berekend. Deze afdruk bevat alleen de invoer en is geen dossierstuk van een berekening.';
 
-  // Kenteken en de voertuiggegevens zoals de RDW ze gaf.
-  const kenteken = document.getElementById('kenteken_input').value.trim();
-  const rdwRijen = [['Kenteken', kenteken || 'geen kenteken opgevraagd']];
-  const ci = document.getElementById('rdw_car_info');
-  if (opScherm(ci, ci.parentElement)) {
-    ci.querySelectorAll('.car-detail').forEach(d => {
-      const delen = d.querySelectorAll('span');
-      if (delen.length >= 2) rdwRijen.push([tekstVan(delen[0]), tekstVan(delen[1])]);
-    });
-  }
-  let html = dossierTabel('Kenteken en RDW-gegevens', rdwRijen);
+  let html = dossierTabel('Kenteken en RDW-gegevens', dossierRdwRijen());
   html += '<p style="margin:4px 0 0;">Waarden met (RDW) komen uit het kentekenregister; (RDW, daarna aangepast) betekent dat de gebruiker de RDW-waarde heeft overschreven.</p>';
   document.querySelectorAll('.invoerkaart').forEach(kaart => {
     html += dossierTabel(tekstVan(kaart.querySelector('.card-title')), dossierInvoerRijen(kaart));
   });
   document.getElementById('dossier_invoer_inhoud').innerHTML = html;
+}
+
+// Kenteken en de voertuiggegevens zoals de RDW ze gaf. Gebruikt door zowel het
+// dossierstuk als de Excel-export, zodat er niet twee keer dezelfde rijen
+// worden opgebouwd die uiteen kunnen gaan lopen.
+function dossierRdwRijen() {
+  const kenteken = document.getElementById('kenteken_input').value.trim();
+  const rijen = [['Kenteken', kenteken || 'geen kenteken opgevraagd']];
+  const ci = document.getElementById('rdw_car_info');
+  if (opScherm(ci, ci.parentElement)) {
+    ci.querySelectorAll('.car-detail').forEach(d => {
+      const delen = d.querySelectorAll('span');
+      if (delen.length >= 2) rijen.push([tekstVan(delen[0]), tekstVan(delen[1])]);
+    });
+  }
+  return rijen;
 }
 
 function maakDossierstukKlaar() {
@@ -3668,6 +3683,555 @@ function drukDossierstukAf() {
 // Ook Ctrl+P via de browser levert zo een volledig dossierstuk op.
 window.addEventListener('beforeprint', maakDossierstukKlaar);
 
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern,
+// bestand blokken/xlsx-schrijver.js; dit is een handmatige kopie, byte-gelijk
+// op deze kopregel na, omdat auto-van-de-zaak nog niet is aangesloten op de
+// verspreidingsstap van die repository (open punt, zie OPENSTAAND.md).
+// Wijzig dit blok niet hier: een wijziging hoort in gedeelde-kern thuis.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig. Dit blok bevat geen fiscale
+// rekenlogica.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXCEL-EXPORT — bevroren resultaatblad, geen formules (skill tool-uitgangen,
+// paragraaf 2). De getallen komen uit dezelfde DOM-toestand als het scherm en
+// het dossierstuk; er wordt hier niets herrekend.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function slugKenmerk(s) {
+  return String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+function datumVoorBestandsnaam(d) {
+  const tw = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${tw(d.getMonth() + 1)}-${tw(d.getDate())}`;
+}
+
+function downloadBlob(bytes, bestandsnaam, type) {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = bestandsnaam;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Elke invoerkaart plus de RDW-rijen, in dezelfde vorm als het dossierstuk.
+function alleInvoerVoorExport() {
+  const groepen = [['Kenteken en RDW-gegevens', dossierRdwRijen()]];
+  document.querySelectorAll('.invoerkaart').forEach(kaart => {
+    groepen.push([tekstVan(kaart.querySelector('.card-title')), dossierInvoerRijen(kaart)]);
+  });
+  return groepen;
+}
+
+// De uitkomst zoals die op het scherm staat: per zichtbare rs-title een kop,
+// per zichtbare rrow het label en de waarde. Een rij die door bereken() is
+// verborgen (style.display = 'none') telt niet mee, exact zoals op het scherm.
+function uitkomstRijenVoorExport() {
+  const rc = document.getElementById('rc');
+  const rijen = [];
+  rijen.push(['Conclusie', tekstVan(document.getElementById('v_main'))]);
+  const sub = tekstVan(document.getElementById('v_sub'));
+  if (sub) rijen.push(['', sub]);
+  rc.querySelectorAll('.rs-title, .rrow').forEach(el => {
+    if (!opScherm(el, rc)) return;
+    if (el.classList.contains('rs-title')) {
+      rijen.push([tekstVan(el), '']);
+    } else {
+      const naam = tekstVan(el.querySelector('.rl'));
+      const waarde = tekstVan(el.querySelector('.rv'));
+      if (naam) rijen.push([naam, waarde]);
+    }
+  });
+  return rijen;
+}
+
+function bouwExcelWerkboek() {
+  const kenmerk = document.getElementById('kenmerk').value.trim();
+  const nu = new Date();
+
+  const kop = {
+    naam: 'Kop',
+    breedtes: [28, 46],
+    rijen: [
+      [celTekst('Join – Auto van de zaak of privé', true)],
+      [celTekst('Versie'), celTekst(TOOL_VERSIE)],
+      [celTekst('Datum export'), celTekst(nu.toLocaleString('nl-NL'))],
+      [celTekst('Kenmerk'), celTekst(kenmerk || '(niet ingevuld)')],
+    ],
+  };
+
+  const invoerRijen = [];
+  alleInvoerVoorExport().forEach(([titel, rijen]) => {
+    if (!rijen.length) return;
+    invoerRijen.push([celTekst(titel, true)]);
+    rijen.forEach(([l, w]) => invoerRijen.push([celTekst(l), celTekst(w)]));
+    invoerRijen.push([]);
+  });
+  const invoer = { naam: 'Invoer', breedtes: [46, 42], rijen: invoerRijen };
+
+  const heeftUitkomst = document.getElementById('rc').style.display === 'block';
+  const uitkomstRijen = [];
+  if (!heeftUitkomst) {
+    uitkomstRijen.push([celTekst(
+      'Er is geen uitkomst berekend. Klik in de tool op "Bereken analyse" en exporteer opnieuw.')]);
+  } else {
+    uitkomstRijenVoorExport().forEach(([l, w]) => uitkomstRijen.push([celTekst(l, !w), celTekst(w)]));
+  }
+  const uitkomst = { naam: 'Uitkomst', breedtes: [56, 32], rijen: uitkomstRijen };
+
+  const toelichtingRijen = [[celTekst('Vindplaatsen van de fiscale waarden', true)]];
+  document.querySelectorAll('#dossier_bronnen table tr').forEach(tr => {
+    const cellen = tr.querySelectorAll('th, td');
+    if (cellen.length >= 2) toelichtingRijen.push([celTekst(tekstVan(cellen[0])), celTekst(tekstVan(cellen[1]))]);
+  });
+  toelichtingRijen.push([]);
+  toelichtingRijen.push([celTekst('Afbakening: wat deze tool niet doet', true)]);
+  document.querySelectorAll('#dossier_bronnen ul li').forEach(li => {
+    toelichtingRijen.push([celTekst(tekstVan(li))]);
+  });
+  const toelichting = { naam: 'Toelichting en vindplaatsen', breedtes: [70, 60], rijen: toelichtingRijen };
+
+  return [kop, invoer, uitkomst, toelichting];
+}
+
+// De exportknop. Rekent eerst opnieuw, net als de afdrukknop, zodat de export
+// nooit een oudere invoer toont dan wat er op het scherm staat.
+function exporteerExcel() {
+  bereken();
+  const bladen = bouwExcelWerkboek();
+  const bytes = xlsxBytes(bladen);
+  const kenmerk = document.getElementById('kenmerk').value.trim();
+  const naam = `auto-van-de-zaak-${slugKenmerk(kenmerk)}-${datumVoorBestandsnaam(new Date())}.xlsx`;
+  downloadBlob(bytes, naam,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOSSIERBESTAND — opslaan en heropenen van de volledige invoer (skill
+// tool-uitgangen, paragraaf 3). Alleen invoer, geen afgeleide uitkomst: die
+// wordt bij het openen met de huidige tool herberekend.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DOSSIER_TOOL_ID = 'auto-van-de-zaak';
+const DOSSIER_BESTANDSVERSIE = 1;
+// Het rekenjaar waarvoor TARIEVEN_2026 hierboven geldt. Een ander opgeslagen
+// rekenjaar wordt geweigerd in plaats van stil met dit jaar herrekend.
+const DOSSIER_REKENJAAR = 2026;
+
+function toonDossierbestandMelding(tekst, isFout) {
+  const el = document.getElementById('dossierbestand_melding');
+  el.textContent = tekst;
+  el.style.display = tekst ? 'block' : 'none';
+  el.style.color = isFout ? '#ffb4b4' : '';
+}
+
+// STRIKTE-GETAL-CONTROLE — BEGIN
+// Alleen een string of getal die er ook echt als getal uitziet telt mee, of
+// een lege string: dat is de waarde die een leeg optioneel invoerveld nu
+// eenmaal heeft. Number(true) === 1, Number([]) === 0 en Number(' ') === 0
+// zouden een dossierbestand anders stil als geldig invoerbedrag laten
+// doorgaan; die drie zijn geen lege string en blijven dus afgekeurd.
+function strikteGetalString(w) {
+  if (typeof w === 'number') return isFinite(w);
+  if (typeof w !== 'string') return false;
+  if (w === '') return true;
+  const t = w.trim();
+  if (t === '') return false;
+  return isFinite(Number(t));
+}
+// STRIKTE-GETAL-CONTROLE — EINDE
+
+// Elke input met een id (tekst/getal/checkbox) plus elke radiogroep op naam.
+// Dezelfde functie bouwt zowel de sleutels bij het opslaan als de lijst
+// verwachte velden bij het openen, zodat die twee nooit uiteen kunnen lopen.
+function dossierbestandVeldElementen() {
+  const elementen = [];
+  document.querySelectorAll('input').forEach(inp => {
+    if (inp.type === 'file') return;
+    elementen.push(inp);
+  });
+  return elementen;
+}
+
+function dossierbestandRadioNamen() {
+  const namen = new Set();
+  document.querySelectorAll('input[type="radio"][name]').forEach(r => namen.add(r.name));
+  return namen;
+}
+
+function verzamelDossierbestandVelden() {
+  const velden = {};
+  dossierbestandVeldElementen().forEach(inp => {
+    if (inp.type === 'radio') {
+      if (inp.checked) velden['radio:' + inp.name] = inp.value;
+    } else if (inp.type === 'checkbox') {
+      velden[inp.id] = inp.checked;
+    } else if (inp.id) {
+      velden[inp.id] = inp.value;
+    }
+  });
+  velden.handmatig_bijt = handmatig.bijt;
+  velden.handmatig_forf = handmatig.forf;
+  return velden;
+}
+
+function verwachteDossierbestandSleutels() {
+  const sleutels = new Set(['handmatig_bijt', 'handmatig_forf']);
+  dossierbestandVeldElementen().forEach(inp => {
+    if (inp.type === 'radio') { if (inp.name) sleutels.add('radio:' + inp.name); return; }
+    if (inp.id) sleutels.add(inp.id);
+  });
+  return sleutels;
+}
+
+function opslaanDossierbestand() {
+  const kenmerk = document.getElementById('kenmerk').value.trim();
+  const payload = {
+    toolId: DOSSIER_TOOL_ID,
+    bestandsversie: DOSSIER_BESTANDSVERSIE,
+    toolversie: TOOL_VERSIE,
+    rekenjaar: DOSSIER_REKENJAAR,
+    kenmerk,
+    velden: verzamelDossierbestandVelden(),
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const naam = `auto-van-de-zaak-${slugKenmerk(kenmerk)}-${datumVoorBestandsnaam(new Date())}.json`;
+  downloadBlob(new TextEncoder().encode(json), naam, 'application/json');
+  toonDossierbestandMelding('Dossierbestand bewaard als ' + naam + '.', false);
+}
+
+// Valideert het volledige bestand vóórdat er ook maar één veld wordt gezet: een
+// gedeeltelijk toegepast, ongeldig bestand is erger dan een geweigerd bestand.
+function valideerDossierbestand(data) {
+  if (!data || typeof data !== 'object') return 'Het bestand is geen geldig dossierbestand (geen JSON-object).';
+  if (data.toolId !== DOSSIER_TOOL_ID) {
+    return 'Dit bestand hoort niet bij deze tool (toolId "' + data.toolId + '" in plaats van "' + DOSSIER_TOOL_ID + '").';
+  }
+  if (typeof data.bestandsversie !== 'number' || data.bestandsversie > DOSSIER_BESTANDSVERSIE) {
+    return 'Dit bestand heeft een nieuwer, onbekend bestandsformaat (versie ' + data.bestandsversie + ').';
+  }
+  if (data.rekenjaar !== DOSSIER_REKENJAAR) {
+    return 'Dit bestand is opgeslagen voor rekenjaar ' + data.rekenjaar + '; deze tool rekent alleen met ' +
+      DOSSIER_REKENJAAR + ' en herrekent niet stil met een ander jaar.';
+  }
+  const velden = data.velden;
+  if (!velden || typeof velden !== 'object') return 'Dit bestand bevat geen invoer.';
+
+  const verwacht = verwachteDossierbestandSleutels();
+  const ontbrekend = [...verwacht].filter(s => !(s in velden));
+  if (ontbrekend.length) {
+    return 'Dit dossierbestand mist ' + ontbrekend.length + ' veld(en) die deze tool verwacht en is daarom niet geopend: ' +
+      ontbrekend.join(', ') + '.';
+  }
+
+  for (const inp of dossierbestandVeldElementen()) {
+    if (inp.type === 'radio') {
+      const w = velden['radio:' + inp.name];
+      const opties = document.querySelectorAll('input[type="radio"][name="' + inp.name + '"]');
+      const geldig = [...opties].some(r => r.value === w);
+      if (typeof w !== 'string' || !geldig) return 'Het veld "' + inp.name + '" bevat geen geldige keuze in het bestand.';
+    } else if (inp.type === 'checkbox') {
+      if (typeof velden[inp.id] !== 'boolean') return 'Het veld "' + inp.id + '" heeft geen geldige aan/uit-waarde in het bestand.';
+    } else if (inp.type === 'number') {
+      if (!strikteGetalString(velden[inp.id])) return 'Het veld "' + inp.id + '" bevat geen geldig getal in het bestand.';
+    } else if (inp.id) {
+      if (typeof velden[inp.id] !== 'string') return 'Het veld "' + inp.id + '" heeft geen geldige tekstwaarde in het bestand.';
+    }
+  }
+  return '';
+}
+
+// Past een gevalideerd bestand toe. Elke input krijgt zijn waarde en daarna
+// een change/input-event, zodat de bestaande listeners (afhankelijke velden
+// tonen/verbergen, updateKm()) net zo reageren als bij handmatig invullen. De
+// handmatig-vlaggen worden daarna opnieuw gezet: die listener zet ze anders
+// ten onrechte op waar, alleen omdat er een input-event is geweest.
+function pasDossierbestandToe(data) {
+  const velden = data.velden;
+  dossierbestandVeldElementen().forEach(inp => {
+    if (inp.type === 'radio') {
+      inp.checked = (inp.value === velden['radio:' + inp.name]);
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (inp.type === 'checkbox') {
+      inp.checked = !!velden[inp.id];
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (inp.id) {
+      inp.value = velden[inp.id];
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  handmatig.bijt = !!velden.handmatig_bijt;
+  handmatig.forf = !!velden.handmatig_forf;
+  document.getElementById('kenmerk').value = data.kenmerk || '';
+}
+
+function openDossierbestand(bestand) {
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(lezer.result);
+    } catch (e) {
+      toonDossierbestandMelding('Dit bestand kon niet worden gelezen als dossierbestand: ' + e.message, true);
+      return;
+    }
+    const fout = valideerDossierbestand(data);
+    if (fout) { toonDossierbestandMelding(fout, true); return; }
+    pasDossierbestandToe(data);
+    const versieMelding = data.toolversie && data.toolversie !== TOOL_VERSIE
+      ? ' Bewaard met toolversie ' + data.toolversie + '; deze tool is versie ' + TOOL_VERSIE +
+        ' en herrekent met de huidige regels.'
+      : '';
+    toonDossierbestandMelding('Dossierbestand geopend.' + versieMelding, false);
+  };
+  lezer.onerror = () => {
+    toonDossierbestandMelding('Het bestand kon niet worden gelezen (' +
+      (lezer.error ? lezer.error.message : 'onbekende leesfout') + ').', true);
+  };
+  lezer.onabort = () => {
+    toonDossierbestandMelding('Het lezen van het bestand is afgebroken.', true);
+  };
+  try {
+    lezer.readAsText(bestand);
+  } catch (e) {
+    toonDossierbestandMelding('Het bestand kon niet worden geopend: ' + e.message, true);
+  }
+}
+
 updateKm();
 </script>
 <style>
@@ -3685,7 +4249,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 00:22</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 01:31</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
