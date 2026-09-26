@@ -294,9 +294,10 @@
         <div class="header-sub">Balanstest · Liquiditeitsprognose · Besluitdocumenten</div>
       </div>
     </div>
-    <button id="testdataBtn" type="button" style="display:none;padding:6px 12px;font-size:11px;background:#e6faf3;border:1px solid #3DD9A0;border-radius:6px;color:#1E2D4E;font-weight:600;cursor:pointer;font-family:inherit;">Testdata laden</button>
   </div>
 </header>
+
+<button id="testdataBtn" type="button" style="position:fixed;top:14px;right:120px;z-index:9998;padding:6px 12px;font-size:11px;background:#e6faf3;border:1px solid #3DD9A0;border-radius:6px;color:#1E2D4E;font-weight:600;cursor:pointer;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);">Testdata laden</button>
 
 <div class="content">
 
@@ -2687,6 +2688,72 @@ async function kopieer(which) {
   }
 }
 
+/**
+ * Deelt de platte besluittekst op in blokken voor de afdruk. Uitgelijnde regels
+ * (bedragen, prognose, kopgegevens) blijven in vaste letterbreedte; lopende tekst
+ * wordt weer doorlopend, zodat hij in een proportioneel lettertype goed leest.
+ */
+function printBlokken(tekst) {
+  const groepen = [];
+  let huidig = [];
+  String(tekst).replace(/\r/g, '').split('\n').forEach(r => {
+    if (r.trim() === '') { if (huidig.length) groepen.push(huidig); huidig = []; }
+    else huidig.push(r.replace(/\s+$/, ''));
+  });
+  if (huidig.length) groepen.push(huidig);
+
+  const isKop = r => /[A-Z]/.test(r) && !/[a-z]/.test(r) && r.length <= 80;
+  const isItem = r => /^(\d+\.|-)\s/.test(r);
+  const soort = (g) => {
+    if (/^BESLUIT VAN/.test(g[0])) return { soort: 'titel', regels: g };
+    if (g.length === 1 && /^=+$/.test(g[0])) return { soort: 'lijn' };
+    if (g.some(r => /\S {2,}\S|^\s*-{4,}|^ {2,}\S.* {2,}/.test(r))) return { soort: 'tabel', regels: g };
+    if (g.some(r => /^_{5,}/.test(r))) return { soort: 'regels', regels: g };
+    const items = [];
+    g.forEach(r => {
+      if (items.length === 0 || isItem(r)) items.push(r.trim());
+      else items[items.length - 1] += ' ' + r.trim();
+    });
+    return { soort: 'alinea', items: items, lijst: isItem(g[0]) };
+  };
+
+  const uit = [];
+  groepen.forEach(g => {
+    if (isKop(g[0]) && !/^BESLUIT VAN/.test(g[0])) {
+      const kop = { soort: 'kop', tekst: g[0], volgend: null };
+      if (g.length > 1) kop.volgend = soort(g.slice(1));
+      uit.push(kop);
+      return;
+    }
+    const blok = soort(g);
+    const vorige = uit[uit.length - 1];
+    if (vorige && vorige.soort === 'kop' && !vorige.volgend) vorige.volgend = blok;
+    else uit.push(blok);
+  });
+  return uit;
+}
+
+/** Zet een afdrukblok om in DOM-knopen; tekst gaat altijd via textContent. */
+function printNode(d, b) {
+  const mk = (tag, cls, txt) => { const n = d.createElement(tag); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
+  if (b.soort === 'kop') {
+    const wrap = mk('div', 'kop');
+    wrap.appendChild(mk('h2', '', b.tekst));
+    if (b.volgend) wrap.appendChild(printNode(d, b.volgend));
+    return wrap;
+  }
+  if (b.soort === 'lijn') return mk('hr');
+  if (b.soort === 'tabel') return mk('pre', '', b.regels.join('\n'));
+  if (b.soort === 'titel' || b.soort === 'regels') {
+    const wrap = mk('div', b.soort);
+    b.regels.forEach(r => wrap.appendChild(mk('div', '', r)));
+    return wrap;
+  }
+  const wrap = d.createDocumentFragment();
+  b.items.forEach(t => wrap.appendChild(mk('p', b.lijst ? 'li' : '', t)));
+  return wrap;
+}
+
 function printDoc(which) {
   const tekst = docEl(which).innerText;
   const titel = which === 'ah' ? 'Aandeelhoudersbesluit' : 'Bestuursbesluit';
@@ -2702,11 +2769,18 @@ function printDoc(which) {
   const meta = d.createElement('meta'); meta.setAttribute('charset', 'UTF-8'); head.appendChild(meta);
   const t = d.createElement('title'); t.textContent = titel; head.appendChild(t);
   const st = d.createElement('style');
-  st.textContent = '@page{size:A4 portrait;margin:20mm;@bottom-center{content:""}@top-center{content:""}}body{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:11px;line-height:1.55;padding:0;color:#111;orphans:3;widows:3}pre{white-space:pre-wrap;word-wrap:break-word;margin:0;font:inherit;overflow-wrap:break-word}';
+  st.textContent = '@page{size:A4 portrait;margin:22mm 20mm;@top-center{content:""}@bottom-center{content:""}}'
+    + 'body{margin:0;font-family:Archia,"Segoe UI",Arial,sans-serif;font-size:10.5pt;line-height:1.5;color:#111}'
+    + 'p{margin:0 0 8pt;orphans:3;widows:3}'
+    + '.titel{margin:0 0 14pt}.titel div:first-child{font-weight:700;font-size:12pt;margin-bottom:2pt}'
+    + 'h2{font-size:10.5pt;font-weight:700;margin:16pt 0 6pt;break-after:avoid}'
+    + '.kop{break-inside:avoid}'
+    + 'pre{font-family:Consolas,"Courier New",monospace;font-size:9pt;line-height:1.45;white-space:pre;margin:0 0 8pt;break-inside:avoid}'
+    + '.li{padding-left:16pt;text-indent:-16pt}'
+    + '.regels{margin:0 0 8pt;break-inside:avoid}'
+    + 'hr{border:0;border-top:1px solid #999;margin:10pt 0}';
   head.appendChild(st);
-  const pre = d.createElement('pre');
-  pre.textContent = tekst;
-  body.appendChild(pre);
+  printBlokken(tekst).forEach(n => body.appendChild(printNode(d, n)));
   try { w.focus(); } catch (e) { /* negeren */ }
   window.setTimeout(() => { try { w.print(); } catch (e) { /* negeren */ } }, 120);
 }
@@ -2893,36 +2967,32 @@ function switchTab(tab) {
     bereken();
   });
 
-  // Testdata laden (kan later verwijderd worden)
-  function loadTestData() {
-    const testData = {
-      datumBesluit: '2025-03-15',
-      datumUitkering: '2025-03-20',
-      aard: 'slot',
-      orgaan: 'ra',
-      boekjaar: '2024',
-      eigenVermogen: '500000',
-      peildatum: '2024-12-31',
-      bankSaldo: '75000',
-      bestaandeSchulden: '20000',
-      qfAan: 'ja',
-      qfOps: '50000'
-    };
-    Object.entries(testData).forEach(([key, val]) => {
-      const el = $(key);
-      if (el) {
-        if (el.type === 'checkbox') el.checked = val === 'ja';
-        else el.value = val;
+  // Testdata laden
+  const btn = $('testdataBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const vandaag = todayISO();
+      const vals = {
+        naamBV: 'Voorbeeld Holding B.V.', plaatsnaam: 'Utrecht', aardUitkering: 'slot',
+        datumBesluit: vandaag, datumUitkering: addDaysISO(vandaag, 14),
+        eigenVermogen: '500.000,00', verplichteReserves: '0,00', dividend: '100.000,00',
+        liqStart: '250.000,00', bestaandeSchulden: '20.000,00', buffer: '25.000,00', ahType: 'nlbv'
+      };
+      Object.entries(vals).forEach(([id, val]) => { $(id).value = val; });
+      $('peildatum').value = isoFromParts(Number($('boekjaar').value), 12, 31);
+      document.querySelector('input[name="orgaan"][value="ava"]').checked = true;
+      ['statutenOk', 'evActueel', 'jaarrekeningOk'].forEach(id => { $(id).checked = true; });
+      const ah = $('ahRows').querySelector('.rrow');
+      ah.querySelector('.ah-naam').value = 'Voorbeeld Beheer B.V.';
+      ah.querySelector('.ah-pct').value = '100';
+      $('bestRows').querySelector('.best-naam').value = 'J. de Vries';
+      bereken();
+      for (let i = 0; i < MAX_MAANDEN; i++) {
+        $('pgops_' + i).value = $('pgrow_' + i).style.display === 'none' ? '' : '5.000,00';
+        $('pgver_' + i).value = i === 0 ? '20.000,00' : ''; $('pglaag_' + i).value = '';
       }
+      bereken();
     });
-    ['statutenOk', 'evActueel', 'jaarrekeningOk'].forEach(id => $(id).checked = true);
-    bereken();
-  }
-
-  const testBtn = $('testdataBtn');
-  if (testBtn) {
-    testBtn.style.display = 'block';
-    testBtn.addEventListener('click', loadTestData);
   }
 
   bereken();
@@ -2947,7 +3017,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 14:11</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 14:44</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
