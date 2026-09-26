@@ -283,6 +283,27 @@
 
     #docsSection { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Dossierstuk: het @media print-blok hieronder hergebruikt de bestaande pagina met
+       haar reeds berekende invoer en resultaten. Er wordt geen aparte afdrukpagina
+       opgebouwd die de gegevens opnieuw zou moeten samenstellen. */
+    .printonly { display: none; }
+    @media print {
+      .noprint, .bt-nav-back, .bt-page-footer, .bt-privacy-pill, .bt-logout-btn,
+      #testdataBtn, .notulen-tabs, .doc-toolbar { display: none !important; }
+      .printonly { display: block; }
+      body { padding: 0; background: #fff; }
+      .content { max-width: none; padding: 8px 4px 0; }
+      .card { break-inside: avoid; border: 1px solid #999; box-shadow: none; }
+      #docsSection { display: block !important; }
+      .notulen-doc { display: block !important; margin-bottom: 16px; }
+      .doc-text { padding: 8px 0; }
+      input[type=text], input[type=date], select, textarea {
+        border: none; padding: 2px 0; background: transparent; color: #000;
+      }
+      table.pg input { border: none; background: transparent; }
+      .btn, .doc-btn, .confirm input[type=checkbox] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
@@ -313,6 +334,23 @@
     de beperkte balanstest van lid 1 en de goedkeuring door het bestuur op grond van lid 2. De tool rekent geen
     dividendbelasting of inkomstenbelasting en geeft geen fiscaal advies. De beoordeling van lid 2 blijft een
     <strong>oordeel van het bestuur</strong>; deze tool structureert dat oordeel en legt het vast, maar neemt het niet over.
+  </div>
+
+  <!-- Uitgangen: dossierstuk, Excel-export en dossierbestand. Zie de skill tool-uitgangen. -->
+  <div class="card noprint" id="uitgangenBalk" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <button type="button" class="btn" id="btnPrintDossier">Dossierstuk afdrukken</button>
+    <button type="button" class="btn" id="btnExcel">Exporteren naar Excel</button>
+    <button type="button" class="btn" id="btnOpslaan">Opslaan als bestand</button>
+    <button type="button" class="btn" id="btnOpenen">Bestand openen</button>
+    <input type="file" id="bestandInvoer" accept="application/json,.json" style="display:none" />
+    <span class="doc-status" id="uitgangMelding" style="flex-basis:100%;"></span>
+  </div>
+
+  <!-- Alleen zichtbaar bij het afdrukken: kop van het dossierstuk. De afdruk hergebruikt -->
+  <!-- verder de gewone pagina (invoer en resultaatkaarten) via @media print. -->
+  <div class="printonly" id="printKop">
+    <h1 style="font-size:18px;margin-bottom:4px;">Dossierstuk — Dividend &amp; Uitkeringstoets</h1>
+    <div id="printKopInhoud" style="font-size:12px;color:var(--muted);margin-bottom:16px;"></div>
   </div>
 
   <!-- Stap 1: BV & besluit -->
@@ -1015,6 +1053,14 @@
         (HR 8 november 1991, ECLI:NL:HR:1991:ZC0401, <em>Nimox</em>).
       </div>
     </div>
+  </div>
+
+  <!-- Vaste toelichting en vindplaatsen bij het dossierstuk en de Excel-export. Alleen -->
+  <!-- zichtbaar bij het afdrukken; op het scherm staat dezelfde tekst al in de README en -->
+  <!-- in de juridische basis van de tool. De inhoud komt uit VINDPLAATSEN/AFBAKENING. -->
+  <div class="card printonly" id="vindplaatsenCard">
+    <h2>Toelichting en vindplaatsen</h2>
+    <div id="vindplaatsenInhoud"></div>
   </div>
 
 </div><!-- .content -->
@@ -2492,6 +2538,14 @@ function renderConclusie(s, bt, lp, v, status, br) {
   card.appendChild(c);
 }
 
+// ============================================================
+// DOCUMENTKERN — BEGIN
+// Alleen pure functies en constanten: bouwt de besluitteksten op uit de invoer en de
+// toetsen. FISCAAL is hier opgenomen omdat de uitgangenkern hieronder haar hergebruikt
+// voor de fiscale signalering in de afdruk en de export, zonder de teksten dubbel vast
+// te leggen. tests/laad-kern.mjs snijdt dit blok uit en toetst exact deze code.
+// ============================================================
+
 const FISCAAL = {
   np: {
     kop: 'Aandeelhouder is een natuurlijk persoon in Nederland',
@@ -2599,12 +2653,6 @@ function renderFiscaal(s) {
 
   card.appendChild(c);
 }
-
-// ============================================================
-// DOCUMENTKERN — BEGIN
-// Alleen pure functies: bouwt de besluitteksten op uit de invoer en de toetsen.
-// tests/laad-kern.mjs snijdt ook dit blok uit en toetst exact deze code.
-// ============================================================
 
 const KOL = 16;
 const NBSP = ' ';
@@ -3129,6 +3177,763 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
 // DOCUMENTKERN — EINDE
 // ============================================================
 
+// ============================================================
+// UITGANGENKERN — BEGIN
+//
+// Pure code, net als de kern erboven: geen document, window, fetch of DOM. Deze laag
+// serialiseert en valideert alleen de INVOER voor het dossierbestand, en zet de reeds
+// berekende toestand (s, bt, lp, pd, br, v, status) om in de rijen die naar de afdruk
+// en naar Excel gaan. Er wordt hier niets fiscaals opnieuw uitgerekend — alle getallen
+// komen uit bt/lp/pd/br/v, die de rekenkern hierboven al heeft bepaald.
+//
+// tests/laad-kern.mjs snijdt dit blok uit en toetst exact deze code.
+// ============================================================
+
+const TOOL_ID = 'dividend-uitkeringstoets';
+const TOOL_VERSIE = '1.0.0';
+const DOSSIER_VERSIE = 1;
+
+// Scalaire invoervelden: elk met het label zoals het op het scherm staat en een soort
+// die bepaalt hoe genormaliseerd en gevalideerd wordt bij het openen van een
+// dossierbestand. 'bedrag' is in hele centen, net als de rest van de tool. Dit is de
+// enige plek waar deze lijst staat: zij bepaalt wat er in het dossierbestand gaat, wat
+// er bij het openen wordt gevalideerd en wat er op de afdruk en in de export als
+// invoer verschijnt.
+const SCALAIRE_VELDEN = [
+  { id: 'naamBV', soort: 'tekst', label: 'Naam vennootschap' },
+  { id: 'plaats', soort: 'tekst', label: 'Plaats (statutaire zetel)' },
+  { id: 'aard', soort: 'keuze', label: 'Aard van de uitkering', opties: ['slot', 'interim', 'reserves'] },
+  { id: 'boekjaar', soort: 'jaar', label: 'Boekjaar' },
+  { id: 'datumBesluit', soort: 'datum', label: 'Datum besluit' },
+  { id: 'datumUitkering', soort: 'datum', label: 'Datum betaalbaarstelling' },
+  { id: 'peildatum', soort: 'datum', label: 'Peildatum eigen vermogen' },
+  { id: 'orgaan', soort: 'keuze', label: 'Bevoegd orgaan', opties: ['ava', 'enig', 'ander'] },
+  { id: 'orgaanAnder', soort: 'tekst', label: 'Ander orgaan (omschrijving)' },
+  // Anders dan de overige bedragen mag het eigen vermogen negatief zijn: art. 2:216 lid 1
+  // BW stelt geen grens zonder gebonden reserves, en dat kan een negatief eigen vermogen
+  // opleveren (zie README, "Beperkte balanstest"). Bij de balansroute komt de waarde
+  // bovendien rechtstreeks van de balans op de peildatum (pasRouteToe), die dezelfde
+  // vrijheid kent.
+  { id: 'eigenVermogen', soort: 'bedrag', magNegatief: true, label: 'Eigen vermogen op de peildatum' },
+  { id: 'reserves', soort: 'bedrag', label: 'Wettelijke en statutaire reserves' },
+  { id: 'dividend', soort: 'bedrag', label: 'Voorgenomen uitkering' },
+  { id: 'route', soort: 'keuze', label: 'Onderbouwing van lid 2', opties: ['prognose', 'balans'] },
+  { id: 'datumVerwacht', soort: 'datum', label: 'Datum verwachte balans', optioneel: true },
+  { id: 'bvGeenSignalen', soort: 'vink', label: 'Geen signalen van betalingsproblemen' },
+  { id: 'bvVerwerkt', soort: 'vink', label: 'Aflossingen en grote uitgaven verwerkt in de verwachte balans' },
+  { id: 'liqStart', soort: 'bedrag', label: 'Liquide middelen bij aanvang van de prognose' },
+  { id: 'bestaandeSchulden', soort: 'bedrag', label: 'Bestaande kortlopende schulden' },
+  { id: 'kredietLimiet', soort: 'bedrag', label: 'Kredietlimiet' },
+  { id: 'kredietEinde', soort: 'datum', label: 'Einddatum kredietfaciliteit', optioneel: true },
+  { id: 'kredietBeschikbaar', soort: 'vink', label: 'Kredietfaciliteit beschikbaar op de besluitdatum' },
+  { id: 'kredietLooptijd', soort: 'vink', label: 'Kredietfaciliteit dekt de hele periode' },
+  { id: 'buffer', soort: 'bedrag', label: 'Gewenste minimale liquiditeitsbuffer' },
+  { id: 'naPeriode', soort: 'keuze', label: 'Verplichtingen of omstandigheden na de prognoseperiode', opties: ['nee', 'ja'] },
+  { id: 'naPeriodeToelichting', soort: 'tekst', label: 'Toelichting bij die verplichtingen of omstandigheden' },
+  { id: 'structuur', soort: 'keuze', label: 'Aandelenstructuur', opties: ['enkel', 'bijzonder'] },
+  { id: 'statutenOk', soort: 'vink', label: 'Statuten gecontroleerd' },
+  { id: 'evActueel', soort: 'vink', label: 'Eigen vermogen sluit nog aan op de besluitdatum' },
+  { id: 'jaarrekeningOk', soort: 'vink', label: 'Jaarrekening vastgesteld' },
+  { id: 'peb', soort: 'keuze', label: 'Pensioen in eigen beheer, ODV of stamrecht aanwezig', opties: ['nee', 'ja'] },
+  { id: 'pebWaardering', soort: 'vink', label: 'Waarderingsgrondslag pensioen bevestigd' },
+  { id: 'pebDekking', soort: 'vink', label: 'Dekking pensioen afzonderlijk beoordeeld' },
+  { id: 'pebActiva', soort: 'bedrag', label: 'Activa op waarde in het economisch verkeer' },
+  { id: 'pebVerplichting', soort: 'bedrag', label: 'Pensioen- of loonstamrechtverplichting' },
+  { id: 'pebVooroverlijden', soort: 'bedrag', label: 'Extra vermogen vooroverlijdensrisico' },
+  { id: 'pebOdv', soort: 'bedrag', label: 'Oudedagsverplichting (fiscale balanswaarde)' },
+  { id: 'pebPassiva', soort: 'bedrag', label: 'Overige passiva op waarde in het economisch verkeer' },
+  { id: 'pebLatentie', soort: 'bedrag', label: 'Belastinglatentie' },
+  { id: 'ahType', soort: 'keuze', label: 'Fiscale positie van de aandeelhouder(s)',
+    opties: ['onbekend', 'np', 'nlbv', 'buitenland', 'gemengd'] },
+];
+
+// De rekenkern kent de acht balansposten als twee losse lijsten (BALANS_ACTIEF en
+// BALANS_PASSIEF, voor de balanstoets van de balansroute); hier is de volledige lijst
+// nodig om het dossierbestand en de opstelling op te bouwen.
+const BALANS_POSTEN = BALANS_ACTIEF.concat(BALANS_PASSIEF);
+
+const BALANS_POSTEN_LABELS = {
+  vasteActiva: 'Vaste activa', voorraden: 'Voorraden',
+  vorderingen: 'Vorderingen en overige vlottende activa', liquide: 'Liquide middelen',
+  eigenVermogen: 'Eigen vermogen', voorzieningen: 'Voorzieningen',
+  langSchulden: 'Langlopende schulden', kortSchulden: 'Kortlopende schulden',
+};
+
+const KEUZE_LABELS = {
+  aard: {
+    slot: 'Dividend / winstbestemming over een afgesloten boekjaar',
+    interim: 'Interim-uitkering over het lopende boekjaar',
+    reserves: 'Uitkering ten laste van de overige reserves',
+  },
+  orgaan: {
+    ava: 'Algemene vergadering', enig: 'Enig aandeelhouder',
+    ander: 'Ander orgaan of beperkte bevoegdheid volgens de statuten',
+  },
+  route: {
+    prognose: 'Maandelijkse liquiditeitsprognose',
+    balans: 'Balans op de peildatum en verwachte balans',
+  },
+  naPeriode: { nee: 'Nee', ja: 'Ja' },
+  structuur: {
+    enkel: 'Eén soort aandelen, geen bijzonderheden',
+    bijzonder: 'Bijzondere aandelen, afwijkende rechten, certificaten of eigen aandelen',
+  },
+  peb: { nee: 'Nee', ja: 'Ja' },
+};
+
+/** Menselijk leesbare tekst bij een keuzeveld; ahType leest zijn label uit FISCAAL. */
+function keuzeTekst(veldId, waarde) {
+  if (veldId === 'ahType') return (FISCAAL[waarde] || FISCAAL.onbekend).kop;
+  const m = KEUZE_LABELS[veldId];
+  return (m && m[waarde]) || waarde;
+}
+
+/* ── Serialiseren: van de toestand `s` naar een dossierbestand ────────────── */
+
+function dossierUitInvoer(s, vandaag) {
+  const scalair = {};
+  SCALAIRE_VELDEN.forEach(function (v) { scalair[v.id] = s[v.id]; });
+  return {
+    tool: TOOL_ID,
+    toolVersie: TOOL_VERSIE,
+    dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: vandaag,
+    scalair: scalair,
+    aandeelhouders: s.aandeelhouders.map(function (a) {
+      return { naam: a.naam, pct: a.pct === undefined ? null : a.pct, bedrag: a.bedrag === undefined ? null : a.bedrag };
+    }),
+    bestuurders: s.bestuurders.slice(),
+    balansPeil: Object.assign({}, s.balansPeil),
+    balansVerwacht: Object.assign({}, s.balansVerwacht),
+    prognose: { ops: s.pgOps.slice(), verpl: s.pgVerpl.slice(), laag: s.pgLaag.slice() },
+  };
+}
+
+/* ── Valideren: van een dossierbestand terug naar invoer ──────────────────
+ *
+ * Alles wordt vooraf getoetst; geen enkel veld wordt overgenomen zolang er nog een
+ * fout in kan zitten. Een ontbrekend of onjuist veld geeft een zichtbare melding en
+ * nooit een stille standaardwaarde. Een getalveld wordt met `typeof` gecontroleerd
+ * vóórdat het wordt gebruikt: `Number(true)`, `Number([])` en `Number(' ')` leveren
+ * anders stil 1, 0 en 0 op, en dat is precies de stille aanname die hier niet mag.
+ */
+
+function isGeheelGetal(w) {
+  return typeof w === 'number' && Number.isFinite(w) && Number.isInteger(w);
+}
+
+function valideerScalairVeld(v, w, fouten) {
+  if (w === undefined || w === null) { fouten.push(v.label + ' ontbreekt'); return undefined; }
+  if (v.soort === 'tekst') {
+    if (typeof w !== 'string') { fouten.push(v.label + ' is geen tekst'); return undefined; }
+    return w;
+  }
+  if (v.soort === 'datum') {
+    if (typeof w !== 'string') { fouten.push(v.label + ' is geen tekst'); return undefined; }
+    if (w === '') {
+      if (v.optioneel) return '';
+      fouten.push(v.label + ' ontbreekt');
+      return undefined;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(w)) { fouten.push(v.label + ' is geen geldige datum (jjjj-mm-dd)'); return undefined; }
+    return w;
+  }
+  if (v.soort === 'jaar') {
+    if (typeof w !== 'string' || !/^\d{4}$/.test(w)) { fouten.push(v.label + ' is geen geldig jaar'); return undefined; }
+    return w;
+  }
+  if (v.soort === 'keuze') {
+    if (typeof w !== 'string' || v.opties.indexOf(w) === -1) {
+      fouten.push(v.label + ' heeft een onbekende waarde');
+      return undefined;
+    }
+    return w;
+  }
+  if (v.soort === 'vink') {
+    if (typeof w !== 'boolean') { fouten.push(v.label + ' is geen ja/nee-waarde'); return undefined; }
+    return w;
+  }
+  // 'bedrag': hele centen. Nooit negatief, behalve het eigen vermogen (v.magNegatief).
+  if (!isGeheelGetal(w) || (w < 0 && !v.magNegatief)) { fouten.push(v.label + ' is geen geldig bedrag'); return undefined; }
+  return w;
+}
+
+function valideerAandeelhouders(lijst, fouten) {
+  if (!Array.isArray(lijst)) { fouten.push('De aandeelhouderslijst ontbreekt of is ongeldig'); return undefined; }
+  const uit = [];
+  for (let i = 0; i < lijst.length; i++) {
+    const a = lijst[i];
+    if (!a || typeof a !== 'object' || Array.isArray(a)) { fouten.push('Aandeelhouder ' + (i + 1) + ' is ongeldig'); continue; }
+    if (typeof a.naam !== 'string') { fouten.push('Aandeelhouder ' + (i + 1) + ': naam ontbreekt'); continue; }
+    if (a.pct !== null && a.pct !== undefined && (typeof a.pct !== 'number' || !Number.isFinite(a.pct))) {
+      fouten.push('Aandeelhouder ' + (i + 1) + ': aandeel is geen geldig percentage'); continue;
+    }
+    if (a.bedrag !== null && a.bedrag !== undefined && !isGeheelGetal(a.bedrag)) {
+      fouten.push('Aandeelhouder ' + (i + 1) + ': bedrag is geen geldig bedrag'); continue;
+    }
+    uit.push({ naam: a.naam, pct: (a.pct === undefined ? null : a.pct), bedrag: (a.bedrag === undefined ? null : a.bedrag) });
+  }
+  return uit;
+}
+
+function valideerBestuurders(lijst, fouten) {
+  if (!Array.isArray(lijst)) { fouten.push('De bestuurderslijst ontbreekt of is ongeldig'); return undefined; }
+  const uit = [];
+  for (let i = 0; i < lijst.length; i++) {
+    if (typeof lijst[i] !== 'string') { fouten.push('Bestuurder ' + (i + 1) + ' is geen tekst'); continue; }
+    uit.push(lijst[i]);
+  }
+  return uit;
+}
+
+function valideerBalans(naam, b, fouten) {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) { fouten.push(naam + ' ontbreekt of is ongeldig'); return undefined; }
+  const uit = {};
+  let ok = true;
+  BALANS_POSTEN.forEach(function (k) {
+    const w = b[k];
+    if (!isGeheelGetal(w)) { fouten.push(naam + ': ' + BALANS_POSTEN_LABELS[k] + ' ontbreekt of is geen geldig bedrag'); ok = false; return; }
+    if (k !== 'eigenVermogen' && w < 0) { fouten.push(naam + ': ' + BALANS_POSTEN_LABELS[k] + ' is negatief'); ok = false; return; }
+    uit[k] = w;
+  });
+  return ok ? uit : undefined;
+}
+
+function valideerPrognoseKolom(naam, arr, verplicht, fouten) {
+  if (!Array.isArray(arr) || arr.length !== MAX_MAANDEN) {
+    fouten.push('De prognosekolom "' + naam + '" ontbreekt of heeft niet ' + MAX_MAANDEN + ' maanden');
+    return undefined;
+  }
+  const uit = [];
+  for (let i = 0; i < arr.length; i++) {
+    const w = arr[i];
+    if (w === null) {
+      if (verplicht) { fouten.push('De prognosekolom "' + naam + '", maand ' + (i + 1) + ' ontbreekt'); return undefined; }
+      uit.push(null);
+      continue;
+    }
+    if (!isGeheelGetal(w)) { fouten.push('De prognosekolom "' + naam + '", maand ' + (i + 1) + ' is geen geldig bedrag'); return undefined; }
+    uit.push(w);
+  }
+  return uit;
+}
+
+function valideerPrognose(p, fouten) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) { fouten.push('De prognosetabel ontbreekt of is ongeldig'); return undefined; }
+  const ops = valideerPrognoseKolom('ops', p.ops, true, fouten);
+  const verpl = valideerPrognoseKolom('verpl', p.verpl, true, fouten);
+  const laag = valideerPrognoseKolom('laag', p.laag, false, fouten);
+  if (ops === undefined || verpl === undefined || laag === undefined) return undefined;
+  return { ops: ops, verpl: verpl, laag: laag };
+}
+
+/**
+ * Leest een dossierbestand en keurt het volledig voordat er iets verandert.
+ *
+ * @returns {{ok: true, dossier: object, invoer: object} | {ok: false, fout: string}}
+ */
+function leesDossier(tekst) {
+  let d;
+  try {
+    d = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Dit is geen geldig dossierbestand: de JSON kon niet worden gelezen. Er is niets gewijzigd.' };
+  }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) {
+    return { ok: false, fout: 'Dit bestand bevat geen dossiergegevens. Er is niets gewijzigd.' };
+  }
+  if (d.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit dossierbestand hoort niet bij Dividend & Uitkeringstoets (tool: ' +
+      (d.tool === undefined ? 'niet vermeld' : String(d.tool)) + '). Er is niets gewijzigd.' };
+  }
+  if (!Number.isInteger(d.dossierVersie)) {
+    return { ok: false, fout: 'Het dossierbestand noemt geen geldige formaatversie. Er is niets gewijzigd.' };
+  }
+  if (d.dossierVersie < 1) {
+    return { ok: false, fout: 'Het dossierbestand noemt formaatversie ' + d.dossierVersie +
+      ', en dat is geen bestaand formaat. Er is niets gewijzigd.' };
+  }
+  if (d.dossierVersie > DOSSIER_VERSIE) {
+    return { ok: false, fout: 'Dit dossierbestand is van formaatversie ' + d.dossierVersie +
+      ' en deze tool kent formaatversie ' + DOSSIER_VERSIE + '. Werk de tool bij. Er is niets gewijzigd.' };
+  }
+
+  const fouten = [];
+  const scalair = {};
+  if (!d.scalair || typeof d.scalair !== 'object' || Array.isArray(d.scalair)) {
+    fouten.push('De invoer van het dossier ontbreekt of is ongeldig');
+  } else {
+    SCALAIRE_VELDEN.forEach(function (v) { scalair[v.id] = valideerScalairVeld(v, d.scalair[v.id], fouten); });
+  }
+  const aandeelhouders = valideerAandeelhouders(d.aandeelhouders, fouten);
+  const bestuurders = valideerBestuurders(d.bestuurders, fouten);
+  const balansPeil = valideerBalans('De balans op de peildatum', d.balansPeil, fouten);
+  const balansVerwacht = valideerBalans('De verwachte balans', d.balansVerwacht, fouten);
+  const prognose = valideerPrognose(d.prognose, fouten);
+
+  if (fouten.length) {
+    return { ok: false, fout: 'Dit dossierbestand is onvolledig of ongeldig, en de tool vult niets zelf in: ' +
+      fouten.join('; ') + '. Er is niets gewijzigd.' };
+  }
+
+  const invoer = Object.assign({}, scalair, {
+    aandeelhouders: aandeelhouders,
+    bestuurders: bestuurders,
+    balansPeil: balansPeil,
+    balansVerwacht: balansVerwacht,
+    pgOps: prognose.ops,
+    pgVerpl: prognose.verpl,
+    pgLaag: prognose.laag,
+  });
+
+  return { ok: true, dossier: d, invoer: invoer };
+}
+
+function slug(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+function bestandsnaam(s, vandaag, extensie) {
+  return TOOL_ID + '-' + slug(s.naamBV) + '-' + vandaag + '.' + extensie;
+}
+
+/* ── De opstelling voor de afdruk en de Excel-export ───────────────────────
+ *
+ * Eén rij heeft altijd een label en daarnaast OF een getal met een Excel-getalformaat,
+ * OF tekst. Beide uitgangen lezen dezelfde rijen, zodat er geen tweede plek is waar
+ * hetzelfde getal opnieuw wordt geformatteerd.
+ */
+
+function regelBedragCent(label, cents, bron) {
+  return { label: label, getal: (cents || 0) / 100, formaat: '#,##0.00', bron: bron };
+}
+
+function invoerRijen(s, lp) {
+  const uit = [];
+  SCALAIRE_VELDEN.forEach(function (v) {
+    const w = s[v.id];
+    if (v.soort === 'bedrag') { uit.push(regelBedragCent(v.label, w)); return; }
+    if (v.soort === 'vink') { uit.push({ label: v.label, tekst: w ? 'Ja' : 'Nee' }); return; }
+    if (v.soort === 'keuze') { uit.push({ label: v.label, tekst: keuzeTekst(v.id, w) }); return; }
+    if (v.soort === 'datum') { uit.push({ label: v.label, tekst: w ? fmtDatum(w) : '—' }); return; }
+    uit.push({ label: v.label, tekst: w || '—' });
+  });
+
+  s.aandeelhouders.forEach(function (a, i) {
+    if (!a.naam) return;
+    let tekst = a.naam;
+    if (a.pct !== null && a.pct !== undefined) tekst += ', ' + (a.pct * 100).toFixed(2).replace('.', ',') + '%';
+    if (a.bedrag !== null && a.bedrag !== undefined) tekst += ', ' + eur(a.bedrag);
+    uit.push({ label: 'Aandeelhouder ' + (i + 1), tekst: tekst });
+  });
+  s.bestuurders.forEach(function (b, i) { uit.push({ label: 'Bestuurder ' + (i + 1), tekst: b }); });
+
+  if (s.route === 'balans') {
+    BALANS_POSTEN.forEach(function (k) {
+      uit.push(regelBedragCent(BALANS_POSTEN_LABELS[k] + ' (peildatum)', s.balansPeil[k]));
+    });
+    BALANS_POSTEN.forEach(function (k) {
+      uit.push(regelBedragCent(BALANS_POSTEN_LABELS[k] + ' (verwachte balans)', s.balansVerwacht[k]));
+    });
+  } else {
+    // De horizon is niet zelf invoer maar een afgeleide van datumBesluit/datumUitkering;
+    // lp.maanden draagt dat getal al (liquiditeitsprognose berekent hem), dus wordt hij
+    // hier niet opnieuw bepaald.
+    const maanden = lp ? lp.maanden : 0;
+    for (let i = 0; i < maanden; i++) {
+      uit.push(regelBedragCent('Prognose maand ' + (i + 1) + ' — netto kasmutatie bedrijfsvoering', s.pgOps[i]));
+      uit.push(regelBedragCent('Prognose maand ' + (i + 1) + ' — betaling bestaande verplichtingen', s.pgVerpl[i]));
+      if (s.pgLaag[i] !== null) {
+        uit.push(regelBedragCent('Prognose maand ' + (i + 1) + ' — laagste verwachte stand binnen de maand', s.pgLaag[i]));
+      }
+    }
+  }
+  return uit;
+}
+
+function statusTekst(status) {
+  if (status === 'groen') return 'Groen — op basis van de ingevoerde gegevens zijn geen belemmeringen vastgesteld';
+  if (status === 'oranje') return 'Oranje — nadere beoordeling noodzakelijk';
+  return 'Rood — de uitkering kan op basis van de ingevoerde gegevens niet worden goedgekeurd';
+}
+
+function uitkomstRijen(s, bt, lp, pd, br, v, status) {
+  const uit = [];
+  uit.push({ label: 'Uitkomst', tekst: statusTekst(status) });
+
+  uit.push({ label: 'Balanstest (art. 2:216 lid 1 BW)', tekst: !bt.vanToepassing
+    ? 'Niet van toepassing — geen wettelijke of statutaire reserves, dus geen bovengrens uit lid 1 (Kamerstukken I 2011/12, 31 058, E, p. 7 en p. 13-14)'
+    : (bt.geslaagd ? 'Doorstaan' : 'Niet doorstaan') });
+  uit.push(regelBedragCent('Maximale uitkeringsruimte (lid 1)', bt.ruimte));
+  uit.push(regelBedragCent('Eigen vermogen na de uitkering', bt.evNa));
+  uit.push(regelBedragCent('Resterende uitkeringsruimte na de uitkering', bt.restRuimte));
+
+  if (s.route === 'balans' && br) {
+    uit.push({ label: 'Onderbouwing lid 2', tekst: 'Balans op de peildatum en verwachte balans' });
+    uit.push({ label: 'Liquide middelen op de peildatum dekken de uitkering', tekst: br.dekkingPeil ? 'Ja' : 'Nee' });
+    [['peil', 'peildatum'], ['verwacht', 'verwachte balans']].forEach(function (paar) {
+      const m = br[paar[0]], naam = paar[1];
+      uit.push(regelBedragCent('Werkkapitaal na de uitkering (' + naam + ')', m.werkkapitaal));
+      uit.push(regelBedragCent('Eigen vermogen na de uitkering (' + naam + ')', m.evNa));
+      uit.push({ label: 'Solvabiliteit (' + naam + '; interne DK-norm ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ', geen wettelijke eis)', tekst: fmtKengetal(m.solvabiliteit, true) });
+      uit.push({ label: 'Current ratio (' + naam + '; interne DK-norm ' + fmtKengetal(DK_NORM.current) + ', geen wettelijke eis)', tekst: fmtKengetal(m.current) });
+      uit.push({ label: 'Quick ratio (' + naam + '; interne DK-norm ' + fmtKengetal(DK_NORM.quick) + ', geen wettelijke eis)', tekst: fmtKengetal(m.quick) });
+    });
+    if (br.verwachtVerlies) {
+      uit.push(regelBedragCent('Signaal: eigen vermogen op de verwachte balans lager dan op de peildatum (NBA-handreiking 1133, p. 8)', br.evDaling));
+    }
+  } else if (lp) {
+    uit.push({ label: 'Onderbouwing lid 2', tekst: 'Maandelijkse liquiditeitsprognose over ' + lp.maanden + ' maanden' });
+    uit.push(regelBedragCent('Liquiditeitspositie einde prognoseperiode', lp.eindstand));
+    uit.push(regelBedragCent('Laagste verwachte liquiditeitspositie', lp.laagste));
+    uit.push({ label: 'Maand van de laagste stand', getal: lp.laagsteMaand, formaat: '0' });
+    if (lp.kredietTelt) {
+      uit.push(regelBedragCent('Bevestigde kredietlimiet meegeteld', lp.kredietLimiet));
+      uit.push(regelBedragCent('Laagste onbenutte kredietruimte', lp.laagsteRest));
+      uit.push(regelBedragCent('Laagste beschikbare liquiditeit incl. kredietruimte', lp.laagsteVrij));
+    }
+    if (s.buffer > 0) {
+      uit.push(regelBedragCent('Ruimte boven de gewenste buffer (bedrijfseconomisch, geen wettelijke eis)', lp.bufferHeadroom));
+    }
+  }
+
+  if (s.peb === 'ja' && pd) {
+    uit.push(regelBedragCent('Dekking pensioen/ODV/stamrecht vóór de uitkering', pd.dekkingVoor));
+    uit.push(regelBedragCent('Dekking na de uitkering', pd.dekkingNa));
+    uit.push(regelBedragCent('Maximaal uitkeerbaar zonder de dekking aan te tasten', pd.maxUitkering));
+  }
+
+  if (v.fouten.length) {
+    uit.push({ label: 'Openstaande fouten', tekst: 'geen besluitdocumenten zolang deze niet zijn opgelost' });
+    v.fouten.forEach(function (f, i) { uit.push({ label: 'Fout ' + (i + 1), tekst: f }); });
+  }
+  v.punten.forEach(function (p, i) { uit.push({ label: 'Aandachtspunt ' + (i + 1), tekst: p }); });
+
+  const fisc = FISCAAL[s.ahType] || FISCAAL.onbekend;
+  uit.push({ label: 'Fiscale signalering', tekst: fisc.kop });
+  fisc.regels.forEach(function (r, i) { uit.push({ label: 'Fiscaal aandachtspunt ' + (i + 1), tekst: r }); });
+
+  return uit;
+}
+
+// Vaste vindplaatsen, modelkeuzes zonder eigen bron en afbakening. Overgenomen uit de
+// juridische basis in README.md en uit OPENSTAAND.md; hier staan zij een keer en gaan
+// zij naar de afdruk en de export tegelijk.
+const VINDPLAATSEN = [
+  'Art. 2:216 lid 1 BW — de algemene vergadering is bevoegd tot uitkeringen voor zover het eigen vermogen groter is dan de reserves die krachtens de wet of de statuten moeten worden aangehouden; de statuten kunnen die bevoegdheid beperken of aan een ander orgaan toekennen.',
+  'Art. 2:216 lid 2 BW — een uitkeringsbesluit heeft geen gevolgen zolang het bestuur geen goedkeuring heeft verleend; het bestuur weigert die slechts als het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de uitkering niet kan blijven voortgaan met het betalen van haar opeisbare schulden.',
+  'Art. 2:216 lid 3 BW — bestuurders zijn jegens de vennootschap hoofdelijk verbonden voor het tekort dat door de uitkering is ontstaan, met wettelijke rente; de ontvanger kan tot vergoeding gehouden zijn tot maximaal het ontvangen bedrag of de ontvangen waarde.',
+  'Art. 2:216 lid 11 BW — bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet; deze tool toetst alleen uitkeringen in geld.',
+  'Art. 2:373 lid 4 BW — de wettelijke reserves zijn limitatief opgesomd; agio hoort daar niet bij.',
+  'De beoordeling van lid 2 strekt zich in de regel uit over ongeveer een jaar vanaf de uitkering (Kamerstukken II 2006/07, 31 058, nr. 3, p. 30 en 71; Kamerstukken I 2011/12, 31 058/32 426, C, p. 12); dat is een uitgangspunt, geen wettelijk maximum.',
+  'Beslissend voor de aansprakelijkheid is het moment van betaalbaarstelling (Kamerstukken I 2011/12, 31 058/32 426, C, p. 14).',
+  'Zonder wettelijke of statutaire reserves stelt lid 1 geen bovengrens en mag het eigen vermogen door de uitkering zelfs negatief worden (Kamerstukken I 2011/12, 31 058, E, p. 7 en p. 13-14).',
+  'NBA-handreiking 1133, p. 8 — de balansroute als onderbouwing van lid 2 naast de maandprognose.',
+  'V&A 12-008 (Centraal Aanspreekpunt Pensioenen) — de dekkingsvergelijking bij pensioen in eigen beheer, ODV of stamrecht.',
+];
+
+const MODELKEUZES = [
+  'De werkkapitaaltoets van de balansroute (M16) en de roodgrens bij onvoldoende liquide middelen op de peildatum (M17) zijn modelkeuzes van deze tool en volgen niet rechtstreeks uit een bron.',
+  'Een verwachte balans van ten minste elf kalendermaanden na de betaalbaarstelling (M19), oranje bij een negatieve verwachte liquiditeit (M20), de eis dat een balans moet sluiten (M21) en het signaal bij een verwacht verlies (M22) zijn eveneens modelkeuzes zonder eigen bron.',
+  'De DK-normen (solvabiliteit 20%, current ratio 1, quick ratio 1) zijn interne kengetallen en geen wettelijke eis; eronder wordt de uitkomst oranje, nooit rood.',
+  'Zie update-bram-dividend-uitkeringstoets.md, §4 voor de volledige lijst modelkeuzes met hun vindplaats.',
+];
+
+const AFBAKENING = [
+  'De tool toetst uitsluitend het vennootschapsrechtelijke uitkeringsbesluit van art. 2:216 BW. Zij berekent geen dividendbelasting of inkomstenbelasting en geeft geen fiscaal advies; de fiscale signalering wijst alleen op de aandachtspunten per positie van de aandeelhouder.',
+  'De tool toetst alleen uitkeringen in geld; bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).',
+  'De beoordeling van lid 2 blijft een oordeel van het bestuur; de tool structureert dat oordeel en legt het vast, maar neemt het niet over.',
+  'De tool bewaart niets. Opslaan is een handeling van de gebruiker naar een plek die hij zelf kiest; er gaat geen invoer naar een server.',
+];
+
+function toelichtingRijen() {
+  const uit = [];
+  VINDPLAATSEN.forEach(function (t) { uit.push({ label: 'Vindplaats', tekst: t }); });
+  MODELKEUZES.forEach(function (t) { uit.push({ label: 'Modelkeuze zonder eigen bron', tekst: t }); });
+  AFBAKENING.forEach(function (t) { uit.push({ label: 'Wat deze tool niet doet', tekst: t }); });
+  return uit;
+}
+
+/** Eén rij van de opstelling omgezet naar de celvorm die de xlsx-schrijver verwacht. */
+function opstellingRij(x) {
+  const waarde = (typeof x.getal === 'number' && isFinite(x.getal))
+    ? celGetal(x.getal, x.formaat || '0')
+    : celTekst(x.tekst);
+  return [celTekst(x.label), waarde, celTekst(x.bron || '')];
+}
+
+/**
+ * Bouwt het werkblad van de Excel-export. `u` is de reeds berekende toestand
+ * (s, bt, lp, pd, br, v, status, vandaag) zoals bereken() die ook op het scherm zet;
+ * er wordt hier niets opnieuw doorgerekend.
+ */
+function exportBladen(u) {
+  const s = u.s;
+  const r = [];
+  r.push([celTekst('Dividend & Uitkeringstoets', true)]);
+  r.push([celTekst('Vennootschapsrechtelijke uitkeringstoets, art. 2:216 BW')]);
+  r.push([celTekst('Tool'), celTekst(TOOL_ID)]);
+  r.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  r.push([celTekst('Geëxporteerd op'), celTekst(u.vandaag)]);
+  r.push([celTekst('Kenmerk (naam vennootschap)'), celTekst(s.naamBV || '—')]);
+  r.push([]);
+
+  r.push([celTekst('Invoer', true)]);
+  invoerRijen(s, u.lp).forEach(function (x) { r.push(opstellingRij(x)); });
+  r.push([]);
+
+  r.push([celTekst('Uitkomst', true)]);
+  uitkomstRijen(s, u.bt, u.lp, u.pd, u.br, u.v, u.status).forEach(function (x) { r.push(opstellingRij(x)); });
+  r.push([]);
+
+  r.push([celTekst('Toelichting en vindplaatsen', true)]);
+  toelichtingRijen().forEach(function (x) { r.push(opstellingRij(x)); });
+
+  return [{ naam: 'Uitkeringstoets', rijen: r, breedtes: [58, 20, 90] }];
+}
+
+// ============================================================
+// UITGANGENKERN — EINDE
+// ============================================================
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
 /* ============================================================
    Kopiëren en printen
    ============================================================ */
@@ -3349,6 +4154,11 @@ function meldHulp(id, tekst) {
    Hoofdroutine
    ============================================================ */
 
+// Draagt de laatst berekende toestand voor de drie uitgangen (afdruk, Excel-export en
+// dossierbestand), zodat zij niet zelf opnieuw hoeven te rekenen. Wordt aan het einde van
+// elke bereken() vervangen.
+let LAATSTE = null;
+
 function bereken() {
   renderHulpen();
   const s = pasRouteToe(leesInvoer());
@@ -3414,6 +4224,210 @@ function bereken() {
     $('tekstAh').textContent = '';
     $('tekstBestuur').textContent = '';
   }
+
+  const vandaag = todayISO();
+  LAATSTE = { s, bt, lp, pd, br, v, status, vandaag };
+  const printKop = $('printKopInhoud');
+  if (printKop) {
+    printKop.textContent = 'Vennootschap: ' + (s.naamBV || '—') +
+      (s.plaats ? ' (' + s.plaats + ')' : '') +
+      ' — peildatum eigen vermogen: ' + (s.peildatum ? fmtDatum(s.peildatum) : '—') +
+      ' — tool ' + TOOL_ID + ', versie ' + TOOL_VERSIE + ' — afgedrukt op ' + fmtDatum(vandaag);
+  }
+}
+
+/* ============================================================
+   Uitgangen: dossierstuk (afdruk), Excel-export en dossierbestand
+   ============================================================ */
+
+function toonUitgangmelding(tekst, isFout) {
+  const m = $('uitgangMelding');
+  if (!m) return;
+  m.style.color = isFout ? 'var(--warn)' : 'var(--muted)';
+  m.textContent = tekst;
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/**
+ * Zet een gevalideerde dossierinvoer (van leesDossier) terug in het scherm. Draait pas
+ * nadat leesDossier het hele bestand heeft goedgekeurd; er wordt hier niets meer getoetst.
+ */
+function zetInvoer(inv) {
+  $('naamBV').value = inv.naamBV;
+  $('plaatsnaam').value = inv.plaats;
+  $('aardUitkering').value = inv.aard;
+  // Een boekjaar buiten de huidige keuzelijst (ouder of nieuwer dan de vaste vensterbreedte
+  // van boekjaarOpties) krijgt een eigen optie, zodat het dossier niet stilzwijgend op een
+  // ander jaar valt.
+  if (!Array.prototype.some.call($('boekjaar').options, (o) => o.value === inv.boekjaar)) {
+    const o = el('option', null, inv.boekjaar);
+    o.value = inv.boekjaar;
+    $('boekjaar').appendChild(o);
+  }
+  $('boekjaar').value = inv.boekjaar;
+  $('datumBesluit').value = inv.datumBesluit;
+  $('datumUitkering').value = inv.datumUitkering;
+  $('peildatum').value = inv.peildatum;
+  document.querySelectorAll('input[name="orgaan"]').forEach((r) => { r.checked = r.value === inv.orgaan; });
+  $('orgaanAnder').value = inv.orgaanAnder;
+  $('eigenVermogen').value = eur(inv.eigenVermogen, { bare: true });
+  $('verplichteReserves').value = eur(inv.reserves, { bare: true });
+  $('dividend').value = eur(inv.dividend, { bare: true });
+  document.querySelectorAll('input[name="route"]').forEach((r) => { r.checked = r.value === inv.route; });
+  $('datumVerwacht').value = inv.datumVerwacht;
+  $('bvGeenSignalen').checked = inv.bvGeenSignalen;
+  $('bvVerwerkt').checked = inv.bvVerwerkt;
+  $('liqStart').value = eur(inv.liqStart, { bare: true });
+  $('bestaandeSchulden').value = eur(inv.bestaandeSchulden, { bare: true });
+  $('kredietLimiet').value = eur(inv.kredietLimiet, { bare: true });
+  $('kredietEinde').value = inv.kredietEinde;
+  $('kredietBeschikbaar').checked = inv.kredietBeschikbaar;
+  $('kredietLooptijd').checked = inv.kredietLooptijd;
+  $('buffer').value = eur(inv.buffer, { bare: true });
+  document.querySelectorAll('input[name="naPeriode"]').forEach((r) => { r.checked = r.value === inv.naPeriode; });
+  $('naPeriodeToelichting').value = inv.naPeriodeToelichting;
+  document.querySelectorAll('input[name="structuur"]').forEach((r) => { r.checked = r.value === inv.structuur; });
+  $('statutenOk').checked = inv.statutenOk;
+  $('evActueel').checked = inv.evActueel;
+  $('jaarrekeningOk').checked = inv.jaarrekeningOk;
+  document.querySelectorAll('input[name="peb"]').forEach((r) => { r.checked = r.value === inv.peb; });
+  $('pebWaardering').checked = inv.pebWaardering;
+  $('pebDekking').checked = inv.pebDekking;
+  $('peb_activa').value = eur(inv.pebActiva, { bare: true });
+  $('peb_verplichting').value = eur(inv.pebVerplichting, { bare: true });
+  $('peb_vooroverlijden').value = eur(inv.pebVooroverlijden, { bare: true });
+  $('peb_odv').value = eur(inv.pebOdv, { bare: true });
+  $('peb_passiva').value = eur(inv.pebPassiva, { bare: true });
+  $('peb_latentie').value = eur(inv.pebLatentie, { bare: true });
+  $('ahType').value = inv.ahType;
+
+  $('ahRows').textContent = '';
+  (inv.aandeelhouders.length ? inv.aandeelhouders : [{ naam: '', pct: null, bedrag: null }]).forEach((a) => {
+    const row = ahRow();
+    row.querySelector('.ah-naam').value = a.naam;
+    row.querySelector('.ah-pct').value = a.pct === null ? '' : String(a.pct);
+    row.querySelector('.ah-bedrag').value = a.bedrag === null ? '' : eur(a.bedrag, { bare: true });
+    $('ahRows').appendChild(row);
+  });
+  $('bestRows').textContent = '';
+  (inv.bestuurders.length ? inv.bestuurders : ['']).forEach((naam) => {
+    const row = bestRow();
+    row.querySelector('.best-naam').value = naam;
+    $('bestRows').appendChild(row);
+  });
+
+  // Balans op de peildatum (bp_*) en verwachte balans (bv_*) delen hun data-post-attribuut;
+  // het voorvoegsel van het id bepaalt welke van de twee balansen dit veld is.
+  BALANS_POSTEN.forEach((k) => {
+    document.querySelectorAll('.bl-post[data-post="' + k + '"]').forEach((n) => {
+      const cents = n.id.indexOf('bp_') === 0 ? inv.balansPeil[k] : inv.balansVerwacht[k];
+      n.value = eur(cents, { bare: true });
+    });
+  });
+
+  for (let i = 0; i < MAX_MAANDEN; i++) {
+    $('pgops_' + i).value = eur(inv.pgOps[i], { bare: true });
+    $('pgver_' + i).value = eur(inv.pgVerpl[i], { bare: true });
+    $('pglaag_' + i).value = inv.pgLaag[i] === null ? '' : eur(inv.pgLaag[i], { bare: true });
+  }
+}
+
+function neemDossierOver(tekst) {
+  const r = leesDossier(tekst);
+  if (!r.ok) {
+    toonUitgangmelding(r.fout, true);
+    return false;
+  }
+  zetInvoer(r.invoer);
+  bereken();
+  toonUitgangmelding('Dossierbestand geopend' +
+    (r.dossier.opgeslagen ? ', opgeslagen op ' + r.dossier.opgeslagen : '') +
+    ' met tool-versie ' + (r.dossier.toolVersie || 'onbekend') +
+    '. De uitkomst is opnieuw berekend met de huidige tool, versie ' + TOOL_VERSIE + '.', false);
+  return true;
+}
+
+function startUitgangen() {
+  // Vaste toelichting en vindplaatsen: eenmalig gevuld, want de inhoud is niet afhankelijk
+  // van de invoer. Dezelfde tekst gaat naar de Excel-export via toelichtingRijen().
+  const vindplaatsenNode = $('vindplaatsenInhoud');
+  if (vindplaatsenNode) {
+    const lijst = (items) => {
+      const ul = el('ul', 'check-list');
+      items.forEach((t) => {
+        const li = el('li');
+        li.appendChild(el('span', 'ci', '·'));
+        li.appendChild(el('span', null, t));
+        ul.appendChild(li);
+      });
+      return ul;
+    };
+    vindplaatsenNode.appendChild(el('h3', null, 'Vindplaatsen'));
+    vindplaatsenNode.appendChild(lijst(VINDPLAATSEN));
+    vindplaatsenNode.appendChild(el('h3', null, 'Modelkeuzes zonder eigen bron'));
+    vindplaatsenNode.appendChild(lijst(MODELKEUZES));
+    vindplaatsenNode.appendChild(el('h3', null, 'Wat deze tool niet doet'));
+    vindplaatsenNode.appendChild(lijst(AFBAKENING));
+  }
+
+  $('btnPrintDossier').addEventListener('click', () => window.print());
+
+  $('btnExcel').addEventListener('click', () => {
+    if (!LAATSTE || LAATSTE.s.dividend <= 0) {
+      toonUitgangmelding('Vul eerst een uitkeringsbedrag in om te exporteren.', true);
+      return;
+    }
+    bewaarBestand(xlsxBytes(exportBladen(LAATSTE)),
+      bestandsnaam(LAATSTE.s, LAATSTE.vandaag, 'xlsx'),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toonUitgangmelding('Het werkblad is een bevroren weergave van deze berekening, zonder formules. Wie een ' +
+      'variant wil, varieert in de tool en exporteert opnieuw.', false);
+  });
+
+  $('btnOpslaan').addEventListener('click', () => {
+    if (!LAATSTE) {
+      toonUitgangmelding('Er is nog geen invoer om op te slaan.', true);
+      return;
+    }
+    const d = dossierUitInvoer(LAATSTE.s, LAATSTE.vandaag);
+    bewaarBestand(new TextEncoder().encode(JSON.stringify(d, null, 2)),
+      bestandsnaam(LAATSTE.s, LAATSTE.vandaag, 'json'), 'application/json');
+    toonUitgangmelding('Het dossierbestand bevat alleen uw invoer, geen uitkomsten: die worden bij het openen ' +
+      'opnieuw berekend met de dan geldende tool. Er gaat niets naar een server.', false);
+  });
+
+  $('btnOpenen').addEventListener('click', () => $('bestandInvoer').click());
+
+  // Drie manieren waarop het lezen kan mislukken, en alle drie eindigen zichtbaar: een
+  // leesfout (onerror), een afgebroken lezing (onabort) en een uitzondering die readAsText
+  // zelf gooit. Zonder onabort zou een afgebroken lezing stil niets doen.
+  $('bestandInvoer').addEventListener('change', (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    const mislukt = (waarom) => {
+      toonUitgangmelding('Het bestand kon niet worden gelezen: ' + waarom + '. Er is niets gewijzigd.', true);
+    };
+    try {
+      const lezer = new FileReader();
+      lezer.onload = () => neemDossierOver(String(lezer.result));
+      lezer.onerror = () => mislukt('er trad een leesfout op');
+      lezer.onabort = () => mislukt('het lezen is afgebroken');
+      lezer.readAsText(f);
+    } catch (e) {
+      mislukt('de browser weigerde het lezen');
+    }
+  });
 }
 
 /* ============================================================
@@ -3535,6 +4549,7 @@ function switchTab(tab) {
     });
   }
 
+  startUitgangen();
   bereken();
 })();
 </script>
@@ -3557,7 +4572,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 17:34</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 00:35</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
