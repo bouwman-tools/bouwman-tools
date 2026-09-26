@@ -112,7 +112,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🔵 concept | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
-| 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-20 |
+| 🟡 beta | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
 - **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
