@@ -873,6 +873,472 @@ function berekenLatentie(invoer) {
 }
 // FISCALE KERN — EINDE
 
+// EXCEL-EXPORT — BEGIN
+//
+// De schrijver (crc32 tot en met xlsxBytes) is ingebed vanuit de repository gedeelde-kern,
+// blokken/xlsx-schrijver.js, commit fd788a0 (19-09-2026): een xlsx is een zip met XML erin,
+// zonder compressie ("stored") en zonder library. Deze tool bouwt niet mee via
+// verspreid.mjs — zij blijft één handgeschreven bestand zonder bouwstap — dus een latere
+// wijziging aan die bron komt hier alleen terecht als iemand haar met de hand overneemt en
+// deze commitverwijzing bijwerkt. Alleen zip- en XML-mechaniek, geen fiscale rekenlogica.
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// --------------------------------------------------------------------------
+// Eigen deel: het bevroren resultaatblad van belastinglatentie. Geen formules; alle
+// waarden komen uit het invoer- en uitkomstobject van de laatst uitgevoerde berekening.
+// Wie een andere variant wil, past de invoer aan en exporteert opnieuw.
+// --------------------------------------------------------------------------
+
+const FORMAAT_EURO = '€ #,##0.00';
+const FORMAAT_PROCENT = '0.00%';
+const FORMAAT_JAAR = '0" jaar"';
+
+/** Maakt van een vrije tekst een bestandsnaamdeel: kleine letters, cijfers en
+ *  koppeltekens, niets anders. Een leeg resultaat levert de aanroeper zelf op. */
+function slug(tekst) {
+  return String(tekst || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** Bestandsnaam van de export: belastinglatentie-<kenmerk>-<jjjj-mm-dd>.xlsx. Een leeg
+ *  of niet te verslaan kenmerk valt terug op "dossier". */
+function excelBestandsnaam(kenmerk, datum) {
+  const deel = slug(kenmerk) || 'dossier';
+  return 'belastinglatentie-' + deel + '-' + datum + '.xlsx';
+}
+
+function bladKop(kop) {
+  return {
+    naam: 'Kop',
+    breedtes: [28, 40],
+    rijen: [
+      [celTekst('Tool', true), celTekst('belastinglatentie')],
+      [celTekst('Versie', true), celTekst(kop.versie)],
+      [celTekst('Datum export', true), celTekst(kop.datum)],
+      [celTekst('Kenmerk', true), celTekst(kop.kenmerk || 'niet ingevuld')],
+    ],
+  };
+}
+
+/** Dezelfde regels als het invoeroverzicht op het scherm, maar als label/waarde-paren in
+ *  plaats van HTML. `labels` draagt de teksten van de keuzelijsten (modus-middel en
+ *  modus-groep), opgehaald op het scherm op het moment van berekenen; hier wordt niets
+ *  aan het DOM gevraagd. */
+function bladInvoer(invoer, labels, soortOmschrijving, afschrijvingMaximum) {
+  const rijen = [[celTekst('Veld', true), celTekst('Waarde', true)]];
+  const rij = (label, cel) => rijen.push([celTekst(label), cel]);
+
+  if (invoer.tariefmodus === 'perJaar') {
+    const context = invoer.tariefcontext;
+    const ib = context.middel === 'ib';
+    const woord = ib ? 'inkomen' : 'belastbaar bedrag';
+    rij('Belastingtarief', celTekst('Per jaar via de schijven'));
+    rij('Belastingmiddel', celTekst(labels.middel));
+    rij('Jaar van de tarieven', celTekst(context.jaar + ', voor de hele looptijd'));
+    rij('Verwacht ' + woord + ' per jaar', celGetal(context.inkomenVoor, FORMAAT_EURO));
+    if (context.inkomenVrijvaljaar === undefined || context.inkomenVrijvaljaar === null) {
+      rij('Verwacht ' + woord + ' in het vrijvaljaar',
+        celTekst('geen eigen opgave, gelijk aan de andere jaren'));
+    } else {
+      rij('Verwacht ' + woord + ' in het vrijvaljaar',
+        celGetal(context.inkomenVrijvaljaar, FORMAAT_EURO));
+    }
+    if (ib) {
+      rij('Positie van de belastingplichtige', celTekst(labels.groep));
+      rij('MKB-winstvrijstelling', celTekst(context.mkbOndernemer ? 'van toepassing' : 'niet van toepassing'));
+    }
+  } else {
+    rij('Belastingtarief', celTekst('Eén vast tarief voor de hele looptijd, zelf ingevuld'));
+    rij('Tarief afschrijving', celGetal(invoer.tariefAfschrijving, FORMAAT_PROCENT));
+    rij('Tarief uitgestelde heffing', celGetal(invoer.tariefUitgesteld, FORMAAT_PROCENT));
+  }
+
+  rij('Disconteringsvoet per jaar, ingevoerd', celGetal(invoer.disconteringsvoet, FORMAAT_PROCENT));
+  rij('Grondslag van de voet', celTekst(invoer.disconteringsgrondslag === 'netto'
+    ? 'brutovoet, door de tool netto gemaakt'
+    : 'nettovoet, rechtstreeks gebruikt'));
+  rij('Niet-afschrijfbare meerwaarde', celGetal(invoer.nietAfschrijfbaar.bedrag, FORMAAT_EURO));
+  if (invoer.nietAfschrijfbaar.bedrag > 0) {
+    rij('Heffing vindt plaats over', celGetal(invoer.nietAfschrijfbaar.jaar, FORMAAT_JAAR));
+  }
+
+  rijen.push([]);
+  rijen.push([celTekst('Afschrijfbare meerwaarden', true)]);
+  const posten = invoer.posten.filter(post => post.bedrag > 0);
+  if (posten.length) {
+    rijen.push([celTekst('Post', true), celTekst('Soort', true), celTekst('Meerwaarde', true),
+      celTekst('Termijn', true), celTekst('Per jaar', true), celTekst('Wettelijk maximum', true)]);
+    posten.forEach((post, i) => {
+      rijen.push([
+        celGetal(i + 1, '0'),
+        celTekst(soortOmschrijving[post.soort]),
+        celGetal(post.bedrag, FORMAAT_EURO),
+        celGetal(post.termijn, FORMAAT_JAAR),
+        celGetal(1 / post.termijn, FORMAAT_PROCENT),
+        celGetal(afschrijvingMaximum[post.soort], FORMAAT_PROCENT),
+      ]);
+    });
+    if (posten.length < invoer.posten.length) {
+      rijen.push([celTekst('Posten met een meerwaarde van nul tellen niet mee en staan hier niet.')]);
+    }
+  } else {
+    rijen.push([celTekst('Geen afschrijfbare meerwaarde ingevoerd.')]);
+  }
+
+  return { naam: 'Invoer', breedtes: [42, 30, 16, 12, 12, 16], rijen };
+}
+
+function bladUitkomst(uitkomst, invoer) {
+  const perJaar = uitkomst.tariefmodus === 'perJaar';
+  const rijen = [
+    [celTekst('Totaal (contante waarde belastinglatentie)', true), celGetal(uitkomst.totaal, FORMAAT_EURO, true)],
+    [celTekst('Latentiepercentage van de meerwaarde'), celGetal(uitkomst.latentiePercentage, FORMAAT_PROCENT)],
+    [celTekst('Meerwaarde totaal'), celGetal(uitkomst.meerwaardeTotaal, FORMAAT_EURO)],
+    [celTekst('Contante waarde gemiste afschrijving'), celGetal(uitkomst.contanteWaardeAfschrijving, FORMAAT_EURO)],
+    [celTekst('Contante waarde uitgestelde heffing'), celGetal(uitkomst.contanteWaardeUitgesteld, FORMAAT_EURO)],
+    [celTekst('Heffing uitgestelde meerwaarde, nominaal'), celGetal(uitkomst.heffingUitgesteld, FORMAAT_EURO)],
+    [celTekst('Disconteringsvoet gebruikt (netto, per jaar)'), celGetal(uitkomst.disconteringsvoetGebruikt, FORMAAT_PROCENT)],
+    [celTekst('Effectief tarief gemiste afschrijving'),
+      uitkomst.effectiefTariefAfschrijving === null ? celTekst('n.v.t.') : celGetal(uitkomst.effectiefTariefAfschrijving, FORMAAT_PROCENT)],
+    [celTekst('Effectief tarief uitgestelde heffing'),
+      uitkomst.effectiefTariefUitgesteld === null ? celTekst('n.v.t.') : celGetal(uitkomst.effectiefTariefUitgesteld, FORMAAT_PROCENT)],
+    [],
+  ];
+
+  if (uitkomst.jaren.length) {
+    rijen.push([celTekst('Verloop per jaar', true)]);
+    const posten = invoer.posten.filter(post => post.bedrag > 0);
+    const kop = [celTekst('Jaar', true)];
+    posten.forEach((post, i) => kop.push(celTekst('Afschrijving ' + (i + 1), true)));
+    if (perJaar) kop.push(celTekst('Tarief', true));
+    kop.push(celTekst('Fiscaal voordeel', true), celTekst('Contant', true));
+    rijen.push(kop);
+
+    uitkomst.jaren.forEach(jaar => {
+      const r = [celGetal(jaar.jaar, '0')];
+      jaar.afschrijvingen.forEach(bedrag => r.push(celGetal(bedrag, FORMAAT_EURO)));
+      if (perJaar) r.push(jaar.tarief === null ? celTekst('–') : celGetal(jaar.tarief, FORMAAT_PROCENT));
+      r.push(celGetal(jaar.fiscaalVoordeel, FORMAAT_EURO), celGetal(jaar.contant, FORMAAT_EURO));
+      rijen.push(r);
+    });
+
+    const som = lijst => lijst.reduce((a, b) => a + b, 0);
+    const somRij = [celTekst('Samen', true)];
+    posten.forEach((post, p) => somRij.push(celGetal(som(uitkomst.jaren.map(j => j.afschrijvingen[p])), FORMAAT_EURO, true)));
+    if (perJaar) somRij.push(celTekst(''));
+    somRij.push(
+      celGetal(som(uitkomst.jaren.map(j => j.fiscaalVoordeel)), FORMAAT_EURO, true),
+      celGetal(uitkomst.contanteWaardeAfschrijving, FORMAAT_EURO, true),
+    );
+    rijen.push(somRij);
+  }
+
+  return { naam: 'Uitkomst', breedtes: [44, 20, 20, 20, 20, 20, 20], rijen };
+}
+
+/** Vaste toelichting: per fiscale waarde de vindplaats, en het onderscheid tussen wat
+ *  wettelijk vastligt en wat waarderingsconventie van de tool is (AGENTS.md). Onafhankelijk
+ *  van de gekozen tariefmodus, want dit is de afbakening van de tool zelf en niet van één
+ *  berekening. Volledige onderbouwing en peildatum: BRONNEN.md in de repository. */
+function bladToelichting() {
+  const rij = (waarde, vindplaats) => [celTekst(waarde), celTekst(vindplaats)];
+  return {
+    naam: 'Toelichting',
+    breedtes: [46, 90],
+    rijen: [
+      [celTekst('Wat wettelijk vastligt', true), celTekst('Vindplaats', true)],
+      rij('Afschrijvingsmaximum: 10% goodwill, 20% andere bedrijfsmiddelen, per jaar',
+        'Art. 3.30 lid 2 Wet IB 2001 (BWBR0011353), geldend per 2026-01-01. Minimumtermijn ' +
+        'tien resp. vijf jaar; een kortere termijn wordt geweigerd. BRONNEN.md, punt 1.'),
+      rij('Afschrijving op gebouwen: bodemwaarde = WOZ-waarde',
+        'Art. 3.30a lid 1, 3 en 4 Wet IB 2001, geldend per 2026-01-01. In de praktijk hoort ' +
+        'een gebouw daarom bij de niet-afschrijfbare meerwaarde. BRONNEN.md, punt 2.'),
+      rij('Doorwerking naar de vennootschapsbelasting',
+        'Art. 8 lid 1 Wet Vpb 1969 (BWBR0002672), geldend per 2026-01-01. BRONNEN.md, punt 3.'),
+      rij('Tarief vennootschapsbelasting: 19% tot € 200.000, 25,8% daarboven',
+        'Art. 22 Wet Vpb 1969, geldend per 2026-01-01. BRONNEN.md, punt 4.'),
+      rij('Tarief inkomstenbelasting box 1: schijfgrenzen € 38.883 en € 78.426, ' +
+        'tarieven 8,10% / 37,56% / 49,50%',
+        'Art. 2.10 lid 1 Wet IB 2001, geldend per 2026-01-01. Voor wie is geboren vóór ' +
+        '1 januari 1946 geldt art. 2.10a met een eerste schijfgrens van € 41.123. ' +
+        'BRONNEN.md, punt 4.'),
+      rij('Tariefaanpassing 11,94% over grondslagverminderende posten',
+        'Art. 2.10 lid 2 en 3 Wet IB 2001, geldend per 2026-01-01. BRONNEN.md, punt 4.'),
+      rij('MKB-winstvrijstelling 12,7%',
+        'Art. 3.79a Wet IB 2001, geldend per 2026-01-01. BRONNEN.md, punt 4.'),
+      rij('Premies volksverzekeringen: AOW 17,90%, Anw 0,10%, Wlz 9,65%',
+        'Regeling premiepercentages 2026 (Stcrt. 2025, 42324), krachtens art. 11 lid 1 en 2 ' +
+        'Wfsv, en Regeling vaststelling premiepercentage Wlz, krachtens art. 11 lid 3 Wfsv. ' +
+        'AOW-premie vervalt vanaf de AOW-leeftijd (art. 10 lid 2 Wfsv). BRONNEN.md, punt 4.'),
+      [],
+      [celTekst('Wat waarderingsconventie is, geen wettelijke regel', true), celTekst('Toelichting', true)],
+      rij('Hoogte van de disconteringsvoet',
+        'Volgt de vermogenskostenvoet van de onderneming; de wet schrijft geen percentage ' +
+        'voor. Het veld staat leeg en kent geen standaardwaarde. BRONNEN.md, punt 5.1.'),
+      rij('Omzetting bruto- naar nettovoet (netto = bruto × (1 − tarief))',
+        'Waarderingsconventie; gaat uit van aftrekbare rente tegen het toegepaste tarief. ' +
+        'BRONNEN.md, punt 5.2.'),
+      rij('Contant maken per heel jaar, aan het einde van het jaar',
+        'Verdedigbare standaardconventie van de tool, geen kantoorbeleid (besluit Sylvain, ' +
+        '16-09-2026). Een halfjaarsconventie geeft een hogere uitkomst. BRONNEN.md, punt 5.3.'),
+      rij('Lineaire afschrijving',
+        'Verdedigbare standaardconventie van de tool, geen kantoorbeleid (besluit Sylvain, ' +
+        '16-09-2026). Goed koopmansgebruik (art. 3.25 Wet IB 2001) laat ook andere bestendige ' +
+        'stelsels toe. BRONNEN.md, punt 5.4.'),
+      rij('Eén verwacht inkomen voor alle exploitatiejaren (modus per jaar)',
+        'Aanname van de tool; het vrijvaljaar heeft een eigen veld omdat het niet ' +
+        'representatief is zodra het samenvalt met staking (art. 3.8 Wet IB 2001). ' +
+        'BRONNEN.md, punt 5.5.'),
+      rij('Tarieven van één jaar voor de hele looptijd (modus per jaar)',
+        'Aanname van de tool; de tabel kent geen tariefsverloop over de jaren. ' +
+        'BRONNEN.md, punt 5.6.'),
+      [],
+      [celTekst('Afbakening: wat de tool niet doet', true)],
+      [celTekst('Geen beoordeling of een meerwaarde afschrijfbaar is; geen verliesverrekening, ' +
+        'herinvesteringsreserve, renteaftrekbeperking of doorschuif- en ' +
+        'bedrijfsopvolgingsregelingen. Geen tariefsverloop over de jaren. De tariefhulp kent ' +
+        'alleen de jaren in TARIEVEN_PER_JAAR; een ander jaar geeft een melding en geen ' +
+        'tarief. Geen tijdsevenredige premieheffing in het jaar waarin de AOW-leeftijd wordt ' +
+        'bereikt.')],
+    ],
+  };
+}
+
+/** Zet de laatst uitgevoerde berekening om in de vier bladen van het dossierstuk. Herrekent
+ *  niets: `invoer` en `uitkomst` zijn wat `berekenLatentie` heeft opgeleverd. */
+function exportBladen(invoer, uitkomst, labels, kop, soortOmschrijving, afschrijvingMaximum) {
+  return [
+    bladKop(kop),
+    bladInvoer(invoer, labels, soortOmschrijving, afschrijvingMaximum),
+    bladUitkomst(uitkomst, invoer),
+    bladToelichting(),
+  ];
+}
+
+// EXCEL-EXPORT — EINDE
+
+
 const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
 const procent = new Intl.NumberFormat('nl-NL', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const getal = new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -882,6 +1348,11 @@ const moment = new Intl.DateTimeFormat('nl-NL', { dateStyle: 'short', timeStyle:
 // Versiestempel van de tool. Staat op het dossierstuk, zodat later vast te stellen is met
 // welke stand van de tool een afdruk is gemaakt. Bijwerken bij elke inhoudelijke wijziging.
 const TOOL_VERSIE = '2026-09-27';
+
+// De invoer en uitkomst van de laatst geslaagde berekening, voor de Excel-export. De
+// export herrekent niets en leest uitsluitend hieruit; zo komen de getallen in het
+// werkblad altijd uit dezelfde toestand als die op het scherm staat.
+let laatsteBerekening = null;
 
 const postenVak = document.getElementById('posten');
 let volgnummer = 0;
@@ -1159,6 +1630,47 @@ function invoeroverzicht(invoer) {
     ' De vindplaatsen en de afbakening staan in de toelichting hieronder.</div>';
 }
 
+/** De datum in jjjj-mm-dd, in de tijdzone van de browser. `toISOString` zou hier een
+ *  UTC-datum geven, en die loopt vlak na middernacht in Nederland een dag achter op de
+ *  kalenderdatum die de gebruiker ziet. */
+function lokaleDatum(d) {
+  const twee = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + twee(d.getMonth() + 1) + '-' + twee(d.getDate());
+}
+
+/** De teksten van de keuzelijsten die in de modus per jaar meetellen, opgehaald op het
+ *  scherm op het moment van berekenen. Geeft `null` in de modus met één vast tarief,
+ *  want dan bestaan die velden niet. */
+function verzamelExportLabels(invoer) {
+  if (invoer.tariefmodus !== 'perJaar') return null;
+  const context = invoer.tariefcontext;
+  return {
+    middel: optieTekst('modus-middel', context.middel),
+    groep: context.middel === 'ib' ? optieTekst('modus-groep', context.groep) : null,
+  };
+}
+
+/** Bouwt en downloadt de Excel-export van de laatst uitgevoerde berekening. Rekent zelf
+ *  niets opnieuw uit: `laatsteBerekening` is precies wat bij het berekenen is bewaard. */
+function exporteerNaarExcel() {
+  if (!laatsteBerekening) return;
+  const { invoer, uitkomst, labels, kenmerk, datum } = laatsteBerekening;
+  const kop = { versie: TOOL_VERSIE, datum, kenmerk };
+  const bladen = exportBladen(invoer, uitkomst, labels, kop, SOORT_OMSCHRIJVING, AFSCHRIJVING_MAXIMUM);
+  const bytes = xlsxBytes(bladen);
+  const blob = new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = excelBestandsnaam(kenmerk, datum);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 /** Zet het kenmerk uit het formulier in de kop van de uitkomst. Via textContent, zodat
  *  wat de gebruiker typt nooit als opmaak wordt gelezen. */
 function toonKenmerk() {
@@ -1184,8 +1696,17 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
 
   if (uitkomst.fouten.length) {
     vak.innerHTML = meldingen(uitkomst.fouten, 'fout', 'De invoer is niet bruikbaar');
+    laatsteBerekening = null;
     return;
   }
+
+  laatsteBerekening = {
+    invoer,
+    uitkomst,
+    labels: verzamelExportLabels(invoer),
+    kenmerk: document.getElementById('kenmerk').value.trim(),
+    datum: lokaleDatum(new Date()),
+  };
 
   const posten = invoer.posten.filter(post => post.bedrag > 0);
   vak.innerHTML =
@@ -1221,7 +1742,8 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
     '<p class="dossierdatum">Opgesteld met de lokale rekentool belastinglatentie, versie ' +
       TOOL_VERSIE + '. De uitkomst is een berekening op de ingevulde gegevens; de beoordeling ' +
       'van die gegevens en van de waarderingskeuzes blijft bij de gebruiker.</p>' +
-    '<button type="button" class="afdrukknop noprint" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+    '<button type="button" class="afdrukknop noprint" onclick="window.print()">Afdrukken of opslaan als pdf</button> ' +
+    '<button type="button" class="afdrukknop noprint" onclick="exporteerNaarExcel()">Exporteren naar Excel</button>';
   toonKenmerk();
 });
 
