@@ -49,8 +49,12 @@ stil te mergen.
 
 **Elke wijziging die een sessie hier maakt gaat via een voorstel, ook een wijziging van
 één veld in `tools.json`.** Dit is de publieke verzamelrepository: wat hier op de
-hoofdbranch staat, staat op bouwman.tools. Een voorstel geeft het moment waarop Sylvain
-ziet wat er verandert voordat het publiek is.
+hoofdbranch staat, staat op bouwman.tools. Het voorstel is het spoor van de wijziging.
+Het moment waarop Sylvain ziet wat er verandert, ligt bij een statuswijziging eerder: in
+de getypte `ja` van `claude-pos/bin/accordeer.py`, waar oude en nieuwe waarde naast
+elkaar staan. Dat script merget het voorstel daarna zelf, maar alleen als de controles
+hier groen zijn, en maakt geen tweede voorstel zolang er een voor dezelfde tool open
+staat (sinds 26-09-2026; zie claude-pos/bin/LEESMIJ.md).
 
 De regel werd al afgedwongen door de mandaatpoort, die een los `git push` naar de
 hoofdbranch hier weigert. Op 24-09-2026 is zij toch twee keer overtreden, en de reden is
