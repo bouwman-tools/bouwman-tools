@@ -222,6 +222,18 @@
   </p>
 </details>
 
+<section class="niet-printen" id="dossier-blok" style="margin-bottom:16px">
+  <div class="knoppen">
+    <button type="button" class="secundair" id="btn-dossier-opslaan">Dossier opslaan als bestand</button>
+    <button type="button" class="secundair" id="btn-dossier-openen">Dossierbestand openen</button>
+    <input type="file" id="dossier-bestand" accept=".json" hidden />
+  </div>
+  <span class="hint">Bewaart de ingelezen mutaties en de ingevulde uitgangspunten in een bestand dat je zelf
+    opslaat, zodat je deze casus later weer kunt openen. De tool bewaart zelf niets; er gaat niets naar een
+    server.</span>
+  <div id="dossier-meldingen" style="margin-top:10px"></div>
+</section>
+
 <section class="stap niet-printen" id="stap-bron">
   <h2><span class="nr">1</span> Mutaties inlezen</h2>
   <div class="tabs" role="tablist">
@@ -1550,6 +1562,241 @@ function melding(soort, titel, tekst, lijst) {
   return `<div class="melding ${soort}"><strong>${esc(titel)}</strong>${tekst ? esc(tekst) : ""}${items ? `<ul>${items}</ul>` : ""}</div>`;
 }
 // OPMAAKHULP — EINDE
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van. Wijzig hem hier niet: een wijziging hoort in
+// gedeelde-kern thuis en wordt van daaruit verspreid. Overgenomen op 27-09-2026 met de
+// hand, omdat gedeelde-kern/manifest.json op dat moment een ongecommitte wijziging van
+// een andere sessie had staan; zie OPENSTAAND.md.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xlsxXmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xlsxXmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xlsxXmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xlsxXmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// XLSX-SCHRIJVER — EINDE
 
 const staat = {
   rijen: [],
@@ -2989,6 +3236,224 @@ function reken() {
   $("stap-uitkomst").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// --- dossierbestand: opslaan en heropenen van de eigen invoer -------------------
+// Dit is de volledige invoer van de tool zelf: de ingelezen mutaties met hun
+// kolomtoewijzing, en alle ingevulde uitgangspunten. Er staat geen afgeleide uitkomst in;
+// die wordt bij het openen opnieuw berekend met de dan geldende tool, voor het bewaarde
+// rekenjaar. Dit is een ander bestand dan de bestandsimport van stap 1: dat leest een
+// grootboekkaart in, dit bewaart en heropent de casus van deze tool zelf.
+
+// DOSSIERBESTAND — BEGIN
+// De validatie van een geopend dossierbestand. Uitsluitend pure functies en constanten,
+// zodat een test een onjuist of verouderd bestand kan aanbieden zonder het DOM nodig te
+// hebben. Number(true), Number([]) en Number(' ') leveren anders stil een getal op terwijl
+// het geen bruikbare waarde is; daarom hier een eigen, strikte controle per veldsoort.
+
+const DOSSIER_TOOL_ID = "rc-rente";
+const DOSSIER_FORMAAT_VERSIE = 1;
+
+function geldigTekstveld(v) { return typeof v === "string"; }
+function geldigBoolean(v) { return typeof v === "boolean"; }
+function geldigJaartal(v) { return typeof v === "number" && Number.isFinite(v) && Number.isInteger(v) && v >= 2000 && v <= 2099; }
+function geldigeRijen(v) { return Array.isArray(v) && v.every((r) => Array.isArray(r)); }
+function geldigeKolommen(v) {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+  return KOLOMSOORTEN.filter((s) => s !== "negeren").every((s) =>
+    !(s in v) || v[s] === null || (typeof v[s] === "number" && Number.isInteger(v[s]))
+  );
+}
+
+function dossierValideer(data) {
+  const fouten = [];
+  if (!data || typeof data !== "object") return { geldig: false, fouten: ["Het bestand bevat geen bruikbare gegevens."] };
+  if (data.tool !== DOSSIER_TOOL_ID) {
+    return { geldig: false, fouten: [`Dit bestand hoort bij een andere tool (${data.tool ? String(data.tool) : "onbekend"}), niet bij RC-rente uit mutaties.`] };
+  }
+  if (typeof data.formaatVersie !== "number" || data.formaatVersie > DOSSIER_FORMAAT_VERSIE) {
+    return { geldig: false, fouten: ["Het bestandsformaat is nieuwer dan wat deze versie van de tool kent. Open het met een nieuwere versie van de tool."] };
+  }
+  const b = data.bron || {};
+  if (!geldigeRijen(b.rijen) || !b.rijen.length) fouten.push("De ingelezen mutaties ontbreken of zijn onbruikbaar.");
+  if (!geldigeKolommen(b.kolommen)) fouten.push("De kolomtoewijzing ontbreekt of is onbruikbaar.");
+  if (typeof b.kopIndex !== "number" || !Number.isInteger(b.kopIndex)) fouten.push("De positie van de kopregel ontbreekt of is onbruikbaar.");
+
+  const v = data.velden || {};
+  for (const veld of ["naamBv", "naamDga", "beginstand", "eindsaldoBron", "conventie", "rente", "renteSchuldBv"]) {
+    if (!geldigTekstveld(v[veld])) fouten.push(`Het veld "${veld}" ontbreekt of is onbruikbaar.`);
+  }
+  for (const veld of ["renteApart", "renteBijschrijven", "alleJaren", "perJaarAnders", "beginstandHandmatig", "eindsaldoBronHandmatig"]) {
+    if (!geldigBoolean(v[veld])) fouten.push(`Het veld "${veld}" ontbreekt of is onbruikbaar.`);
+  }
+  if (data.rekenjaar !== null && !geldigJaartal(data.rekenjaar)) fouten.push("Het bewaarde rekenjaar ontbreekt of is onbruikbaar.");
+  if (v.rentePerJaar !== undefined && (typeof v.rentePerJaar !== "object" || v.rentePerJaar === null || Array.isArray(v.rentePerJaar))) {
+    fouten.push("De bewaarde rentetabel per jaar is onbruikbaar.");
+  }
+  return { geldig: fouten.length === 0, fouten };
+}
+// DOSSIERBESTAND — EINDE
+
+function dossierKenmerk() {
+  const naam = (($("naam-bv") && $("naam-bv").value.trim()) || ($("naam-dga") && $("naam-dga").value.trim()) || "");
+  const slug = naam.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug || "dossier";
+}
+
+// Alleen de rente-<jaar>- en rente-schuld-bv-<jaar>-velden die op dit moment echt in de
+// pagina staan: dat tabelletje bestaat pas zodra "alle jaren" en "afwijkende rente per
+// jaar" allebei zijn aangevinkt.
+function verzamelRentePerJaar() {
+  const resultaat = {};
+  document.querySelectorAll('input[id^="rente-"]').forEach((el) => {
+    const m = el.id.match(/^rente-(schuld-bv-)?(\d{4})$/);
+    if (!m) return;
+    const jaar = m[2];
+    resultaat[jaar] = resultaat[jaar] || {};
+    resultaat[jaar][m[1] ? "schuld" : "vordering"] = el.value;
+  });
+  return resultaat;
+}
+
+function verzamelDossier() {
+  if (!staat.rijen || !staat.rijen.length) return null;
+  return {
+    formaatVersie: DOSSIER_FORMAAT_VERSIE,
+    tool: DOSSIER_TOOL_ID,
+    toolVersie: VERSIE,
+    rekenjaar: $("jaar").value === "" ? null : Number($("jaar").value),
+    bron: {
+      rijen: staat.rijen,
+      kolommen: staat.kolommen,
+      kopIndex: staat.kopIndex,
+      bronnaam: staat.bronnaam,
+      bronsoort: staat.bronsoort,
+    },
+    velden: {
+      naamBv: $("naam-bv").value,
+      naamDga: $("naam-dga").value,
+      beginstand: $("beginstand").value,
+      beginstandHandmatig: !!$("beginstand").dataset.handmatig,
+      eindsaldoBron: $("eindsaldo-bron").value,
+      eindsaldoBronHandmatig: !!$("eindsaldo-bron").dataset.handmatig,
+      conventie: $("conventie").value,
+      rente: $("rente").value,
+      renteApart: $("rente-apart").checked,
+      renteSchuldBv: $("rente-schuld-bv").value,
+      renteBijschrijven: $("rente-bijschrijven").checked,
+      alleJaren: $("alle-jaren").checked,
+      perJaarAnders: $("per-jaar-anders").checked,
+      rentePerJaar: verzamelRentePerJaar(),
+    },
+  };
+}
+
+function dossierOpslaan() {
+  const data = verzamelDossier();
+  if (!data) {
+    zetMeldingen("dossier-meldingen", melding("let-op", "Nog niets om op te slaan", "Lees eerst mutaties in bij stap 1."));
+    return;
+  }
+  const naam = `rc-rente-${dossierKenmerk()}-${new Date().toISOString().slice(0, 10)}.json`;
+  try {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = naam;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    zetMeldingen("dossier-meldingen", melding("goed", "Dossierbestand opgeslagen", `Bewaard als ${naam}. Dit bestand gaat niet naar een server; opslaan is een handeling van jezelf naar de plek die je kiest.`));
+  } catch (e) {
+    zetMeldingen("dossier-meldingen", melding("blokkerend", "Opslaan is mislukt", esc(e && e.message ? e.message : String(e))));
+  }
+}
+
+function dossierToepassen(data) {
+  staat.rijen = data.bron.rijen;
+  staat.kolommen = Object.assign({}, data.bron.kolommen);
+  staat.kopIndex = data.bron.kopIndex;
+  staat.bronnaam = data.bron.bronnaam || null;
+  staat.bronsoort = data.bron.bronsoort || null;
+  // Geen aanroep van de AI-lezer: de mutaties komen uit het dossierbestand zelf en zijn
+  // niet opnieuw geïnterpreteerd.
+  staat.interpretatie = {
+    bron: "dossierbestand", aiGevraagd: false, aiGebruikt: false, aiModel: null, aiAdres: null,
+    kopIndex: staat.kopIndex, kolommen: staat.kolommen, rijen: staat.rijen,
+    betrouwbaarheid: 1, opmerkingen: [],
+  };
+
+  const v = data.velden;
+  $("naam-bv").value = v.naamBv;
+  $("naam-dga").value = v.naamDga;
+  $("jaar").value = data.rekenjaar === null ? "" : String(data.rekenjaar);
+  if (data.rekenjaar !== null) $("jaar").dataset.handmatig = "1"; else delete $("jaar").dataset.handmatig;
+  $("beginstand").value = v.beginstand;
+  if (v.beginstandHandmatig) $("beginstand").dataset.handmatig = "1"; else delete $("beginstand").dataset.handmatig;
+  $("eindsaldo-bron").value = v.eindsaldoBron;
+  if (v.eindsaldoBronHandmatig) $("eindsaldo-bron").dataset.handmatig = "1"; else delete $("eindsaldo-bron").dataset.handmatig;
+  $("conventie").value = v.conventie;
+  $("rente").value = v.rente;
+  $("rente-apart").checked = v.renteApart;
+  $("rente-schuld-bv").value = v.renteSchuldBv;
+  $("veld-rente-schuld-bv").hidden = !v.renteApart;
+  $("rente-bijschrijven").checked = v.renteBijschrijven;
+  $("alle-jaren").checked = v.alleJaren;
+  $("per-jaar-anders").checked = v.perJaarAnders;
+
+  $("stap-kolommen").hidden = false;
+  $("stap-uitgangspunten").hidden = false;
+  toonKolomtabel();
+  vulUitgangspunten();
+
+  // De rentetabel per jaar bestaat pas nadat vulUitgangspunten() haar heeft opgebouwd
+  // (via toonRenteTabel()); de bewaarde waarden gaan er pas daarna in.
+  const perJaar = v.rentePerJaar || {};
+  for (const jaar of Object.keys(perJaar)) {
+    const veldVordering = $(`rente-${jaar}`);
+    const veldSchuld = $(`rente-schuld-bv-${jaar}`);
+    if (veldVordering && perJaar[jaar].vordering !== undefined) veldVordering.value = perJaar[jaar].vordering;
+    if (veldSchuld && perJaar[jaar].schuld !== undefined) veldSchuld.value = perJaar[jaar].schuld;
+  }
+
+  $("stap-uitkomst").hidden = true;
+  $("uitkomst").innerHTML = "";
+  staat.laatsteUitkomst = null;
+}
+
+function dossierOpenen(bestand) {
+  const lezer = new FileReader();
+  lezer.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(String(lezer.result));
+    } catch (e) {
+      zetMeldingen("dossier-meldingen", melding("blokkerend", "Bestand niet leesbaar", "Dit is geen geldig JSON-bestand."));
+      return;
+    }
+    const controle = dossierValideer(data);
+    if (!controle.geldig) {
+      zetMeldingen("dossier-meldingen", melding("blokkerend", "Dossierbestand niet toegepast", "De huidige casus is niet gewijzigd.", controle.fouten));
+      return;
+    }
+    dossierToepassen(data);
+    let meld = melding("goed", "Dossierbestand geopend",
+      `Casus opgeslagen voor rekenjaar ${data.rekenjaar || "onbekend"} met ${data.toolVersie ? esc(data.toolVersie) : "een onbekende toolversie"}. De uitkomst wordt hierboven opnieuw berekend met de huidige tool.`);
+    if (data.toolVersie && data.toolVersie !== VERSIE) {
+      meld += melding("let-op", "Andere toolversie dan bij het opslaan",
+        `Dit bestand is opgeslagen met ${esc(data.toolVersie)}; deze pagina draait ${esc(VERSIE)}. De berekening kan daardoor van de oorspronkelijke uitkomst afwijken.`);
+    }
+    zetMeldingen("dossier-meldingen", meld);
+  };
+  lezer.onerror = () => zetMeldingen("dossier-meldingen", melding("blokkerend", "Lezen is mislukt", "Het bestand kon niet worden gelezen."));
+  lezer.onabort = () => zetMeldingen("dossier-meldingen", melding("blokkerend", "Lezen is afgebroken", "Het inlezen van het bestand is afgebroken."));
+  try {
+    lezer.readAsText(bestand);
+  } catch (e) {
+    zetMeldingen("dossier-meldingen", melding("blokkerend", "Lezen is mislukt", esc(e && e.message ? e.message : String(e))));
+  }
+}
+
 // UITKOMSTKAARTEN — BEGIN
 // Alles hieronder bouwt alleen tekst op. Het DOM wordt pas geraakt in toonUitkomst().
 
@@ -3311,6 +3776,7 @@ function bouwUitkomstHtml(u) {
   html += vergelijkingHtml(u) + onderbouwingHtml(u);
   html += `<div class="knoppen niet-printen" style="margin-top:16px">
     <button type="button" id="btn-csv">Staffel als CSV</button>
+    <button type="button" class="secundair" id="btn-excel">Excel-export</button>
     <button type="button" class="secundair" id="btn-print">Onderbouwing printen</button>
   </div>
   <div id="csv-fallback"></div>`;
@@ -3326,6 +3792,7 @@ function toonUitkomst(u) {
   $("afdrukkop").hidden = kop === "";
   $("uitkomst").innerHTML = bouwUitkomstHtml(u);
   if ($("btn-csv")) $("btn-csv").addEventListener("click", () => exporteerCsv(u));
+  if ($("btn-excel")) $("btn-excel").addEventListener("click", () => exporteerExcel(u));
   if ($("btn-print")) $("btn-print").addEventListener("click", () => window.print());
   if ($("btn-kopieer-plan")) $("btn-kopieer-plan").addEventListener("click", () => kopieerPlan(u));
 }
@@ -3398,6 +3865,127 @@ function exporteerCsv(u) {
     $("csv-fallback").innerHTML =
       `<p class="bron">Opslaan lukte niet in deze browser. Kopieer de tekst hieronder:</p><textarea rows="10"></textarea>`;
     $("csv-fallback").querySelector("textarea").value = csv;
+  }
+}
+
+// Een bevroren resultaatblad, zonder formules: de fiscale logica staat maar op één plek,
+// in de rekenkern hierboven. Dit blok schrijft alleen weg wat die kern al heeft berekend
+// en wat al op het scherm staat; het voegt geen fiscale waarde of conclusie toe.
+function exporteerExcel(u) {
+  const r = u.uitkomst;
+  const laatsteJaar = r.jaren[r.jaren.length - 1].jaar;
+  const periode = u.meerjarig ? `${r.jaren[0].jaar} t/m ${laatsteJaar}` : String(laatsteJaar);
+  const kenmerk = [u.partijen && u.partijen.bv, u.partijen && u.partijen.dga].filter(Boolean).join(" en ");
+  const vandaag = new Date();
+  const datumTekst = fmtDatum(vandaag.toISOString().slice(0, 10));
+
+  const kopBlad = {
+    naam: "Kop",
+    breedtes: [28, 40],
+    rijen: [
+      [celTekst("RC-rente uit mutaties", true)],
+      [celTekst("Versie"), celTekst(VERSIE)],
+      [celTekst("Datum van de export"), celTekst(datumTekst)],
+      [celTekst("Kenmerk"), celTekst(kenmerk || "(niet ingevuld)")],
+      [celTekst("Periode"), celTekst(periode)],
+    ],
+  };
+
+  const invoerRijen = [
+    [celTekst("Invoer", true)],
+    [celTekst("Naam BV"), celTekst(u.partijen && u.partijen.bv || "")],
+    [celTekst("Naam DGA"), celTekst(u.partijen && u.partijen.dga || "")],
+    [celTekst("Beginstand " + r.jaren[0].jaar), celGetal(u.beginstand, "#,##0.00")],
+    [celTekst("Tekenconventie van de bron"),
+      celTekst(u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)")],
+    [celTekst("Eindsaldo volgens de bron"), u.eindsaldoBron === null ? celTekst("") : celGetal(u.eindsaldoBron, "#,##0.00")],
+    [celTekst("Rente per 31-12 bijschrijven"), celTekst(u.bijschrijven ? "ja" : "nee")],
+    [celTekst("Bron"), celTekst(`${u.bron.naam || "geplakte gegevens"} (${u.bron.soort || "klembord"})`)],
+    [celTekst("Aantal mutaties"), celGetal(r.jaren.reduce((n, j) => n + j.staffel.aantalMutaties, 0), "0")],
+    [],
+    [celTekst("Rentepercentage per jaar", true)],
+    [celTekst("Jaar"), celTekst("Vordering BV op DGA (%)"), celTekst("Schuld BV aan DGA (%)")],
+  ];
+  for (const jaar of r.jaren) {
+    const p = u.perJaar[jaar.jaar][0];
+    invoerRijen.push([celGetal(jaar.jaar, "0"), celGetal(p.pctVordering, "0.00"), celGetal(p.pctSchuld, "0.00")]);
+  }
+  const invoerBlad = { naam: "Invoer", breedtes: [30, 26, 26], rijen: invoerRijen };
+
+  const uitkomstRijen = [
+    [celTekst("Uitkomst", true)],
+    [celTekst("Jaar"), celTekst("Stand 1-1"), celTekst("Dagen"), celTekst("Rentebaten BV"),
+      celTekst("Rentelasten BV"), celTekst("Rente per saldo"), celTekst("Stand 31-12")],
+  ];
+  for (const jaar of r.jaren) {
+    const s = jaar.staffel;
+    uitkomstRijen.push([
+      celGetal(jaar.jaar, "0"), celGetal(jaar.beginstand, "#,##0.00"), celGetal(s.noemer, "0"),
+      celGetal(s.renteVorderingBv, "#,##0.00"), celGetal(s.renteSchuldBv, "#,##0.00"),
+      celGetal(s.totaleRente, "#,##0.00"), celGetal(s.eindsaldo, "#,##0.00"),
+    ]);
+  }
+  uitkomstRijen.push([]);
+  uitkomstRijen.push([celTekst("Totaal rentebaten BV"), celGetal(r.renteVorderingBv, "#,##0.00")]);
+  uitkomstRijen.push([celTekst("Totaal rentelasten BV"), celGetal(r.renteSchuldBv, "#,##0.00")]);
+  uitkomstRijen.push([celTekst("Totale rente per saldo"), celGetal(r.totaleRente, "#,##0.00")]);
+  uitkomstRijen.push([celTekst("Eindstand " + laatsteJaar), celGetal(r.eindsaldo, "#,##0.00")]);
+  if (u.bijschrijven) {
+    uitkomstRijen.push([celTekst("Waarvan bijgeschreven rente"), celGetal(r.totaalBijgeschreven, "#,##0.00")]);
+  }
+  uitkomstRijen.push([celTekst("Sluitcontrole"), celTekst(
+    u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"
+  )]);
+  const uitkomstBlad = { naam: "Uitkomst", breedtes: [24, 16, 10, 16, 16, 16, 16], rijen: uitkomstRijen };
+
+  // Dezelfde teksten en vindplaatsen als in de onderbouwing op het scherm, letterlijk
+  // overgenomen: hier komt geen nieuwe fiscale bewering bij.
+  const toelichtingRijen = [
+    [celTekst("Toelichting en vindplaatsen", true)],
+    [celTekst("Rekenregel"), celTekst("Dagrente is saldo × jaarrente / het aantal dagen van dat jaar (actual/actual); de rente wordt per 31 december vastgesteld en binnen het jaar niet samengesteld.")],
+    [celTekst("Tekenconventie"), celTekst("Positief is een vordering van de BV op de DGA, oftewel een schuld van de DGA. De berekening volgt de administratie van de BV.")],
+  ];
+  for (const jaar of r.jaren) {
+    const kleine = toetsKleineStanden(jaar.jaar, jaar.staffel.minSaldo, jaar.staffel.maxSaldo);
+    const excessief = toetsExcessiefLenen(jaar.jaar, jaar.staffel.eindsaldo);
+    toelichtingRijen.push([celTekst(`Goedkeuring kleine standen ${jaar.jaar}`),
+      celTekst(kleine.bekend ? kleine.bron : "geen jaargebonden waarden voor dit jaar")]);
+    if (excessief.bron) {
+      toelichtingRijen.push([celTekst(`Excessief lenen ${jaar.jaar}`), celTekst(excessief.bron)]);
+    }
+  }
+  if (u.uitkomst.renteVorderingBv > 0.005) {
+    toelichtingRijen.push([celTekst("Kwalificatie rente over de vordering van de BV"),
+      celTekst(`${KWALIFICATIE.vorderingBv.kort}. ${KWALIFICATIE.vorderingBv.tekst} Vindplaats: ${KWALIFICATIE.vorderingBv.bron}.`)]);
+  }
+  if (u.uitkomst.renteSchuldBv < -0.005) {
+    toelichtingRijen.push([celTekst("Kwalificatie rente over de schuld van de BV"),
+      celTekst(`${KWALIFICATIE.schuldBv.kort}. ${KWALIFICATIE.schuldBv.tekst} Vindplaats: ${KWALIFICATIE.schuldBv.bron}.`)]);
+  }
+  toelichtingRijen.push([celTekst("Zakelijkheid van het rentepercentage"),
+    celTekst(`${ZAKELIJKHEID.kort} ${ZAKELIJKHEID.kern} Vindplaats: ${ZAKELIJKHEID.bron}. De tool rekent met het percentage dat is ingevuld en beoordeelt de zakelijkheid niet.`)]);
+  toelichtingRijen.push([celTekst("Excessief lenen: signaal, geen conclusie"),
+    celTekst(`Deze tool ziet één rekening-courant. ${EXCESSIEF_LENEN_KRING} Vindplaats: ${EXCESSIEF_LENEN_KRING_BRON}.`)]);
+  toelichtingRijen.push([celTekst("Afbakening"),
+    celTekst("De tool beoordeelt niet of het rentepercentage zakelijk is en stelt de rekening-courantverhouding niet vast; dat is werk van de adviseur.")]);
+  const toelichtingBlad = { naam: "Toelichting", breedtes: [42, 90], rijen: toelichtingRijen };
+
+  const kenmerkSlug = (kenmerk || "dossier").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "dossier";
+  const naam = `rc-rente-${kenmerkSlug}-${vandaag.toISOString().slice(0, 10)}.xlsx`;
+  try {
+    const bytes = xlsxBytes([kopBlad, invoerBlad, uitkomstBlad, toelichtingBlad]);
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = naam;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    $("csv-fallback").innerHTML = melding("blokkerend", "Excel-export is mislukt", esc(e && e.message ? e.message : String(e)));
   }
 }
 
@@ -3650,6 +4238,13 @@ function start() {
   $("jaar").addEventListener("change", () => { if (staat.rijen.length) vulUitgangspunten(); });
 
   $("btn-reken").addEventListener("click", reken);
+
+  $("btn-dossier-opslaan").addEventListener("click", dossierOpslaan);
+  $("btn-dossier-openen").addEventListener("click", () => $("dossier-bestand").click());
+  $("dossier-bestand").addEventListener("change", (e) => {
+    if (e.target.files[0]) dossierOpenen(e.target.files[0]);
+    e.target.value = "";
+  });
 }
 
 start();
