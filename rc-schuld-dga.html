@@ -692,11 +692,30 @@
       flex-shrink: 0;
     }
 
+    /* ── Dossierstuk: alleen op papier zichtbaar ── */
+    #cardDossier { display: none; }
+    #cardDossier .dossier-kop { display: flex; gap: 24px; flex-wrap: wrap; font-size: 12px; margin-bottom: 12px; }
+    #cardDossier table.dossier-invoer { width: 100%; border-collapse: collapse; font-size: 11px; }
+    #cardDossier table.dossier-invoer td { padding: 3px 6px; border-bottom: 1px solid #ddd; vertical-align: top; }
+    #cardDossier table.dossier-invoer td.groep { font-weight: 800; padding-top: 10px; border-bottom: 1px solid #999; }
+    #cardDossier table.dossier-invoer td.waarde { text-align: right; white-space: nowrap; font-weight: 700; }
+    /* De laatste invoerregel is geen totaalregel; hef de algemene tr:last-child-opmaak op. */
+    #cardDossier table.dossier-invoer tr:last-child td { background: none !important; color: inherit !important; font-weight: 400; border-bottom: 1px solid #ddd; }
+    #cardDossier table.dossier-invoer tr:last-child td.waarde { font-weight: 700; }
+    #cardDossier .dossier-noot { font-size: 11px; color: #333; margin-top: 10px; }
+    .stempel { font-size: 10px; color: #555; margin-top: 18px; }
+    .stempel-print { display: none; }
+
     /* ── Print ── */
     @media print {
       header, #cardInvoer, #debugToggle, #cardDebug, #printBtn, #cardLegende,
-      #cardModeToggle, .scenario-pills, .scroll-hint, .tip { display: none !important; }
+      #cardModeToggle, .scenario-pills, .scroll-hint, .tip, .noprint { display: none !important; }
       #printHeader { display: flex !important; }
+      #cardDossier { display: block !important; }
+      .stempel-print { display: block !important; }
+      /* De vaste voetregel met de update-tijd staat in het dossierstuk zelf; op papier zou
+         hij over elke pagina heen vallen. */
+      #lastUpdated { display: none !important; }
       #blokkenGrid { display: grid !important; }
       #cardAdvies, #cardBlok1, #cardBlok2, #cardBlok3, #cardJaarplan { display: block !important; }
 
@@ -1104,7 +1123,7 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <button type="button" id="printBtn" class="scenario-trigger" onclick="printPdf()">Afdrukken / PDF</button>
+      <button type="button" id="printBtn" class="scenario-trigger noprint" onclick="printPdf()">Afdrukken / PDF</button>
     </div>
   </div>
 </header>
@@ -1115,6 +1134,13 @@
   <div id="printDate" style="font-size:12px; color:var(--muted);"></div>
 </div>
 
+<!-- Dossierstuk: alleen op papier. Wordt bij elke berekening gevuld uit dezelfde invoer
+     waarmee solve() heeft gerekend, zodat de afdruk nooit andere invoer toont dan de uitkomst. -->
+<div id="cardDossier" class="card">
+  <div class="card-title">Dossierstuk</div>
+  <div id="dossierInhoud"></div>
+</div>
+
 <!-- ═══════════════════════ 1. INVOER ═══════════════════════ -->
 <div class="section-head" id="secInvoer">
   <h2>1 · Invoer</h2>
@@ -1122,6 +1148,17 @@
 </div>
 
 <div id="cardInvoer" class="card">
+
+  <div class="input-group">
+    <div class="input-group-title">Dossier</div>
+    <div class="input-grid">
+      <div>
+        <label for="kenmerk">Klantnaam of kenmerk</label>
+        <input id="kenmerk" type="text" value="" maxlength="120" placeholder="bijvoorbeeld dossiernummer" autocomplete="off" />
+        <div class="field-hint">Komt alleen op de afdruk. De tool bewaart niets en verstuurt niets.</div>
+      </div>
+    </div>
+  </div>
 
   <div class="input-group">
     <div class="input-group-title">Situatie</div>
@@ -1321,12 +1358,12 @@
     </div>
   </details>
 
-  <div style="margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+  <div class="noprint" style="margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
     <button type="button" id="btnBereken" onclick="calculate()">Bereken</button>
     <span id="calcStatus" style="font-size:11.5px; color:var(--muted);"></span>
   </div>
 
-  <div class="scenario-pills">
+  <div class="scenario-pills noprint">
     <span class="pill-label">Testscenario's:</span>
     <button type="button" class="pill-btn" onclick="loadScenario('klein')">Klein &amp; snel</button>
     <button type="button" class="pill-btn" onclick="loadScenario('middel')">Middel</button>
@@ -1432,7 +1469,7 @@
   <div class="field-hint">Mutatie van de schuld: een toename is positief, een aflossing negatief.
     Het dividend is exclusief de afrekening zelf.</div>
 
-  <div style="margin-top:14px;">
+  <div class="noprint" style="margin-top:14px;">
     <button type="button" class="pill-btn" onclick="berekenAfrekening()">Reeks doorrekenen</button>
     <button type="button" class="pill-btn" onclick="afrekeningVoorbeeld()">Voorbeeld invullen</button>
   </div>
@@ -1499,9 +1536,10 @@
 <div class="card" id="cardAannames" style="display:none;">
   <div class="card-title">Gebruikte aannames en tarieven</div>
   <div id="aannames"></div>
+  <div class="stempel stempel-print" id="stempelAannames"></div>
 </div>
 
-<div style="text-align:center; margin-bottom: 16px;">
+<div class="noprint" style="text-align:center; margin-bottom: 16px;">
   <button type="button" id="debugToggle" onclick="toggleDebug()" style="background:transparent; border:1px solid var(--border); color:var(--muted); font-size:11px; font-weight:600; padding:6px 14px; letter-spacing:0.4px; box-shadow:none; text-transform:uppercase;">
     Toon controle-informatie
   </button>
@@ -5040,6 +5078,8 @@ function renderAannames(res) {
     'Art. 2.12 Wet IB 2001 (tarief en eerste schijf box 2) · art. 2.17 Wet IB 2001 (gemeenschappelijk inkomensbestanddeel en vrije toerekening tussen fiscale partners) · ' +
     'art. 9.2 en 9.4 Wet IB 2001 (dividendbelasting als voorheffing en verrekening) · art. 5 en 7 Wet DB 1965 (tarief 15%, inhoudingsplicht en afdracht op aangifte) · ' +
     'art. 19 AWR (afdracht binnen één maand na terbeschikkingstelling) · art. 4.13 lid 1 onderdeel f en art. 4.14a t/m 4.14d Wet IB 2001 (Wet excessief lenen; basisdrempel € 500.000 vanaf 2024, gezamenlijk met de fiscale partner, peildatum 31 december) · ' +
+    'art. 4.49 Wet IB 2001 (verrekening van verlies uit aanmerkelijk belang met het voorafgaande en de zes volgende jaren) · ' +
+    'art. 10.1 Wet IB 2001 (jaarlijkse indexering van de eerste schijf) · art. 22 Wet Vpb 1969 (Vpb-tarieven 19% en 25,8%, alleen gebruikt in de kaart Economische vergelijking) · ' +
     'art. 2:216 BW (balanstest, goedkeuring bestuur, uitkeringstest en aansprakelijkheid) · art. 6:127 BW (verrekening). ' +
     'Deze tool is geen fiscaal advies.' +
     '</p>';
@@ -5077,6 +5117,13 @@ function calculate() {
   updateBracketDisplay();
   var res = solve(readInputs());
   LAST_RESULT = res;
+  var invoer = verzamelInvoer();
+  LAST_INVOER = {
+    rijen: invoer,
+    sleutel: invoerSleutel(invoer),
+    moment: new Date().toLocaleString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  };
+  renderDossier(res);
 
   var show = function (id) { var e = el(id); if (e) e.style.display = ''; };
   var hide = function (id) { var e = el(id); if (e) e.style.display = 'none'; };
@@ -5143,10 +5190,157 @@ function setMode(mode) {
   el('cardAannames').style.display = '';
 }
 
+// ─── dossierstuk ────────────────────────────────────────────────────────────
+/* De afdruk is het dossierstuk (skill tool-uitgangen, paragraaf 1). Er is geen aparte
+   afdrukpagina: de uitkomstkaarten zijn dezelfde als op het scherm, en het blok
+   #cardDossier voegt daar alleen het kenmerk, de volledige invoer en de versiestempel aan
+   toe. De invoer wordt vastgelegd op het moment van rekenen (calculate), niet op het
+   moment van afdrukken, zodat invoer en uitkomst op papier altijd bij elkaar horen.
+
+   TOOL_VERSIE verhoog je bij elke wijziging die een uitkomst of de afdruk verandert; de
+   vrijgavenotitie van die dag noemt het nummer. */
+var TOOL_VERSIE = '2026.09.27';
+var LAST_INVOER = null;
+
+function veldLabel(veld) {
+  var lab = document.querySelector('label[for="' + veld.id + '"]');
+  if (!lab) return veld.id;
+  var kopie = lab.cloneNode(true);
+  var tips = kopie.querySelectorAll('.tip');
+  for (var i = 0; i < tips.length; i++) tips[i].parentNode.removeChild(tips[i]);
+  return kopie.textContent.replace(/\s+/g, ' ').trim();
+}
+
+function veldWaarde(veld, label) {
+  if (veld.type === 'checkbox') return veld.checked ? 'ja' : 'nee';
+  if (veld.tagName === 'SELECT') {
+    var opt = veld.options[veld.selectedIndex];
+    return opt ? opt.text : '';
+  }
+  var ruw = String(veld.value).trim();
+  if (ruw === '') return veld.id === 'distributable' ? 'leeg — niet beperkend' : 'leeg';
+  var n = Number(ruw);
+  if (!isFinite(n)) return ruw;
+  var getal = new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+  if (/%/.test(label)) return getal + '%';
+  if (veld.id === 'maxYears') return getal + ' jaar';
+  return '€ ' + getal;
+}
+
+/** Leest alle invoervelden van de routeberekening met hun schermlabel, per groep.
+    Het kenmerk en het afgeleide veld "Beschikbare eerste schijf" horen er niet bij. */
+function verzamelInvoer() {
+  var groepen = el('cardInvoer').querySelectorAll('.input-group');
+  var rijen = [];
+  for (var g = 0; g < groepen.length; g++) {
+    var titel = groepen[g].querySelector('.input-group-title');
+    var velden = groepen[g].querySelectorAll('input[id], select[id]');
+    var groepRijen = [];
+    for (var v = 0; v < velden.length; v++) {
+      var veld = velden[v];
+      if (veld.id === 'kenmerk' || veld.readOnly) continue;
+      var label = veldLabel(veld);
+      groepRijen.push({ id: veld.id, label: label, waarde: veldWaarde(veld, label),
+                        ruw: veld.type === 'checkbox' ? String(veld.checked) : String(veld.value) });
+    }
+    if (groepRijen.length) rijen.push({ groep: titel ? titel.textContent.trim() : '', velden: groepRijen });
+  }
+  return rijen;
+}
+
+function invoerSleutel(invoer) {
+  var delen = [];
+  for (var g = 0; g < invoer.length; g++) {
+    for (var v = 0; v < invoer[g].velden.length; v++) {
+      delen.push(invoer[g].velden[v].id + '=' + invoer[g].velden[v].ruw);
+    }
+  }
+  return delen.join('|');
+}
+
+function htmlTekst(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Tariefvelden die de gebruiker heeft overschreven, tegenover het gekozen belastingjaar. */
+function afwijkendeTarieven(res) {
+  if (!res || !res.input || !res.input.config) return [];
+  var cfg = res.input.config, inp = res.input, uit = [];
+  var paren = [
+    ['Laag box 2-tarief', inp.lowRate, cfg.box2LowRate, pctRaw],
+    ['Hoog box 2-tarief', inp.highRate, cfg.box2HighRate, pctRaw],
+    ['Eerste schijf per persoon', inp.bracketPerPerson, cfg.box2LowBracket, euro],
+    ['Dividendbelasting', inp.dividendTaxRate, cfg.dividendTaxRate, pctRaw],
+    ['Basisdrempel excessief lenen', inp.excessiveMax, cfg.excessiveLoanMaxAmount, euro]
+  ];
+  for (var i = 0; i < paren.length; i++) {
+    if (Math.abs(paren[i][1] - paren[i][2]) > 1e-9) {
+      uit.push(paren[i][0] + ': ingevuld ' + paren[i][3](paren[i][1]) + ', belastingjaar ' + paren[i][3](paren[i][2]));
+    }
+  }
+  return uit;
+}
+
+function versieTekst() {
+  var voet = el('lastUpdated');
+  var update = voet ? voet.textContent.replace(/\s+/g, ' ').trim() : '';
+  return 'RC-schuld DGA, versie ' + TOOL_VERSIE + (update ? ' · ' + update : '');
+}
+
+function renderDossier(res) {
+  if (!LAST_INVOER) return;
+  var inv = LAST_INVOER;
+  var kenmerk = String(val('kenmerk')).trim();
+  var html = '<div class="dossier-kop">' +
+    '<span><strong>Klantnaam of kenmerk:</strong> ' + (kenmerk ? htmlTekst(kenmerk) : 'niet ingevuld') + '</span>' +
+    '<span><strong>Berekend op:</strong> ' + htmlTekst(inv.moment) + '</span>' +
+    '<span><strong>Toolversie:</strong> ' + htmlTekst(TOOL_VERSIE) + '</span>' +
+    '</div>';
+  html += '<div class="block-title">Invoer van deze berekening</div>';
+  html += '<table class="dossier-invoer"><tbody>';
+  for (var g = 0; g < inv.rijen.length; g++) {
+    html += '<tr><td class="groep" colspan="2">' + htmlTekst(inv.rijen[g].groep) + '</td></tr>';
+    for (var v = 0; v < inv.rijen[g].velden.length; v++) {
+      var f = inv.rijen[g].velden[v];
+      html += '<tr><td>' + htmlTekst(f.label) + '</td><td class="waarde">' + htmlTekst(f.waarde) + '</td></tr>';
+    }
+  }
+  html += '</tbody></table>';
+  var afw = afwijkendeTarieven(res);
+  if (afw.length) {
+    html += signal('warn', '<strong>Tarieven handmatig overschreven.</strong> Deze berekening wijkt af van de ' +
+      'vastgestelde waarden van het belastingjaar:<br>' + afw.map(htmlTekst).join('<br>'));
+  }
+  if (res && res.input && res.input.config) {
+    html += '<p class="dossier-noot"><strong>Vindplaats tarieven belastingjaar:</strong> ' +
+      htmlTekst(res.input.config.note) + '</p>';
+  }
+  html += '<p class="dossier-noot">Hierna volgen de uitkomst en de tussenstappen zoals op het scherm. De kaart ' +
+    '"Gebruikte aannames en tarieven" aan het eind noemt de bronnen van de fiscale waarden en wat de tool ' +
+    'niet doorrekent. De kaart "Afrekenen over excessief lenen" is een losse berekening met eigen invoer ' +
+    'en hoort niet bij deze routevergelijking. Deze tool is geen fiscaal advies.</p>';
+  el('dossierInhoud').innerHTML = html;
+  el('stempelAannames').textContent = versieTekst() + ' · kenmerk: ' + (kenmerk || 'niet ingevuld') +
+    ' · berekend op ' + inv.moment;
+}
+
+function huidigeModus() {
+  return el('btnModeNodig').classList.contains('active') ? 'nodig' : 'kosten';
+}
+
 function printPdf() {
+  // Is de invoer na de laatste berekening gewijzigd, dan eerst opnieuw rekenen: anders
+  // staat er invoer op papier die niet bij de uitkomst hoort. De gekozen weergave blijft.
+  if (!LAST_INVOER || invoerSleutel(verzamelInvoer()) !== LAST_INVOER.sleutel) {
+    var modus = huidigeModus();
+    calculate();
+    if (LAST_RESULT && LAST_RESULT.ok) setMode(modus);
+  }
+  renderDossier(LAST_RESULT);
   var now = new Date();
   el('printDate').textContent = 'Afgedrukt op ' +
-    now.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+    now.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }) +
+    ' · versie ' + TOOL_VERSIE;
   window.print();
 }
 
@@ -5176,6 +5370,6 @@ function toggleDebug() {
 })();
 </script>
 </div><!-- .content -->
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 18 sep 2026, 23:36</div>
+<div id="lastUpdated" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 00:17</div>
 </body>
 </html>
