@@ -1412,7 +1412,7 @@ function pensioendekking(s) {
  * nodig.
  *
  * Modelkeuzes zonder eigen bron (update-bram-dividend-uitkeringstoets.md, §4, M16 tot en
- * met M21):
+ * met M22):
  * - M16 de toets op het werkkapitaal: vlottende activa min kortlopende schulden na de
  *   uitkering, op beide momenten niet negatief. Een tekort geeft oranje, nooit rood.
  * - M17 de roodgrens: rood alleen als de liquide middelen op de peildatum de uitkering
@@ -1425,6 +1425,14 @@ function pensioendekking(s) {
  * - M20 verwachte liquide middelen die na de uitkering negatief zijn, geven oranje.
  * - M21 een balans die niet sluit blokkeert; een ratio zonder kortlopende schulden is
  *   niet van toepassing (het DK-model deelde dan door 1).
+ * - M22 verwacht verlies: is het eigen vermogen na de uitkering op de verwachte balans
+ *   lager dan op de peildatum, dan is dat een signaal (oranje, nooit rood). Aanleiding is
+ *   het voorbeeld in NBA-handreiking 1133, p. 8, van een onderneming die steeds
+ *   winstgevend is; dat is een voorbeeld en geen voorwaarde, en de tool vraagt niet naar
+ *   winstgevendheid maar leidt het signaal uit de twee balansen af. Het verschil hoeft
+ *   geen verlies te zijn: een andere uitkering of een kapitaalterugbetaling in de periode
+ *   verlaagt het eigen vermogen ook, en een kapitaalstorting kan een verlies juist
+ *   verbergen. De melding zegt dat.
  */
 const DK_NORM = { solvabiliteit: 0.20, current: 1, quick: 1 };   // interne DK-norm, geen wettelijke eis
 const BALANS_ACTIEF = ['vasteActiva', 'voorraden', 'vorderingen', 'liquide'];
@@ -1486,6 +1494,8 @@ function balansroute(s) {
     verwachtLiquideNegatief: verwacht.liquideNa < 0,                           // M20
     bevestigd: bevestigd,
     normSignaal: onderNorm(peil) || onderNorm(verwacht),                        // M18
+    verwachtVerlies: verwacht.evNa < peil.evNa,                                 // M22
+    evDaling: peil.evNa - verwacht.evNa,
     // Alleen de roodgrens beslist over rood; al het andere is een indicator.
     geslaagd: s.dividend > 0 && dekkingPeil
   };
@@ -1750,6 +1760,10 @@ function valideerBalansroute(s, br, fouten, punten) {
       punten.push('Op ' + naam + ' ligt ' + onder.join(' en ') + ' na de uitkering onder de interne DK-norm. Die norm is geen wettelijke eis: de wet en de parlementaire geschiedenis noemen geen getal, en het bestuur mag de goedkeuring alleen weigeren als het een betalingsprobleem weet of redelijkerwijs behoort te voorzien (art. 2:216 lid 2 BW). Beoordeel en leg vast waarom de uitkering desondanks verantwoord is.');
     }
   });
+  // M22: een signaal, geen voorwaarde; daarom oranje en nooit rood.
+  if (br.verwachtVerlies) {
+    punten.push('Het eigen vermogen na de uitkering is op de verwachte balans ' + eur(br.evDaling) + ' lager dan op de peildatum (' + eur(br.verwacht.evNa) + ' tegenover ' + eur(br.peil.evNa) + '). Dat wijst op een verwacht verlies in de periode. Het verschil kan ook een andere oorzaak hebben, zoals een andere uitkering of een kapitaalterugbetaling; een kapitaalstorting kan een verlies juist verbergen. Het voorbeeld in NBA-handreiking 1133, p. 8, van een geval waarin het bestuur zonder prognose voldoende inzicht kan hebben, gaat uit van een onderneming die steeds winstgevend is. Dit signaal is een modelkeuze van de tool en geen wettelijke grens. Leg vast waardoor het eigen vermogen daalt en waarom de uitkering desondanks verantwoord is.');
+  }
   if (!s.bvGeenSignalen) {
     punten.push('Niet bevestigd is dat er geen signalen zijn van betalingsproblemen, zoals achterstanden bij crediteuren of de Belastingdienst, een overschreden kredietlimiet of een schuldeiser die op betaling aandringt. Voldoende eigen vermogen is alleen een sterke aanwijzing als geen specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71; NBA-handreiking 1133, p. 8). ' + ADVIES_PROGNOSE);
   }
@@ -2288,9 +2302,12 @@ function renderBalansroute(s, br) {
     html = '<strong>Balans alleen niet voldoende.</strong> De liquide middelen dekken de uitkering op de peildatum, maar '
       + (!br.bevestigd ? 'niet beide bevestigingen zijn gegeven' : (br.periodeKort ? 'de verwachte balans ligt te kort na de betaalbaarstelling' : 'het werkkapitaal of de liquide middelen worden na de uitkering negatief'))
       + '. ' + ADVIES_PROGNOSE;
-  } else if (br.normSignaal) {
+  } else if (br.normSignaal || br.verwachtVerlies) {
+    const wat = [];
+    if (br.normSignaal) wat.push('een kengetal ligt onder de interne DK-norm');
+    if (br.verwachtVerlies) wat.push('het eigen vermogen is op de verwachte balans ' + eur(br.evDaling) + ' lager dan op de peildatum');
     cls = 'amber'; icon = '!';
-    html = '<strong>Balanstoets doorstaan, met een signaal.</strong> Het werkkapitaal blijft op beide momenten positief, maar een kengetal ligt onder de interne DK-norm. Dat is geen wettelijke eis en op zichzelf geen reden om de goedkeuring te weigeren; leg vast waarom de uitkering verantwoord is.';
+    html = '<strong>Balanstoets doorstaan, met een signaal.</strong> Het werkkapitaal blijft op beide momenten positief, maar ' + wat.join(' en ') + '. Een wettelijke eis is dat niet, en het is op zichzelf geen reden om de goedkeuring te weigeren; leg vast waarom de uitkering verantwoord is.';
   } else {
     cls = 'ok'; icon = '✓';
     html = '<strong>Balanstoets doorstaan.</strong> De liquide middelen dekken de uitkering op de peildatum, het werkkapitaal blijft op beide momenten positief en de kengetallen liggen op of boven de interne DK-norm. Met de twee bevestigingen kan een maandprognose achterwege blijven (NBA-handreiking 1133, p. 8). Het oordeel blijft aan het bestuur.';
@@ -2402,7 +2419,7 @@ function renderConclusie(s, bt, lp, v, status, br) {
           ? 'doorstaan — uitkeringsruimte ' + eur(bt.ruimte) + ', na uitkering resteert ' + eur(bt.restRuimte) + '.'
           : 'niet doorstaan — maximaal uitkeerbaar ' + eur(bt.maxUitkering) + '.')) },
     s.route === 'balans'
-      ? { ok: !br.dekkingPeil ? false : (br.werkkapitaalOk && !br.verwachtLiquideNegatief && br.bevestigd && !br.periodeKort && !br.normSignaal ? true : null),
+      ? { ok: !br.dekkingPeil ? false : (br.werkkapitaalOk && !br.verwachtLiquideNegatief && br.bevestigd && !br.periodeKort && !br.normSignaal && !br.verwachtVerlies ? true : null),
           txt: '<strong>Balansen (art. 2:216 lid 2 BW):</strong> ' + (!br.dekkingPeil
             ? 'de liquide middelen op de peildatum (' + eur(s.balansPeil.liquide) + ') dekken de uitkering niet.'
             : 'liquide middelen dekken de uitkering op de peildatum; werkkapitaal na de uitkering ' + eur(br.peil.werkkapitaal) + ' op de peildatum en ' + eur(br.verwacht.werkkapitaal) + ' op de verwachte balans.') }
@@ -2838,6 +2855,7 @@ function balansrouteRegels(s, br) {
   const signalen = [];
   if (br.normSignaal) signalen.push('een kengetal ligt onder de interne DK-norm');
   if (br.peil.evNa < 0 || br.verwacht.evNa < 0) signalen.push('het eigen vermogen is na de uitkering negatief');
+  if (br.verwachtVerlies) signalen.push('het eigen vermogen is op de verwachte balans ' + eurD(br.evDaling) + ' lager dan op de peildatum, wat op een verwacht verlies kan wijzen');
   let slot;
   if (voorwaarden.length > 0) {
     slot = 'Niet aan alle voorwaarden is voldaan om de goedkeuring op deze balansen te laten steunen: ' + voorwaarden.join('; ') + '. Voldoende eigen vermogen is een sterke aanwijzing dat de vennootschap haar opeisbare schulden kan blijven betalen, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71), en ook de verplichtingen in de periode moeten in het oordeel zijn betrokken (idem). Het bestuur legt hieronder vast hoe het de liquiditeit alsnog heeft beoordeeld, bij voorkeur met een maandelijkse liquiditeitsprognose. Zonder die beoordeling wordt de goedkeuring niet verleend.';
@@ -3539,7 +3557,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 16:57</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 17:34</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
