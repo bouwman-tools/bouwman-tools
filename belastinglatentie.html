@@ -31,6 +31,7 @@
   label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .25rem; }
   .hint { font-weight: 400; color: var(--gedempt); font-size: .82rem; display: block; margin-top: .15rem; }
   .veld .hint { margin-top: .35rem; }
+  .hint.fout { color: var(--fout); }
   /* De eenheid hoort naast het veld te blijven staan. Een invoerveld is 100% breed, dus
      een los teken erachter valt op een eigen regel; deze rij houdt ze bij elkaar. */
   .met-eenheid { display: flex; align-items: center; gap: .45rem; }
@@ -126,6 +127,15 @@
         <span class="hint">
           Komt boven aan het dossierstuk. De tool bewaart niets en verstuurt niets; wat u
           hier invult blijft in dit browservenster.
+        </span>
+      </div>
+      <div class="veld">
+        <button type="button" class="licht" id="dossier-opslaan">Dossier opslaan</button>
+        <button type="button" class="licht" id="dossier-openen">Dossier openen</button>
+        <input type="file" id="dossier-bestand" accept="application/json,.json" hidden>
+        <span class="hint" id="dossier-status">
+          Opslaan bewaart alle ingevulde velden in een JSON-bestand op deze computer.
+          Openen leest zo'n bestand weer in.
         </span>
       </div>
     </fieldset>
@@ -1418,6 +1428,215 @@ function leesInvoer() {
     },
   };
 }
+
+// DOSSIERBESTAND — BEGIN
+//
+// Een heropenbaar bestand met alle ingevulde velden, zodat een casus later zonder
+// overtypen kan worden hervat of gecontroleerd. Skill tool-uitgangen, paragraaf 3.
+const DOSSIER_VERSIE = 1;
+const TOOL_ID = 'belastinglatentie';
+
+// Number(true), Number([]) en Number(' ') leveren anders stil 1, 0 en 0 op; dat is
+// precies de stille aanname die hier niet mag. Daarom wordt uitsluitend het type van de
+// ingelezen JSON-waarde getoetst, nooit een Number()-omzetting van onbekende invoer.
+function isGetal(w) {
+  return typeof w === 'number' && Number.isFinite(w);
+}
+function isBedrag(w) {
+  return isGetal(w) && w >= 0;
+}
+function isGeheelGetal(w) {
+  return isGetal(w) && Number.isInteger(w);
+}
+
+function bestandsnaamDossier() {
+  const kenmerk = document.getElementById('kenmerk').value.trim();
+  const stam = kenmerk ? kenmerk.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') : 'zonder-kenmerk';
+  return 'belastinglatentie-' + (stam || 'zonder-kenmerk') + '-' +
+    new Date().toISOString().slice(0, 10) + '.json';
+}
+
+function bewaarDossierBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = naam;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+/** Alle veldwaarden zoals ze in het formulier staan, ongedeeld door honderd en met de
+ *  ruwe checkboxstatus erbij: dit is wat het dossierbestand bewaart en teruglegt. */
+function huidigeInvoerVoorDossier() {
+  return {
+    kenmerk: document.getElementById('kenmerk').value,
+    tariefmodus: document.querySelector('input[name=tariefmodus]:checked').value,
+    tariefAfschrijving: parseFloat(document.getElementById('tarief-afschrijving').value),
+    tariefUitgesteld: parseFloat(document.getElementById('tarief-uitgesteld').value),
+    modusMiddel: document.getElementById('modus-middel').value,
+    modusJaar: parseInt(document.getElementById('modus-jaar').value, 10),
+    modusInkomen: parseFloat(document.getElementById('modus-inkomen').value),
+    modusAfwijkend: document.getElementById('modus-afwijkend').checked,
+    modusInkomenVrijval: parseFloat(document.getElementById('modus-inkomen-vrijval').value),
+    modusGroep: document.getElementById('modus-groep').value,
+    modusMkb: document.getElementById('modus-mkb').checked,
+    disconteringsvoet: parseFloat(document.getElementById('disconteringsvoet').value),
+    grondslag: document.querySelector('input[name=grondslag]:checked').value,
+    posten: Array.from(postenVak.children).map(vak => ({
+      bedrag: parseFloat(vak.querySelector('.bedrag-in').value),
+      termijn: parseFloat(vak.querySelector('.termijn-in').value),
+      soort: vak.querySelector('.soort-in').value,
+    })),
+    nietBedrag: parseFloat(document.getElementById('niet-bedrag').value),
+    nietJaar: parseFloat(document.getElementById('niet-jaar').value),
+  };
+}
+
+function dossierUitInvoer() {
+  return {
+    tool: TOOL_ID,
+    toolVersie: TOOL_VERSIE,
+    dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: new Date().toISOString(),
+    invoer: huidigeInvoerVoorDossier(),
+  };
+}
+
+/** Toetst één post uit het dossierbestand. Geeft een foutmelding terug, of niets bij een
+ *  geldige post. */
+function fouteInPost(post, i) {
+  if (post === null || typeof post !== 'object') return 'post ' + (i + 1) + ': geen geldig object';
+  if (!isBedrag(post.bedrag)) return 'post ' + (i + 1) + ': geen geldig bedrag';
+  if (!isBedrag(post.termijn)) return 'post ' + (i + 1) + ': geen geldige termijn';
+  if (post.soort !== 'goodwill' && post.soort !== 'overig') return 'post ' + (i + 1) + ': onbekende soort';
+  return undefined;
+}
+
+/** Valideert de ruwe JSON uit het dossierbestand veld voor veld en geeft ofwel een
+ *  bruikbaar invoerobject terug, ofwel een lijst met fouten. Faalt op elke waarde die
+ *  niet het type heeft dat het veld vereist: een boolean, een array of een lege string
+ *  in een getalveld telt hier als fout en niet als 0 of 1. */
+function leesDossier(tekst) {
+  const fouten = [];
+  let ruw;
+  try {
+    ruw = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fouten: ['het bestand bevat geen geldige JSON'] };
+  }
+  if (ruw === null || typeof ruw !== 'object') {
+    return { ok: false, fouten: ['het bestand bevat geen dossierobject'] };
+  }
+  if (ruw.tool !== TOOL_ID) {
+    return { ok: false, fouten: ['dit bestand komt niet van de tool belastinglatentie'] };
+  }
+  if (!isGeheelGetal(ruw.dossierVersie) || ruw.dossierVersie < 1 || ruw.dossierVersie > DOSSIER_VERSIE) {
+    return { ok: false, fouten: ['de dossierversie van het bestand wordt niet ondersteund'] };
+  }
+  const inv = ruw.invoer;
+  if (inv === null || typeof inv !== 'object') {
+    return { ok: false, fouten: ['het bestand bevat geen invoer'] };
+  }
+
+  if (typeof inv.kenmerk !== 'string') fouten.push('kenmerk: geen tekst');
+  if (inv.tariefmodus !== 'perJaar' && inv.tariefmodus !== 'vast') fouten.push('tariefmodus: onbekende waarde');
+  if (!isBedrag(inv.tariefAfschrijving)) fouten.push('tarief afschrijving: geen geldig percentage');
+  if (!isBedrag(inv.tariefUitgesteld)) fouten.push('tarief uitgestelde heffing: geen geldig percentage');
+  if (inv.modusMiddel !== 'ib' && inv.modusMiddel !== 'vpb') fouten.push('belastingmiddel: onbekende waarde');
+  if (!isGeheelGetal(inv.modusJaar)) fouten.push('jaar van de tarieven: geen geldig jaar');
+  if (!isBedrag(inv.modusInkomen)) fouten.push('verwacht inkomen: geen geldig bedrag');
+  if (typeof inv.modusAfwijkend !== 'boolean') fouten.push('afwijkend inkomen in het vrijvaljaar: geen ja/nee');
+  if (!isBedrag(inv.modusInkomenVrijval)) fouten.push('verwacht inkomen in het vrijvaljaar: geen geldig bedrag');
+  if (typeof inv.modusGroep !== 'string') fouten.push('positie van de belastingplichtige: onbekende waarde');
+  if (typeof inv.modusMkb !== 'boolean') fouten.push('mkb-winstvrijstelling: geen ja/nee');
+  if (!isBedrag(inv.disconteringsvoet)) fouten.push('disconteringsvoet: geen geldig percentage');
+  if (inv.grondslag !== 'netto' && inv.grondslag !== 'direct') fouten.push('grondslag: onbekende waarde');
+  if (!isBedrag(inv.nietBedrag)) fouten.push('niet-afschrijfbare meerwaarde: geen geldig bedrag');
+  if (!isBedrag(inv.nietJaar)) fouten.push('niet-afschrijfbare meerwaarde, jaar: geen geldig aantal jaren');
+  if (!Array.isArray(inv.posten) || inv.posten.length === 0) {
+    fouten.push('afschrijfbare meerwaarden: geen postenlijst');
+  } else {
+    inv.posten.forEach((post, i) => {
+      const fout = fouteInPost(post, i);
+      if (fout) fouten.push(fout);
+    });
+  }
+
+  if (fouten.length) return { ok: false, fouten };
+  return { ok: true, invoer: inv };
+}
+
+function zetInvoerUitDossier(inv) {
+  document.getElementById('kenmerk').value = inv.kenmerk;
+  document.getElementById(inv.tariefmodus === 'perJaar' ? 'modus-perjaar' : 'modus-vast').checked = true;
+  document.getElementById('tarief-afschrijving').value = inv.tariefAfschrijving;
+  document.getElementById('tarief-uitgesteld').value = inv.tariefUitgesteld;
+  document.getElementById('modus-middel').value = inv.modusMiddel;
+  document.getElementById('modus-jaar').value = inv.modusJaar;
+  document.getElementById('modus-inkomen').value = inv.modusInkomen;
+  document.getElementById('modus-afwijkend').checked = inv.modusAfwijkend;
+  document.getElementById('modus-inkomen-vrijval').value = inv.modusInkomenVrijval;
+  document.getElementById('modus-groep').value = inv.modusGroep;
+  document.getElementById('modus-mkb').checked = inv.modusMkb;
+  document.getElementById('disconteringsvoet').value = inv.disconteringsvoet;
+  document.getElementById(inv.grondslag === 'netto' ? 'grondslag-netto' : 'grondslag-direct').checked = true;
+  document.getElementById('niet-bedrag').value = inv.nietBedrag;
+  document.getElementById('niet-jaar').value = inv.nietJaar;
+
+  while (postenVak.firstChild) postenVak.removeChild(postenVak.firstChild);
+  inv.posten.forEach(post => voegPostToe(post.bedrag, post.termijn, post.soort));
+
+  toonTariefmodus();
+  toonKenmerk();
+}
+
+function dossierMelding(tekst, isFout) {
+  const plek = document.getElementById('dossier-status');
+  plek.textContent = tekst;
+  plek.classList.toggle('fout', !!isFout);
+}
+
+document.getElementById('dossier-opslaan').addEventListener('click', () => {
+  const dossier = dossierUitInvoer();
+  bewaarDossierBestand(new TextEncoder().encode(JSON.stringify(dossier, null, 2)), bestandsnaamDossier(), 'application/json');
+  dossierMelding('Dossier opgeslagen als ' + bestandsnaamDossier() + '.');
+});
+
+document.getElementById('dossier-openen').addEventListener('click', () => {
+  document.getElementById('dossier-bestand').click();
+});
+
+// Drie manieren waarop het lezen kan mislukken en die alle drie moeten worden afgevangen:
+// een leesfout (onerror), een afgebroken lezing (onabort) en een uitzondering die
+// readAsText zelf gooit, bijvoorbeeld wanneer de browser het bestand weigert.
+document.getElementById('dossier-bestand').addEventListener('change', gebeurtenis => {
+  const bestand = gebeurtenis.target.files && gebeurtenis.target.files[0];
+  gebeurtenis.target.value = '';
+  if (!bestand) return;
+
+  const mislukt = reden => dossierMelding('Het dossier is niet ingelezen: ' + reden + '.', true);
+
+  try {
+    const lezer = new FileReader();
+    lezer.onload = () => {
+      const uitslag = leesDossier(String(lezer.result));
+      if (!uitslag.ok) {
+        mislukt('het bestand voldoet niet aan het dossierformaat (' + uitslag.fouten.join('; ') + ')');
+        return;
+      }
+      zetInvoerUitDossier(uitslag.invoer);
+      dossierMelding('Dossier ingelezen uit ' + bestand.name + '. Klik op Berekenen om de uitkomst te zien.');
+    };
+    lezer.onerror = () => mislukt('er trad een leesfout op');
+    lezer.onabort = () => mislukt('het lezen is afgebroken');
+    lezer.readAsText(bestand);
+  } catch (e) {
+    mislukt('de browser weigerde het lezen');
+  }
+});
+// DOSSIERBESTAND — EINDE
 
 /** Toont de velden die bij de gekozen tariefmodus horen en past de toelichting bij de
  *  disconteringsvoet daarop aan. */
