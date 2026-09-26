@@ -1018,6 +1018,85 @@ async function rdwFetch(endpoint, kenteken, limit = 1) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// RDW-VERTALING — BEGIN
+// Pure vertaling van de brandstofregels van dataset 8ys7-d773 naar energiesoort,
+// CO2 en verbruik. Geen DOM-toegang, zodat dit apart met een synthetische RDW-
+// respons te testen is (tests/laad-rdw-vertaling.mjs).
+function rdwRijIsElektrisch(r) {
+  return String(r?.brandstof_omschrijving || r?.brandstofsoort || '').toLowerCase().includes('elektr');
+}
+function rdwRijIsWaterstof(r) {
+  return String(r?.brandstof_omschrijving || r?.brandstofsoort || '').toLowerCase().includes('waterstof');
+}
+
+function interpreteerBrandstofData(brandstofData) {
+  const rijen = brandstofData || [];
+  const soorten = rijen
+    .map(r => String(r.brandstof_omschrijving || r.brandstofsoort || '').trim())
+    .filter(Boolean);
+  const brandstofTekst = soorten.join(' + ');
+  const heeftStroom    = soorten.some(x => x.toLowerCase().includes('elektr'));
+  const heeftWaterstof = soorten.some(x => x.toLowerCase().includes('waterstof'));
+  const heeftMotor     = soorten.some(x => !x.toLowerCase().includes('elektr')
+                                        && !x.toLowerCase().includes('waterstof'));
+  const energiesoort = heeftWaterstof ? 'waterstof'
+    : (heeftStroom && heeftMotor) ? 'hybride'
+    : heeftStroom ? 'elektrisch'
+    : 'brandstof';
+
+  // De brandstofmotor op soort zoeken, niet op volgnummer: bij sommige
+  // plug-in hybrides zet de RDW Elektriciteit op volgnummer 1 en de
+  // brandstofmotor op 2 (gemeten op een Ford Kuga, eerste toelating
+  // januari 2026, en bevestigd op een tweede kenteken uit de open data;
+  // kentekens staan bewust niet in deze repo). Zonder elektrische of
+  // waterstofregel valt dit terug op de eerste regel, gelijk aan het oude
+  // gedrag voor benzine, diesel en LPG.
+  const motorRij   = rijen.find(r => !rdwRijIsElektrisch(r) && !rdwRijIsWaterstof(r)) || rijen[0] || null;
+  const elektrRij  = rijen.find(rdwRijIsElektrisch) || null;
+
+  let co2 = 0;
+  if (motorRij) {
+    co2 = energiesoort === 'hybride'
+      // Bij een PHEV levert de RDW het gecombineerde (ongewogen) veld niet;
+      // alleen het gewogen WLTP-veld is gevuld.
+      ? (+motorRij.emis_co2_gewogen_gecombineerd_wltp || +motorRij.co2_uitstoot_gecombineerd || 0)
+      : (+motorRij.co2_uitstoot_gecombineerd || 0);
+  }
+
+  let verbruik = { waarde: 0, bron: '' };
+  if (energiesoort === 'elektrisch' || energiesoort === 'waterstof') {
+    // Bij een EV of waterstofauto staat het verbruik op de Elektriciteit-regel.
+    const rij = elektrRij || motorRij;
+    if (rij) {
+      const wltp = +rij.elektrisch_verbruik_enkel_elektrisch_wltp || 0;
+      const nedc = +rij.elektrisch_verbruik_extern_opladen_wltp   || 0;
+      if (wltp > 0)      { verbruik = { waarde: wltp / 10, bron: 'WLTP (kWh/100km)' }; }
+      else if (nedc > 0) { verbruik = { waarde: nedc / 10, bron: 'WLTP extern (kWh/100km)' }; }
+    }
+  } else if (motorRij) {
+    const gewogen = energiesoort === 'hybride' ? (+motorRij.brandstof_verbruik_gewogen_gecombineerd_wltp || 0) : 0;
+    const wltp    = +motorRij.brandstof_verbruik_gecombineerd_wltp || 0;
+    const nedc    = +motorRij.brandstofverbruik_gecombineerd        || 0;
+    if (gewogen > 0)   { verbruik = { waarde: gewogen, bron: 'WLTP gewogen (l/100km)' }; }
+    else if (wltp > 0) { verbruik = { waarde: wltp,    bron: 'WLTP (l/100km)' }; }
+    else if (nedc > 0) { verbruik = { waarde: nedc,    bron: 'NEDC (l/100km)' }; }
+  }
+
+  // Elektrisch verbruik van een hybride: alleen relevant naast het
+  // brandstofverbruik hierboven, dus apart teruggegeven in plaats van in
+  // dezelfde `verbruik` als bij een volledige EV.
+  let verbruikElektrisch = 0;
+  if (energiesoort === 'hybride' && elektrRij) {
+    const whkm = +elektrRij.elektrisch_verbruik_extern_opladen_wltp || 0;
+    if (whkm > 0) verbruikElektrisch = whkm / 10;
+  }
+
+  return { brandstofTekst, energiesoort, co2, verbruik, verbruikElektrisch };
+}
+// RDW-VERTALING — EINDE
+// ═══════════════════════════════════════════════════════════════════════════
+
 // ─── KENTEKEN ZOEKEN ───
 async function zoekKenteken() {
   const raw = document.getElementById('kenteken_input').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -1047,7 +1126,6 @@ async function zoekKenteken() {
     }
 
     const v = voertuigen[0];
-    const b = brandstofData?.[0] || null;
 
     const merk    = (v.merk || '').trim();
     const model   = (v.handelsbenaming || v.type || '').trim();
@@ -1065,51 +1143,29 @@ async function zoekKenteken() {
         + (nu.getMonth() - toelatingRdw.getMonth()));
     }
 
-    // Energiesoort uit ALLE brandstofregels. Een auto met alleen Elektriciteit
-    // is een volledige EV; Elektriciteit naast een brandstofmotor is een
-    // plug-in hybride en krijgt dus géén nulemissiekorting.
-    const soorten = (brandstofData || [])
-      .map(r => String(r.brandstof_omschrijving || r.brandstofsoort || '').trim())
-      .filter(Boolean);
-    const brandstof = soorten.join(' + ') ||
+    // Energiesoort en verbruik uit ALLE brandstofregels, via de pure vertaling
+    // hierboven. Een auto met alleen Elektriciteit is een volledige EV;
+    // Elektriciteit naast een brandstofmotor is een plug-in hybride en krijgt
+    // dus géén nulemissiekorting.
+    const rdwVertaling = interpreteerBrandstofData(brandstofData);
+    const brandstof = rdwVertaling.brandstofTekst ||
       String(v.brandstof_omschrijving || '').trim();
-    const heeftStroom    = soorten.some(x => x.toLowerCase().includes('elektr'));
-    const heeftWaterstof = soorten.some(x => x.toLowerCase().includes('waterstof'));
-    const heeftMotor     = soorten.some(x => !x.toLowerCase().includes('elektr')
-                                          && !x.toLowerCase().includes('waterstof'));
-    const nieuweSoort = heeftWaterstof ? 'waterstof'
-      : (heeftStroom && heeftMotor) ? 'hybride'
-      : heeftStroom ? 'elektrisch'
-      : 'brandstof';
-    const isEV = nieuweSoort === 'elektrisch';
+    const nieuweSoort = rdwVertaling.energiesoort;
+    const co2 = rdwVertaling.co2;
+    const verbruikVal    = rdwVertaling.verbruik.waarde;
+    const verbruikBron   = rdwVertaling.verbruik.bron;
+    const verbruikKwhVal = rdwVertaling.verbruikElektrisch;
 
-    // CO2 van de eerste regel (laagste volgnummer, dus de hoofdmotor).
-    const co2 = b ? (+b.co2_uitstoot_gecombineerd || 0) : 0;
-
-    // Verbruik: WLTP heeft voorkeur boven NEDC; elektrisch in Wh/km → kWh/100km
-    let verbruikVal = 0;
-    let verbruikBron = '';
-    if (b) {
-      if (isEV || nieuweSoort === 'waterstof') {
-        // Bij een EV staat het elektrisch verbruik op de Elektriciteit-regel.
-        const eRij = (brandstofData || []).find(r =>
-          String(r.brandstof_omschrijving || '').toLowerCase().includes('elektr')) || b;
-        const wltp = +eRij.elektrisch_verbruik_enkel_elektrisch_wltp || 0;
-        const nedc = +eRij.elektrisch_verbruik_extern_opladen_wltp   || 0;
-        if (wltp > 0) { verbruikVal = wltp / 10; verbruikBron = 'WLTP (kWh/100km)'; }
-        else if (nedc > 0) { verbruikVal = nedc / 10; verbruikBron = 'WLTP extern (kWh/100km)'; }
-      } else {
-        const wltp = +b.brandstof_verbruik_gecombineerd_wltp || 0;
-        const nedc = +b.brandstofverbruik_gecombineerd        || 0;
-        if (wltp > 0) { verbruikVal = wltp; verbruikBron = 'WLTP (l/100km)'; }
-        else if (nedc > 0) { verbruikVal = nedc; verbruikBron = 'NEDC (l/100km)'; }
-      }
-    }
     // Velden invullen
     if (cat)          setFilled('w_cat',  'cataloguswaarde',  cat);
     if (bpm)          setFilled('w_bpm',  'bpm_nieuw',        bpm);
     if (verbruikVal > 0) {
       setFilled('w_verb', 'verbruik_100', verbruikVal.toFixed(2));
+    }
+    // Bij een hybride ook het elektrisch verbruik invullen; bij een volledige
+    // EV staat dat al in verbruik_100 hierboven, dus dan niet nogmaals zetten.
+    if (nieuweSoort === 'hybride' && verbruikKwhVal > 0) {
+      setFilled('w_verb_kwh', 'verbruik_kwh', verbruikKwhVal.toFixed(2));
     }
     // Ook bij verbruik 0 (onbekend bij de RDW) moet de eenheid en de prijs kloppen.
     // De prijs alleen overschrijven als de energiesoort echt wisselt, zodat een
@@ -3329,7 +3385,7 @@ updateKm();
 .bt-footerbrand:hover .tip{display:block;}
 </style>
 <a href="/" class="bt-nav-back">&#8592; bouwman.tools</a>
-<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 01:25</div></footer>
+<footer class="bt-page-footer"><div class="bt-privacy"><div class="bt-privacy-dot green"></div>Uw invoer wordt niet opgeslagen; alleen een kentekenopvraag gaat naar de RDW</div><div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div><div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 26 sep 2026, 22:03</div></footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer blijft lokaal</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
 </body>
