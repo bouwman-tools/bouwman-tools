@@ -81,6 +81,9 @@
   .afdrukknop { margin-top: 1.25rem; background: #fff; color: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
   .afdrukknop:hover { background: var(--vlak); }
   .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
+  .dossierkop { color: var(--gedempt); font-size: .85rem; margin: 0 0 .5rem; }
+  .dossierkop b { color: var(--inkt); }
+  .invoertabel td:first-child { width: 55%; }
   .tariefhulp { border: 1px solid var(--lijn); border-radius: 6px; padding: 1rem 1.1rem; margin: 0 0 1.25rem; background: var(--vlak); }
   .tariefhulp h3 { margin-top: 0; }
   .tariefuitkomst { font-size: .9rem; margin: .6rem 0; }
@@ -88,7 +91,9 @@
 
   @media print {
     body { padding: 0; font-size: 10.5pt; }
-    form, p.intro, .afdrukknop, .tariefhulp { display: none; }
+    /* Het formulier maakt op papier plaats voor het invoeroverzicht onder de uitkomst,
+       dat uit dezelfde invoer is opgebouwd als de berekening zelf. */
+    .noprint { display: none !important; }
     main { max-width: none; }
     #uitkomst { margin-top: 0; }
     h1 { font-size: 1.35rem; }
@@ -103,7 +108,7 @@
 
 <main>
   <h1>Belastinglatentie berekenen</h1>
-  <p class="intro">
+  <p class="intro noprint">
     Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of een
     doorschuiving: het gemis aan afschrijvingsbasis op afschrijfbare meerwaarden en de
     uitgestelde heffing over niet-afschrijfbare meerwaarden. De afschrijvingsgrenzen en de
@@ -112,7 +117,19 @@
     geen wettelijke regel maar een waarderingsconventie; dat staat er met zoveel woorden bij.
   </p>
 
-  <form id="formulier">
+  <form id="formulier" class="noprint">
+    <fieldset>
+      <legend>Dossier</legend>
+      <div class="veld" style="max-width:26rem">
+        <label for="kenmerk">Klantnaam of kenmerk</label>
+        <input type="text" id="kenmerk" autocomplete="off">
+        <span class="hint">
+          Komt boven aan het dossierstuk. De tool bewaart niets en verstuurt niets; wat u
+          hier invult blijft in dit browservenster.
+        </span>
+      </div>
+    </fieldset>
+
     <fieldset>
       <legend>Belastingtarief</legend>
       <div class="keuze">
@@ -284,7 +301,7 @@
     <button type="submit">Berekenen</button>
   </form>
 
-  <section class="tariefhulp">
+  <section class="tariefhulp noprint">
     <h3>Tariefhulp</h3>
     <p class="hint" style="margin-top:0">
       Rekent de belasting over een extra bedrag aan winst schijf voor schijf uit. Er wordt
@@ -859,6 +876,12 @@ function berekenLatentie(invoer) {
 const euro = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
 const procent = new Intl.NumberFormat('nl-NL', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const getal = new Intl.NumberFormat('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const aantal = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 });
+const moment = new Intl.DateTimeFormat('nl-NL', { dateStyle: 'short', timeStyle: 'short' });
+
+// Versiestempel van de tool. Staat op het dossierstuk, zodat later vast te stellen is met
+// welke stand van de tool een afdruk is gemaakt. Bijwerken bij elke inhoudelijke wijziging.
+const TOOL_VERSIE = '2026-09-27';
 
 const postenVak = document.getElementById('posten');
 let volgnummer = 0;
@@ -1024,14 +1047,134 @@ function jaartabel(uitkomst, posten) {
     '<td class="getal">' + getal.format(jaar.fiscaalVoordeel) + '</td>' +
     '<td class="getal">' + getal.format(jaar.contant) + '</td></tr>'
   ).join('');
+  // De somregel telt alleen op wat de kern per jaar heeft teruggegeven; er wordt niets
+  // opnieuw berekend.
+  const som = lijst => lijst.reduce((a, b) => a + b, 0);
+  const somPerPost = posten.map((post, p) => som(uitkomst.jaren.map(jaar => jaar.afschrijvingen[p])));
   return '<h3>Verloop per jaar</h3><table><thead><tr><th class="getal">Jaar</th>' + koppen +
     (perJaar ? '<th class="getal">Tarief</th>' : '') +
     '<th class="getal">Fiscaal voordeel</th><th class="getal">Contant</th></tr></thead><tbody>' +
     rijen + '<tr class="som"><td class="getal">Samen</td>' +
-    posten.map(() => '<td></td>').join('') + (perJaar ? '<td></td>' : '') +
-    '<td></td><td class="getal">' +
+    somPerPost.map(bedrag => '<td class="getal">' + getal.format(bedrag) + '</td>').join('') +
+    (perJaar ? '<td></td>' : '') +
+    '<td class="getal">' + getal.format(som(uitkomst.jaren.map(jaar => jaar.fiscaalVoordeel))) +
+    '</td><td class="getal">' +
     getal.format(uitkomst.contanteWaardeAfschrijving) + '</td></tr></tbody></table>';
 }
+
+/** De heffing over de niet-afschrijfbare meerwaarde vóór en na contant maken, zodat de
+ *  tussenstap die de tweede regel van de uitkomst draagt op het dossierstuk staat. */
+function uitgesteldeHeffingRegel(uitkomst, invoer) {
+  const niet = invoer.nietAfschrijfbaar;
+  if (!(niet.bedrag > 0)) return '';
+  return '<div class="melding vlak">De heffing over de niet-afschrijfbare meerwaarde van ' +
+    euro.format(niet.bedrag) + ' bedraagt nominaal ' + euro.format(uitkomst.heffingUitgesteld) +
+    (uitkomst.effectiefTariefUitgesteld === null ? ''
+      : ' (' + procent.format(uitkomst.effectiefTariefUitgesteld) + ')') +
+    ' en valt over ' + aantal.format(niet.jaar) + ' jaar; contant is dat ' +
+    euro.format(uitkomst.contanteWaardeUitgesteld) + '.</div>';
+}
+
+/** De tekst van een keuzelijst zoals die op het scherm staat, zodat het dossierstuk
+ *  dezelfde woorden gebruikt als het formulier. */
+function optieTekst(id, waarde) {
+  const optie = Array.from(document.getElementById(id).options).find(o => o.value === waarde);
+  return optie ? optie.textContent : String(waarde);
+}
+
+/** Alle invoer waarmee is gerekend, uit hetzelfde invoerobject dat naar berekenLatentie
+ *  ging. Het formulier staat niet op de afdruk; dit overzicht neemt zijn plaats in, zodat
+ *  de uitkomst vanaf papier te reproduceren is. */
+function invoeroverzicht(invoer) {
+  const rij = (label, waarde) => '<tr><td>' + label + '</td><td>' + waarde + '</td></tr>';
+  const regels = [];
+
+  if (invoer.tariefmodus === 'perJaar') {
+    const context = invoer.tariefcontext;
+    const ib = context.middel === 'ib';
+    const woord = ib ? 'inkomen' : 'belastbaar bedrag';
+    regels.push(rij('Belastingtarief', 'Per jaar via de schijven'));
+    regels.push(rij('Belastingmiddel', optieTekst('modus-middel', context.middel)));
+    regels.push(rij('Jaar van de tarieven', context.jaar + ', voor de hele looptijd'));
+    regels.push(rij('Verwacht ' + woord + ' per jaar', euro.format(context.inkomenVoor)));
+    regels.push(rij('Verwacht ' + woord + ' in het vrijvaljaar',
+      context.inkomenVrijvaljaar === undefined || context.inkomenVrijvaljaar === null
+        ? 'geen eigen opgave, gelijk aan de andere jaren'
+        : euro.format(context.inkomenVrijvaljaar) + ', vóór de meerwaarde zelf'));
+    if (ib) {
+      regels.push(rij('Positie van de belastingplichtige', optieTekst('modus-groep', context.groep)));
+      regels.push(rij('MKB-winstvrijstelling', context.mkbOndernemer ? 'van toepassing' : 'niet van toepassing'));
+    }
+  } else {
+    regels.push(rij('Belastingtarief', 'Eén vast tarief voor de hele looptijd, zelf ingevuld'));
+    regels.push(rij('Tarief afschrijving', procent.format(invoer.tariefAfschrijving)));
+    regels.push(rij('Tarief uitgestelde heffing', procent.format(invoer.tariefUitgesteld)));
+  }
+
+  regels.push(rij('Disconteringsvoet per jaar, ingevoerd', procent.format(invoer.disconteringsvoet)));
+  regels.push(rij('Grondslag van de voet', invoer.disconteringsgrondslag === 'netto'
+    ? 'brutovoet, door de tool netto gemaakt'
+    : 'nettovoet, rechtstreeks gebruikt'));
+  regels.push(rij('Niet-afschrijfbare meerwaarde', euro.format(invoer.nietAfschrijfbaar.bedrag)));
+  if (invoer.nietAfschrijfbaar.bedrag > 0) {
+    regels.push(rij('Heffing vindt plaats over', aantal.format(invoer.nietAfschrijfbaar.jaar) + ' jaar'));
+  }
+
+  // Dezelfde nummering als de kolommen "Afschrijving n" in het verloop per jaar.
+  const posten = invoer.posten.filter(post => post.bedrag > 0);
+  const postrijen = posten.map((post, i) =>
+    '<tr><td class="getal">' + (i + 1) + '</td><td>' + SOORT_OMSCHRIJVING[post.soort] + '</td>' +
+    '<td class="getal">' + euro.format(post.bedrag) + '</td>' +
+    '<td class="getal">' + aantal.format(post.termijn) + ' jaar</td>' +
+    '<td class="getal">' + procent.format(1 / post.termijn) + '</td>' +
+    '<td class="getal">' + procent.format(AFSCHRIJVING_MAXIMUM[post.soort]) + '</td></tr>').join('');
+  const postentabel = posten.length
+    ? '<table><thead><tr><th class="getal">Post</th><th>Soort</th><th class="getal">Meerwaarde</th>' +
+      '<th class="getal">Termijn</th><th class="getal">Per jaar</th>' +
+      '<th class="getal">Wettelijk maximum</th></tr></thead><tbody>' + postrijen + '</tbody></table>' +
+      (posten.length < invoer.posten.length
+        ? '<p class="hint">Posten met een meerwaarde van nul tellen niet mee en staan hier niet.</p>'
+        : '')
+    : '<p class="hint">Geen afschrijfbare meerwaarde ingevoerd.</p>';
+
+  return '<h3>Invoer waarmee is gerekend</h3>' +
+    '<table class="invoertabel"><tbody>' + regels.join('') + '</tbody></table>' +
+    '<p class="tariefuitkomst"><b>Afschrijfbare meerwaarden</b></p>' + postentabel +
+    '<div class="melding vlak"><b>Wat wettelijk is en wat een keuze.</b> ' +
+    (invoer.tariefmodus === 'perJaar'
+      ? 'Wettelijk vastgelegd zijn het maximum per jaar van art. 3.30 lid 2 Wet IB 2001 in ' +
+        'de laatste kolom en de schijven en tarieven van het gekozen jaar. De termijn binnen ' +
+        'dat maximum, het verwachte inkomen, de disconteringsvoet en de keuze voor de ' +
+        'omzetting naar netto zijn invoer van de gebruiker. Lineair afschrijven, contant ' +
+        'maken per heel jaar, één verwacht inkomen voor alle exploitatiejaren, de tarieven ' +
+        'van één jaar voor de hele looptijd en het netto maken met het effectieve tarief ' +
+        'zijn waarderingsconventies van de tool en geen wettelijke regels.'
+      : 'Wettelijk vastgelegd is het maximum per jaar van art. 3.30 lid 2 Wet IB 2001 in de ' +
+        'laatste kolom. De termijn binnen dat maximum, de twee zelf ingevulde tarieven, de ' +
+        'disconteringsvoet en de keuze voor de omzetting naar netto zijn invoer van de ' +
+        'gebruiker; de tool toetst de tarieven niet aan de wet. Lineair afschrijven, contant ' +
+        'maken per heel jaar, één tarief voor de hele looptijd en het netto maken met het ' +
+        'tarief voor afschrijving zijn waarderingsconventies van de tool en geen wettelijke ' +
+        'regels.') +
+    ' De vindplaatsen en de afbakening staan in de toelichting hieronder.</div>';
+}
+
+/** Zet het kenmerk uit het formulier in de kop van de uitkomst. Via textContent, zodat
+ *  wat de gebruiker typt nooit als opmaak wordt gelezen. */
+function toonKenmerk() {
+  const plek = document.getElementById('afdruk-kenmerk');
+  if (!plek) return;
+  const kenmerk = document.getElementById('kenmerk').value.trim();
+  plek.textContent = kenmerk || 'niet ingevuld';
+}
+document.getElementById('kenmerk').addEventListener('input', toonKenmerk);
+
+// Een dichtgeklapte toelichting wordt niet afgedrukt, en daarin staan de vindplaatsen en
+// de afbakening. Daarom gaat hij voor het afdrukken altijd open, ook bij Ctrl+P.
+window.addEventListener('beforeprint', () => {
+  document.querySelector('details').open = true;
+  toonKenmerk();
+});
 
 document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
   gebeurtenis.preventDefault();
@@ -1047,6 +1190,8 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
   const posten = invoer.posten.filter(post => post.bedrag > 0);
   vak.innerHTML =
     '<h2>Uitkomst</h2>' +
+    '<p class="dossierkop">Kenmerk: <b id="afdruk-kenmerk"></b> &middot; Berekend op ' +
+      moment.format(new Date()) + ' &middot; Tool belastinglatentie, versie ' + TOOL_VERSIE + '</p>' +
     '<p class="bedrag">' + euro.format(uitkomst.totaal) +
     '<small>contante waarde van de belastinglatentie, ' +
     procent.format(uitkomst.latentiePercentage) + ' van een meerwaarde van ' +
@@ -1069,10 +1214,15 @@ document.getElementById('formulier').addEventListener('submit', gebeurtenis => {
         : ', rechtstreeks ingevoerd als nettovoet.') +
     '</div>' +
     tarieftoelichting(uitkomst, invoer) +
+    uitgesteldeHeffingRegel(uitkomst, invoer) +
     meldingen(uitkomst.waarschuwingen, 'let-op', 'Let op') +
     jaartabel(uitkomst, posten) +
-    '<p class="dossierdatum">Berekend op ' + new Date().toLocaleDateString('nl-NL') + '.</p>' +
-    '<button type="button" class="afdrukknop" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+    invoeroverzicht(invoer) +
+    '<p class="dossierdatum">Opgesteld met de lokale rekentool belastinglatentie, versie ' +
+      TOOL_VERSIE + '. De uitkomst is een berekening op de ingevulde gegevens; de beoordeling ' +
+      'van die gegevens en van de waarderingskeuzes blijft bij de gebruiker.</p>' +
+    '<button type="button" class="afdrukknop noprint" onclick="window.print()">Afdrukken of opslaan als pdf</button>';
+  toonKenmerk();
 });
 
 const grensTekst = tot => tot === Infinity ? 'en hoger' : 't/m ' + euro.format(tot);
