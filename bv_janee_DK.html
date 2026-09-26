@@ -223,6 +223,7 @@
   </div>
   <button type="button" class="dossier-knop" id="dossier-opslaan">Opslaan als bestand</button>
   <button type="button" class="dossier-knop stil" id="dossier-openen">Bestand openen</button>
+  <button type="button" class="dossier-knop stil" id="dossier-excel">Exporteren naar Excel</button>
   <input type="file" id="dossier-bestand" accept="application/json,.json" aria-label="Dossierbestand kiezen" hidden>
     <span class="dossier-melding" id="dossier-melding" role="status">De naam komt op de adviesnota, het kenmerk in de bestandsnaam. Bewaar de ingevulde gegevens als bestand in de klantmap en open ze later weer; de tool bewaart zelf niets en verstuurt niets.</span>
 </div>
@@ -5457,6 +5458,73 @@ const BVJN = (function () {
 
   const NIET_MEEGENOMEN = 'Niet in deze berekening meegenomen: aansprakelijkheid en juridische structuur, financiering, de fiscale partner en de verdeling van gemeenschappelijke inkomensbestanddelen, box 3, verkoop van de onderneming, bedrijfsopvolging, de regeling excessief lenen bij de eigen vennootschap, de arbeidsongeschiktheidsverzekering, de meewerkaftrek en de aftrek voor speur- en ontwikkelingswerk, en toekomstige wetswijzigingen. De vraag hoe de onderneming in de BV wordt ingebracht staat op een eigen tabblad en valt buiten deze jaarvergelijking.';
 
+  /**
+   * De uitgangspunten van de hoofdvergelijking als [label, waarde]-paren. Eén functie
+   * voor de adviesnota en de Excel-export, zodat hetzelfde getal niet op twee plekken
+   * opnieuw wordt geformatteerd.
+   */
+  function uitgangspuntenRijen(s) {
+    const i = s.input, ib = s.ib, bv = s.bv;
+    const r = [];
+    const item = function (label, waarde) { r.push([label, waarde]); };
+    item('Winst uit onderneming', fmt(i.winst));
+    item('Leeftijd / beoogde pensioenleeftijd', i.leeftijd + ' / ' + i.pensioenLeeftijd + ' jaar');
+    item('Urencriterium', i.urencriterium ? 'ja' : 'nee');
+    item('Zelfstandigenaftrek', fmt(Math.min(ib.za, ib.zaBasis))
+      + (ib.zaOnbenut > 0.5 ? ' (€ ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL')
+        + ' niet gerealiseerd, art. 3.76 lid 5)' : ''));
+    item('Startersaftrek', ib.startersAftrek > 0
+      ? fmt(ib.za - Math.min(ib.za, ib.zaBasis)) : 'niet van toepassing');
+    item('Investeringsbedrag', i.investering > 0 ? fmt(i.investering) : 'geen');
+    item('Kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2)',
+      i.investering > 0 ? fmt(BVJN.kiaBedrag(i.investering)) : 'geen');
+    item('Overige investeringsaftrek (EIA of MIA)', i.kia > 0 ? fmt(i.kia) : 'geen');
+    item('Totale investeringsaftrek', fmt(Math.max(ib.kia, bv.kia))
+      + ', toegepast in ' + (i.kiaScope === 'beide' ? 'beide situaties' : (i.kiaScope === 'ib' ? 'alleen de IB-onderneming' : 'alleen de BV')));
+    item('MKB-winstvrijstelling', fmt(ib.mkb) + ' (' + pct(T.onderneming.mkbVrijstelling, 1) + ' over ' + fmt(ib.mkbGrondslag) + ')');
+    item('WOZ-waarde eigen woning', i.woz > 0 ? fmt(i.woz) : 'geen eigen woning');
+    item('Hypotheekrente', fmt(i.rente));
+    item('Eigenwoningforfait', fmt(ib.ew.ewf));
+    item('Aftrek Wet Hillen', fmt(ib.ew.hillen));
+    item('Saldo eigen woning', fmt(ib.ew.saldo));
+    if (ib.pga > 0) item('Persoonsgebonden aftrek', fmt(ib.pga));
+    if (ib.uitkeringBox1 !== 0) item('Uitkering of loon uit vroegere arbeid', fmt(ib.uitkeringBox1));
+    if (ib.rowBox1 !== 0) item('Resultaat uit overige werkzaamheden', fmt(ib.rowBox1));
+    if (ib.beroepspensioen > 0) item('Premie beroepspensioenregeling',
+      fmt(ib.beroepspensioen) + ' (art. 3.18, ten laste van de winst)');
+    if (ib.lijfrentePremie > 0) item('Lijfrentepremie',
+      fmt(ib.lijfrentePremie) + ' (afdeling 3.7, aftrek op het inkomen)');
+    if (bv.wevab > 0) item('WEVAB landbouwgrond',
+      fmt(bv.wevab) + ', verwachte stijging ' + pct(i.wevabStijging / 100, 1) + ' per jaar');
+    item('DGA-salaris', fmt(i.salaris));
+    item('Zvw-situatie DGA', i.dgaVerzekerd ? 'wél verzekerd voor de werknemersverzekeringen' : 'niet verzekerd voor de werknemersverzekeringen');
+    item('Premies werknemersverzekeringen', i.dgaVerzekerd ? pct(i.wgLastenPct / 100, 2) + ' (' + fmt(bv.premiesWnv) + ')' : 'n.v.t.');
+    item('Dividend dit jaar', fmt(i.dividend));
+    item('Extra kosten BV per jaar', fmt(i.bvKosten));
+    item('Aangewezen WKR-vergoeding DGA', fmt(i.wkr));
+    item('Fiscale loonsom / vrije ruimte WKR', fmt(bv.fiscaleLoonsom) + ' / ' + fmt(bv.vrijeRuimte));
+    item('Overschrijding vrije ruimte', fmt(bv.wkrOverschrijding) + (bv.wkrEindheffing > 0 ? ' (eindheffing ' + fmt(bv.wkrEindheffing) + ')' : ''));
+    item('VPB-grondslag', fmt(bv.vpbGrondslag));
+    item('Vennootschapsbelasting', fmt(bv.vpb));
+    item('Box-2-heffing dividend', fmt(bv.box2));
+    item('Winst die in de BV achterblijft', fmt(bv.ingehoudenWinst));
+    const claimUitleg = i.claimTarief === 'top' ? ' (toptarief box 2)'
+      : (i.claimTarief === 'vast' ? ' (vast aangenomen tarief van ' + pct(i.claimTariefVast / 100, 1) + ')'
+        : ' (marginaal, schijven 2026)');
+    item('Nominale toekomstige box-2-claim', fmt(bv.claimNominaal) + claimUitleg);
+    if (bv.wevabClaimContant > 0) item('Contante waarde box-2-claim landbouwgrond',
+      fmt(bv.wevabClaimContant));
+    if (ib.oudedagsinleg > 0) item('Contante waarde latente IB oudedagsvoorziening',
+      fmt(ib.oudedagClaimContant) + ' (aangenomen tarief ' + pct(i.claimTariefVast / 100, 1) + ')');
+    item('Jaren uitstel / disconteringsvoet', bv.jaren + ' jaar / ' + pct(bv.disco / 100, 1));
+    item('Contante waarde box-2-claim', fmt(bv.claimContant));
+    item('Algemene heffingskorting IB / BV', fmt(ib.ahk) + ' / ' + fmt(bv.ahk));
+    item('Arbeidskorting IB / BV', fmt(ib.ak) + ' / ' + fmt(bv.ak));
+    item('Bijdrage Zvw IB / DGA', fmt(ib.zvw) + ' / ' + fmt(bv.zvwDga));
+    item('Netto privé IB / BV', fmt(ib.nettoPrive) + ' / ' + fmt(bv.nettoPrive));
+    return r;
+  }
+
   function buildNota() {
     const s = state;
     if (!s) return;
@@ -5469,61 +5537,7 @@ const BVJN = (function () {
 
     const u = el('nota-uitg');
     u.innerHTML = '';
-    notaItem(u, 'Winst uit onderneming', fmt(i.winst));
-    notaItem(u, 'Leeftijd / beoogde pensioenleeftijd', i.leeftijd + ' / ' + i.pensioenLeeftijd + ' jaar');
-    notaItem(u, 'Urencriterium', i.urencriterium ? 'ja' : 'nee');
-    notaItem(u, 'Zelfstandigenaftrek', fmt(Math.min(ib.za, ib.zaBasis))
-      + (ib.zaOnbenut > 0.5 ? ' (\u20ac ' + Math.round(ib.zaOnbenut).toLocaleString('nl-NL')
-        + ' niet gerealiseerd, art. 3.76 lid 5)' : ''));
-    notaItem(u, 'Startersaftrek', ib.startersAftrek > 0
-      ? fmt(ib.za - Math.min(ib.za, ib.zaBasis)) : 'niet van toepassing');
-    notaItem(u, 'Investeringsbedrag', i.investering > 0 ? fmt(i.investering) : 'geen');
-    notaItem(u, 'Kleinschaligheidsinvesteringsaftrek (art. 3.41 lid 2)',
-      i.investering > 0 ? fmt(BVJN.kiaBedrag(i.investering)) : 'geen');
-    notaItem(u, 'Overige investeringsaftrek (EIA of MIA)', i.kia > 0 ? fmt(i.kia) : 'geen');
-    notaItem(u, 'Totale investeringsaftrek', fmt(Math.max(ib.kia, bv.kia))
-      + ', toegepast in ' + (i.kiaScope === 'beide' ? 'beide situaties' : (i.kiaScope === 'ib' ? 'alleen de IB-onderneming' : 'alleen de BV')));
-    notaItem(u, 'MKB-winstvrijstelling', fmt(ib.mkb) + ' (' + pct(T.onderneming.mkbVrijstelling, 1) + ' over ' + fmt(ib.mkbGrondslag) + ')');
-    notaItem(u, 'WOZ-waarde eigen woning', i.woz > 0 ? fmt(i.woz) : 'geen eigen woning');
-    notaItem(u, 'Hypotheekrente', fmt(i.rente));
-    notaItem(u, 'Eigenwoningforfait', fmt(ib.ew.ewf));
-    notaItem(u, 'Aftrek Wet Hillen', fmt(ib.ew.hillen));
-    notaItem(u, 'Saldo eigen woning', fmt(ib.ew.saldo));
-    if (ib.pga > 0) notaItem(u, 'Persoonsgebonden aftrek', fmt(ib.pga));
-    if (ib.uitkeringBox1 !== 0) notaItem(u, 'Uitkering of loon uit vroegere arbeid', fmt(ib.uitkeringBox1));
-    if (ib.rowBox1 !== 0) notaItem(u, 'Resultaat uit overige werkzaamheden', fmt(ib.rowBox1));
-    if (ib.beroepspensioen > 0) notaItem(u, 'Premie beroepspensioenregeling',
-      fmt(ib.beroepspensioen) + ' (art. 3.18, ten laste van de winst)');
-    if (ib.lijfrentePremie > 0) notaItem(u, 'Lijfrentepremie',
-      fmt(ib.lijfrentePremie) + ' (afdeling 3.7, aftrek op het inkomen)');
-    if (bv.wevab > 0) notaItem(u, 'WEVAB landbouwgrond',
-      fmt(bv.wevab) + ', verwachte stijging ' + pct(i.wevabStijging / 100, 1) + ' per jaar');
-    notaItem(u, 'DGA-salaris', fmt(i.salaris));
-    notaItem(u, 'Zvw-situatie DGA', i.dgaVerzekerd ? 'wél verzekerd voor de werknemersverzekeringen' : 'niet verzekerd voor de werknemersverzekeringen');
-    notaItem(u, 'Premies werknemersverzekeringen', i.dgaVerzekerd ? pct(i.wgLastenPct / 100, 2) + ' (' + fmt(bv.premiesWnv) + ')' : 'n.v.t.');
-    notaItem(u, 'Dividend dit jaar', fmt(i.dividend));
-    notaItem(u, 'Extra kosten BV per jaar', fmt(i.bvKosten));
-    notaItem(u, 'Aangewezen WKR-vergoeding DGA', fmt(i.wkr));
-    notaItem(u, 'Fiscale loonsom / vrije ruimte WKR', fmt(bv.fiscaleLoonsom) + ' / ' + fmt(bv.vrijeRuimte));
-    notaItem(u, 'Overschrijding vrije ruimte', fmt(bv.wkrOverschrijding) + (bv.wkrEindheffing > 0 ? ' (eindheffing ' + fmt(bv.wkrEindheffing) + ')' : ''));
-    notaItem(u, 'VPB-grondslag', fmt(bv.vpbGrondslag));
-    notaItem(u, 'Vennootschapsbelasting', fmt(bv.vpb));
-    notaItem(u, 'Box-2-heffing dividend', fmt(bv.box2));
-    notaItem(u, 'Winst die in de BV achterblijft', fmt(bv.ingehoudenWinst));
-    const claimUitleg = i.claimTarief === 'top' ? ' (toptarief box 2)'
-      : (i.claimTarief === 'vast' ? ' (vast aangenomen tarief van ' + pct(i.claimTariefVast / 100, 1) + ')'
-        : ' (marginaal, schijven 2026)');
-    notaItem(u, 'Nominale toekomstige box-2-claim', fmt(bv.claimNominaal) + claimUitleg);
-    if (bv.wevabClaimContant > 0) notaItem(u, 'Contante waarde box-2-claim landbouwgrond',
-      fmt(bv.wevabClaimContant));
-    if (ib.oudedagsinleg > 0) notaItem(u, 'Contante waarde latente IB oudedagsvoorziening',
-      fmt(ib.oudedagClaimContant) + ' (aangenomen tarief ' + pct(i.claimTariefVast / 100, 1) + ')');
-    notaItem(u, 'Jaren uitstel / disconteringsvoet', bv.jaren + ' jaar / ' + pct(bv.disco / 100, 1));
-    notaItem(u, 'Contante waarde box-2-claim', fmt(bv.claimContant));
-    notaItem(u, 'Algemene heffingskorting IB / BV', fmt(ib.ahk) + ' / ' + fmt(bv.ahk));
-    notaItem(u, 'Arbeidskorting IB / BV', fmt(ib.ak) + ' / ' + fmt(bv.ak));
-    notaItem(u, 'Bijdrage Zvw IB / DGA', fmt(ib.zvw) + ' / ' + fmt(bv.zvwDga));
-    notaItem(u, 'Netto privé IB / BV', fmt(ib.nettoPrive) + ' / ' + fmt(bv.nettoPrive));
+    uitgangspuntenRijen(s).forEach(function (p) { notaItem(u, p[0], p[1]); });
 
     vulTabel('nota-detib', rijenDetailIB(s));
     vulTabel('nota-detbv', rijenDetailBV(s));
@@ -5671,6 +5685,139 @@ const BVJN = (function () {
     } else {
       el('nota-sec-fusie').style.display = 'none';
     }
+  }
+
+  /* ==========================================================================
+     UITGANGENKERN — de Excel-export van de hoofdvergelijking (BV versus IB)
+     ==========================================================================
+     Een bevroren resultaatblad, zonder formules: het werkblad legt vast wat de
+     rekenkern al heeft berekend (state, gevuld door bereken()) en rekent zelf niets
+     opnieuw. Wie een andere variant wil, varieert in de tool en exporteert opnieuw.
+     Alleen de hoofdvergelijking (IB-onderneming tegenover BV); de tabbladen inbreng,
+     openingsbalans, firma en bedrijfsfusie hebben elk hun eigen rekenkern en vallen
+     buiten deze export.
+     ========================================================================== */
+
+  const TOOL_ID = 'bv-janee';
+  const TOOL_VERSIE = '1.0.0';
+
+  /** Eén rij van rijenBelasting/rijenKosten/rijenLiquiditeit/rijenDetailIB/rijenDetailBV
+   *  omgezet naar exportcellen. Die functies leveren [label, waarde1, waarde2?, klasse?],
+   *  met klasse 'tot'/'sub'/'sec' als laatste element; hier wordt niets herrekend, alleen
+   *  dezelfde waarden in een celvorm gezet die de xlsx-schrijver verwacht. */
+  function exportRij(r) {
+    const w = r.slice();
+    let cls = '';
+    if (w.length > 1 && RIJKLASSEN.indexOf(w[w.length - 1]) >= 0) cls = w.pop();
+    const vet = cls === 'tot';
+    const rest = w.slice(1).filter(function (v) { return v !== undefined; });
+    const cel = function (v) {
+      if (v === null) return celTekst('—', vet);
+      if (typeof v === 'string') return celTekst(v, vet);
+      return celGetal(v, '#,##0', vet);
+    };
+    const out = [celTekst(w[0], vet)];
+    if (cls === 'sec') return out;
+    rest.forEach(function (v) { out.push(cel(v)); });
+    return out;
+  }
+
+  function exportKopRijen(s, vandaag) {
+    const i = s.input;
+    return [
+      [celTekst('BV ja/nee — vergelijking IB-onderneming en BV', true)],
+      [celTekst('Fiscale jaarvergelijking, belastingjaar ' + T.jaar)],
+      [celTekst('Tool'), celTekst(TOOL_ID)],
+      [celTekst('Versie'), celTekst(TOOL_VERSIE)],
+      [celTekst('Geëxporteerd op'), celTekst(vandaag)],
+      [celTekst('Naam ondernemer of dossier'), celTekst(i.naam || '—')],
+      [celTekst('Kenmerk'), celTekst((el('kenmerk') && el('kenmerk').value) || '—')],
+      []
+    ];
+  }
+
+  function exportUitkomstRijen(s) {
+    const vd = s.voordeelEconomisch;
+    const gelijk = Math.abs(vd) < 250;
+    const bvb = vd > 0;
+    const rij = [];
+    rij.push([celTekst('Conclusie', true)]);
+    rij.push([celTekst(gelijk
+      ? 'Binnen deze fiscale vergelijking liggen beide vormen vrijwel gelijk.'
+      : 'Binnen deze fiscale vergelijking is ' + (bvb ? 'de BV' : 'de IB-onderneming')
+        + ' circa ' + fmt(Math.abs(vd)) + ' per jaar voordeliger (economisch perspectief).')]);
+    rij.push([celTekst('Alleen jaarlijkse lasten (perspectief 1)'), celGetal(s.voordeelJaarlijks, '#,##0')]);
+    rij.push([celTekst('Economisch voordeel BV t.o.v. IB (perspectief 2)'), celGetal(vd, '#,##0')]);
+    rij.push([celTekst('Belastingdruk IB'), celGetal(s.drukIB, '0.0%')]);
+    rij.push([celTekst('Belastingdruk BV'), celGetal(s.drukBV, '0.0%')]);
+    rij.push([]);
+    rij.push([celTekst('Belastingen en premies', true), celTekst('IB-onderneming'), celTekst('BV')]);
+    rijenBelasting(s).forEach(function (r) { rij.push(exportRij(r)); });
+    rij.push([]);
+    rij.push([celTekst('Overige kosten', true), celTekst('IB-onderneming'), celTekst('BV')]);
+    rijenKosten(s).forEach(function (r) { rij.push(exportRij(r)); });
+    rij.push([]);
+    rij.push([celTekst('Netto privé en economische positie', true), celTekst('IB-onderneming'), celTekst('BV')]);
+    rijenLiquiditeit(s).forEach(function (r) { rij.push(exportRij(r)); });
+    rij.push([]);
+    rij.push([celTekst('Detail IB-onderneming', true)]);
+    rijenDetailIB(s).forEach(function (r) { rij.push(exportRij(r)); });
+    rij.push([]);
+    rij.push([celTekst('Detail BV', true)]);
+    rijenDetailBV(s).forEach(function (r) { rij.push(exportRij(r)); });
+    return rij;
+  }
+
+  function exportToelichtingRijen(s) {
+    const rij = [];
+    AANNAMES.forEach(function (t) { rij.push([celTekst('Aanname'), celTekst(t)]); });
+    (s.waarschuwingen || []).forEach(function (t) { rij.push([celTekst('Aandachtspunt'), celTekst(t)]); });
+    rij.push([celTekst('Afbakening'), celTekst(NIET_MEEGENOMEN)]);
+    return rij;
+  }
+
+  /** Bouwt het werkblad van de Excel-export uit de al berekende `state`; er wordt hier
+   *  niets opnieuw doorgerekend. */
+  function exportBladen(s, vandaag) {
+    const r = [];
+    r.push.apply(r, exportKopRijen(s, vandaag));
+    r.push([celTekst('Invoer', true)]);
+    uitgangspuntenRijen(s).forEach(function (p) { r.push([celTekst(p[0]), celTekst(p[1])]); });
+    r.push([]);
+    r.push.apply(r, exportUitkomstRijen(s));
+    r.push([]);
+    r.push([celTekst('Toelichting en vindplaatsen', true)]);
+    r.push.apply(r, exportToelichtingRijen(s));
+    return [{ naam: 'BV of eenmanszaak', rijen: r, breedtes: [58, 24, 24] }];
+  }
+
+  function exportBestandsnaam(kenmerk, naam, vandaag) {
+    const schoon = BVJN.dossierBestandsnaam(kenmerk || naam).replace(/\.json$/, '');
+    return schoon + '-' + vandaag + '.xlsx';
+  }
+
+  function bewaarBestand(bytes, naam, type) {
+    const blob = new Blob([bytes], { type: type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = naam;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+
+  function exporteerExcel() {
+    if (!state) { dossierMelding('Voer eerst een berekening uit om te exporteren.', 'fout'); return; }
+    if (invoerSleutel() !== laatsteInvoerSleutel) {
+      dossierMelding('De invoer is gewijzigd na de laatste berekening. Voer de berekening opnieuw uit voordat u exporteert, anders bevat het werkblad verouderde cijfers.', 'fout');
+      return;
+    }
+    const vandaag = new Date().toISOString().slice(0, 10);
+    const naam = exportBestandsnaam(el('kenmerk').value, el('naam').value, vandaag);
+    bewaarBestand(xlsxBytes(exportBladen(state, vandaag)), naam,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    dossierMelding('Geëxporteerd als ' + naam + '. Het werkblad is een bevroren weergave van de hoofdvergelijking (IB-onderneming tegenover BV), zonder formules. Wie een variant wil, varieert in de tool en exporteert opnieuw.', 'goed');
   }
 
   /* ---------------- dossier: opslaan en openen ---------------- */
@@ -6726,6 +6873,242 @@ const BVJN = (function () {
     }, 150);
   }
 
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
   // exporteer de handlers die de HTML aanroept
   window.bereken = bereken;
   window.setUren = setUren;
@@ -6752,6 +7135,7 @@ const BVJN = (function () {
     el('claimTariefVast').value = String(T.box2.laag * 100);
     el('dossier-opslaan').addEventListener('click', dossierOpslaan);
     el('dossier-openen').addEventListener('click', function () { el('dossier-bestand').click(); });
+    el('dossier-excel').addEventListener('click', exporteerExcel);
     el('dossier-bestand').addEventListener('change', function (ev) {
       dossierOpenen(ev.target.files && ev.target.files[0]);
       ev.target.value = '';
@@ -6798,6 +7182,6 @@ const BVJN = (function () {
   });
 })();
 </script>
-<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 23 sep 2026, 23:16</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 01:14</div>
 </body>
 </html>
