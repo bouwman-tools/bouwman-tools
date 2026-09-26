@@ -58,7 +58,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | BTW Teruggaaf EU | `/btw-teruggaaf-eu.html` | bouwman-tools/btw-teruggaaf-eu | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-17 |
-| 🟡 beta | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
+| 🟢 live | BUA en kantineregeling | `/bua.html` | bouwman-tools/BUA | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | Herziening btw | `/herziening-btw.html` | bouwman-tools/herziening-btw | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 
 - **BTW Teruggaaf EU**: Toont per EU-land de voorwaarden voor een btw-teruggaafverzoek, waaronder factuurvereisten, minimumbedragen, talen en indienen via een derde
