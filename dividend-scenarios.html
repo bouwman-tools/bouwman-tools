@@ -112,6 +112,35 @@
   .bron { font-size: 12px; color: var(--grijs); }
   .jaarrij input { width: 100px; }
   footer { border-top: 1px solid var(--lijn); padding: 14px 24px; color: var(--grijs); font-size: 12.5px; }
+  .uitgangenbalk {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding: 10px 24px; border-bottom: 1px solid var(--lijn); background: var(--vlak);
+  }
+  .uitgangenbalk label { margin: 0; color: var(--tekst); font-size: 13px; }
+  .uitgangenbalk input[type="text"] {
+    font: inherit; padding: 5px 8px; border: 1px solid var(--lijn); border-radius: 4px; width: 220px;
+  }
+  .uitgangenbalk button {
+    font: inherit; padding: 6px 12px; border: 1px solid var(--lijn); border-radius: 4px;
+    background: #fff; cursor: pointer; color: var(--tekst);
+  }
+  .uitgangenbalk button:hover { background: var(--accent-zacht); border-color: var(--accent); }
+  .uitgangmelding { font-size: 12.5px; color: var(--grijs); flex-basis: 100%; }
+  .printonly { display: none; }
+  @media print {
+    nav, .noprint, .uitgangenbalk { display: none !important; }
+    .printonly { display: block; }
+    section[hidden] { display: block !important; }
+    body { padding: 0; }
+    main { max-width: none; padding: 6px 4px 0; }
+    header { border-bottom: none; padding: 0 4px; }
+    input, select { border: none; background: transparent; padding: 1px 0; color: #000; }
+    table { break-inside: auto; }
+    tr { break-inside: avoid; }
+    details { break-inside: avoid; }
+    section { break-before: page; }
+    section:first-of-type { break-before: auto; }
+  }
 </style>
 </head>
 <body>
@@ -125,6 +154,22 @@
     <button role="tab" id="tab-toelichting" aria-controls="paneel-toelichting" aria-selected="false">Toelichting en afbakening</button>
   </nav>
 </header>
+
+<div class="uitgangenbalk noprint">
+  <label for="u-kenmerk">Kenmerk of cliëntnaam</label>
+  <input type="text" id="u-kenmerk" placeholder="bijvoorbeeld: Jansen Beheer B.V.">
+  <button type="button" id="u-print">Dossierstuk afdrukken</button>
+  <button type="button" id="u-excel">Exporteren naar Excel</button>
+  <button type="button" id="u-opslaan">Opslaan als bestand</button>
+  <button type="button" id="u-openen">Bestand openen</button>
+  <input type="file" id="u-bestand" accept="application/json,.json" style="display:none">
+  <span class="uitgangmelding" id="u-melding"></span>
+</div>
+
+<div class="printonly" id="u-printkop" style="padding:6px 24px 0;">
+  <h1 style="font-size:18px;margin:0 0 4px;">Dossierstuk — Dividendscenario's dga</h1>
+  <p id="u-printkopinhoud" style="font-size:12px;color:var(--grijs);margin:0 0 10px;"></p>
+</div>
 
 <main>
 
@@ -1146,6 +1191,243 @@ function verdeelTotOpstapje(jaar, totaal, aantalJaren) {
 }
 // FISCALE KERN — EINDE
 
+// ============================================================
+// UITGANGENKERN — BEGIN
+//
+// Pure code, net als de kern erboven: geen document, window of fetch. Deze laag
+// serialiseert en valideert alleen de INVOER van de drie tabbladen voor het
+// dossierbestand, en levert de rijen voor de afdruk en de Excel-export. Er wordt
+// hier niets fiscaals opnieuw uitgerekend; de scherminvoer en -uitkomst blijven de
+// enige plek waar wordt gerekend.
+// ============================================================
+
+const TOOL_ID = 'dividend-scenarios';
+const TOOL_VERSIE = '1.1.0';
+const DOSSIER_VERSIE = 1;
+
+// Elk scalair invoerveld van de drie tabbladen, met het label zoals het op het
+// scherm staat. Dit is de enige plek waar deze lijst staat: zij bepaalt wat er in
+// het dossierbestand gaat, wat er bij het openen wordt gevalideerd, en wat er op de
+// afdruk en in de Excel-export als invoer verschijnt.
+const SCALAIRE_VELDEN = [
+  { id: 't-jaar', soort: 'jaar', label: 'Belastingjaar (effectief tarief box 2)' },
+  { id: 't-geboortedatum', soort: 'datum', label: 'Geboortedatum' },
+  { id: 't-alleenstaand', soort: 'keuze', label: 'Alleenstaande AOW-uitkering', opties: ['nee', 'ja'] },
+  { id: 't-arbeid', soort: 'getal', label: 'Arbeidsinkomen box 1' },
+  { id: 't-overig', soort: 'getal', magNegatief: true, label: 'Overig box 1-inkomen' },
+  { id: 't-box3', soort: 'getal', label: 'Box 3-inkomen' },
+  { id: 't-aftrek', soort: 'getal', label: 'Beperkt aftrekbare posten' },
+  { id: 't-partner', soort: 'vink', label: 'Dividend verdelen over twee fiscale partners' },
+  { id: 't-p-geboortedatum', soort: 'datum', label: 'Geboortedatum partner' },
+  { id: 't-p-arbeid', soort: 'getal', label: 'Arbeidsinkomen box 1 partner' },
+  { id: 't-p-overig', soort: 'getal', magNegatief: true, label: 'Overig box 1-inkomen partner' },
+  { id: 't-p-box3', soort: 'getal', label: 'Box 3-inkomen partner' },
+  { id: 't-p-aftrek', soort: 'getal', label: 'Beperkt aftrekbare posten partner' },
+  { id: 't-verdeling', soort: 'keuze', label: 'Verdeling dividend', opties: ['optimaal', 'handmatig'] },
+  { id: 't-aandeel', soort: 'getal', label: 'Aandeel bij de dga (%)' },
+  { id: 't-div1', soort: 'getal', label: 'Dividendscenario 1' },
+  { id: 't-div2', soort: 'getal', label: 'Dividendscenario 2' },
+  { id: 't-div3', soort: 'getal', label: 'Dividendscenario 3' },
+  { id: 't-div4', soort: 'getal', label: 'Dividendscenario 4' },
+  { id: 'v-jaar', soort: 'jaar', label: 'Belastingjaar (scenario\'s vergelijken)' },
+  { id: 'v-start', soort: 'getal', label: 'Uitkeerbaar vermogen met ab-claim' },
+  { id: 'v-verkrijgingsprijs', soort: 'getal', label: 'Verkrijgingsprijs aandelen' },
+  { id: 'v-rendement', soort: 'getal', label: 'Rendement in de bv (% per jaar)' },
+  { id: 'v-horizon', soort: 'getal', label: 'Horizon (jaren)' },
+  { id: 'v-tbsrente', soort: 'getal', label: 'Tbs-rente (% per jaar)' },
+  { id: 'v-vpbmodus', soort: 'keuze', label: 'Vpb-tarief', opties: ['schijven', 'vast'] },
+  { id: 'v-vpbvast', soort: 'getal', label: 'Vast vpb-tarief (%)' },
+  { id: 'v-tbsmodus', soort: 'keuze', label: 'Box 1-tarief tbs-rente bij de dga',
+    opties: ['top', 'top-zonder', 'midden', 'eerste', 'eerste-aow', 'vast'] },
+  { id: 'v-tbsvast', soort: 'getal', label: 'Effectief tarief over de bruto tbs-rente (%)' },
+  { id: 's-jaar', soort: 'jaar', label: 'Belastingjaar (dividend spreiden)' },
+  { id: 's-disconto', soort: 'getal', label: 'Contant maken tegen (% per jaar)' },
+  { id: 's-jaren', soort: 'getal', label: 'Aantal jaren (spreiden)' },
+  { id: 's-totaal', soort: 'getal', label: 'Totaal uit te keren (spreiden)' },
+];
+
+const TBS_MODUS_LABELS = {
+  top: 'toptarief, met tariefaanpassing aftrekposten', 'top-zonder': 'toptarief, zonder tariefaanpassing',
+  midden: 'tweede schijf', eerste: 'eerste schijf, vóór AOW-leeftijd', 'eerste-aow': 'eerste schijf, na AOW-leeftijd',
+  vast: 'vast percentage',
+};
+const KEUZE_LABELS = {
+  't-alleenstaand': { nee: 'nee', ja: 'ja' },
+  't-verdeling': { optimaal: 'laagste totale heffing zoeken', handmatig: 'zelf instellen' },
+  'v-vpbmodus': { schijven: 'schijventarief (19% / 25,8%)', vast: 'vast percentage' },
+  'v-tbsmodus': TBS_MODUS_LABELS,
+};
+
+function keuzeTekst(veldId, waarde) {
+  const m = KEUZE_LABELS[veldId];
+  return (m && m[waarde]) || waarde;
+}
+
+/**
+ * Zet de huidige invoer om naar een dossierbestand. `invoer` is een platte
+ * verzameling { id: waarde } voor elk veld in SCALAIRE_VELDEN, plus de drie
+ * spreidingsreeksen.
+ */
+function dossierUitInvoer(invoer, spreiding, vandaag) {
+  const scalair = {};
+  SCALAIRE_VELDEN.forEach(function (v) { scalair[v.id] = invoer[v.id]; });
+  return {
+    tool: TOOL_ID,
+    toolVersie: TOOL_VERSIE,
+    dossierVersie: DOSSIER_VERSIE,
+    opgeslagen: vandaag,
+    scalair: scalair,
+    spreiding: spreiding.map(function (s) { return s.slice(); }),
+  };
+}
+
+/**
+ * Leest en valideert het dossierbestand. Nooit een stille standaardwaarde: een
+ * ontbrekend of ongeldig veld geeft een fout en laat de huidige invoer intact.
+ */
+function isGetal(w) { return typeof w === 'number' && Number.isFinite(w); }
+
+function valideerScalairVeld(v, w, fouten) {
+  if (w === undefined || w === null) { fouten.push(v.label + ' ontbreekt'); return undefined; }
+  if (v.soort === 'jaar') {
+    if (typeof w !== 'string' || JAREN.indexOf(Number(w)) === -1) {
+      fouten.push(v.label + ' noemt een jaar waarvoor deze tool geen gecontroleerde waarden heeft'); return undefined;
+    }
+    return w;
+  }
+  if (v.soort === 'datum') {
+    if (typeof w !== 'string') { fouten.push(v.label + ' is geen tekst'); return undefined; }
+    if (w !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(w)) { fouten.push(v.label + ' is geen geldige datum (jjjj-mm-dd)'); return undefined; }
+    return w;
+  }
+  if (v.soort === 'keuze') {
+    if (typeof w !== 'string' || v.opties.indexOf(w) === -1) { fouten.push(v.label + ' heeft een onbekende waarde'); return undefined; }
+    return w;
+  }
+  if (v.soort === 'vink') {
+    if (typeof w !== 'boolean') { fouten.push(v.label + ' is geen ja/nee-waarde'); return undefined; }
+    return w;
+  }
+  // 'getal': Number(true), Number([]) en Number(' ') leveren stil 1, 0 en 0 op; daarom
+  // wordt hier eerst met typeof getoetst en niet met een omzetting die dat verbergt.
+  if (!isGetal(w) || (w < 0 && !v.magNegatief)) { fouten.push(v.label + ' is geen geldig bedrag of percentage'); return undefined; }
+  return w;
+}
+
+function valideerSpreiding(sp, jaren, fouten) {
+  if (!Array.isArray(sp) || sp.length !== 3) { fouten.push('De spreidingsreeksen ontbreken of zijn ongeldig'); return undefined; }
+  const uit = [];
+  for (let k = 0; k < 3; k++) {
+    const reeks = sp[k];
+    if (!Array.isArray(reeks) || reeks.length < 1 || reeks.length > 20) {
+      fouten.push('Spreidingsscenario ' + (k + 1) + ' ontbreekt of heeft een ongeldige lengte'); continue;
+    }
+    const r = [];
+    let ok = true;
+    reeks.forEach(function (w, i) {
+      if (!isGetal(w) || w < 0) { fouten.push('Spreidingsscenario ' + (k + 1) + ', jaar ' + (i + 1) + ' is geen geldig bedrag'); ok = false; return; }
+      r.push(w);
+    });
+    if (ok) uit.push(r);
+  }
+  if (uit.length !== 3) return undefined;
+  return uit;
+}
+
+/**
+ * @returns {{ok: true, dossier: object, invoer: object, spreiding: number[][]} | {ok: false, fout: string}}
+ */
+function leesDossier(tekst) {
+  let d;
+  try {
+    d = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Dit is geen geldig dossierbestand: de JSON kon niet worden gelezen. Er is niets gewijzigd.' };
+  }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) {
+    return { ok: false, fout: 'Dit bestand bevat geen dossiergegevens. Er is niets gewijzigd.' };
+  }
+  if (d.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit dossierbestand hoort niet bij Dividendscenario\'s dga (tool: ' +
+      (d.tool === undefined ? 'niet vermeld' : String(d.tool)) + '). Er is niets gewijzigd.' };
+  }
+  if (!Number.isInteger(d.dossierVersie)) {
+    return { ok: false, fout: 'Het dossierbestand noemt geen geldige formaatversie. Er is niets gewijzigd.' };
+  }
+  if (d.dossierVersie > DOSSIER_VERSIE) {
+    return { ok: false, fout: 'Dit dossierbestand is van formaatversie ' + d.dossierVersie +
+      ' en deze tool kent formaatversie ' + DOSSIER_VERSIE + '. Werk de tool bij. Er is niets gewijzigd.' };
+  }
+  if (d.dossierVersie < 1) {
+    return { ok: false, fout: 'Het dossierbestand noemt formaatversie ' + d.dossierVersie + ', en dat is geen bestaand formaat. Er is niets gewijzigd.' };
+  }
+
+  const fouten = [];
+  const scalair = {};
+  if (!d.scalair || typeof d.scalair !== 'object' || Array.isArray(d.scalair)) {
+    fouten.push('De invoer van het dossier ontbreekt of is ongeldig');
+  } else {
+    SCALAIRE_VELDEN.forEach(function (v) { scalair[v.id] = valideerScalairVeld(v, d.scalair[v.id], fouten); });
+  }
+  const spreiding = valideerSpreiding(d.spreiding, scalair['s-jaren'], fouten);
+
+  if (fouten.length) {
+    return { ok: false, fout: 'Dit dossierbestand is onvolledig of ongeldig, en de tool vult niets zelf in: ' +
+      fouten.join('; ') + '. Er is niets gewijzigd.' };
+  }
+  return { ok: true, dossier: d, invoer: scalair, spreiding: spreiding };
+}
+
+function slug(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+function bestandsnaam(kenmerk, vandaag, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + vandaag + '.' + extensie;
+}
+
+// Vaste vindplaatsen, modelkeuzes zonder eigen bron en afbakening. Overgenomen uit het
+// tabblad "Toelichting en afbakening"; hier staan zij een keer en gaan zij naar de
+// afdruk en de Excel-export tegelijk.
+const MODELKEUZES = [
+  'De optimale verdeling tussen fiscale partners (tabblad "Effectief tarief box 2") zoekt naar de laagste gezamenlijke heffing over het ingevoerde box 1-, box 2- en box 3-inkomen; dat is een modelkeuze en geen wettelijke verdeelsleutel.',
+  'De scenariovergelijking en het spreiden houden geen rekening met de afbouw van heffingskortingen; gebruik daarvoor het eerste tabblad.',
+  'Het schijventarief van de vennootschapsbelasting is de standaardkeuze bij het vergelijken van scenario\'s; een vast percentage is beschikbaar voor vergelijkingsdoeleinden maar is bij een beleggende bv structureel ongunstiger voor "uitstellen" (zie toelichting).',
+];
+const AFBAKENING = [
+  'Geen uitkeringstoets: of de vennootschap het dividend mag uitkeren (art. 2:216 BW) blijft een aparte vraag.',
+  'Geen emigratie, geen conserverende aanslagen en geen buitenlandse aandeelhouders.',
+  'Geen verliesverrekening in box 2 en geen verrekening van box 1-verliezen over jaren.',
+  'Geen regeling excessief lenen bij de eigen vennootschap.',
+  'Geen dividendbelasting als voorheffing.',
+  'Geen box 3-heffing over privévermogen buiten het ingevoerde box 3-inkomen, en geen modellering van het stelsel op basis van werkelijk rendement dat vanaf 2028 is voorzien.',
+  'Geen toets of de tbs-rente zakelijk is, en geen gevolgen van onzakelijkheid.',
+  'Geen gebruikelijk loon, geen pensioen in eigen beheer en geen lijfrenten.',
+  'Geen aanslag: de uitkomst is een planningsberekening, geen nabootsing van een aanslag met de daarbij geldende afrondingsregels.',
+  'De tool bewaart niets. Opslaan is een handeling van de gebruiker naar een plek die hij zelf kiest; er gaat geen invoer naar een server.',
+];
+
+function toelichtingRijen() {
+  const uit = [];
+  uit.push({ label: 'Vindplaats', tekst: 'Elke jaargebonden waarde is aan de wettekst gecontroleerd op 2 september 2026 en staat met artikel en geldigheidsjaar in de broncode van deze pagina.' });
+  MODELKEUZES.forEach(function (t) { uit.push({ label: 'Modelkeuze zonder eigen bron', tekst: t }); });
+  AFBAKENING.forEach(function (t) { uit.push({ label: 'Wat deze tool niet doet', tekst: t }); });
+  return uit;
+}
+
+/** Eén rij van de opstelling omgezet naar de celvorm die de xlsx-schrijver verwacht. */
+function opstellingRij(x) {
+  const waarde = (typeof x.getal === 'number' && isFinite(x.getal))
+    ? celGetal(x.getal, x.formaat || '#,##0.00')
+    : celTekst(x.tekst);
+  return [celTekst(x.label), waarde];
+}
+
+// ============================================================
+// UITGANGENKERN — EINDE
+// ============================================================
+
 // ---------------------------------------------------------------------------
 // Weergave
 // ---------------------------------------------------------------------------
@@ -1477,6 +1759,459 @@ function vulSpreidingVoorbeeld() {
   bouwSpreidingInvoer();
   tekenSpreiding();
 }
+
+// ==========================================================================
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van. Wijzig hem hier niet: een wijziging hoort in
+// gedeelde-kern thuis en wordt van daaruit verspreid.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair, kopie in
+// gedeeld/xlsx-schrijver.js van deze repository. Handmatig overgenomen op 27-09-2026
+// omdat gedeelde-kern op dat moment een niet-gecommitte wijziging van een andere
+// sessie bevatte; zie OPENSTAAND.md.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+// ==========================================================================
+
+// ============================================================
+// Uitgangen: dossierstuk (afdruk), Excel-export en dossierbestand
+// ============================================================
+
+function toonUitgangmelding(tekst, isFout) {
+  const m = $('u-melding');
+  if (!m) return;
+  m.style.color = isFout ? 'var(--let-op)' : 'var(--grijs)';
+  m.textContent = tekst;
+}
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function vandaagISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function vandaagNL() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+}
+
+/** Leest de huidige stand van alle SCALAIRE_VELDEN rechtstreeks van het scherm. */
+function huidigeInvoer() {
+  const inv = {};
+  SCALAIRE_VELDEN.forEach((v) => {
+    const el = $(v.id);
+    if (!el) { inv[v.id] = null; return; }
+    if (v.soort === 'vink') { inv[v.id] = el.checked; return; }
+    if (v.soort === 'getal') { const n = parseFloat(el.value); inv[v.id] = isNaN(n) ? 0 : n; return; }
+    inv[v.id] = el.value;
+  });
+  return inv;
+}
+
+/**
+ * Zet een gevalideerde dossierinvoer (van leesDossier) terug in het scherm. Draait
+ * pas nadat leesDossier het hele bestand heeft goedgekeurd; er wordt hier niets
+ * meer getoetst.
+ */
+function zetInvoer(inv, spreiding) {
+  SCALAIRE_VELDEN.forEach((v) => {
+    const el = $(v.id);
+    if (!el) return;
+    if (v.soort === 'vink') el.checked = inv[v.id];
+    else el.value = inv[v.id];
+  });
+  SPREIDING[0] = spreiding[0].slice();
+  SPREIDING[1] = spreiding[1].slice();
+  SPREIDING[2] = spreiding[2].slice();
+  $('s-jaren').value = spreiding[0].length;
+
+  $('t-partnervelden').hidden = !inv['t-partner'];
+  $('t-aandeelveld').hidden = inv['t-verdeling'] !== 'handmatig';
+  $('v-vpbvastveld').hidden = inv['v-vpbmodus'] !== 'vast';
+  $('v-tbsvastveld').hidden = inv['v-tbsmodus'] !== 'vast';
+
+  bouwSpreidingInvoer();
+  tekenTarief();
+  tekenVergelijking();
+  tekenSpreiding();
+}
+
+function neemDossierOver(tekst) {
+  const r = leesDossier(tekst);
+  if (!r.ok) { toonUitgangmelding(r.fout, true); return; }
+  zetInvoer(r.invoer, r.spreiding);
+  toonUitgangmelding('Dossier geopend (opgeslagen op ' + (r.dossier.opgeslagen || 'onbekend') +
+    ', tool-versie ' + (r.dossier.toolVersie || 'onbekend') +
+    '). De uitkomst is opnieuw berekend met de huidige tool.', false);
+}
+
+/** Invoerregels van één tabblad, in dezelfde volgorde als op het scherm. */
+function invoerRijenVoor(prefix, inv) {
+  const uit = [];
+  SCALAIRE_VELDEN.forEach((v) => {
+    if (v.id.indexOf(prefix) !== 0) return;
+    const w = inv[v.id];
+    if (v.soort === 'vink') { uit.push([celTekst(v.label), celTekst(w ? 'Ja' : 'Nee')]); return; }
+    if (v.soort === 'keuze') { uit.push([celTekst(v.label), celTekst(keuzeTekst(v.id, w))]); return; }
+    if (v.soort === 'datum') { uit.push([celTekst(v.label), celTekst(w || '—')]); return; }
+    if (v.soort === 'jaar') { uit.push([celTekst(v.label), celGetal(Number(w), '0')]); return; }
+    uit.push([celTekst(v.label), celGetal(typeof w === 'number' ? w : 0, '#,##0.00')]);
+  });
+  return uit;
+}
+
+/** Zet een al op het scherm getekende tabel (thead/tbody) om in exportrijen. */
+function tabelRijen(tabelId) {
+  const tabel = $(tabelId);
+  if (!tabel) return [];
+  const uit = [];
+  tabel.querySelectorAll('tr').forEach((tr) => {
+    const vet = tr.parentElement && tr.parentElement.tagName === 'THEAD';
+    const rij = [];
+    tr.querySelectorAll('th,td').forEach((cel) => rij.push(celTekst(cel.textContent.trim(), vet)));
+    uit.push(rij);
+  });
+  return uit;
+}
+
+/**
+ * Bouwt het werkblad van de Excel-export uit de al berekende schermtoestand: geen
+ * enkel getal wordt hier opnieuw uitgerekend. De drie tabbladen staan na elkaar in
+ * één werkblad, gevolgd door de vaste toelichting en vindplaatsen.
+ */
+function exportBladen(kenmerk, datumIso) {
+  const inv = huidigeInvoer();
+  const r = [];
+  r.push([celTekst('Dividendscenario\'s dga', true)]);
+  r.push([celTekst('Effectief tarief box 2, scenario\'s vergelijken en dividend spreiden')]);
+  r.push([celTekst('Tool'), celTekst(TOOL_ID)]);
+  r.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  r.push([celTekst('Geëxporteerd op'), celTekst(datumIso)]);
+  r.push([celTekst('Kenmerk'), celTekst(kenmerk || '—')]);
+  r.push([]);
+
+  r.push([celTekst('Tabblad: effectief tarief box 2 — invoer', true)]);
+  invoerRijenVoor('t-', inv).forEach((x) => r.push(x));
+  r.push([]);
+  r.push([celTekst('Tabblad: effectief tarief box 2 — uitkomst', true)]);
+  tabelRijen('t-tabel').forEach((x) => r.push(x));
+  r.push([celTekst($('t-voet').textContent.trim())]);
+  r.push([]);
+
+  r.push([celTekst('Tabblad: scenario\'s vergelijken — invoer', true)]);
+  invoerRijenVoor('v-', inv).forEach((x) => r.push(x));
+  r.push([]);
+  r.push([celTekst('Tabblad: scenario\'s vergelijken — uitkomst', true)]);
+  r.push([celTekst($('v-uitkomst').textContent.trim())]);
+  tabelRijen('v-tabel').forEach((x) => r.push(x));
+  r.push([]);
+
+  r.push([celTekst('Tabblad: dividend spreiden — invoer', true)]);
+  invoerRijenVoor('s-', inv).forEach((x) => r.push(x));
+  SPREIDING.forEach((reeks, k) => {
+    reeks.forEach((bedrag, i) => {
+      r.push([celTekst('Spreiding scenario ' + (k + 1) + ', jaar ' + (i + 1)), celGetal(bedrag, '#,##0.00')]);
+    });
+  });
+  r.push([]);
+  r.push([celTekst('Tabblad: dividend spreiden — uitkomst', true)]);
+  tabelRijen('s-tabel').forEach((x) => r.push(x));
+  r.push([]);
+
+  r.push([celTekst('Toelichting en vindplaatsen', true)]);
+  toelichtingRijen().forEach((x) => r.push(opstellingRij(x)));
+
+  return [{ naam: 'Dividendscenarios', rijen: r, breedtes: [78, 55] }];
+}
+
+function bijwerkPrintkop() {
+  const kop = $('u-printkopinhoud');
+  if (!kop) return;
+  const kenmerk = $('u-kenmerk').value.trim();
+  kop.textContent = (kenmerk ? 'Kenmerk: ' + kenmerk + ' — ' : '') +
+    'tool ' + TOOL_ID + ', versie ' + TOOL_VERSIE + ' — afgedrukt op ' + vandaagNL();
+}
+
+$('u-print').addEventListener('click', () => { bijwerkPrintkop(); window.print(); });
+
+$('u-excel').addEventListener('click', () => {
+  const kenmerk = $('u-kenmerk').value.trim();
+  const datum = vandaagISO();
+  bewaarBestand(xlsxBytes(exportBladen(kenmerk, datum)),
+    bestandsnaam(kenmerk, datum, 'xlsx'),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  toonUitgangmelding('Het werkblad is een bevroren weergave van deze berekening, zonder formules. ' +
+    'Wie een variant wil, varieert in de tool en exporteert opnieuw.', false);
+});
+
+$('u-opslaan').addEventListener('click', () => {
+  const kenmerk = $('u-kenmerk').value.trim();
+  const datum = vandaagISO();
+  const inv = huidigeInvoer();
+  const d = dossierUitInvoer(inv, SPREIDING, datum);
+  bewaarBestand(new TextEncoder().encode(JSON.stringify(d, null, 2)),
+    bestandsnaam(kenmerk, datum, 'json'), 'application/json');
+  toonUitgangmelding('Het dossierbestand bevat alleen uw invoer, geen uitkomsten: die worden bij het openen ' +
+    'opnieuw berekend met de dan geldende tool. Er gaat niets naar een server.', false);
+});
+
+$('u-openen').addEventListener('click', () => $('u-bestand').click());
+
+// Drie manieren waarop het lezen kan mislukken, en alle drie eindigen zichtbaar: een
+// leesfout (onerror), een afgebroken lezing (onabort) en een uitzondering die
+// readAsText zelf gooit.
+$('u-bestand').addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if (!f) return;
+  const mislukt = (waarom) => {
+    toonUitgangmelding('Het bestand kon niet worden gelezen: ' + waarom + '. Er is niets gewijzigd.', true);
+  };
+  try {
+    const lezer = new FileReader();
+    lezer.onload = () => neemDossierOver(String(lezer.result));
+    lezer.onerror = () => mislukt('er trad een leesfout op');
+    lezer.onabort = () => mislukt('het lezen is afgebroken');
+    lezer.readAsText(f);
+  } catch (e) {
+    mislukt('de browser weigerde het lezen');
+  }
+});
 
 vulSpreidingVoorbeeld();
 tekenTarief();
