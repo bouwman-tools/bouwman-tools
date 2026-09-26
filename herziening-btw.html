@@ -444,9 +444,10 @@
           <dd>Voor publiekrechtelijke lichamen loopt een vergelijkbare herziening via de
             Uitvoeringsregeling BTW-compensatiefonds. Die kent de tool niet.</dd>
 
-          <dt>Rekenen in dagen</dt>
-          <dd>De tool rekent in boekjaren. Een gebroken boekjaar voert u in als het boekjaar waarin
-            de ingebruikneming valt.</dd>
+          <dt>Rekenen in dagen buiten de levering</dt>
+          <dd>De gewone herziening rekent in boekjaren. Alleen bij een levering binnen de termijn
+            wordt het boekjaar van levering naar dagen gesplitst. Een gebroken boekjaar voert u in
+            als het boekjaar waarin de ingebruikneming valt.</dd>
 
           <dt>Meer dan één investering tegelijk</dt>
           <dd>Een investeringsdienst aan een pand heeft een eigen termijn, los van die van het pand
@@ -859,6 +860,10 @@ function herzieningBijLevering(gegevens) {
     boekjaar: gegevens.boekjaarLevering,
     maand: gegevens.maandLevering,
     dag: gegevens.dagLevering,
+    // De dagen zelf, voor de uitleg onder de uitkomst: die moet noemen waarmee is gerekend.
+    dagenInJaar: dagenInJaar,
+    dagenVoorLevering: dagnummer - 1,
+    dagenVanafLevering: dagenInJaar - dagnummer + 1,
     laatsteJaarTermijn: laatsteJaar,
     percentageFictie: percentageFictie,
     deelVoorLevering: deelVoorLevering,
@@ -1001,6 +1006,21 @@ function berekenHerziening(invoer) {
     totaalHerzieningsjaren: totaalHerzieningsjaren,
     totaalInclusiefIngebruikneming: afrondenCent(totaalHerzieningsjaren + ingebruikneming.bedrag),
     meldingen: meldingen,
+  };
+}
+
+// De delen van het boekjaar van levering zoals de uitkomst ze noemt. Dit staat in de kern
+// omdat het op de afdruk en dus in het dossier belandt: tot 27-09-2026 rekende de tool al
+// naar dagen maar noemde de uitleg nog maanden ("0 van de 12 maanden" bij een levering op
+// 31 januari, naast een bedrag dat niet nul was). Nu noemt de tekst de dagen waarmee is
+// gerekend, en dat ligt vast in een test.
+function uitlegLeveringsjaar(l) {
+  const dagen = function (aantal) {
+    return aantal + ' van de ' + l.dagenInJaar + ' dagen';
+  };
+  return {
+    voor: dagen(l.dagenVoorLevering),
+    vanaf: dagen(l.dagenVanafLevering),
   };
 }
 // FISCALE KERN — EINDE
@@ -1163,8 +1183,7 @@ function toonUitkomst(resultaat) {
 
   if (resultaat.levering) {
     const l = resultaat.levering;
-    const maandenVoor = l.maand - 1;
-    const maandenVanaf = 13 - l.maand;
+    const delen = uitlegLeveringsjaar(l);
     // 'belaste handelingen' maar 'belast gebruik': twee verbuigingen, dus twee woorden.
     const fictieWoord = l.percentageFictie === 1 ? 'belaste' : 'vrijgestelde';
     const fictieGebruik = l.percentageFictie === 1 ? 'belast' : 'vrijgesteld';
@@ -1172,12 +1191,12 @@ function toonUitkomst(resultaat) {
       return waarde.toLocaleString('nl-NL', { maximumFractionDigits: 4 });
     };
 
-    html += '<h3>Levering in ' + MAANDEN[l.maand - 1] + ' ' + l.boekjaar + '</h3>';
+    html += '<h3>Levering op ' + l.dag + ' ' + MAANDEN[l.maand - 1] + ' ' + l.boekjaar + '</h3>';
     html += '<p>Vanaf de levering wordt het goed geacht tot en met ' + l.laatsteJaarTermijn +
       ' uitsluitend te worden gebruikt voor ' + fictieWoord + ' handelingen. Die fictie begint bij ' +
       'de levering en niet bij het begin van het boekjaar, dus ' + l.boekjaar + ' wordt gesplitst. ' +
       'Vanaf de levering resteert ' + jaren(l.jarenVanafLevering) + ' jaar van de termijn: ' +
-      maandenVanaf + ' van de 12 maanden van ' + l.boekjaar +
+      delen.vanaf + ' van ' + l.boekjaar + ' (de dag van levering telt mee)' +
       (l.laatsteJaarTermijn > l.boekjaar
         ? ' plus de boekjaren ' + (l.boekjaar + 1) + ' tot en met ' + l.laatsteJaarTermijn
         : '') +
@@ -1185,16 +1204,16 @@ function toonUitkomst(resultaat) {
 
     html += '<table><tbody>';
     if (l.percentageVoorLevering !== null) {
-      html += '<tr><td>' + l.boekjaar + ' tot de levering: ' + maandenVoor +
-        ' van de 12 maanden, werkelijk gebruik ' + procent(l.percentageVoorLevering) + '</td>' +
+      html += '<tr><td>' + l.boekjaar + ' tot de levering: ' + delen.voor +
+        ', werkelijk gebruik ' + procent(l.percentageVoorLevering) + '</td>' +
         '<td class="getal">' + euro(l.bedragVoorLevering) + '</td></tr>';
     } else if (l.voorLeveringOnbekend) {
-      html += '<tr class="rustig"><td>' + l.boekjaar + ' tot de levering: ' + maandenVoor +
-        ' van de 12 maanden, geen gebruik ingevuld en dus buiten de herziening gelaten</td>' +
+      html += '<tr class="rustig"><td>' + l.boekjaar + ' tot de levering: ' + delen.voor +
+        ', geen gebruik ingevuld en dus buiten de herziening gelaten</td>' +
         '<td class="getal">–</td></tr>';
-    } else if (maandenVoor > 0) {
-      html += '<tr class="rustig"><td>' + l.boekjaar + ' tot de levering: ' + maandenVoor +
-        ' van de 12 maanden, verwerkt in de correctie bij ingebruikneming hierboven</td>' +
+    } else if (l.dagenVoorLevering > 0) {
+      html += '<tr class="rustig"><td>' + l.boekjaar + ' tot de levering: ' + delen.voor +
+        ', verwerkt in de correctie bij ingebruikneming hierboven</td>' +
         '<td class="getal">–</td></tr>';
     }
     html += '<tr><td>Vanaf de levering tot en met ' + l.laatsteJaarTermijn + ': ' +
