@@ -304,6 +304,29 @@ footer a:hover { color: var(--mint); }
   body.print-brief .brief-preview .brief-highlight { background: #f0fdf8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-left: 3pt solid #3DD9A0; padding: 10pt 14pt; margin: 14pt 0; }
   body.print-brief .brief-preview .brief-footer { border-top: 1pt solid #ccc; padding-top: 10pt; margin-top: 24pt; font-size: 9.5pt; color: #444; }
 }
+
+/* ── DOSSIERBALK (kenmerk, dossierstuk, Excel-export, dossierbestand) ── */
+.dossier-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: var(--page-max); margin: 0 auto; padding: 12px var(--page-pad) 0; }
+.dossier-bar input[type="text"] { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--white); padding: 8px 12px; font-size: 13px; font-family: inherit; min-width: 220px; }
+.dossier-bar input[type="text"]::placeholder { color: var(--muted); }
+.btn-dossier { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--dim); padding: 8px 12px; font-size: 12.5px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.btn-dossier:hover { background: rgba(255,255,255,0.09); color: var(--white); }
+
+/* ── DOSSIERSTUK (AFDRUKKEN) ── */
+#dossier-print-extra { display: none; }
+@media print {
+  .noprint, header, .hero, .tabs-bar, .kenteken-bar .btn-rdw, .kenteken-input-wrap, .kenteken-label,
+  .dossier-bar, footer, button, input[type="file"] { display: none !important; }
+  body { background: #fff !important; }
+  *, *::before, *::after { color: #000 !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; }
+  .card, .rs, .melding, .verdict, .eh-kaart, .info-card, .placeholder { border: 1px solid #999 !important; }
+  #dossier-print-extra { display: block !important; max-width: 100%; padding: 12mm 0 0; font-size: 10.5pt; line-height: 1.55; }
+  #dossier-print-extra h3 { font-size: 11.5pt; margin: 14pt 0 4pt; border-bottom: 1pt solid #999; padding-bottom: 3pt; }
+  #dossier-print-extra ul { margin: 0 0 6pt 16pt; }
+  #dossier-print-extra li { margin-bottom: 4pt; }
+  #dossier-print-extra .dp-titel { font-size: 15pt; font-weight: 800; }
+  #dossier-print-extra .dp-meta { font-size: 9.5pt; color: #333 !important; margin-bottom: 10pt; }
+}
 </style>
 </head>
 <body>
@@ -332,6 +355,16 @@ footer a:hover { color: var(--mint); }
   <button class="tab-btn" onclick="switchTab('youngtimer')"  id="tab-youngtimer">📅 Youngtimer 2027</button>
   <button class="tab-btn" onclick="switchTab('klantbrief')"  id="tab-klantbrief">✉️ Klantbrief</button>
   <button class="tab-btn" onclick="switchTab('bijtelling-controle')" id="tab-bijtelling-controle">🧾 Bijtelling controle</button>
+</div>
+
+<!-- GEDEELDE DOSSIERBALK: kenmerk, dossierstuk, Excel-export, dossierbestand -->
+<div class="dossier-bar noprint" id="dossier-bar">
+  <input type="text" id="dossier_kenmerk" placeholder="Kenmerk of klantnaam voor dossier" autocomplete="off">
+  <button class="btn-dossier" onclick="afdrukkenDossierstuk()">🖨️ Dossierstuk</button>
+  <button class="btn-dossier" onclick="exporteerExcel()">📊 Excel-export</button>
+  <button class="btn-dossier" onclick="opslaanDossierbestand()">💾 Dossier opslaan</button>
+  <button class="btn-dossier" onclick="document.getElementById('dossier_bestand_input').click()">📂 Dossier openen</button>
+  <input type="file" id="dossier_bestand_input" accept="application/json,.json" style="display:none;" onchange="openDossierbestandGekozen(event)">
 </div>
 
 <!-- GEDEELDE KENTEKEN BAR -->
@@ -971,6 +1004,50 @@ footer a:hover { color: var(--mint); }
   <p>© 2026 Join Administraties — Auto Fiscaal 2027</p>
   <p>Tarieven 2026/2027 — controleer jaarlijks &nbsp;·&nbsp; <a href="https://joinadministraties.nl" target="_blank">joinadministraties.nl</a></p>
 </footer>
+
+<!-- Vaste kaart bij het dossierstuk: alleen zichtbaar bij afdrukken (@media print).
+     Zij komt bij elk tabblad achter de zichtbare invoer en uitkomst te staan. -->
+<div id="dossier-print-extra">
+  <div class="dp-kop">
+    <div class="dp-titel">Auto Fiscaal 2027 — dossierstuk</div>
+    <div class="dp-meta">
+      Kenmerk: <span id="dossier_print_kenmerk">—</span> ·
+      Datum afdruk: <span id="dossier_print_datum">—</span> ·
+      Versie tool: <span id="dossier_print_versie">—</span>
+    </div>
+  </div>
+  <div class="dp-vindplaatsen">
+    <h3>Vindplaatsen van de gebruikte fiscale waarden</h3>
+    <ul>
+      <li>Bijtellingspercentages en de leeftijdsgrens van 25 jaar voor de youngtimerregeling: art. 3.20 Wet IB 2001, geldende tekst.</li>
+      <li>Afwijkend percentage van 25% bij eerste toelating tot en met 31-12-2016: art. 10a.4 Wet IB 2001 en de Cijferbijlage 2026 (bewuste afwijking van KG:213:2026:1).</li>
+      <li>Goedkeuring youngtimer 2026 (keuzeregeling rond de leeftijdsgrens van 15/16 jaar): besluit van 12-02-2026, art. 2.2 (inkomstenbelasting) en art. 2.1 (loonbelasting/DGA).</li>
+      <li>Cijfers box 1 voor 2027 (schijven en heffingskortingen): overwegend wetsvoorstel Belastingplan 2027 (Kamerstukken II 2026/27, 37 022), ingediend 15-09-2026 en nog niet aangenomen. Twee onderdelen blijven op het niveau van 2026, omdat het voorstel ze niet regelt: het maximum bijdrage-inkomen Zvw en de twee tussenliggende inkomensgrenzen van de arbeidskorting. De tariefsaanpassing (art. 2.10 lid 2 Wet IB 2001) blijft naar geldend recht 11,91% en komt niet uit dit wetsvoorstel.</li>
+      <li>Pseudo-eindheffing (12% per jaar): art. 32bc Wet LB 1964. Overgangstermijn tot 17-09-2030: art. 39j Wet LB 1964, geldend recht; de aangekondigde verlenging naar 01-01-2031 is nog geen wet.</li>
+      <li>60-maandenregime (ankerdatum en termijn): art. 3.20 leden 11 en 12 Wet IB 2001. Verlaging voor nulemissieauto's: art. 3.20 lid 2 Wet IB 2001, met de bijbehorende staffel.</li>
+      <li>Voertuiggegevens (kenteken, catalogusprijs, brandstof, datum eerste toelating/tenaamstelling): RDW Open Data, datasets m9d7-ebf2 en 8ys7-d773.</li>
+    </ul>
+  </div>
+  <div class="dp-modelkeuzes">
+    <h3>Modelkeuzes zonder eigen fiscale bron</h3>
+    <ul>
+      <li>Een hybride auto (een brandstofcombinatie met een fossiele component) telt als niet-emissievrij; alleen uitsluitend elektriciteit of waterstof telt als emissievrij.</li>
+      <li>Bij de goedkeuring 2026 kiest de tool automatisch de voor de klant voordeligste route (met of zonder de goedkeuring) en benoemt de niet-gekozen route in de conclusie.</li>
+      <li>Passeert een emissievrije auto de leeftijdsgrens in de loop van het jaar tegelijk met het einde van het 60-maandenregime, dan rekent de tool die combinatie bewust niet uit; dat vraagt handmatige controle (zie de melding op het tabblad Bijtelling controle in <code>bcBereken()</code>).</li>
+      <li>Ontbreken RDW-gegevens (catalogusprijs, datum toelating, datum tenaamstelling), dan blijft handmatige invoer mogelijk; de tool vult nooit een gok in.</li>
+    </ul>
+  </div>
+  <div class="dp-afbakening">
+    <h3>Afbakening van de tool</h3>
+    <p>Twee dossiers stonden bij het opmaken van dit stuk nog open en zijn niet als vaststaand recht in de uitkomst verwerkt:</p>
+    <ul>
+      <li><strong>Leeftijdsgrens van 25 jaar per 2027.</strong> Het Belastingplan 2027 (37 022, ingediend 15-09-2026) stelt in plaats daarvan 17 jaar per 2027 en 20 jaar per 2028 voor. De tool rekent met de grens van 25 jaar zoals die nu geldt, en toont de uitkomst onder het voorstel er in een apart blok naast zolang niet is gestemd.</li>
+      <li><strong>Waarderingsgrondslag van de youngtimerregeling.</strong> De geldende wettekst (art. 3.20 lid 5 onderdeel b) noemt nog vijftien jaar, terwijl de tool aanneemt dat deze grondslag dezelfde leeftijdsgrens volgt als het bijtellingspercentage zelf. Het Belastingplan 2027 (37 022, ingediend 15-09-2026) herstelt dat: artikel I, onderdeel E, onder 2 wijzigt lid 5 onderdeel b eerst naar 16 jaar, met terugwerkende kracht tot en met 01-01-2026, en onder 3 (met een vervolgstap in artikel II, onderdeel B) trekt de grondslag vanaf 2027 en 2028 mee naar dezelfde 17 respectievelijk 20 jaar die dan ook voor het percentage gaan gelden. Dat bevestigt de lijn die de tool al volgde, maar is nog geen recht. De tool volgt de bevestigde lijn, met een zichtbare kanttekening op de betrokken tabbladen.</li>
+    </ul>
+    <p>Daarnaast valt de aangekondigde greentimerregeling (een verlaagd bijtellingstarief vanaf 2029 voor gebruikte elektrische auto's van vijf tot acht jaar) buiten deze tool: zij staat alleen in de Miljoenennota 2027 en in geen enkel wetsvoorstel.</p>
+    <p>Deze berekening is indicatief en ontleent geen rechten. Voor de definitieve fiscale positie is nader onderzoek nodig.</p>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2074,6 +2151,296 @@ if (typeof module !== 'undefined' && module.exports) {
 // FISCALE KERN — EINDE
 // ══════════════════════════════════════════════════════════════════════════════
 
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern.
+// Normaal zet verspreid.mjs deze kopie neer; op 27-09-2026 stond gedeelde-kern
+// zelf met een ongecommitte wijziging van een andere sessie, dus is dit blok
+// hier handmatig gekopieerd in plaats van via de verspreidingsroute (zie
+// OPENSTAAND.md). Wijzig hem hier niet: een wijziging hoort in gedeelde-kern
+// thuis en wordt van daaruit verspreid.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOSSIERBESTAND — puur, zonder DOM. Beoordeelt of een JSON-bestand een
+// geldig dossier van deze tool is, en behoedt tegen de twee bekende
+// gebreken: Number(true)/Number([])/Number(' ') niet stil als geldig getal
+// accepteren, en een ontbrekend veld nooit met een stille standaardwaarde
+// vullen. tests/laad-dossier.mjs snijdt dit blok uit en test het apart.
+// ══════════════════════════════════════════════════════════════════════════════
+// DOSSIERBESTAND — BEGIN
+
+const DOSSIER_TOOL_ID = 'auto-fiscaal-2027';
+const DOSSIER_FORMAAT_VERSIE = 1;
+
+// Geeft het getal terug als `v` een geldig, positief-of-nul getal representeert,
+// anders null. Een boolean, een array of een lege/spatie-string tellen niet mee:
+// Number(true) === 1, Number([]) === 0 en Number(' ') === 0 zouden anders stil
+// als geldige invoer worden geaccepteerd.
+function magGetalZijn(v) {
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  if (typeof v === 'string' && v.trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Controleert of een ingelezen dossierbestand het verwachte formaat heeft.
+// Wijzigt niets en vult niets aan; geeft alleen het oordeel terug.
+function valideerDossierbestand(ruw) {
+  if (!ruw || typeof ruw !== 'object' || Array.isArray(ruw)) {
+    return { ok: false, fouten: ['Het bestand bevat geen geldig dossier (geen JSON-object).'] };
+  }
+  if (ruw.toolId !== DOSSIER_TOOL_ID) {
+    return { ok: false, fouten: [
+      `Dit bestand hoort niet bij deze tool (toolId "${ruw.toolId}", verwacht "${DOSSIER_TOOL_ID}").`
+    ] };
+  }
+  if (typeof ruw.formaatVersie !== 'number' || !Number.isFinite(ruw.formaatVersie)) {
+    return { ok: false, fouten: ['Het bestand mist een geldige bestandsformaatversie.'] };
+  }
+  if (ruw.formaatVersie > DOSSIER_FORMAAT_VERSIE) {
+    return { ok: false, fouten: [
+      `Dit dossier is opgeslagen met een nieuwer bestandsformaat (versie ${ruw.formaatVersie}) dan deze tool kent (versie ${DOSSIER_FORMAAT_VERSIE}). Open het met een nieuwere versie van de tool.`
+    ] };
+  }
+  if (!ruw.invoer || typeof ruw.invoer !== 'object' || Array.isArray(ruw.invoer)) {
+    return { ok: false, fouten: ['Het bestand mist het onderdeel "invoer".'] };
+  }
+  return { ok: true, data: ruw };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { DOSSIER_TOOL_ID, DOSSIER_FORMAAT_VERSIE, magGetalZijn, valideerDossierbestand };
+}
+// DOSSIERBESTAND — EINDE
+
 // ══════════════════════════════════════════════════════════════════════════════
 // UI-LAAG — leest de DOM, roept de fiscale kern aan, schrijft de DOM.
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2248,7 +2615,12 @@ function openPrintVenster(html) {
 }
 
 // ─── TAB SWITCHING ───
+// Onthoudt welk tabblad zichtbaar is, want het dossierstuk drukt het scherm af
+// zoals het erbij staat en de Excel-export leest hetzelfde tabblad uit.
+let huidigeTab = 'eindheffing';
+
 function switchTab(tab) {
+  huidigeTab = tab;
   ['eindheffing', 'youngtimer', 'klantbrief', 'bijtelling-controle'].forEach(t => {
     $('tab-content-' + t).style.display = t === tab ? '' : 'none';
     $('tab-' + t).classList.toggle('active', t === tab);
@@ -3120,6 +3492,391 @@ function bcBereken() {
     </div>`;
 }
 
+// ─── DOSSIERSTUK (AFDRUKKEN) ───
+// Drukt de pagina af zoals zij op het scherm staat: geen aparte pagina die de
+// invoer of de uitkomst opnieuw opbouwt. @media print verbergt de bediening
+// (kop, tabbalk, knoppen) en toont de vaste kaart met vindplaatsen,
+// modelkeuzes en de afbakening van de tool (#dossier-print-extra) erachteraan.
+function afdrukkenDossierstuk() {
+  const kenmerk = $('dossier_kenmerk').value.trim() || '—';
+  const datum = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  $('dossier_print_kenmerk').textContent = kenmerk;
+  $('dossier_print_datum').textContent = datum;
+  $('dossier_print_versie').textContent = $('laatste_update_voetnoot').textContent;
+  window.print();
+}
+
+// ─── EXCEL-EXPORT EN DOSSIERBESTAND: GEDEELDE HELPERS ───
+
+// Maakt van een kenmerk of klantnaam een veilige bestandsnaamslug; valt terug
+// op "dossier" zodra er niets bruikbaars overblijft.
+function dossierSlug() {
+  const ruw = $('dossier_kenmerk').value.trim();
+  const slug = ruw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'dossier';
+}
+function dossierBestandsdatum() {
+  return new Date().toISOString().slice(0, 10);
+}
+function startDownload(blob, bestandsnaam) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = bestandsnaam;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// Verzamelt kop, invoer, uitkomst en toelichting van het actieve tabblad, in
+// die vaste volgorde. Rekent niets opnieuw uit: de waarden komen uit dezelfde
+// staat (DOM en `g`) die ook op het scherm staat, zodat export en scherm nooit
+// uiteenlopen. Geeft null terug als er voor dit tabblad niets te exporteren is.
+function verzamelDossierData() {
+  const kop = [
+    ['Tool', 'Auto Fiscaal 2027 — Join Administraties'],
+    ['Versie tool', $('laatste_update_voetnoot').textContent],
+    ['Datum export', new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })],
+    ['Kenmerk', $('dossier_kenmerk').value.trim() || '—'],
+  ];
+  const vindplaatsenAlgemeen = [
+    'Youngtimergrens en bijtellingspercentages: art. 3.20 Wet IB 2001.',
+    'Afwijkend percentage 25% bij toelating t/m 31-12-2016: art. 10a.4 Wet IB 2001 (afwijking van KG:213:2026:1).',
+    'Cijfers 2027: wetsvoorstel Belastingplan 2027 (Kamerstukken II 2026/27, 37 022), nog niet aangenomen.',
+    'Afbakening: de leeftijdsgrens van 25 jaar en het herstel van de waarderingsgrondslag per 2027 zijn beide nog wetsvoorstel, geen geldend recht.',
+  ];
+
+  if (huidigeTab === 'eindheffing') {
+    const jaar = parseInt($('eh_jaar').value, 10);
+    const privInput = $('eh_privegebruik').value;
+    const emisInput = $('eh_emissievrij').value;
+    const res = bepaalPseudoEindheffing({
+      jaar,
+      startdatum: $('eh_startdatum').value,
+      einddatum: $('eh_einddatum').value,
+      privegebruik: privInput === 'ja' ? true : privInput === 'nee' ? false : null,
+      isEmissievrij: emisInput === 'ja' ? true : emisInput === 'nee' ? false : null,
+      cataloguswaarde: positiefBedrag($('eh_catalogusprijs').value),
+      dagwaarde: positiefBedrag($('eh_dagwaarde').value),
+      datumToelating: rdwData?.datumToelating ?? parseDatum($('eh_datum_toelating').value),
+    });
+    const invoer = [
+      ['Kenteken', rdwKenteken || '—'],
+      ['Catalogusprijs', $('eh_catalogusprijs').value ? fmtE(+$('eh_catalogusprijs').value) : '—'],
+      ['Bron catalogusprijs', ehCatalogusprijsHerkomst],
+      ['Jaar', jaar],
+      ['Startdatum', $('eh_startdatum').value || '—'],
+      ['Einddatum', $('eh_einddatum').value || 'doorlopend'],
+      ['Privégebruik / woon-werk', privInput || '—'],
+      ['Emissievrij', emisInput || '—'],
+      ['Brandstof (RDW)', $('eh_brandstof').value || '—'],
+      ['Datum eerste toelating', $('eh_datum_toelating').value || '—'],
+      ['Waarde economisch verkeer', $('eh_dagwaarde').value ? fmtE(+$('eh_dagwaarde').value) : '—'],
+    ];
+    const uitkomst = [
+      ['Van toepassing', res.vanToepassing ? 'Ja' : 'Nee'],
+      ['Reden', res.reden || '—'],
+      ['Grondslag', res.grondslag ? fmtE(res.grondslag) : '—'],
+      ['Soort grondslag', res.grondslagSoort || '—'],
+      ['Meetellende maanden', res.maanden ?? '—'],
+      ['Bedrag op jaarbasis', res.jaarBedrag ? fmtE(res.jaarBedrag) : '—'],
+      [`Pseudo-eindheffing ${jaar}`, fmtE(res.bedrag)],
+    ];
+    return {
+      titel: 'Pseudo-eindheffing 2027', kop, invoer, uitkomst,
+      toelichting: vindplaatsenAlgemeen.concat([
+        'De pseudo-eindheffing is voor rekening van de werkgever en mag niet worden doorbelast aan de werknemer.',
+        `Overgangstermijn tot ${formatDatumNl(TARIEVEN.eindheffingOvergangEinde)}: geldend recht; de aangekondigde verlenging naar 01-01-2031 is nog geen wet.`,
+      ]),
+    };
+  }
+
+  if (huidigeTab === 'youngtimer') {
+    if (!g.r26) return null;
+    const isDGA = g.calcMode === 'dga';
+    const { b26, b27, r26, r27, diff, diffMnd } = g;
+    const invoer = [
+      ['Modus', isDGA ? 'DGA (loon uit BV)' : 'IB-ondernemer'],
+      ['Kenteken', rdwKenteken || '—'],
+      ['Datum eerste registratie', $('datum_reg').value || '—'],
+      ['Cataloguswaarde', $('cataloguswaarde').value ? fmtE(+$('cataloguswaarde').value) : '—'],
+      ['Waarde economisch verkeer', $('dagwaarde').value ? fmtE(+$('dagwaarde').value) : '—'],
+      ['Ter beschikking op 31-12-2025', terBeschikking2025() === null ? '—' : (terBeschikking2025() ? 'Ja' : 'Nee')],
+      [isDGA ? 'Fiscaal loon' : 'Fiscale winst', isDGA
+        ? ($('loon_dga').value ? fmtE(+$('loon_dga').value) : '—')
+        : ($('winst_ib').value ? fmtE(+$('winst_ib').value) : '—')],
+    ];
+    const uitkomst = [
+      ['Bijtelling 2026', fmtE(b26.bedrag) + ' — ' + b26.soort],
+      ['Bijtelling 2027', fmtE(b27.bedrag) + ' — ' + b27.soort],
+      [isDGA ? 'Loonheffing 2026' : 'IB 2026', fmtE(r26.ib)],
+      [isDGA ? 'Loonheffing 2027' : 'IB 2027', fmtE(r27.ib)],
+      ['Totale druk 2026', fmtE(r26.totaal)],
+      ['Totale druk 2027', fmtE(r27.totaal)],
+      ['Extra last per jaar', fmtSigned(diff)],
+      ['Extra last per maand', fmtSigned(diffMnd)],
+    ];
+    return {
+      titel: 'Youngtimerregeling — vergelijking 2026/2027', kop, invoer, uitkomst,
+      toelichting: vindplaatsenAlgemeen.concat([g.conclusie]),
+    };
+  }
+
+  if (huidigeTab === 'bijtelling-controle') {
+    if (!rdwData) return null;
+    const controleJaar = parseInt($('bc_controle_jaar').value, 10);
+    const terB = $('bc_terb2025').value === 'ja' ? true : $('bc_terb2025').value === 'nee' ? false : null;
+    const yt = bepaalYoungtimer(controleJaar, rdwData.datumToelating, terB);
+    const invoer = [
+      ['Kenteken', rdwKenteken || '—'],
+      ['Controlejaar', controleJaar],
+      ['Datum eerste toelating', formatDatumNl(rdwData.datumToelating)],
+      ['Datum eerste tenaamstelling NL', formatDatumNl(rdwData.datumTenaamstelling)],
+      ['Brandstof', rdwData.brandstofStr],
+      ['Ter beschikking op 31-12-2025', $('bc_terb2025').value || '—'],
+      ['Waarde economisch verkeer', $('bc_dagwaarde').value ? fmtE(+$('bc_dagwaarde').value) : '—'],
+      ['Loonstrookbedrag per maand', $('bc_loonstrook').value ? fmtE(+$('bc_loonstrook').value) : '—'],
+    ];
+    const bcResultaatTekst = $('bc_resultaat') ? $('bc_resultaat').innerText.trim() : '';
+    return {
+      titel: `Bijtelling controle ${controleJaar}`, kop, invoer,
+      uitkomst: yt ? [
+        ['Youngtimer', yt.isYoungtimer ? 'Ja' : 'Nee'],
+        ['Leeftijd', yt.leeftijd + ' jaar (grens ' + yt.grens + ')'],
+        ['Berekend resultaat', bcResultaatTekst || '—'],
+      ] : [['Berekend resultaat', bcResultaatTekst || '—']],
+      toelichting: vindplaatsenAlgemeen,
+    };
+  }
+
+  return null; // klantbrief: geen rekentabblad, geen export
+}
+
+// ─── EXCEL-EXPORT ───
+function exporteerExcel() {
+  const data = verzamelDossierData();
+  if (!data) {
+    alert('Voor dit tabblad is nog geen berekening om te exporteren. Ga naar een rekentabblad, voer de invoer in en bereken eerst.');
+    return;
+  }
+  const rijenVan = (paren) => paren.map(([label, waarde]) => [celTekst(label, true), celTekst(String(waarde))]);
+  const rijen = [];
+  rijen.push([celTekst(data.titel, true)]);
+  rijen.push([]);
+  rijen.push(...rijenVan(data.kop));
+  rijen.push([]);
+  rijen.push([celTekst('Invoer', true)]);
+  rijen.push(...rijenVan(data.invoer));
+  rijen.push([]);
+  rijen.push([celTekst('Uitkomst', true)]);
+  rijen.push(...rijenVan(data.uitkomst));
+  rijen.push([]);
+  rijen.push([celTekst('Toelichting en vindplaatsen', true)]);
+  data.toelichting.forEach((t) => rijen.push([celTekst(t)]));
+
+  const bytes = xlsxBytes([{ naam: 'Dossier', breedtes: [34, 60], rijen }]);
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  startDownload(blob, `auto-fiscaal-2027-${dossierSlug()}-${dossierBestandsdatum()}.xlsx`);
+}
+
+// ─── DOSSIERBESTAND (OPSLAAN EN OPENEN) ───
+// Bewaart uitsluitend invoer, geen uitkomst: bij openen rekent de huidige tool
+// alles opnieuw uit voor het opgeslagen rekenjaar. De tool bewaart zelf niets
+// op een server; opslaan is een handeling van de gebruiker naar een zelf
+// gekozen plek.
+function verzamelDossierbestand() {
+  return {
+    toolId: DOSSIER_TOOL_ID,
+    formaatVersie: DOSSIER_FORMAAT_VERSIE,
+    toolVersie: $('laatste_update_voetnoot').textContent,
+    opgeslagenOp: new Date().toISOString(),
+    invoer: {
+      kenteken: rdwKenteken || null,
+      rdwData: rdwData ? {
+        merk: rdwData.merk,
+        model: rdwData.model,
+        datumToelating: rdwData.datumToelating ? rdwData.datumToelating.toISOString() : null,
+        datumTenaamstelling: rdwData.datumTenaamstelling ? rdwData.datumTenaamstelling.toISOString() : null,
+        brandstofStr: rdwData.brandstofStr,
+        brandstoffenLijst: rdwData.brandstoffenLijst,
+        isEmissievrij: rdwData.isEmissievrij,
+        isWaterstof: rdwData.isWaterstof,
+        catalogusprijs: rdwData.catalogusprijs,
+      } : null,
+      eindheffing: {
+        catalogusprijsBronKeuze: $('eh_catalogusprijsBronKeuze').value,
+        catalogusprijs: $('eh_catalogusprijs').value,
+        startdatum: $('eh_startdatum').value,
+        einddatum: $('eh_einddatum').value,
+        jaar: $('eh_jaar').value,
+        privegebruik: $('eh_privegebruik').value,
+        emissievrij: $('eh_emissievrij').value,
+        datumToelating: $('eh_datum_toelating').value,
+        dagwaarde: $('eh_dagwaarde').value,
+      },
+      youngtimer: {
+        calcMode,
+        datumReg: $('datum_reg').value,
+        cataloguswaarde: $('cataloguswaarde').value,
+        dagwaarde: $('dagwaarde').value,
+        terBeschikking2025: document.querySelector('input[name="terb2025"]:checked')?.value ?? null,
+        winstIb: $('winst_ib').value,
+        zelfstandigenaftrek: document.querySelector('input[name="zelf"]:checked')?.value ?? null,
+        mkb: $('mkb').value,
+        loonDga: $('loon_dga').value,
+        loonheffingskortingen: document.querySelector('input[name="lhk"]:checked')?.value ?? null,
+      },
+      klantbrief: {
+        naam: $('bc_naam').value,
+        opmerking: $('bc_opmerking').value,
+      },
+      bijtellingControle: {
+        controleJaar: $('bc_controle_jaar').value,
+        terBeschikking2025: $('bc_terb2025').value,
+        dagwaarde: $('bc_dagwaarde').value,
+        loonstrook: $('bc_loonstrook').value,
+      },
+    },
+  };
+}
+
+function opslaanDossierbestand() {
+  const data = verzamelDossierbestand();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  startDownload(blob, `auto-fiscaal-2027-${dossierSlug()}-${dossierBestandsdatum()}.json`);
+}
+
+// Vult de DOM met wat het bestand aanlevert. Een veld dat in het bestand
+// ontbreekt, blijft ongemoeid en komt in `missend` te staan: dat voorkomt een
+// stille standaardwaarde. Een onbekend veld in het bestand wordt genegeerd
+// (er wordt niet over geïtereerd).
+function toepassenDossierbestand(data) {
+  const inv = data.invoer;
+  const missend = [];
+
+  const zetVeld = (sectie, sectieNaam, veld, id) => {
+    if (!sectie || sectie[veld] === undefined || sectie[veld] === null) {
+      missend.push(`${sectieNaam}.${veld}`);
+      return;
+    }
+    const el = $(id);
+    if (el) el.value = sectie[veld];
+  };
+  const zetRadio = (waarde, naam, sectieNaam, veld) => {
+    if (waarde === undefined || waarde === null) { missend.push(`${sectieNaam}.${veld}`); return; }
+    const el = document.querySelector(`input[name="${naam}"][value="${CSS.escape(String(waarde))}"]`);
+    if (el) el.checked = true;
+  };
+
+  if (inv.kenteken) { rdwKenteken = inv.kenteken; $('kenteken_input').value = inv.kenteken; }
+  else missend.push('kenteken');
+
+  if (inv.rdwData) {
+    rdwData = {
+      merk: inv.rdwData.merk, model: inv.rdwData.model,
+      datumToelating: inv.rdwData.datumToelating ? new Date(inv.rdwData.datumToelating) : null,
+      datumTenaamstelling: inv.rdwData.datumTenaamstelling ? new Date(inv.rdwData.datumTenaamstelling) : null,
+      brandstofStr: inv.rdwData.brandstofStr, brandstoffenLijst: inv.rdwData.brandstoffenLijst || [],
+      isEmissievrij: !!inv.rdwData.isEmissievrij, isWaterstof: !!inv.rdwData.isWaterstof,
+      catalogusprijs: inv.rdwData.catalogusprijs ?? null,
+    };
+  } else {
+    rdwData = null;
+    missend.push('rdwData (geen RDW-gegevens in dit dossier)');
+  }
+
+  const eh = inv.eindheffing;
+  zetVeld(eh, 'eindheffing', 'catalogusprijsBronKeuze', 'eh_catalogusprijsBronKeuze');
+  zetVeld(eh, 'eindheffing', 'catalogusprijs', 'eh_catalogusprijs');
+  zetVeld(eh, 'eindheffing', 'startdatum', 'eh_startdatum');
+  zetVeld(eh, 'eindheffing', 'einddatum', 'eh_einddatum');
+  zetVeld(eh, 'eindheffing', 'jaar', 'eh_jaar');
+  zetVeld(eh, 'eindheffing', 'privegebruik', 'eh_privegebruik');
+  zetVeld(eh, 'eindheffing', 'emissievrij', 'eh_emissievrij');
+  zetVeld(eh, 'eindheffing', 'datumToelating', 'eh_datum_toelating');
+  zetVeld(eh, 'eindheffing', 'dagwaarde', 'eh_dagwaarde');
+  if (eh) setEhCatalogusprijsStatus('Dossierbestand', 'Overgenomen uit een geopend dossierbestand.', 'handmatig', 'Uit dossierbestand');
+
+  const yt = inv.youngtimer;
+  if (yt) {
+    setMode(yt.calcMode === 'dga' ? 'dga' : 'ib');
+    zetVeld(yt, 'youngtimer', 'datumReg', 'datum_reg');
+    zetVeld(yt, 'youngtimer', 'cataloguswaarde', 'cataloguswaarde');
+    zetVeld(yt, 'youngtimer', 'dagwaarde', 'dagwaarde');
+    zetRadio(yt.terBeschikking2025, 'terb2025', 'youngtimer', 'terBeschikking2025');
+    zetVeld(yt, 'youngtimer', 'winstIb', 'winst_ib');
+    zetRadio(yt.zelfstandigenaftrek, 'zelf', 'youngtimer', 'zelfstandigenaftrek');
+    zetVeld(yt, 'youngtimer', 'mkb', 'mkb');
+    zetVeld(yt, 'youngtimer', 'loonDga', 'loon_dga');
+    zetRadio(yt.loonheffingskortingen, 'lhk', 'youngtimer', 'loonheffingskortingen');
+  } else {
+    missend.push('youngtimer (hele sectie)');
+  }
+
+  const brief = inv.klantbrief;
+  zetVeld(brief, 'klantbrief', 'naam', 'bc_naam');
+  zetVeld(brief, 'klantbrief', 'opmerking', 'bc_opmerking');
+
+  const bc = inv.bijtellingControle;
+  zetVeld(bc, 'bijtellingControle', 'controleJaar', 'bc_controle_jaar');
+  zetVeld(bc, 'bijtellingControle', 'terBeschikking2025', 'bc_terb2025');
+  zetVeld(bc, 'bijtellingControle', 'dagwaarde', 'bc_dagwaarde');
+  zetVeld(bc, 'bijtellingControle', 'loonstrook', 'bc_loonstrook');
+
+  // Alles is ingevuld; nu opnieuw laten rekenen met de huidige tool. bereken()
+  // valideert zelf en toont een eigen melding als er ondanks de restore nog
+  // een verplicht veld ontbreekt; dat is dan al in `missend` gemeld.
+  updateLeeftijd();
+  if (yt && $('datum_reg').value && $('cataloguswaarde').value && $('dagwaarde').value &&
+      ((yt.calcMode !== 'dga' && $('winst_ib').value) || (yt.calcMode === 'dga' && $('loon_dga').value))) {
+    try { bereken(); } catch (e) { /* bereken() meldt zelf via alert() bij ontbrekende invoer */ }
+  }
+  berekenEindheffing();
+  updateBrief();
+  if (huidigeTab === 'bijtelling-controle') bcBereken();
+
+  if (missend.length) {
+    alert('Dossier geopend. Deze velden ontbraken in het bestand en zijn niet ingevuld:\n\n• ' + missend.join('\n• '));
+  }
+}
+
+function openDossierbestandGekozen(event) {
+  const bestand = event.target.files && event.target.files[0];
+  event.target.value = ''; // hetzelfde bestand nogmaals kiezen moet weer een change geven
+  if (!bestand) return;
+
+  const reader = new FileReader();
+  reader.onerror = () => alert('Het dossierbestand kon niet worden gelezen (leesfout).');
+  reader.onabort = () => alert('Het lezen van het dossierbestand is afgebroken.');
+  reader.onload = () => {
+    try {
+      const ruw = JSON.parse(reader.result);
+      const check = valideerDossierbestand(ruw);
+      if (!check.ok) {
+        alert('Dit dossierbestand kon niet worden geopend:\n\n• ' + check.fouten.join('\n• '));
+        return;
+      }
+      const huidigeVersie = $('laatste_update_voetnoot').textContent;
+      if (check.data.toolVersie && check.data.toolVersie !== huidigeVersie) {
+        const door = confirm(
+          `Dit dossier is opgeslagen met een andere versie van de tool ("${check.data.toolVersie}", ` +
+          `huidig: "${huidigeVersie}"). De uitkomst wordt opnieuw berekend met de huidige tool en kan ` +
+          `daardoor afwijken van wat destijds is opgeslagen. Doorgaan?`
+        );
+        if (!door) return;
+      }
+      toepassenDossierbestand(check.data);
+    } catch (e) {
+      alert('Het dossierbestand kon niet worden gelezen: ' + (e && e.message ? e.message : 'onbekende fout') + '.');
+    }
+  };
+  try {
+    reader.readAsText(bestand);
+  } catch (e) {
+    alert('Het lezen van het dossierbestand kon niet worden gestart: ' + (e && e.message ? e.message : 'onbekende fout') + '.');
+  }
+}
+
 // ─── PASTE HANDLER (duizendtalscheiders) ───
 document.querySelectorAll('input[type="number"]').forEach(inp => {
   inp.addEventListener('paste', function (e) {
@@ -3205,6 +3962,6 @@ setBrief('signaal');
 setEhCatalogusprijsStatus('-', 'We proberen de catalogusprijs automatisch op te halen via RDW.', 'leeg', 'Nog niet bepaald');
 berekenEindheffing();
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 20 sep 2026, 15:24</div>
+<div class="noprint" style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;" id="laatste_update_voetnoot"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 12:04</div>
 </body>
 </html>
