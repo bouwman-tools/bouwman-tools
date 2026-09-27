@@ -288,9 +288,73 @@
 
     .voetnoot { font-size: 0.74rem; color: #A07860; line-height: 1.6; margin-top: 28px; }
 
+    /* ── Dossieracties: kenmerk, afdrukken, Excel-export, dossierbestand ── */
+    .dossier-card {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid #E8C4A8;
+    }
+    .dossier-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .dossier-kenmerk { flex: 1 1 220px; min-width: 180px; }
+    .dossier-kenmerk input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #E8C4A8;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #2C1A0E;
+      background: #fff;
+    }
+    .dossier-kenmerk input[type="text"]:focus { outline: none; border-color: #C0522A; }
+    .dossier-knoppen { display: flex; flex-wrap: wrap; gap: 8px; }
+    .dossier-knop {
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1.5px solid #C0522A;
+      background: #C0522A;
+      color: #fff;
+      cursor: pointer;
+    }
+    .dossier-knop:hover, .dossier-knop:focus-visible { background: #A5431F; }
+    .dossier-knop.stil { background: #fff; color: #C0522A; }
+    .dossier-knop.stil:hover, .dossier-knop.stil:focus-visible { background: #FEF3E7; }
+    .dossier-melding {
+      font-size: 0.78rem; line-height: 1.5; margin-top: 10px;
+      padding: 8px 12px; border-radius: 6px;
+    }
+    .dossier-melding:empty { display: none; }
+    .dossier-melding.goed { background: #EAF4EC; color: #245B36; border: 1px solid #BFE0C7; }
+    .dossier-melding.fout { background: #FDE8E8; color: #9B1C1C; border: 1px solid #F4ABAB; }
+
+    /* Alleen zichtbaar bij het afdrukken — het dossierstuk zelf. Leest dezelfde
+       waarden als het scherm (via vulDossierstuk()), herrekent niets. */
+    .print-only { display: none; }
+    .dp-meta, .dp-tabel { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
+    .dp-meta td, .dp-tabel td { padding: 4px 8px 4px 0; font-size: 0.82rem; vertical-align: top; }
+    .dp-meta td:first-child, .dp-tabel td:first-child { color: #A07860; width: 220px; }
+    .dp-print h2 { font-size: 1.1rem; margin-bottom: 4px; }
+    .dp-print h3 { font-size: 0.86rem; margin: 14px 0 4px; color: #2C1A0E; }
+    .dp-bron-item { font-size: 0.78rem; margin-bottom: 4px; }
+    .dp-afbakening p { font-size: 0.8rem; line-height: 1.5; margin-bottom: 6px; }
+
     @media print {
       body { background: #fff; }
       .kb-card, .note-card, .bron-item, .calc-card { break-inside: avoid; }
+      header, .noprint, .kb-grid, .notes-grid, .bronnen-list, .voetnoot,
+      .calc-row, .calc-intro, .calc-disclaimer { display: none !important; }
+      .print-only { display: block; }
+      main { max-width: none; padding: 0; }
+      .calc-card { border: none; padding: 0; }
+      #result { display: none; }
     }
   </style>
 </head>
@@ -364,6 +428,57 @@
       <div class="result-label" id="result-label">Uitkomst</div>
       <div class="result-main" id="result-main">Kies een documenttype om te beginnen.</div>
       <div class="result-meta" id="result-meta"></div>
+    </div>
+
+    <!-- Dossieracties: dossierstuk afdrukken, Excel-export, dossierbestand opslaan/openen -->
+    <div class="dossier-card noprint">
+      <div class="dossier-row">
+        <div class="dossier-kenmerk">
+          <label for="kenmerk">Kenmerk of cli&euml;ntnaam (voor het dossierstuk en de export)</label>
+          <input type="text" id="kenmerk" maxlength="120" autocomplete="off"
+                 placeholder="Bijvoorbeeld: cli&euml;ntnaam of dossiernummer">
+        </div>
+        <div class="dossier-knoppen">
+          <button type="button" class="dossier-knop stil" id="dossier-afdrukken">Afdrukken</button>
+          <button type="button" class="dossier-knop stil" id="dossier-excel">Exporteren naar Excel</button>
+          <button type="button" class="dossier-knop stil" id="dossier-opslaan">Opslaan als bestand</button>
+          <button type="button" class="dossier-knop stil" id="dossier-openen-knop">Bestand openen</button>
+          <input type="file" id="dossier-openen" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <p class="dossier-melding" id="dossier-melding" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <!-- Print-only: het afdrukbare dossierstuk. Leest dezelfde uitkomst als het scherm
+       (gevuld door vulDossierstuk() in bereken()); er wordt hier niets herrekend. -->
+  <div class="print-only dp-print" id="dossier-print">
+    <h2>Dossierstuk &mdash; Bewaarplicht</h2>
+    <table class="dp-meta">
+      <tr><td>Kenmerk / cli&euml;nt</td><td id="dp-kenmerk"></td></tr>
+      <tr><td>Datum afdruk</td><td id="dp-datum-afdruk"></td></tr>
+      <tr><td>Tool en versie</td><td id="dp-versie"></td></tr>
+    </table>
+
+    <h3>Invoer</h3>
+    <table class="dp-tabel">
+      <tr><td>Documenttype</td><td id="dp-doctype"></td></tr>
+      <tr><td id="dp-datum1-label">Datum</td><td id="dp-datum1-waarde"></td></tr>
+      <tr id="dp-datum2-row" hidden><td id="dp-datum2-label">Tweede datum</td><td id="dp-datum2-waarde"></td></tr>
+    </table>
+
+    <h3>Uitkomst</h3>
+    <table class="dp-tabel" id="dp-uitkomst"></table>
+
+    <h3>Vindplaatsen</h3>
+    <div id="dp-bronnen"></div>
+
+    <h3>Afbakening</h3>
+    <div class="dp-afbakening">
+      <p>De tool rekent de fiscale termijn. Andere bewaarplichten (art. 2:10 BW, arbeidsrecht, Wwft),
+      de AVG, of een lopend bezwaar, onderzoek of procedure kunnen tot een langere of juist kortere
+      bewaartermijn leiden. Verstreken is niet hetzelfde als vernietigen.</p>
+      <p>Deze tool is een hulpmiddel voor adviseurs en is geen fiscaal advies.</p>
     </div>
   </div>
 
@@ -2084,6 +2199,247 @@ function vandaag() {
   return { jaar: d.getFullYear(), maand: d.getMonth() + 1, dag: d.getDate() };
 }
 
+// ─── Uitgangen: dossierstuk, Excel-export, dossierbestand ───
+const TOOL_ID = 'bewaarplicht-checker';
+const TOOL_VERSIE = '1.0.0';
+const DOSSIER_FORMAATVERSIE = 1;
+let laatsteUitkomst = null;
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
 function badgeKlasse(doc) {
   if (doc.methode === 'indicatief') return 'badge-indicatief';
   if (doc.termijn === 5) return 'badge-5';
@@ -2293,6 +2649,11 @@ function bereken() {
   // tweede veld het label te tonen dat bij de huidige stand past.
   updateTweedeVeld(r);
 
+  // Het dossierstuk (print), de Excel-export en de dossieracties lezen dezelfde
+  // uitkomst r; er wordt hier niets herrekend.
+  laatsteUitkomst = { doc: doc, r: r };
+  vulDossierstuk(doc, r);
+
   const zet = function (klasse, label, hoofd, chip, meta) {
     box.className = 'result-box ' + klasse;
     $('result-label').textContent = label;
@@ -2408,6 +2769,358 @@ function bereken() {
   }
 }
 
+// ─── Dossierstuk (afdrukbare weergave) ───
+// Leest dezelfde uitkomst r die bereken() al heeft berekend; er wordt hier niets
+// herrekend. Wordt aangeroepen vanuit bereken(), dus bij elke wijziging van de
+// invoer, en bij het typen in het kenmerkveld.
+
+function dpRij(label, waarde) {
+  return '<tr><td>' + esc(label) + '</td><td>' + esc(waarde) + '</td></tr>';
+}
+
+function dossierstukBronnenHtml(doc) {
+  if (!doc) return '';
+  return (doc.bronnen || []).map(function (key) {
+    const b = BRONNEN[key];
+    if (!b) return '';
+    return '<div class="dp-bron-item">' + esc(b.titel) + ' — ' + esc(b.url) + '</div>';
+  }).join('');
+}
+
+function vulDossierstuk(doc, r) {
+  $('dp-kenmerk').textContent = $('kenmerk').value.trim() || '—';
+  $('dp-datum-afdruk').textContent = formatDatumNl(vandaag());
+  $('dp-versie').textContent = TOOL_ID + ' ' + TOOL_VERSIE;
+
+  if (!doc) {
+    $('dp-doctype').textContent = '—';
+    $('dp-datum1-label').textContent = 'Datum';
+    $('dp-datum1-waarde').textContent = '—';
+    $('dp-datum2-row').hidden = true;
+    $('dp-uitkomst').innerHTML = dpRij('Uitkomst', 'Geen documenttype gekozen.');
+    $('dp-bronnen').innerHTML = '';
+    return;
+  }
+
+  $('dp-doctype').textContent = doc.naam;
+  $('dp-datum1-label').textContent = doc.datumLabel || 'Datum';
+  const d1 = parseKalenderdatum($('datum').value);
+  $('dp-datum1-waarde').textContent = d1 ? formatDatumNl(d1) : ($('datum').value || '—');
+
+  if (doc.tweedeTermijn) {
+    $('dp-datum2-row').hidden = false;
+    $('dp-datum2-label').textContent = doc.tweedeTermijn.datumLabel;
+    const d2 = parseKalenderdatum($('datum2').value);
+    $('dp-datum2-waarde').textContent = d2 ? formatDatumNl(d2)
+      : ($('datum2').value ? $('datum2').value : '(niet ingevuld)');
+  } else {
+    $('dp-datum2-row').hidden = true;
+  }
+
+  $('dp-bronnen').innerHTML = dossierstukBronnenHtml(doc);
+
+  let rijen = '';
+  if (r.status === 'indicatief') {
+    rijen += dpRij('Uitkomst', 'Geen wettelijke bewaartermijn voor dit documenttype.');
+  } else if (r.status !== 'ok') {
+    rijen += dpRij('Uitkomst', 'Nog niet te berekenen — vul de gevraagde datum in.');
+  } else {
+    const b = r.bepalend.termijn;
+    rijen += dpRij('Termijn', r.bepalend.omschrijving);
+    if (b.klok === 'kalenderjaar') rijen += dpRij('Start', '1 januari ' + b.startJaar);
+    rijen += dpRij(r.maximum ? 'Vernietigen vanaf' : 'Verstreken vanaf', formatDatumNl(b.verstrekenVanaf));
+    rijen += dpRij('Laatste bewaardag', formatDatumNl(b.laatsteBewaardag));
+    if (r.termijnen.length > 1) {
+      r.termijnen.forEach(function (t) {
+        const merk = t === r.bepalend ? 'Termijn (bepalend)' : 'Termijn';
+        rijen += dpRij(merk, t.grondslag + ', vanaf ' + formatDatumNl(t.datum) +
+          ' t/m ' + formatDatumNl(t.termijn.laatsteBewaardag));
+      });
+    }
+    if (r.onvolledig) {
+      rijen += dpRij('Let op', 'Onvolledig: de tweede datum ontbreekt en de eerste termijn is al verstreken.');
+    } else if (r.verstreken) {
+      rijen += dpRij('Status', 'Verstreken sinds ' + formatDatumNl(b.verstrekenVanaf) +
+        ' — verstreken is niet hetzelfde als vernietigen.');
+    } else {
+      rijen += dpRij('Status', 'Termijn loopt nog.');
+    }
+  }
+  $('dp-uitkomst').innerHTML = rijen;
+}
+
+// ─── Excel-export: bevroren werkblad, zonder formules ───
+// Leest dezelfde uitkomst (laatsteUitkomst, gevuld door bereken()) als het scherm.
+
+function exportBladen(doc, r, kenmerk, vandaagStr) {
+  const rijen = [];
+  rijen.push([celTekst('Bewaarplicht — dossierstuk', true)]);
+  rijen.push([celTekst('Tool'), celTekst(TOOL_ID)]);
+  rijen.push([celTekst('Versie'), celTekst(TOOL_VERSIE)]);
+  rijen.push([celTekst('Geëxporteerd op'), celTekst(vandaagStr)]);
+  rijen.push([celTekst('Kenmerk / cliënt'), celTekst(kenmerk || '—')]);
+  rijen.push([]);
+
+  rijen.push([celTekst('Invoer', true)]);
+  rijen.push([celTekst('Documenttype'), celTekst(doc ? doc.naam : '—')]);
+  rijen.push([celTekst(doc ? (doc.datumLabel || 'Datum') : 'Datum'), celTekst($('datum').value || '—')]);
+  if (doc && doc.tweedeTermijn) {
+    rijen.push([celTekst(doc.tweedeTermijn.datumLabel), celTekst($('datum2').value || '(niet ingevuld)')]);
+  }
+  rijen.push([]);
+
+  rijen.push([celTekst('Uitkomst', true)]);
+  if (!doc) {
+    rijen.push([celTekst('Geen documenttype gekozen.')]);
+  } else if (r.status === 'indicatief') {
+    rijen.push([celTekst('Geen wettelijke bewaartermijn voor dit documenttype.')]);
+  } else if (r.status !== 'ok') {
+    rijen.push([celTekst('Nog niet te berekenen — vul de gevraagde datum in.')]);
+  } else {
+    const b = r.bepalend.termijn;
+    rijen.push([celTekst('Termijn'), celTekst(r.bepalend.omschrijving)]);
+    if (b.klok === 'kalenderjaar') rijen.push([celTekst('Start'), celTekst('1 januari ' + b.startJaar)]);
+    rijen.push([celTekst(r.maximum ? 'Vernietigen vanaf' : 'Verstreken vanaf'), celTekst(formatDatumNl(b.verstrekenVanaf))]);
+    rijen.push([celTekst('Laatste bewaardag'), celTekst(formatDatumNl(b.laatsteBewaardag))]);
+    if (r.termijnen.length > 1) {
+      r.termijnen.forEach(function (t) {
+        rijen.push([celTekst(t === r.bepalend ? 'Termijn (bepalend)' : 'Termijn'),
+          celTekst(t.grondslag + ', vanaf ' + formatDatumNl(t.datum) +
+            ' t/m ' + formatDatumNl(t.termijn.laatsteBewaardag))]);
+      });
+    }
+    if (r.onvolledig) {
+      rijen.push([celTekst('Let op'), celTekst('Onvolledig: de tweede datum ontbreekt en de eerste termijn is al verstreken.')]);
+    } else if (r.verstreken) {
+      rijen.push([celTekst('Status'), celTekst('Verstreken sinds ' + formatDatumNl(b.verstrekenVanaf) +
+        ' — verstreken is niet hetzelfde als vernietigen.')]);
+    } else {
+      rijen.push([celTekst('Status'), celTekst('Termijn loopt nog.')]);
+    }
+  }
+  rijen.push([]);
+
+  rijen.push([celTekst('Toelichting en vindplaatsen', true)]);
+  if (doc) {
+    (doc.bronnen || []).forEach(function (key) {
+      const b = BRONNEN[key];
+      if (b) rijen.push([celTekst(b.titel), celTekst(b.url)]);
+    });
+  }
+  rijen.push([celTekst('Afbakening'), celTekst(
+    'De tool rekent de fiscale termijn. Andere bewaarplichten (art. 2:10 BW, arbeidsrecht, Wwft), de AVG, ' +
+    'of een lopend bezwaar, onderzoek of procedure kunnen tot een langere of juist kortere bewaartermijn ' +
+    'leiden. Verstreken is niet hetzelfde als vernietigen. Deze tool is een hulpmiddel voor adviseurs en ' +
+    'is geen fiscaal advies.')]);
+
+  return [{ naam: 'Bewaarplicht', rijen: rijen, breedtes: [32, 62] }];
+}
+
+function exportBestandsnaam(kenmerk, iso) {
+  const schoon = dossierTekst(kenmerk, 60)
+    .replace(/[^\wÀ-ɏ -]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return 'bewaarplicht-' + (schoon ? schoon.replace(/ /g, '-') : 'dossier') + '-' + iso + '.xlsx';
+}
+
+function bewaarBestand(inhoud, naam, type) {
+  const blob = new Blob([inhoud], { type: type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+}
+
+function exporteerExcel() {
+  if (!laatsteUitkomst || !laatsteUitkomst.doc) {
+    dossierMelding('Kies eerst een documenttype voordat u exporteert.', 'fout');
+    return;
+  }
+  const kenmerk = $('kenmerk').value;
+  const iso = new Date().toISOString().slice(0, 10);
+  const naam = exportBestandsnaam(kenmerk, iso);
+  const bladen = exportBladen(laatsteUitkomst.doc, laatsteUitkomst.r, kenmerk, formatDatumNl(vandaag()));
+  bewaarBestand(xlsxBytes(bladen), naam,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  dossierMelding('Geëxporteerd als ' + naam + '. Het werkblad is een bevroren weergave van de uitkomst, ' +
+    'zonder formules. Wilt u een andere invoer? Wijzig die in de tool en exporteer opnieuw.', 'goed');
+}
+
+// ─── Dossierbestand: opslaan en openen ───
+// De tool bewaart zelf niets: opslaan is een handeling van de gebruiker naar een
+// plek die hij kiest, en er gaat niets naar een server.
+
+function dossierMelding(tekst, soort) {
+  const m = $('dossier-melding');
+  if (!m) return;
+  m.textContent = tekst;
+  m.className = 'dossier-melding' + (soort ? ' ' + soort : '');
+}
+
+// String(...) in plaats van Number(...): Number(true) === 1, Number([]) === 0 en
+// Number(' ') === 0 zouden een boolean, een lege array of een spatie stil als
+// geldige tekstwaarde laten doorgaan. typeof 'object' vangt daarnaast arrays en
+// objecten af vóór String() ze alsnog omzet naar "true"/"[object Object]".
+function dossierTekst(waarde, maximum) {
+  if (waarde === undefined || waarde === null) return '';
+  if (typeof waarde === 'object') return '';
+  return String(waarde).trim().slice(0, maximum === undefined ? 120 : maximum);
+}
+
+function dossierBestandsnaam(kenmerk) {
+  const schoon = dossierTekst(kenmerk, 60)
+    .replace(/[^\wÀ-ɏ -]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  return 'bewaarplicht-' + (schoon ? schoon.replace(/ /g, '-') : 'dossier') + '.json';
+}
+
+function dossierStand() {
+  return {
+    doctype: $('doctype').value,
+    datum: $('datum').value,
+    datum2: $('datum2').value,
+    kenmerk: $('kenmerk').value
+  };
+}
+
+function maakDossierTekst(stand) {
+  const s = stand || {};
+  return JSON.stringify({
+    tool: TOOL_ID,
+    formaatversie: DOSSIER_FORMAATVERSIE,
+    toolversie: TOOL_VERSIE,
+    opgeslagenOp: new Date().toISOString().slice(0, 10),
+    kenmerk: dossierTekst(s.kenmerk, 120),
+    doctype: dossierTekst(s.doctype, 80),
+    datum: dossierTekst(s.datum, 10),
+    datum2: dossierTekst(s.datum2, 10)
+  }, null, 2);
+}
+
+/**
+ * Leest de tekst van een dossierbestand.
+ * @returns {ok:false, fouten:[...]} of {ok:true, dossier:{...}, waarschuwingen:[...]}
+ */
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(String(tekst)); }
+  catch (e) {
+    return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fouten: ['Dit dossier hoort niet bij de tool Bewaarplicht.'] };
+  }
+  const versie = rauw.formaatversie;
+  if (!Number.isInteger(versie) || versie < 1) {
+    return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+  }
+  if (versie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fouten: ['Dit dossier is gemaakt met een nieuwere versie van de tool (formaat '
+      + versie + ', deze tool leest ' + DOSSIER_FORMAATVERSIE + '). Werk de tool bij.'] };
+  }
+
+  // Een ontbrekend veld krijgt een zichtbare melding, geen stille standaardwaarde:
+  // anders opent een dossier zonder documenttype op het eerste type in het menu,
+  // zonder dat iemand het merkt.
+  if (!Object.prototype.hasOwnProperty.call(rauw, 'doctype')) {
+    return { ok: false, fouten: ['Dit dossier mist het documenttype en kan niet worden geopend.'] };
+  }
+  if (!Object.prototype.hasOwnProperty.call(rauw, 'datum')) {
+    return { ok: false, fouten: ['Dit dossier mist de datum en kan niet worden geopend.'] };
+  }
+
+  const doctype = dossierTekst(rauw.doctype, 80);
+  const doc = vindDocumentType(doctype);
+  if (!doc) {
+    return { ok: false, fouten: ['Onbekend documenttype "' + doctype +
+      '" — dit dossier hoort mogelijk bij een andere versie van de tool.'] };
+  }
+
+  const datumRuw = typeof rauw.datum === 'string' ? rauw.datum : '';
+  let datum = '';
+  if (doc.methode !== 'indicatief') {
+    if (!datumRuw || !parseKalenderdatum(datumRuw)) {
+      return { ok: false, fouten: ['De datum in dit dossier is niet geldig.'] };
+    }
+    datum = datumRuw;
+  }
+
+  const waarschuwingen = [];
+  let datum2 = '';
+  if (rauw.datum2 !== undefined && rauw.datum2 !== null && rauw.datum2 !== '') {
+    const datum2Ruw = typeof rauw.datum2 === 'string' ? rauw.datum2 : '';
+    if (datum2Ruw && parseKalenderdatum(datum2Ruw)) {
+      datum2 = datum2Ruw;
+    } else {
+      waarschuwingen.push('De tweede datum in dit dossier is niet geldig en is leeggelaten.');
+    }
+  }
+
+  return {
+    ok: true,
+    waarschuwingen: waarschuwingen,
+    dossier: { doctype: doctype, datum: datum, datum2: datum2, kenmerk: dossierTekst(rauw.kenmerk, 120) }
+  };
+}
+
+function zetDossier(d) {
+  $('doctype').value = d.doctype;
+  updateVelden();
+  $('datum').value = d.datum;
+  $('datum2').value = d.datum2;
+  $('kenmerk').value = d.kenmerk;
+  bereken();
+}
+
+function dossierOpslaan() {
+  const stand = dossierStand();
+  if (!stand.doctype) {
+    dossierMelding('Kies eerst een documenttype voordat u het dossier opslaat.', 'fout');
+    return;
+  }
+  const tekst = maakDossierTekst(stand);
+  const naam = dossierBestandsnaam(stand.kenmerk);
+  bewaarBestand(tekst, naam, 'application/json');
+  dossierMelding('Opgeslagen als ' + naam +
+    '. Zet het bestand in de klantmap, dan kan een collega het openen.', 'goed');
+}
+
+// Drie foutpaden worden hier alle drie afgevangen: onerror (leesfout van de
+// browser), onabort (gebruiker breekt af) en een onverwachte uitzondering tijdens
+// het verwerken van de gelezen tekst (leesDossier vangt een ongeldige JSON zelf
+// al af, maar deze laag vangt ook fouten daarbuiten, zoals bij zetDossier).
+function dossierOpenen(bestand) {
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onerror = function () { dossierMelding('Het bestand kon niet worden gelezen.', 'fout'); };
+  lezer.onabort = function () {
+    dossierMelding('Het openen van het bestand is afgebroken; er is niets gewijzigd.', 'fout');
+  };
+  lezer.onload = function () {
+    try {
+      const uit = leesDossier(lezer.result);
+      if (!uit.ok) { dossierMelding(uit.fouten.join(' '), 'fout'); return; }
+      zetDossier(uit.dossier);
+      if (uit.waarschuwingen.length) {
+        dossierMelding(uit.waarschuwingen.join(' '), 'fout');
+      } else {
+        dossierMelding('Dossier geopend.', 'goed');
+      }
+    } catch (e) {
+      dossierMelding('Het bestand kon niet worden verwerkt: het is beschadigd of heeft een ' +
+        'onverwachte vorm. Er is niets gewijzigd.', 'fout');
+    }
+  };
+  lezer.readAsText(bestand);
+}
+
 // ─── Start ───
 vulDocumentMenu();
 renderKennisbank();
@@ -2416,6 +3129,18 @@ renderBronnen();
 $('doctype').addEventListener('change', updateVelden);
 $('datum').addEventListener('input', bereken);
 $('datum2').addEventListener('input', bereken);
+$('kenmerk').addEventListener('input', function () {
+  if (laatsteUitkomst) vulDossierstuk(laatsteUitkomst.doc, laatsteUitkomst.r);
+});
+$('dossier-afdrukken').addEventListener('click', function () { window.print(); });
+$('dossier-excel').addEventListener('click', exporteerExcel);
+$('dossier-opslaan').addEventListener('click', dossierOpslaan);
+$('dossier-openen-knop').addEventListener('click', function () { $('dossier-openen').click(); });
+$('dossier-openen').addEventListener('change', function (e) {
+  const bestand = e.target.files && e.target.files[0];
+  dossierOpenen(bestand);
+  e.target.value = '';
+});
 updateVelden();
 </script>
 </body>
