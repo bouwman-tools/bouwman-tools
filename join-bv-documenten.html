@@ -40,6 +40,19 @@
 
   /* HERO */
   .hero { padding: 48px 40px 40px; max-width: 900px; margin: 0 auto; }
+
+  /* DOSSIERBALK: de ingevulde gegevens als bestand in de klantmap */
+  .dossierbalk { max-width: 900px; margin: 0 auto; padding: 0 40px 24px; display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .dossier-veld { display: flex; flex-direction: column; gap: 5px; }
+  .dossier-veld label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--gedempt); font-weight: 700; }
+  .dossier-veld input { width: 260px; max-width: 100%; font: inherit; font-size: 14px; background: var(--invoer); border: 1px solid var(--rand); border-radius: var(--radius); padding: 9px 12px; color: var(--wit); }
+  .dossier-knop { font: inherit; font-size: 13px; font-weight: 700; padding: 9px 14px; background: var(--groen); color: var(--navy); border: 1px solid var(--groen); border-radius: var(--radius); cursor: pointer; white-space: nowrap; }
+  .dossier-knop.stil { background: var(--invoer); color: var(--wit); border-color: var(--rand); }
+  .dossier-knop:hover { filter: brightness(1.08); }
+  .dossier-melding { font-size: 12.5px; line-height: 1.5; flex: 1 1 240px; color: var(--dim); }
+  .dossier-melding.fout { color: var(--rood); font-weight: 600; }
+  .dossier-melding.goed { color: var(--groen); font-weight: 600; }
+  @media (max-width: 900px) { .dossierbalk { padding: 0 16px 20px; } }
   .hero-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(107,224,161,0.12); border: 1px solid rgba(107,224,161,0.25); color: var(--groen); padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
   .hero h1 { font-size: clamp(24px,4vw,38px); font-weight: 800; line-height: 1.15; margin-bottom: 10px; }
   .hero h1 span { color: var(--groen); }
@@ -168,6 +181,17 @@
     <span style="font-size:13px;color:rgba(255,255,255,0.6);">Snel testen? Vul alle velden met fictieve testgegevens.</span>
     <button type="button" id="btn-testdata" style="background:var(--geel);color:var(--navy);border:none;border-radius:var(--radius);padding:9px 18px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;">🧪 Testdata invullen</button>
   </div>
+</div>
+
+<div class="dossierbalk">
+  <div class="dossier-veld">
+    <label for="dossier-kenmerk">Kenmerk (voor de bestandsnaam)</label>
+    <input type="text" id="dossier-kenmerk" maxlength="80" autocomplete="off" placeholder="bijv. Jansen Holding">
+  </div>
+  <button type="button" class="dossier-knop" id="dossier-opslaan">Opslaan als bestand</button>
+  <button type="button" class="dossier-knop stil" id="dossier-openen">Bestand openen</button>
+  <input type="file" id="dossier-bestand" accept="application/json,.json" aria-label="Dossierbestand kiezen" hidden>
+  <span class="dossier-melding" id="dossier-melding" role="status">Sla de ingevulde velden op als bestand in de klantmap en open ze later weer; de tool bewaart zelf niets en verstuurt niets. Na het openen worden de documenten opnieuw gegenereerd met de huidige tool.</span>
 </div>
 
 <div class="main">
@@ -2310,6 +2334,209 @@ const APP_SJABLONEN_B64 = {
   root.AppGenerate = { base64NaarBytes, genereer, zipVan };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
+/* ===== src/js/55-dossier.js ===== */
+/* ------------------------------------------------------------------------- *
+ * DOSSIERBESTAND: de wizard-invoer opslaan en weer inlezen
+ *
+ * Geen DOM. Dit is alleen het opslaan en teruglezen van de ingevulde velden,
+ * zodat iemand halverwege kan stoppen of een collega verder kan gaan zonder
+ * opnieuw te beginnen. Geen afgeleide uitkomsten en geen fiscale inhoud: de
+ * documenten worden na het openen met de huidige tool opnieuw gegenereerd.
+ * ------------------------------------------------------------------------- */
+(function (root) {
+  'use strict';
+
+  const CFG = root.AppConfig;
+  const Model = root.AppModel;
+
+  const DOSSIER_TOOL = 'join-bv-documenten';
+  /** Bestandsformaat van het dossier. Ophogen bij een wijziging die oude bestanden onleesbaar maakt. */
+  const DOSSIER_FORMAATVERSIE = 1;
+  /**
+   * Versie van de tool zelf (los van het bestandsformaat), zodat een gebruiker kan zien of het
+   * dossier met een oudere of nieuwere tool is opgeslagen. Gelijk houden aan "version" in
+   * package.json; dat gebeurt niet automatisch.
+   */
+  const DOSSIER_TOOLVERSIE = '2.1.0';
+  const DOSSIER_MAX_TEKST = 200;
+  const DOSSIER_MAX_KENMERK = 80;
+
+  /**
+   * De keuzevelden (select-elementen) van de wizard. Los van Model.VELDEN omdat dat alleen de
+   * tekst-, datum-, bedrag- en getalvelden bevat die de documentgeneratie valideert.
+   */
+  const KEUZE_VELDEN = [
+    'rcDgaAfrekening', 'rcWmAfrekening', 'rcEigenWoning',
+    'positie',
+    'omvang',
+    'vakantiebijslag',
+    'ziekte',
+    'pensioen',
+    'bestuurWm',
+    'btwModus',
+    'factuurModus',
+    'extraRegelsAantal',
+  ];
+
+  /** Alle veldnamen die het dossier bewaart: de wizardvelden plus de keuzevelden. */
+  function alleVeldNamen() {
+    return Object.keys(Model.VELDEN).concat(KEUZE_VELDEN);
+  }
+
+  function schoonKenmerk(waarde) {
+    if (typeof waarde !== 'string') return '';
+    return waarde.trim().slice(0, DOSSIER_MAX_KENMERK);
+  }
+
+  /**
+   * Zet de huidige stand om in de tekst van een dossierbestand.
+   * @param {{kenmerk: string, velden: Object<string,string>, documenten: string[]}} stand
+   */
+  function maakDossierTekst(stand) {
+    const s = stand || {};
+    const bronVelden = (s.velden && typeof s.velden === 'object' && !Array.isArray(s.velden))
+      ? s.velden
+      : {};
+    const velden = {};
+    alleVeldNamen().forEach(function (naam) {
+      const w = bronVelden[naam];
+      velden[naam] = typeof w === 'string' ? w.slice(0, DOSSIER_MAX_TEKST) : '';
+    });
+    const documenten = Array.isArray(s.documenten)
+      ? s.documenten.filter(function (k) { return typeof k === 'string'; })
+      : [];
+    return JSON.stringify({
+      tool: DOSSIER_TOOL,
+      toolversie: DOSSIER_TOOLVERSIE,
+      formaatversie: DOSSIER_FORMAATVERSIE,
+      rekenjaar: CFG.ACTUEEL_JAAR,
+      kenmerk: schoonKenmerk(s.kenmerk),
+      velden: velden,
+      documenten: documenten,
+    }, null, 2);
+  }
+
+  /**
+   * Leest en valideert de tekst van een dossierbestand.
+   *
+   * @returns {{ok:false, fouten:string[]}} bij een onbruikbaar bestand, de huidige casus blijft
+   *          dan ongewijzigd, of
+   *          {{ok:true, dossier:{kenmerk:string, velden:Object<string,string>, documenten:string[]},
+   *          ontbrekend:string[], waarschuwingen:string[]}} bij een geldig dossier. Een veld dat in
+   *          `ontbrekend` staat, ontbreekt in het bestand en wordt niet aangeraakt: geen stille
+   *          standaardwaarde.
+   */
+  function leesDossier(tekst) {
+    let rauw;
+    try {
+      rauw = JSON.parse(String(tekst));
+    } catch (e) {
+      return { ok: false, fouten: ['Dit bestand bevat geen geldige JSON en is dus geen dossier van deze tool.'] };
+    }
+    if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+      return { ok: false, fouten: ['Dit bestand heeft niet de vorm van een dossier.'] };
+    }
+    if (rauw.tool !== DOSSIER_TOOL) {
+      return { ok: false, fouten: ['Dit dossier hoort niet bij de tool BV-documenten generator.'] };
+    }
+    const versie = rauw.formaatversie;
+    if (!Number.isInteger(versie) || versie < 1) {
+      return { ok: false, fouten: ['Dit dossier vermeldt geen geldige formaatversie.'] };
+    }
+    if (versie > DOSSIER_FORMAATVERSIE) {
+      return {
+        ok: false,
+        fouten: [
+          'Dit dossier is gemaakt met een nieuwere versie van de tool (formaat ' + versie +
+          ', deze tool leest ' + DOSSIER_FORMAATVERSIE + '). Werk de tool bij.',
+        ],
+      };
+    }
+    if (!rauw.velden || typeof rauw.velden !== 'object' || Array.isArray(rauw.velden)) {
+      return { ok: false, fouten: ['Dit dossier bevat geen invoervelden.'] };
+    }
+
+    const velden = {};
+    const ontbrekend = [];
+    const verkeerd = [];
+    alleVeldNamen().forEach(function (naam) {
+      if (!Object.prototype.hasOwnProperty.call(rauw.velden, naam)) {
+        ontbrekend.push(naam);
+        return;
+      }
+      const w = rauw.velden[naam];
+      // Elk veld komt uit een tekstinvoer of een select en is dus altijd een string. Een getal,
+      // boolean of array is geen geldige waarde en wordt niet stilzwijgend omgezet: anders zou
+      // Number(true) of Number([]) ongemerkt als geldig bedrag doorgaan. Onbekende velden in het
+      // bestand (niet in alleVeldNamen()) worden hier niet gelezen en dus genegeerd.
+      if (typeof w !== 'string') {
+        verkeerd.push(naam);
+        return;
+      }
+      velden[naam] = w.slice(0, DOSSIER_MAX_TEKST);
+    });
+    if (verkeerd.length) {
+      return {
+        ok: false,
+        fouten: [
+          'Dit dossier bevat een onjuiste waarde bij: ' + verkeerd.join(', ') +
+          '. Het bestand lijkt beschadigd of is niet met deze tool gemaakt.',
+        ],
+      };
+    }
+
+    const documenten = Array.isArray(rauw.documenten)
+      ? rauw.documenten.filter(function (k) {
+          return typeof k === 'string' && CFG.DOCUMENTEN.some(function (d) { return d.key === k; });
+        })
+      : [];
+
+    const waarschuwingen = [];
+    if (Number.isInteger(rauw.rekenjaar) && rauw.rekenjaar !== CFG.ACTUEEL_JAAR) {
+      waarschuwingen.push(
+        'Dit dossier is opgeslagen voor rekenjaar ' + rauw.rekenjaar +
+        '. Deze tool rekent met de fiscale waarden van ' + CFG.ACTUEEL_JAAR +
+        '; controleer de bedragen en teksten na het openen.'
+      );
+    }
+    if (typeof rauw.toolversie === 'string' && rauw.toolversie !== DOSSIER_TOOLVERSIE) {
+      waarschuwingen.push(
+        'Dit dossier is opgeslagen met tool versie ' + rauw.toolversie +
+        ', deze tool is versie ' + DOSSIER_TOOLVERSIE +
+        '. Controleer na het openen of alle velden en documenten nog kloppen.'
+      );
+    }
+
+    return {
+      ok: true,
+      dossier: { kenmerk: schoonKenmerk(rauw.kenmerk), velden: velden, documenten: documenten },
+      ontbrekend: ontbrekend,
+      waarschuwingen: waarschuwingen,
+    };
+  }
+
+  /** Bestandsnaam voor een dossier: het kenmerk, ontdaan van wat een pad kan breken. */
+  function dossierBestandsnaam(kenmerk) {
+    const schoon = schoonKenmerk(kenmerk)
+      .replace(/[^\wÀ-ɏ -]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 60);
+    return 'bv-documenten-' + (schoon ? schoon.replace(/ /g, '-') : 'dossier') + '.json';
+  }
+
+  root.AppDossier = {
+    DOSSIER_TOOL,
+    DOSSIER_FORMAATVERSIE,
+    DOSSIER_TOOLVERSIE,
+    KEUZE_VELDEN,
+    alleVeldNamen,
+    maakDossierTekst,
+    leesDossier,
+    dossierBestandsnaam,
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
 /* ===== src/js/60-ui.js ===== */
 /* ------------------------------------------------------------------------- *
  * UI
@@ -2325,21 +2552,11 @@ const APP_SJABLONEN_B64 = {
   const Model = root.AppModel;
   const Gen = root.AppGenerate;
   const Mail = root.AppMail;
+  const Dossier = root.AppDossier;
 
   /** Veldnaam -> element-id. */
   const VELD_IDS = {};
-  const KEUZE_VELDEN = [
-    'rcDgaAfrekening', 'rcWmAfrekening', 'rcEigenWoning',
-    'positie',
-    'omvang',
-    'vakantiebijslag',
-    'ziekte',
-    'pensioen',
-    'bestuurWm',
-    'btwModus',
-    'factuurModus',
-    'extraRegelsAantal',
-  ];
+  const KEUZE_VELDEN = Dossier.KEUZE_VELDEN;
 
   let laatsteResultaat = null;
   let laatsteMail = null;
@@ -2807,6 +3024,124 @@ const APP_SJABLONEN_B64 = {
     }
   }
 
+  /* --------------------- dossierbestand: opslaan en openen --------------- */
+
+  function dossierMelding(tekst, soort) {
+    const m = $('dossier-melding');
+    if (!m) return;
+    m.textContent = tekst;
+    m.className = 'dossier-melding' + (soort ? ' ' + soort : '');
+  }
+
+  function dossierStand() {
+    const velden = {};
+    for (const naam of Dossier.alleVeldNamen()) {
+      const e = veldElement(naam);
+      velden[naam] = e ? e.value : '';
+    }
+    return { kenmerk: $('dossier-kenmerk').value, velden, documenten: gekozenDocumenten() };
+  }
+
+  /** @returns {string[]} de veldnamen van keuzevelden die zijn overgeslagen omdat hun waarde geen bestaande optie is. */
+  function zetDossier(d) {
+    const overgeslagen = [];
+    Object.keys(d.velden).forEach((naam) => {
+      const e = veldElement(naam);
+      if (!e) return;
+      // Een select accepteert alleen een van zijn eigen opties; een andere waarde (uit een
+      // beschadigd of handmatig gewijzigd bestand) laat het element ongemoeid in plaats van de
+      // pagina te laten crashen op een keuze die nergens bij hoort. De gebruiker moet dat wel
+      // kunnen zien, dus dit veld komt terug in de melding, net als een ontbrekend veld.
+      if (e.tagName === 'SELECT' && ![...e.options].some((o) => o.value === d.velden[naam])) {
+        overgeslagen.push(naam);
+        return;
+      }
+      e.value = d.velden[naam];
+    });
+    if (d.documenten.length) {
+      CFG.DOCUMENTEN.forEach((doc) => {
+        const c = $('doc-' + doc.key);
+        if (c) c.checked = d.documenten.includes(doc.key);
+      });
+    }
+    $('dossier-kenmerk').value = d.kenmerk;
+    return overgeslagen;
+  }
+
+  function dossierOpslaan() {
+    const tekst = Dossier.maakDossierTekst(dossierStand());
+    const naam = Dossier.dossierBestandsnaam($('dossier-kenmerk').value || $('f-holding').value);
+    downloadBytes(tekst, naam, 'application/json');
+    dossierMelding(
+      'Opgeslagen als ' + naam + '. Zet het bestand in de klantmap, dan gaat het mee in de back-up en kan een collega het openen.',
+      'goed'
+    );
+  }
+
+  function dossierOpenen(bestand) {
+    if (!bestand) return;
+    const lezer = new FileReader();
+    lezer.onerror = () => dossierMelding('Het bestand kon niet worden gelezen.', 'fout');
+    lezer.onabort = () => dossierMelding('Het openen van het bestand is afgebroken; er is niets gewijzigd.', 'fout');
+    lezer.onload = () => {
+      try {
+        const uit = Dossier.leesDossier(lezer.result);
+        if (!uit.ok) {
+          dossierMelding(uit.fouten.join(' '), 'fout');
+          return;
+        }
+        const overgeslagen = zetDossier(uit.dossier);
+        laatsteResultaat = null;
+        laatsteMail = null;
+        $('doc-grid').textContent = '';
+        $('result-meldingen').textContent = '';
+        $('mail-body').textContent = '';
+        $('mail-subject').textContent = '';
+        $('result-block').classList.remove('show');
+        $('form-block').style.display = 'block';
+        wisVeldFouten();
+        naVeldWijziging();
+
+        const veldLabel = (naam) => {
+          if (Model.VELDEN[naam]) return Model.VELDEN[naam].label;
+          const l = document.querySelector(`label[for="f-${naam}"]`);
+          return l ? l.textContent.trim() : naam;
+        };
+        const stukjes = [];
+        if (uit.dossier.kenmerk) stukjes.push('kenmerk ' + uit.dossier.kenmerk);
+        if (uit.ontbrekend.length) {
+          stukjes.push(
+            'let op: dit bestand mist ' + uit.ontbrekend.length +
+            ' veld' + (uit.ontbrekend.length === 1 ? '' : 'en') +
+            ' (' + uit.ontbrekend.map(veldLabel).join(', ') +
+            '); die zijn niet gewijzigd'
+          );
+        }
+        if (overgeslagen.length) {
+          stukjes.push(
+            'let op: bij ' + overgeslagen.length +
+            ' keuzeveld' + (overgeslagen.length === 1 ? '' : 'en') +
+            ' (' + overgeslagen.map(veldLabel).join(', ') +
+            ') staat in het bestand een keuze die niet meer bestaat; die zijn niet gewijzigd'
+          );
+        }
+        const extra = uit.waarschuwingen.length ? ' ' + uit.waarschuwingen.join(' ') : '';
+        const soort = uit.ontbrekend.length || overgeslagen.length || uit.waarschuwingen.length ? 'fout' : 'goed';
+        dossierMelding(
+          'Dossier geopend' + (stukjes.length ? ' (' + stukjes.join('; ') + ')' : '') +
+          '. Voer de berekening opnieuw uit.' + extra,
+          soort
+        );
+      } catch (e) {
+        dossierMelding(
+          'Het bestand kon niet worden verwerkt (' + (e && e.message ? e.message : String(e)) + ').',
+          'fout'
+        );
+      }
+    };
+    lezer.readAsText(bestand);
+  }
+
   /* ------------------------------- reset --------------------------------- */
 
   function reset() {
@@ -2873,6 +3208,12 @@ const APP_SJABLONEN_B64 = {
     $('btn-copy').addEventListener('click', kopieerMail);
     $('btn-reset').addEventListener('click', reset);
     $('btn-testdata').addEventListener('click', vulTestdata);
+    $('dossier-opslaan').addEventListener('click', dossierOpslaan);
+    $('dossier-openen').addEventListener('click', () => $('dossier-bestand').click());
+    $('dossier-bestand').addEventListener('change', (ev) => {
+      dossierOpenen(ev.target.files && ev.target.files[0]);
+      ev.target.value = '';
+    });
     $('btn-alles').addEventListener('click', () => {
       CFG.DOCUMENTEN.forEach((d) => ($('doc-' + d.key).checked = true));
       naVeldWijziging();
@@ -2914,6 +3255,6 @@ const APP_SJABLONEN_B64 = {
 })();
 </script>
 
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:var(--navy);font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;">Laatste update: 15 sep 2026, 22:22</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:var(--navy);font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;">Laatste update: 27 sep 2026, 12:13</div>
 </body>
 </html>
