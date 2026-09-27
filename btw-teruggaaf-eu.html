@@ -389,6 +389,27 @@ footer.page-footer strong { color: var(--text-2); }
 footer.page-footer a { color: var(--mint); }
 .build-stamp { display: block; margin-top: 8px; color: var(--text-3); font-size: 12px; }
 
+/* ── DOSSIERBALK: dossierstuk, Excel-export, dossierbestand ── */
+.dossier-bar { background: var(--navy-light); border-bottom: 1px solid var(--border); padding: 14px var(--page-pad); }
+.dossier-bar-inner { max-width: var(--page-max); margin: 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
+.dossier-field { display: flex; flex-direction: column; gap: 4px; min-width: 240px; flex: 1 1 240px; }
+.dossier-field label { font-size: 12px; font-weight: 800; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+.dossier-field input {
+  min-height: 34px; padding: 6px 10px; background: var(--input-bg); border: 1px solid var(--border-str);
+  border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 13.5px;
+}
+.dossier-knoppen { display: flex; flex-wrap: wrap; gap: 8px; }
+.dossier-knoppen button {
+  min-height: 34px; padding: 6px 13px; background: var(--input-bg); border: 1px solid var(--border-str);
+  border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; font-weight: 700;
+  color: var(--text-2); cursor: pointer; white-space: nowrap;
+}
+.dossier-knoppen button:hover { border-color: var(--mint); color: var(--mint); }
+.dossier-melding { max-width: var(--page-max); margin: 8px auto 0; padding: 0 var(--page-pad); font-size: 12.5px; color: var(--text-2); min-height: 1em; }
+.dossier-melding.is-error { color: var(--red-2); font-weight: 700; }
+
+.print-cover { display: none; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1100px) { :root { --page-pad: 30px; } }
 @media (max-width: 860px) {
@@ -406,6 +427,7 @@ footer.page-footer a { color: var(--mint); }
   .result-count { margin-left: 0; }
   .source-box { grid-template-columns: 1fr; }
   main { padding: 20px var(--page-pad) 56px; }
+  .dossier-bar-inner { flex-direction: column; align-items: stretch; }
 }
 @media (max-width: 520px) {
   .card-kv { grid-template-columns: 1fr; gap: 2px 0; }
@@ -421,7 +443,7 @@ footer.page-footer a { color: var(--mint); }
 @media print {
   :root { --page-pad: 0; }
   body { background: #fff; color: #111; font-size: 10pt; }
-  header, .toolbar, .skip-link, .toggle-btn, .card-detail-btn, .sort-ind { display: none !important; }
+  header, .toolbar, .skip-link, .toggle-btn, .card-detail-btn, .sort-ind, .noprint { display: none !important; }
   .hero { background: none; padding: 0 0 12pt; }
   .hero::before { display: none; }
   .hero p, .source-item dd, .info-block li, tbody td, .detail-item dd { color: #111; }
@@ -433,6 +455,14 @@ footer.page-footer a { color: var(--mint); }
   .callout { border: 1pt solid #999; color: #111; }
   a { color: #111; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
+  .print-cover { display: block; margin-bottom: 16pt; padding-bottom: 10pt; border-bottom: 2pt solid #111; }
+  .print-cover h2 { font-size: 13pt; margin-bottom: 6pt; color: #111; }
+  .print-kv { display: flex; flex-wrap: wrap; gap: 6pt 22pt; margin-bottom: 8pt; }
+  .print-kv > div { display: flex; flex-direction: column; }
+  .print-kv dt { font-size: 8pt; text-transform: uppercase; color: #555; }
+  .print-kv dd { font-size: 10pt; font-weight: 700; color: #111; }
+  .print-invoer, .print-afbakening { font-size: 9pt; color: #111; margin-top: 6pt; }
+  .print-cover ul { margin: 4pt 0 0 16pt; }
 }
 </style>
 </head>
@@ -521,7 +551,26 @@ footer.page-footer a { color: var(--mint); }
   </div>
 </div>
 
+<div class="dossier-bar noprint" id="dossierBar">
+  <div class="dossier-bar-inner">
+    <div class="dossier-field">
+      <label for="kenmerkInput">Kenmerk (klantnaam of dossiernummer)</label>
+      <input type="text" id="kenmerkInput" autocomplete="off" placeholder="bijv. Klant BV — 2026">
+    </div>
+    <div class="dossier-knoppen" role="group" aria-label="Dossieruitgangen van deze tool">
+      <button type="button" id="btnPrint">Dossierstuk afdrukken</button>
+      <button type="button" id="btnExportXlsx">Exporteren naar Excel</button>
+      <button type="button" id="btnSaveFile">Dossier opslaan</button>
+      <button type="button" id="btnOpenFile">Dossier openen</button>
+      <input type="file" id="fileOpen" accept="application/json,.json" class="visually-hidden" aria-hidden="true" tabindex="-1">
+    </div>
+  </div>
+  <p class="dossier-melding" id="dossierMelding" role="status" aria-live="polite"></p>
+</div>
+
 <main id="resultaten">
+
+  <div class="print-cover" id="printCover"></div>
 
   <div class="data-error" id="dataError" hidden>
     <h2>Let op: probleem in de dataset</h2>
@@ -2383,7 +2432,9 @@ function renderDataProblems(problems) {
 
 function init() {
   ['tableWrap', 'tableBody', 'cardsWrap', 'noResults', 'resultCount', 'resultStatus',
-   'btnReset', 'searchInput', 'searchWrap', 'searchClear'].forEach(function (id) {
+   'btnReset', 'searchInput', 'searchWrap', 'searchClear',
+   'kenmerkInput', 'btnPrint', 'btnExportXlsx', 'btnSaveFile', 'btnOpenFile', 'fileOpen',
+   'dossierMelding', 'printCover'].forEach(function (id) {
     el[id] = byId(id);
   });
 
@@ -2457,7 +2508,601 @@ function init() {
     }, 150);
   });
 
+  if (el.btnPrint) el.btnPrint.addEventListener('click', function () { renderPrintCover(); window.print(); });
+  if (el.btnExportXlsx) el.btnExportXlsx.addEventListener('click', exporteerExcel);
+  if (el.btnSaveFile) el.btnSaveFile.addEventListener('click', opslaanDossier);
+  if (el.btnOpenFile) el.btnOpenFile.addEventListener('click', function () { el.fileOpen.click(); });
+  if (el.fileOpen) el.fileOpen.addEventListener('change', function () {
+    const file = el.fileOpen.files && el.fileOpen.files[0];
+    el.fileOpen.value = '';
+    if (file) leesDossierBestand(file);
+  });
+
   render();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   12. XLSX-SCHRIJVER — gedeeld blok
+   Ingebedde kopie van gedeeld/xlsx-schrijver.js in deze repository, op
+   zijn beurt een kopie van gedeelde-kern/blokken/xlsx-schrijver.js.
+   Handmatig hierheen gekopieerd (niet via verspreid.mjs) omdat
+   gedeelde-kern op het moment van bouwen ongecommit werk van een
+   andere sessie bevatte; zie OPENSTAAND.md. Wijzig dit blok niet hier
+   — een wijziging hoort in gedeelde-kern thuis.
+   ═══════════════════════════════════════════════════════════════════ */
+// XLSX-SCHRIJVER — BEGIN
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair, via
+// gedeeld/xlsx-schrijver.js.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+/* ═══════════════════════════════════════════════════════════════════
+   13. DOSSIERUITGANGEN
+   Dossierstuk (print), Excel-export en dossierbestand (JSON). Deze
+   tool is een naslagwerk: "invoer" is de gekozen zoekopdracht/filters,
+   "uitkomst" zijn de daarmee getoonde voorwaarden. Er komt geen
+   nieuwe fiscale waarde bij; alles hier leest alleen wat al op het
+   scherm staat.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const TOOL_ID = 'btw-teruggaaf-eu';
+const TOOL_NAAM = 'Btw-teruggaaf EU-landen';
+const DOSSIER_FORMAATVERSIE = 1;
+const SORT_KEYS_GELDIG = ['name', 'subcodes', 'invoices', 'thirdPartyFiling', 'thirdPartyPayment'];
+
+function huidigeKenmerk() {
+  return String((el.kenmerkInput && el.kenmerkInput.value) || '').trim();
+}
+
+function slug(tekst) {
+  return String(tekst || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'dossier';
+}
+
+function datumBestand(d) {
+  const p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+function versieStempel() {
+  const stamp = (typeof document !== 'undefined' && document.querySelector)
+    ? document.querySelector('.build-stamp') : null;
+  return stamp ? String(stamp.textContent).trim() : '';
+}
+
+const FILTER_LABELS = {
+  invoices: { alle: 'Alle', verplicht: 'Verplicht', niet: 'Niet verplicht' },
+  subcodes: { alle: 'Alle', ja: 'Verplicht', nee: 'Niet verplicht' }
+};
+const SORT_VELD_LABELS = {
+  name: 'Land', subcodes: 'Subgoederencodes', invoices: 'Facturen meesturen',
+  thirdPartyFiling: 'Derde mag indienen', thirdPartyPayment: 'Uitbetaling aan derde'
+};
+
+function filterLabel(type, value) {
+  return (FILTER_LABELS[type] && FILTER_LABELS[type][value]) || value;
+}
+
+function sortLabel() {
+  return (SORT_VELD_LABELS[state.sort.key] || state.sort.key) +
+    ' (' + (state.sort.dir === 'desc' ? 'aflopend' : 'oplopend') + ')';
+}
+
+function invoerSamenvatting() {
+  return [
+    'Zoekterm: ' + (state.query.trim() ? '"' + state.query.trim() + '"' : '(geen)'),
+    'Filter facturen meesturen: ' + filterLabel('invoices', state.filters.invoices),
+    'Filter subgoederencodes: ' + filterLabel('subcodes', state.filters.subcodes),
+    'Sortering: ' + sortLabel()
+  ];
+}
+
+const AFBAKENING_TEKST = 'Deze tool is een naslagwerk voor intern gebruik en geen fiscaal advies. ' +
+  'Zij toont de eisen die het land van teruggaaf aan een verzoek stelt; zij berekent zelf niets en ' +
+  'vervangt geen contact met de belastingdienst van dat land bij twijfel over een concreet geval. ' +
+  'Waar de bronnen elkaar tegenspreken, staat de gekozen weergave als bronconflict bij het land.';
+
+/* ── 13a. Dossierstuk (afdrukbaar) ──────────────────────────────────
+   Vult de vaste kop boven de al bestaande, print-geschikte tabel/
+   kaarten; die tonen zelf al de volledige voorwaarden en de bron per
+   land (detailHtml), zodat er geen tweede plek ontstaat die dezelfde
+   gegevens opnieuw opbouwt. ── */
+function renderPrintCover() {
+  if (!el.printCover) return;
+  const list = currentResults();
+  const kenmerk = huidigeKenmerk();
+  el.printCover.innerHTML =
+    '<h2>Dossierstuk — ' + esc(TOOL_NAAM) + '</h2>' +
+    '<dl class="print-kv">' +
+      '<div><dt>Kenmerk</dt><dd>' + esc(kenmerk || '(niet ingevuld)') + '</dd></div>' +
+      '<div><dt>Datum afdruk</dt><dd>' + esc(datumNl(datumBestand(new Date()))) + '</dd></div>' +
+      '<div><dt>Getoonde landen</dt><dd>' + list.length + ' van ' + DATA.length + '</dd></div>' +
+      '<div><dt>Versiestempel</dt><dd>' + esc(versieStempel()) + '</dd></div>' +
+    '</dl>' +
+    '<p class="print-invoer"><strong>Toegepaste invoer (zoekopdracht en filters):</strong></p>' +
+    lijst(invoerSamenvatting()) +
+    '<p class="print-afbakening"><strong>Afbakening.</strong> ' + esc(AFBAKENING_TEKST) + '</p>';
+}
+
+/* ── 13b. Excel-export ──────────────────────────────────────────────
+   Bevroren werkblad zonder formules: de getallen/teksten komen uit
+   dezelfde currentResults()-lijst als het scherm. Platte-tekstversies
+   van de badges hergebruiken de bestaande label-mappings (JA_NEE_
+   LABELS, INVOICE_LABELS, DREMPEL_LABELS): geen tweede fiscale logica,
+   alleen een andere weergave van dezelfde waarde. ── */
+function badgeTekst(map, value) {
+  const def = map[value] || map.onbekend;
+  return def.text;
+}
+function drempelTekst(t) {
+  if (!t) return 'Onbekend';
+  if (t.status !== 'bekend') return DREMPEL_LABELS[t.status] || 'Onbekend';
+  return t.display + (t.approx ? ' (' + t.approx + ')' : '');
+}
+function talenTekst(country) {
+  if (!country.languages || !country.languages.length) return DREMPEL_LABELS['niet-vermeld'];
+  return country.languages.map(function (l) {
+    return l.name + ' (' + l.iso + ')' + (l.scope && l.scope !== 'volledig' ? ' — ' + l.scope : '');
+  }).join('; ');
+}
+function facturenTekst(country) {
+  let t = badgeTekst(INVOICE_LABELS, country.invoices);
+  if (country.invoices === 'drempel') {
+    const s = invoiceThresholdSentence(country);
+    if (s) t += ' — ' + s;
+  }
+  return t;
+}
+
+function buildDossierBladen(kenmerk, nu) {
+  const list = currentResults();
+
+  const kopBlad = {
+    naam: 'Kop', breedtes: [26, 60],
+    rijen: [
+      [celTekst(TOOL_NAAM, true)],
+      [celTekst('Versiestempel:'), celTekst(versieStempel())],
+      [celTekst('Datum export:'), celTekst(datumNl(datumBestand(nu)))],
+      [celTekst('Kenmerk:'), celTekst(kenmerk || '(niet ingevuld)')]
+    ]
+  };
+
+  const invoerRijen = [[celTekst('Veld', true), celTekst('Waarde', true)]];
+  invoerRijen.push([celTekst('Zoekterm'), celTekst(state.query.trim() || '(geen)')]);
+  invoerRijen.push([celTekst('Filter facturen meesturen'), celTekst(filterLabel('invoices', state.filters.invoices))]);
+  invoerRijen.push([celTekst('Filter subgoederencodes'), celTekst(filterLabel('subcodes', state.filters.subcodes))]);
+  invoerRijen.push([celTekst('Sortering'), celTekst(sortLabel())]);
+  invoerRijen.push([celTekst('Aantal getoonde landen'), celTekst(list.length + ' van ' + DATA.length)]);
+  invoerRijen.push([celTekst('')]);
+  invoerRijen.push([celTekst('Getoonde landen', true)]);
+  list.forEach(function (c) { invoerRijen.push([celTekst(c.name + ' (' + c.code + ')')]); });
+  const invoerBlad = { naam: 'Invoer', breedtes: [30, 46], rijen: invoerRijen };
+
+  const uitkomstHeader = ['Land', 'Code', 'Valuta', 'Subgoederencodes', 'Facturen meesturen', 'Talen',
+    'Min. jaar/restjaar', 'Min. tijdvak ≥ 3 mnd', 'Derde mag indienen', 'Uitbetaling aan derde', 'Bronconflict'];
+  const uitkomstRijen = [uitkomstHeader.map(function (t) { return celTekst(t, true); })];
+  list.forEach(function (c) {
+    uitkomstRijen.push([
+      celTekst(c.name), celTekst(c.code), celTekst(c.currency),
+      celTekst(badgeTekst(JA_NEE_LABELS, c.subcodes)),
+      celTekst(facturenTekst(c)),
+      celTekst(talenTekst(c)),
+      celTekst(drempelTekst(c.annualThreshold)),
+      celTekst(drempelTekst(c.shortPeriodThreshold)),
+      celTekst(badgeTekst(JA_NEE_LABELS, c.thirdPartyFiling) + (c.thirdPartyFilingNotes ? ' — ' + c.thirdPartyFilingNotes : '')),
+      celTekst(badgeTekst(JA_NEE_LABELS, c.thirdPartyPayment) + (c.thirdPartyPaymentNotes ? ' — ' + c.thirdPartyPaymentNotes : '')),
+      celTekst(conflicts(c).length ? conflicts(c).length + 'x' : 'Nee')
+    ]);
+  });
+  const uitkomstBlad = { naam: 'Uitkomst', breedtes: [16, 6, 7, 16, 26, 26, 16, 16, 30, 30, 12], rijen: uitkomstRijen };
+
+  const toelichtingRijen = [[celTekst('Land', true), celTekst('Bron(nen)', true), celTekst('Gecontroleerd op', true), celTekst('Bronconflict(en)', true)]];
+  list.forEach(function (c) {
+    const bronnen = (c.sources || []).map(function (s) { return s.label + (s.url ? ' (' + s.url + ')' : ''); }).join('; ');
+    const conflictTekst = conflicts(c).map(function (k) {
+      return k.summary + ' — gekozen weergave: ' + k.resolution;
+    }).join(' | ');
+    toelichtingRijen.push([
+      celTekst(c.name), celTekst(bronnen), celTekst(datumNl(c.verifiedAt)), celTekst(conflictTekst || '(geen)')
+    ]);
+  });
+  toelichtingRijen.push([celTekst('')]);
+  toelichtingRijen.push([celTekst('Primaire bron van de tool', true), celTekst(META.primarySource.label + ' — ' + META.primarySource.description + ' (' + META.primarySource.url + ')')]);
+  toelichtingRijen.push([celTekst('Bronversie'), celTekst(META.sourceVersion + ' — ' + META.sourceVersionNote)]);
+  toelichtingRijen.push([celTekst('Inhoud gecontroleerd op'), celTekst(datumNl(META.contentVerifiedAt))]);
+  toelichtingRijen.push([celTekst('')]);
+  toelichtingRijen.push([celTekst('Afbakening', true), celTekst(AFBAKENING_TEKST)]);
+  const toelichtingBlad = { naam: 'Toelichting en vindplaatsen', breedtes: [24, 70, 18, 60], rijen: toelichtingRijen };
+
+  return [kopBlad, invoerBlad, uitkomstBlad, toelichtingBlad];
+}
+
+function triggerDownload(bytes, bestandsnaam, mime) {
+  const blob = new Blob([bytes], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = bestandsnaam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function toonDossierMelding(tekst, isError) {
+  if (!el.dossierMelding) return;
+  el.dossierMelding.textContent = tekst;
+  el.dossierMelding.classList.toggle('is-error', !!isError);
+}
+
+function exporteerExcel() {
+  const kenmerk = huidigeKenmerk();
+  const nu = new Date();
+  const bladen = buildDossierBladen(kenmerk, nu);
+  const bytes = xlsxBytes(bladen);
+  const naam = TOOL_ID + '-' + slug(kenmerk) + '-' + datumBestand(nu) + '.xlsx';
+  triggerDownload(bytes, naam, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  toonDossierMelding('Excel-bestand "' + naam + '" gedownload. Er is niets naar een server verstuurd.');
+}
+
+/* ── 13c. Dossierbestand (JSON: opslaan en heropenen) ───────────────
+   Alleen invoer (zoekopdracht, filters, sortering, welke landen open
+   staan) — geen afgeleide uitkomst. Bij openen wordt de uitkomst met
+   de huidige tool herberekend (currentResults()/render()). ── */
+function huidigeDossierData() {
+  return {
+    tool: TOOL_ID,
+    formaatversie: DOSSIER_FORMAATVERSIE,
+    kenmerk: huidigeKenmerk(),
+    query: state.query,
+    filters: { invoices: state.filters.invoices, subcodes: state.filters.subcodes },
+    sort: { key: state.sort.key, dir: state.sort.dir },
+    expanded: Array.from(state.expanded)
+  };
+}
+
+function opslaanDossier() {
+  const data = huidigeDossierData();
+  const nu = new Date();
+  const naam = TOOL_ID + '-' + slug(data.kenmerk) + '-' + datumBestand(nu) + '.json';
+  const tekst = JSON.stringify(data, null, 2);
+  triggerDownload(new TextEncoder().encode(tekst), naam, 'application/json');
+  toonDossierMelding('Dossierbestand "' + naam + '" gedownload. Er is niets naar een server verstuurd.');
+}
+
+/* Streng op het type: een boolean, array of lege/witruimte-tekst wordt
+   nooit stilzwijgend als geldige tekstwaarde geaccepteerd. */
+function isTekstveld(v) {
+  return typeof v === 'string';
+}
+
+function valideerDossierData(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, error: 'Het bestand bevat geen geldig dossier (geen object).' };
+  }
+  if (data.tool !== TOOL_ID) {
+    return { ok: false, error: 'Dit bestand hoort niet bij ' + TOOL_NAAM + '.' };
+  }
+  if (typeof data.formaatversie !== 'number' || data.formaatversie !== DOSSIER_FORMAATVERSIE) {
+    return { ok: false, error: 'Onbekende bestandsformaatversie: ' + JSON.stringify(data.formaatversie) + '.' };
+  }
+  if (!isTekstveld(data.kenmerk)) {
+    return { ok: false, error: 'Veld "kenmerk" ontbreekt of heeft een onjuist type.' };
+  }
+  if (!isTekstveld(data.query)) {
+    return { ok: false, error: 'Veld "query" ontbreekt of heeft een onjuist type.' };
+  }
+  if (!data.filters || typeof data.filters !== 'object' ||
+      ['alle', 'verplicht', 'niet'].indexOf(data.filters.invoices) === -1 ||
+      ['alle', 'ja', 'nee'].indexOf(data.filters.subcodes) === -1) {
+    return { ok: false, error: 'Veld "filters" ontbreekt of bevat een onbekende waarde.' };
+  }
+  if (!data.sort || typeof data.sort !== 'object' ||
+      SORT_KEYS_GELDIG.indexOf(data.sort.key) === -1 ||
+      ['asc', 'desc'].indexOf(data.sort.dir) === -1) {
+    return { ok: false, error: 'Veld "sort" ontbreekt of bevat een onbekende waarde.' };
+  }
+  if (!Array.isArray(data.expanded) || !data.expanded.every(isTekstveld)) {
+    return { ok: false, error: 'Veld "expanded" ontbreekt of bevat geen lijst van tekst.' };
+  }
+  return { ok: true };
+}
+
+function parseDossierJSON(tekst) {
+  let data;
+  try {
+    data = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, error: 'Het bestand is geen geldige JSON.' };
+  }
+  const check = valideerDossierData(data);
+  if (!check.ok) return check;
+  return { ok: true, data: data };
+}
+
+function toepassenDossier(data) {
+  state.query = data.query;
+  state.filters.invoices = data.filters.invoices;
+  state.filters.subcodes = data.filters.subcodes;
+  state.sort.key = data.sort.key;
+  state.sort.dir = data.sort.dir;
+  const geldigeCodes = {};
+  DATA.forEach(function (c) { geldigeCodes[c.code] = true; });
+  state.expanded = new Set(data.expanded.filter(function (code) { return !!geldigeCodes[code]; }));
+
+  if (el.kenmerkInput) el.kenmerkInput.value = data.kenmerk;
+  if (el.searchInput) el.searchInput.value = state.query;
+  document.querySelectorAll('[data-filter]').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b.dataset.value === state.filters[b.dataset.filter]));
+  });
+  document.querySelectorAll('thead th[data-sort-key]').forEach(function (th) {
+    const actief = th.dataset.sortKey === state.sort.key;
+    const ind = th.querySelector('.sort-ind');
+    if (actief) {
+      th.setAttribute('aria-sort', state.sort.dir === 'asc' ? 'ascending' : 'descending');
+      if (ind) ind.textContent = state.sort.dir === 'asc' ? '▲' : '▼';
+    } else {
+      th.removeAttribute('aria-sort');
+      if (ind) ind.textContent = '▲▼';
+    }
+  });
+  render();
+}
+
+/* Drie fouten die alle drie apart worden afgevangen: een leesfout
+   (onerror), een afgebroken lezing (onabort) en een uitzondering
+   tijdens het parsen/toepassen (try/catch). Geen van drie mag de
+   huidige casus op het scherm aantasten. */
+function leesDossierBestand(file) {
+  const reader = new FileReader();
+  reader.onerror = function () {
+    toonDossierMelding('Het bestand kon niet worden gelezen (leesfout).', true);
+  };
+  reader.onabort = function () {
+    toonDossierMelding('Het lezen van het bestand is afgebroken.', true);
+  };
+  reader.onload = function () {
+    try {
+      const result = parseDossierJSON(String(reader.result));
+      if (!result.ok) {
+        toonDossierMelding(result.error, true);
+        return;
+      }
+      toepassenDossier(result.data);
+      toonDossierMelding('Dossier "' + (result.data.kenmerk || '(geen kenmerk)') + '" geopend.');
+    } catch (e) {
+      toonDossierMelding('Onverwachte fout bij het inlezen van het dossier.', true);
+    }
+  };
+  try {
+    reader.readAsText(file);
+  } catch (e) {
+    toonDossierMelding('Het bestand kon niet worden gelezen.', true);
+  }
 }
 
 if (document.readyState === 'loading') {
