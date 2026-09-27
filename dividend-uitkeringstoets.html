@@ -539,6 +539,14 @@
       </label>
     </div>
 
+    <div class="confirm" id="kortBesluitWrap" style="margin-top:10px;">
+      <input type="checkbox" id="kortBesluit" />
+      <label for="kortBesluit">
+        Korte tekst voor de balanstest in het bestuursbesluit (100% aandeelhouder, tevens enig bestuurder)
+        <span class="sub" style="font-weight:400;">De toets zelf verandert niet: de volledige berekening blijft hierboven staan en op het dossierstuk. Alleen de zin in het bestuursbesluit wordt korter — de conclusie zonder de toelichtende bijzin. Bij een negatief eigen vermogen na de uitkering, of wanneer de toets niet van toepassing is, blijft het besluit de volledige toelichting geven.</span>
+      </label>
+    </div>
+
     <div class="calc-box" id="balansCalc"></div>
     <div id="balansResultaat"></div>
   </div>
@@ -2113,6 +2121,7 @@ function leesInvoer() {
   s.statutenOk = $('statutenOk').checked;
   s.evActueel = $('evActueel').checked;
   s.jaarrekeningOk = $('jaarrekeningOk').checked;
+  s.kortBesluit = $('kortBesluit').checked;
   s.peb = radioVal('peb');
   s.pebWaardering = $('pebWaardering').checked;
   s.pebDekking = $('pebDekking').checked;
@@ -2981,6 +2990,17 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
     // resteert. Gesloten op 26 september 2026 door de eigenaar (OPENSTAAND punt 1); de
     // zin over een strikter lezing is daarom vervallen.
     L.push(...wrapTekst('Het eigen vermogen is na de uitkering gelijk aan de reserves die krachtens de wet of de statuten moeten worden aangehouden; de volledige uitkeringsruimte wordt dus benut. De woorden "voor zover het eigen vermogen groter is dan de reserves" in artikel 2:216 lid 1 BW begrenzen het uitkeerbare bedrag en eisen niet dat daarna nog een surplus resteert.', 74));
+  } else if (s.kortBesluit) {
+    // Korte tekst voor de 100%-aandeelhouder/enig-bestuurder-situatie (op verzoek van
+    // Sylvain, 27-09-2026): de itemized cijfers hierboven blijven ongewijzigd staan, en
+    // deze zin blijft een zuivere weergave van de uitkomst van de toets, zonder de
+    // toelichtende bijzin over de reserves. Er wordt geen aparte juridische
+    // uitzondering voor deze situatie geclaimd — die bestaat niet — alleen de tekst is
+    // korter. Alleen voor de reguliere situatie waarin de toets van toepassing is en er
+    // ruimte overblijft; bij een niet-toepasselijke toets of een negatief eigen vermogen
+    // blijft de volledige toelichting staan, want dat zijn juist de gevallen waarin een
+    // lezer — ook de bestuurder zelf later — de redenering nodig heeft.
+    L.push(...wrapTekst('Aan de balanstest van artikel 2:216 lid 1 BW is voldaan.', 74));
   } else {
     L.push(...wrapTekst('Het eigen vermogen blijft na de uitkering groter dan de reserves die krachtens de wet of de statuten moeten worden aangehouden. Aan de voorwaarde van artikel 2:216 lid 1 BW is daarmee voldaan.', 74));
   }
@@ -3234,6 +3254,7 @@ const SCALAIRE_VELDEN = [
   { id: 'statutenOk', soort: 'vink', label: 'Statuten gecontroleerd' },
   { id: 'evActueel', soort: 'vink', label: 'Eigen vermogen sluit nog aan op de besluitdatum' },
   { id: 'jaarrekeningOk', soort: 'vink', label: 'Jaarrekening vastgesteld' },
+  { id: 'kortBesluit', soort: 'vink', optioneel: true, label: 'Korte tekst balanstest (100% aandeelhouder, tevens enig bestuurder)' },
   { id: 'peb', soort: 'keuze', label: 'Pensioen in eigen beheer, ODV of stamrecht aanwezig', opties: ['nee', 'ja'] },
   { id: 'pebWaardering', soort: 'vink', label: 'Waarderingsgrondslag pensioen bevestigd' },
   { id: 'pebDekking', soort: 'vink', label: 'Dekking pensioen afzonderlijk beoordeeld' },
@@ -3323,6 +3344,11 @@ function isGeheelGetal(w) {
 }
 
 function valideerScalairVeld(v, w, fouten) {
+  // Een optioneel veld dat in het geheel ontbreekt — bijvoorbeeld een dossierbestand van
+  // vóór dit veld bestond — krijgt de neutrale standaardwaarde in plaats van een
+  // weigering: leeg bij tekst/datum, false bij een vink. Dat houdt oudere
+  // formaatversie-1-bestanden leesbaar zonder de validatie elders te verzwakken.
+  if (v.optioneel && (w === undefined || w === null)) return v.soort === 'vink' ? false : '';
   if (w === undefined || w === null) { fouten.push(v.label + ' ontbreekt'); return undefined; }
   if (v.soort === 'tekst') {
     if (typeof w !== 'string') { fouten.push(v.label + ' is geen tekst'); return undefined; }
@@ -4300,6 +4326,7 @@ function zetInvoer(inv) {
   $('statutenOk').checked = inv.statutenOk;
   $('evActueel').checked = inv.evActueel;
   $('jaarrekeningOk').checked = inv.jaarrekeningOk;
+  $('kortBesluit').checked = inv.kortBesluit;
   document.querySelectorAll('input[name="peb"]').forEach((r) => { r.checked = r.value === inv.peb; });
   $('pebWaardering').checked = inv.pebWaardering;
   $('pebDekking').checked = inv.pebDekking;
@@ -4572,7 +4599,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 00:38</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 20:50</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
