@@ -1448,12 +1448,18 @@ function isBedrag(w) {
 function isGeheelGetal(w) {
   return isGetal(w) && Number.isInteger(w);
 }
+/** Een bedrag dat ook mag ontbreken: `null` telt hier als "niet ingevuld", want dat is
+ *  wat een leeg getalveld na parseFloat (NaN) en een JSON-rondweg (JSON.stringify zet
+ *  NaN om naar null) teruggeeft. De rekenkern zelf laat dit veld ook leeg toe. */
+function isBedragOfLeeg(w) {
+  return w === null || isBedrag(w);
+}
 
 function bestandsnaamDossier() {
   const kenmerk = document.getElementById('kenmerk').value.trim();
   const stam = kenmerk ? kenmerk.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') : 'zonder-kenmerk';
   return 'belastinglatentie-' + (stam || 'zonder-kenmerk') + '-' +
-    new Date().toISOString().slice(0, 10) + '.json';
+    lokaleDatum(new Date()) + '.json';
 }
 
 function bewaarDossierBestand(bytes, naam, type) {
@@ -1542,13 +1548,13 @@ function leesDossier(tekst) {
 
   if (typeof inv.kenmerk !== 'string') fouten.push('kenmerk: geen tekst');
   if (inv.tariefmodus !== 'perJaar' && inv.tariefmodus !== 'vast') fouten.push('tariefmodus: onbekende waarde');
-  if (!isBedrag(inv.tariefAfschrijving)) fouten.push('tarief afschrijving: geen geldig percentage');
-  if (!isBedrag(inv.tariefUitgesteld)) fouten.push('tarief uitgestelde heffing: geen geldig percentage');
+  if (!isBedragOfLeeg(inv.tariefAfschrijving)) fouten.push('tarief afschrijving: geen geldig percentage');
+  if (!isBedragOfLeeg(inv.tariefUitgesteld)) fouten.push('tarief uitgestelde heffing: geen geldig percentage');
   if (inv.modusMiddel !== 'ib' && inv.modusMiddel !== 'vpb') fouten.push('belastingmiddel: onbekende waarde');
   if (!isGeheelGetal(inv.modusJaar)) fouten.push('jaar van de tarieven: geen geldig jaar');
   if (!isBedrag(inv.modusInkomen)) fouten.push('verwacht inkomen: geen geldig bedrag');
   if (typeof inv.modusAfwijkend !== 'boolean') fouten.push('afwijkend inkomen in het vrijvaljaar: geen ja/nee');
-  if (!isBedrag(inv.modusInkomenVrijval)) fouten.push('verwacht inkomen in het vrijvaljaar: geen geldig bedrag');
+  if (!isBedragOfLeeg(inv.modusInkomenVrijval)) fouten.push('verwacht inkomen in het vrijvaljaar: geen geldig bedrag');
   if (typeof inv.modusGroep !== 'string') fouten.push('positie van de belastingplichtige: onbekende waarde');
   if (typeof inv.modusMkb !== 'boolean') fouten.push('mkb-winstvrijstelling: geen ja/nee');
   if (!isBedrag(inv.disconteringsvoet)) fouten.push('disconteringsvoet: geen geldig percentage');
@@ -1571,13 +1577,13 @@ function leesDossier(tekst) {
 function zetInvoerUitDossier(inv) {
   document.getElementById('kenmerk').value = inv.kenmerk;
   document.getElementById(inv.tariefmodus === 'perJaar' ? 'modus-perjaar' : 'modus-vast').checked = true;
-  document.getElementById('tarief-afschrijving').value = inv.tariefAfschrijving;
-  document.getElementById('tarief-uitgesteld').value = inv.tariefUitgesteld;
+  document.getElementById('tarief-afschrijving').value = inv.tariefAfschrijving ?? '';
+  document.getElementById('tarief-uitgesteld').value = inv.tariefUitgesteld ?? '';
   document.getElementById('modus-middel').value = inv.modusMiddel;
   document.getElementById('modus-jaar').value = inv.modusJaar;
   document.getElementById('modus-inkomen').value = inv.modusInkomen;
   document.getElementById('modus-afwijkend').checked = inv.modusAfwijkend;
-  document.getElementById('modus-inkomen-vrijval').value = inv.modusInkomenVrijval;
+  document.getElementById('modus-inkomen-vrijval').value = inv.modusInkomenVrijval ?? '';
   document.getElementById('modus-groep').value = inv.modusGroep;
   document.getElementById('modus-mkb').checked = inv.modusMkb;
   document.getElementById('disconteringsvoet').value = inv.disconteringsvoet;
