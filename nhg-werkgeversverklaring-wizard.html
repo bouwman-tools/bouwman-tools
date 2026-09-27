@@ -528,7 +528,12 @@
             browsertabblad open staat, ook na het herladen van de pagina. Zodra je dit tabblad of
             de browser sluit, worden ze niet meer bewaard. Gebruik de knop Reset om ze eerder te
             wissen, bijvoorbeeld op een gedeelde werkplek.</p>
+        <p class="opslag-privacyhint">Een opgeslagen dossierbestand bevat dezelfde gegevens als het
+            formulier, waaronder de naam en het adres van de werknemer. Het bestand komt op de schijf
+            van deze computer te staan, in de map die je zelf kiest, en gaat nergens anders naartoe.
+            Behandel het zoals je een ingevuld papieren formulier zou behandelen.</p>
         <div id="opslag-melding" class="opslag-melding" role="alert" hidden></div>
+        <div id="dossier-melding" class="opslag-melding" role="alert" hidden></div>
 
         <div class="wizard-content">
 
@@ -965,6 +970,15 @@
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 Reset
             </button>
+            <button class="btn btn-secondary" onclick="exportDossierBestand()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Dossier opslaan
+            </button>
+            <button class="btn btn-secondary" onclick="document.getElementById('dossierInput').click()">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                Dossier openen
+            </button>
+            <input type="file" id="dossierInput" accept="application/json,.json" style="display:none" onchange="importDossierBestand(event)">
             <button class="btn btn-primary" id="downloadBtn" onclick="downloadPDF()">
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Download PDF
@@ -1611,29 +1625,223 @@ function loadFromStorage() {
         }
     });
 
-    // Restore conditionals
+    herstelVoorwaardelijkeSecties();
+}
+
+// Zet de show/hide-secties die bij een radiokeuze horen, zonder de radio's zelf aan te
+// raken. Nodig na elke plek die radiowaarden buiten de gebruiker om zet: het laden uit
+// sessionStorage en het openen van een dossierbestand. Een los duplicaat van dit blok op
+// de tweede plek zou bij de eerstvolgende voorwaardelijke sectie maar op één plek worden
+// bijgewerkt.
+function herstelVoorwaardelijkeSecties() {
     const ct = getRadio('contractType') || 'onbepaald';
     document.getElementById('cond-bepaald').classList.toggle('show', ct === 'bepaald');
     document.getElementById('cond-flex').classList.toggle('show', ct === 'flex');
 
     const pt = getRadio('proeftijd');
-    if(pt === 'ja') document.getElementById('cond-proeftijdVerstreken').classList.add('show');
+    document.getElementById('cond-proeftijdVerstreken').classList.toggle('show', pt === 'ja');
 
     const reorg = getRadio('reorganisatie');
-    if(reorg === 'ja') document.getElementById('cond-reorganisatie').classList.add('show');
+    document.getElementById('cond-reorganisatie').classList.toggle('show', reorg === 'ja');
     const dga = getRadio('dga');
-    if(dga === 'ja') document.getElementById('cond-dga').classList.add('show');
+    document.getElementById('cond-dga').classList.toggle('show', dga === 'ja');
     const vvToep = getRadio('vvToepassing');
-    if(vvToep === 'ja') document.getElementById('cond-vvToepassing').classList.add('show');
+    document.getElementById('cond-vvToepassing').classList.toggle('show', vvToep === 'ja');
     const vv = getRadio('voortzetting');
     document.getElementById('cond-vv-bepaald').classList.toggle('show', vv === 'bepaald');
     const avw = getRadio('wijzigingAV');
-    if(avw === 'ja') document.getElementById('cond-wijzigingAV').classList.add('show');
+    document.getElementById('cond-wijzigingAV').classList.toggle('show', avw === 'ja');
     const lening = getRadio('lening');
-    if(lening === 'ja') document.getElementById('cond-lening').classList.add('show');
+    document.getElementById('cond-lening').classList.toggle('show', lening === 'ja');
     const loonb = getRadio('loonbeslag');
-    if(loonb === 'ja') document.getElementById('cond-loonbeslag').classList.add('show');
+    document.getElementById('cond-loonbeslag').classList.toggle('show', loonb === 'ja');
 }
+
+// === DOSSIERBESTAND — BEGIN ===
+// Het dossierbestand is voor bewaren en heropenen op een andere machine of door een
+// collega, in tegenstelling tot sessionStorage dat aan dit ene tabblad hangt. Het staat
+// als bestand op de schijf van de gebruiker; de tool bewaart zelf niets en stuurt niets
+// naar een server. Het bevat uitsluitend invoer, geen berekende uitkomst: bij openen
+// wordt de preview opnieuw opgebouwd door dezelfde update() die ook de handmatige invoer
+// verwerkt.
+const DOSSIER_TOOL_ID = 'nhg-werkgeversverklaring';
+const DOSSIER_FORMAAT_VERSIE = 1;
+
+// Alle toegestane waarden per radiogroep. Nodig om een dossierbestand met een
+// onbekende of foutief getypeerde keuze te herkennen voordat die keuze wordt toegepast.
+const RADIO_OPTIES = {
+    contractType: ['onbepaald', 'bepaald', 'flex'],
+    proeftijd: ['ja', 'nee'],
+    proeftijdVerstreken: ['ja', 'nee'],
+    reorganisatie: ['ja', 'nee'],
+    dga: ['ja', 'nee'],
+    voortzetting: ['onbepaald', 'bepaald', 'nee'],
+    vvToepassing: ['ja', 'nee'],
+    wijzigingAV: ['ja', 'nee'],
+    lening: ['ja', 'nee'],
+    loonbeslag: ['ja', 'nee'],
+};
+
+function dossierBestandsnaam() {
+    const kenmerk = (getVal('naamWerknemer') || '')
+        .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'dossier';
+    const d = new Date();
+    const datum = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    return `werkgeversverklaring-${kenmerk}-${datum}.json`;
+}
+
+function bouwDossier() {
+    const fields = {};
+    FIELDS.forEach(id => { fields[id] = getVal(id); });
+    const radios = {};
+    RADIOS.forEach(naam => { radios[naam] = getRadio(naam) || ''; });
+    return {
+        toolId: DOSSIER_TOOL_ID,
+        formaatVersie: DOSSIER_FORMAAT_VERSIE,
+        opgeslagenOp: new Date().toISOString(),
+        invoer: { fields, radios },
+    };
+}
+
+function meldDossier(tekst) {
+    const el = document.getElementById('dossier-melding');
+    if (!el) return;
+    el.textContent = tekst;
+    el.hidden = false;
+}
+
+function verbergDossierMelding() {
+    const el = document.getElementById('dossier-melding');
+    if (el) el.hidden = true;
+}
+
+function exportDossierBestand() {
+    verbergDossierMelding();
+    let json;
+    try {
+        json = JSON.stringify(bouwDossier(), null, 2);
+    } catch (err) {
+        meldDossier('Dossierbestand opslaan is niet gelukt: de gegevens konden niet worden omgezet.');
+        return;
+    }
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = dossierBestandsnaam();
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Toetst de vorm van een ingelezen dossierbestand voordat er iets van wordt toegepast.
+// Een onbekend veld in het bestand wordt genegeerd; een ontbrekend veld of een veld met
+// een ander type dan verwacht (bijvoorbeeld een getal, een waar/onwaar of een lijst in
+// plaats van tekst) breekt de import af zonder de huidige invoer aan te raken. Zo kan een
+// beschadigd of verkeerd bestand nooit een deel van de velden stil vervangen door een
+// lege of onjuiste waarde.
+function valideerDossier(ruw) {
+    if (ruw === null || typeof ruw !== 'object' || Array.isArray(ruw)) {
+        return { ok: false, fout: 'Dit is geen geldig dossierbestand: de inhoud is geen JSON-object.' };
+    }
+    if (ruw.toolId !== DOSSIER_TOOL_ID) {
+        return { ok: false, fout: 'Dit bestand komt niet uit deze tool (Werkgeversverklaring NHG) en wordt niet geopend.' };
+    }
+    if (typeof ruw.formaatVersie !== 'number' || !Number.isFinite(ruw.formaatVersie) || ruw.formaatVersie > DOSSIER_FORMAAT_VERSIE) {
+        return { ok: false, fout: 'Dit dossierbestand heeft een nieuwer formaat dan deze versie van de tool kent. Werk de tool bij, of vraag een collega met een nieuwere versie het bestand te openen.' };
+    }
+    const invoer = ruw.invoer;
+    if (invoer === null || typeof invoer !== 'object' || Array.isArray(invoer)) {
+        return { ok: false, fout: 'Dit dossierbestand mist de invoergegevens.' };
+    }
+    const fields = invoer.fields;
+    const radios = invoer.radios;
+    if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
+        return { ok: false, fout: 'Dit dossierbestand mist de ingevulde velden.' };
+    }
+    if (radios === null || typeof radios !== 'object' || Array.isArray(radios)) {
+        return { ok: false, fout: 'Dit dossierbestand mist de gekozen keuzerondjes.' };
+    }
+    for (const id of FIELDS) {
+        if (!Object.prototype.hasOwnProperty.call(fields, id)) {
+            return { ok: false, fout: `Dit dossierbestand mist het veld "${id}" en wordt niet geopend.` };
+        }
+        if (typeof fields[id] !== 'string') {
+            return { ok: false, fout: `Het veld "${id}" in dit dossierbestand heeft geen tekstwaarde en wordt niet geopend.` };
+        }
+    }
+    for (const naam of RADIOS) {
+        if (!Object.prototype.hasOwnProperty.call(radios, naam)) {
+            return { ok: false, fout: `Dit dossierbestand mist de keuze "${naam}" en wordt niet geopend.` };
+        }
+        const waarde = radios[naam];
+        if (typeof waarde !== 'string' || RADIO_OPTIES[naam].indexOf(waarde) === -1) {
+            return { ok: false, fout: `De keuze "${naam}" in dit dossierbestand is ongeldig en wordt niet geopend.` };
+        }
+    }
+    return { ok: true, fields, radios };
+}
+
+function verwerkDossierTekst(tekst) {
+    let ruw;
+    try {
+        ruw = JSON.parse(tekst);
+    } catch (err) {
+        meldDossier('Dit bestand bevat geen geldige JSON en wordt niet geopend.');
+        return;
+    }
+    const r = valideerDossier(ruw);
+    if (!r.ok) { meldDossier(r.fout); return; }
+    FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = r.fields[id];
+    });
+    RADIOS.forEach(naam => {
+        const radio = document.querySelector(`[name="${naam}"][value="${r.radios[naam]}"]`);
+        if (radio) radio.checked = true;
+        document.querySelectorAll(`[name="${naam}"]`).forEach(x => { if (x !== radio) x.checked = false; });
+    });
+    herstelVoorwaardelijkeSecties();
+    update();
+    meldDossier('Dossierbestand geopend: de invoer is overgenomen.');
+}
+
+// input.value wordt eerst geleegd, ook als er geen bestand is gekozen: anders kan
+// hetzelfde bestand een tweede keer kiezen geen change-event meer geven.
+function importDossierBestand(event) {
+    verbergDossierMelding();
+    const input = event && event.target;
+    const bestand = input && input.files && input.files[0];
+    if (input) input.value = '';
+    if (!bestand) return;
+
+    let reader;
+    try {
+        reader = new FileReader();
+    } catch (err) {
+        meldDossier('Dossierbestand openen is niet gelukt: bestanden lezen wordt hier niet ondersteund.');
+        return;
+    }
+    // Lezen gooit nooit stilzwijgend: onload, onerror en onabort worden alle drie apart
+    // afgehandeld, met een eigen melding per geval.
+    reader.onload = () => verwerkDossierTekst(String(reader.result));
+    reader.onerror = () => {
+        const naam = (reader.error && reader.error.name) ? reader.error.name : 'onbekende fout';
+        meldDossier('Dossierbestand lezen is mislukt (' + naam + ').');
+    };
+    reader.onabort = () => {
+        meldDossier('Het lezen van het dossierbestand is afgebroken.');
+    };
+    try {
+        reader.readAsText(bestand);
+    } catch (err) {
+        meldDossier('Dossierbestand lezen is niet gelukt: het bestand kon niet worden gestart.');
+    }
+}
+// === DOSSIERBESTAND — EINDE ===
 
 function resetForm() {
     if(!confirm('Wil je alle ingevulde gegevens wissen?')) return;
@@ -1868,6 +2076,6 @@ async function downloadPDF() {
     }
 }
 </script>
-<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 17 sep 2026, 23:02</div>
+<div style="position:fixed;bottom:10px;right:14px;z-index:9990;font-size:10px;color:#94a3b8;font-family:system-ui,-apple-system,sans-serif;background:rgba(255,255,255,0.8);padding:2px 6px;border-radius:4px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 11:54</div>
 </body>
 </html>
