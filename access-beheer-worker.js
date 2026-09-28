@@ -109,6 +109,7 @@ const APP_IDS = {
   'aow-datum.html': '4d830b89-6389-4e5a-832d-8437035b04b1',
   'familiebank.html': '7e166f74-a0cc-42e8-b3ea-9d4677f2341d',
   'eigen-woning.html': '068adb42-9aa6-42c8-8ef3-66649bf8973d',
+  'kantoor-in-de-woning.html': '123011c5-fedc-4b34-aa9f-8e32f6db5ef3',
 };
 
 export default {

@@ -112,7 +112,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
-| 🟡 beta | Kantoor in de eigen woning | `/kantoor-in-de-woning.html` | bouwman-tools/kantoor-in-de-woning | **nee** | 2026-09-28 | **tbd** | belastingplan | **nooit** |
+| 🟡 beta | Kantoor in de eigen woning | `/kantoor-in-de-woning.html` | bouwman-tools/kantoor-in-de-woning | ja | 2026-09-28 | **tbd** | belastingplan | **nooit** |
 | 🟢 live | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
@@ -169,13 +169,6 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- Kantoor in de eigen woning (`kantoor-in-de-woning.html`)
 
 ## Workers
 
