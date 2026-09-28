@@ -172,6 +172,13 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
+## Let op: niet afgeschermd
+
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
+
+- Bruto-netto 2026 (`bruto-netto-2026.html`)
+
 ## Workers
 
 Welke Cloudflare Worker onder welke tool hangt. Of een Worker werkelijk op het
