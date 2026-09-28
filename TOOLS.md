@@ -108,6 +108,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-23 |
+| 🔵 concept | Bruto-netto 2026 | `/bruto-netto-2026.html` | Sylvainbouwman/bruto-netto-2026 | **nee** | 2026-09-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-24 |
 | 🟢 live | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
@@ -117,6 +118,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
 - **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
+- **Bruto-netto 2026**: Bruto-netto berekening voor 2026: box 1/2/3, heffingskortingen, bijdrage Zvw en de posten voor een DGA of IB-ondernemer
 - **Eigen woning**: Volgt de eigen woning en de eigenwoningschuld per jaar: marktwaarde en waardeontwikkeling, eigenwoningforfait volgens de staffel met de eigenwoningperiode naar tijdsgelang, tot drie leningen die elk apart worden getoetst, de schuld en de overwaarde, de verdeling over box 1 en box 3, en tot welk jaar de rente aftrekbaar is. Ook de aankoop met de kosten gesplitst naar aftrekbaar en niet aftrekbaar, de verkoop, een verbouwing tot ten hoogste de kosten, de eigenwoningreserve die de leenruimte verlaagt en bij verkoop het vervreemdingssaldo, het overgangsrecht van art. 10bis met de aflossingsstand, en de aflossing uit een kapitaalverzekering, spaarrekening of beleggingsrecht eigen woning met de vrijstelling en het belaste deel
 - **Familiebank**: Rekent een annuïtaire lening van een ouder aan een kind voor de eigen woning door: het aflosschema, de toets aan de aflossingseis van artikel 3.119c Wet IB 2001, het belastingeffect van de renteaftrek bij het kind en de jaarlijkse schenking getoetst aan de vrijstelling
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
