@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bruto-netto 2026 (kern)</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; max-width: 900px; margin: 0 auto; padding: 1.5rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #ccc; padding-bottom: .25rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem 1.5rem; }
+  label { display: flex; flex-direction: column; font-size: .85rem; margin-bottom: .5rem; }
+  input, select { padding: .35rem; font-size: .95rem; }
+  .scope-buiten { background: #fff4e5; border: 1px solid #e0a020; border-radius: 6px; padding: .75rem 1rem; margin: 1rem 0; font-size: .9rem; }
+  .resultaten { background: #f4f7fb; border: 1px solid #b8c8dd; border-radius: 6px; padding: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
+  td, th { text-align: left; padding: .25rem .5rem; border-bottom: 1px solid #ddd; font-size: .9rem; }
+  td.bedrag, th.bedrag { text-align: right; font-variant-numeric: tabular-nums; }
+  .totaal td { font-weight: bold; border-top: 2px solid #333; }
+  .aow-datumveld { display: none; }
+  fieldset { border: 1px solid #ccc; border-radius: 6px; margin-bottom: 1rem; }
+  legend { font-weight: bold; padding: 0 .5rem; }
+  small.bron { display: block; color: #666; }
+  button { padding: .6rem 1.2rem; font-size: 1rem; margin-top: 1rem; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Bruto-netto 2026 — kern (box 1/2/3 en heffingskortingen)</h1>
+
+<div class="scope-buiten">
+  <strong>Wat deze tool niet doet.</strong> Uitsluitend de kern van de bruto-netto
+  berekening voor belastingjaar 2026 (box 1/2/3 en de heffingskortingen). Buiten scope,
+  en dus niet berekend: zorgtoeslag, kindgebonden budget, kinderopvangtoeslag,
+  kinderbijslag, een uitgavenbegroting, de marginaal-tarief-rekenhulp en de box 3
+  tegenbewijsregeling (werkelijk rendement). Zie <code>OPENSTAAND.md</code> in deze
+  repository voor de volledige lijst met open punten en vereenvoudigingen.
+</div>
+
+<form id="form-invoer">
+  <fieldset>
+    <legend>Persoon</legend>
+    <div class="grid">
+      <label>Alleenstaand
+        <select id="alleenstaand"><option value="nee">Nee (fiscaal partner)</option><option value="ja">Ja</option></select>
+      </label>
+      <label>Geboortedatum
+        <input type="date" id="geboortedatum" value="1980-01-01">
+      </label>
+      <label>Inkomensafhankelijke combinatiekorting van toepassing
+        <select id="iackVanToepassing"><option value="nee">Nee</option><option value="ja">Ja</option></select>
+      </label>
+      <label>Jonggehandicaptenkorting van toepassing
+        <select id="jgkVanToepassing"><option value="nee">Nee</option><option value="ja">Ja</option></select>
+      </label>
+      <label>AOW-status dit jaar
+        <select id="aowStatus">
+          <option value="nog_niet">Nog niet AOW-gerechtigd</option>
+          <option value="wordt_dit_jaar">Wordt dit jaar AOW-gerechtigd</option>
+          <option value="voor_1_januari">Was AOW-gerechtigd vóór 1 januari van dit jaar</option>
+        </select>
+        <small class="bron">
+          <label style="flex-direction: row; align-items: center; gap: .35rem;">
+            <input type="checkbox" id="aowStatusAuto" checked style="padding:0;">
+            Automatisch afleiden uit de geboortedatum (art. 7a AOW)
+          </label>
+        </small>
+      </label>
+      <label class="aow-datumveld" id="aow-datumveld-wrap">AOW-datum dit jaar
+        <input type="date" id="aowDatum" value="2026-06-15">
+      </label>
+      <div id="aow-toelichting" style="display:none; font-size:.8rem; color:#444; grid-column: 1 / -1; margin-top:-.25rem;"></div>
+      <label>Aantal volledige verzekeringsjaren AOW (0-50, standaard 50 = volledig)
+        <input type="number" id="aowVerzekeringsjaren" value="50" step="1" min="0" max="50">
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 1 — loon en uitkeringen</legend>
+    <div class="grid">
+      <label>Loon SVW (bruto loon in dienstbetrekking, na werknemersbijdrage pensioenpremie)
+        <input type="number" id="loonSvw" value="0" step="1">
+      </label>
+      <label>AOW-uitkering
+        <input type="number" id="aowUitkering" value="0" step="1">
+        <small class="bron">
+          <label style="flex-direction: row; align-items: center; gap: .35rem;">
+            <input type="checkbox" id="aowUitkeringAuto" checked style="padding:0;">
+            Automatisch berekenen uit AOW-status, geboortedatum en verzekeringsjaren
+            (bron: svb.nl, "Bedragen AOW", jaargemiddelde 2026; opbouw art. 13 AOW)
+          </label>
+        </small>
+      </label>
+      <label>Pensioenuitkering
+        <input type="number" id="pensioenUitkering" value="0" step="1">
+      </label>
+      <label>Lijfrente-uitkering (belast)
+        <input type="number" id="lijfrenteUitkering" value="0" step="1">
+      </label>
+      <label>Andere uitkeringen (ANW/IOAW/IOW/WAO/WIA/WW)
+        <input type="number" id="andereUitkeringen" value="0" step="1">
+      </label>
+      <label>Overige belaste inkomsten box 1
+        <input type="number" id="overigeBelasteInkomstenBox1" value="0" step="1">
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 1 — eigen woning</legend>
+    <div class="grid">
+      <label>WOZ-waarde eigen woning
+        <input type="number" id="woz" value="0" step="1">
+      </label>
+      <label>Aftrekbare rente eigenwoning
+        <input type="number" id="renteEigenWoning" value="0" step="1">
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 1 — onderneming (IB-ondernemer)</legend>
+    <div class="grid">
+      <label>Winst uit onderneming (vóór ondernemersaftrek, investeringsaftrek en autobijtelling)
+        <input type="number" id="winstOnderneming" value="0" step="1">
+      </label>
+      <label>Investeringsaftrek
+        <input type="number" id="investeringsaftrek" value="0" step="1">
+      </label>
+      <label>Bijtelling auto ondernemer
+        <input type="number" id="bijtellingAutoOndernemer" value="0" step="1">
+      </label>
+      <label>Zelfstandigenaftrek van toepassing
+        <select id="zelfstandigenaftrekVanToepassing"><option value="nee">Nee</option><option value="ja">Ja</option></select>
+      </label>
+      <label>Startersaftrek van toepassing
+        <select id="startersaftrekVanToepassing"><option value="nee">Nee</option><option value="ja">Ja</option></select>
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 1 — DGA</legend>
+    <div class="grid">
+      <label>Salaris DGA
+        <input type="number" id="salarisDga" value="0" step="1">
+      </label>
+      <label>Bijtelling auto DGA
+        <input type="number" id="bijtellingAutoDga" value="0" step="1">
+      </label>
+      <label>Eigen bijdrage auto DGA
+        <input type="number" id="eigenBijdrageAutoDga" value="0" step="1">
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 1 — overige aftrekposten</legend>
+    <div class="grid">
+      <label>Premie AO-verzekering
+        <input type="number" id="premieAoVerzekering" value="0" step="1">
+      </label>
+      <label>Aftrekbare lijfrentepremies
+        <input type="number" id="lijfrentepremies" value="0" step="1">
+      </label>
+      <label>Betaalde partneralimentatie
+        <input type="number" id="partneralimentatieBetaald" value="0" step="1">
+      </label>
+      <label>Verrekening verlies box 1
+        <input type="number" id="verrekeningVerliesBox1" value="0" step="1">
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Box 2 en box 3</legend>
+    <div class="grid">
+      <label>Inkomen box 2
+        <input type="number" id="inkomenBox2" value="0" step="1">
+      </label>
+      <label>Box 3 — banktegoeden
+        <input type="number" id="box3Bank" value="0" step="1">
+      </label>
+      <label>Box 3 — overige bezittingen
+        <input type="number" id="box3Overig" value="0" step="1">
+      </label>
+      <label>Box 3 — schulden
+        <input type="number" id="box3Schulden" value="0" step="1">
+      </label>
+    </div>
+  </fieldset>
+
+  <button type="button" id="btn-bereken">Bereken</button>
+</form>
+
+<div class="resultaten" id="resultaten" style="display:none;">
+  <h2>Resultaat</h2>
+  <table id="tabel-resultaat"></table>
+</div>
+
+<script>
+// AOW-LEEFTIJD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De pensioengerechtigde leeftijd en de AOW-datum. Twee tools hebben ze nodig: aow-datum
+// rekent ze uit als eigen uitkomst, en ww-uitkering gebruikt de AOW-datum om te bepalen
+// wanneer het recht op uitkering eindigt (art. 19 lid 1 onder i jo. art. 20 lid 1 onder a
+// WW). De tabel met zes Staatscourant-vindplaatsen hoort daarom op één plek te staan.
+
+// De pensioengerechtigde leeftijd per kalenderjaar waarin zij wordt bereikt.
+//
+// Tot en met 2025 staat de leeftijd in de wettekst zelf, in art. 7a lid 1 AOW. Vanaf 2026
+// verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule van lid 2, die
+// de minister op grond van diezelfde bepaling in de Staatscourant bekendmaakt; lid 3 bepaalt
+// dat zo'n vaststelling pas vijf jaar later in werking treedt. Voor die jaren staat hier
+// daarom de mededeling als vindplaats en niet de wet.
+//
+// Bron van de wetsartikelen: geconsolideerde Algemene Ouderdomswet, BWBR0002221, versie
+// 2026-07-01, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 18-09-2026.
+const AOW_LEEFTIJD_PER_JAAR = {
+  2013: { jaren: 65, maanden: 1, vindplaats: 'art. 7a lid 1 onder b AOW' },
+  2014: { jaren: 65, maanden: 2, vindplaats: 'art. 7a lid 1 onder c AOW' },
+  2015: { jaren: 65, maanden: 3, vindplaats: 'art. 7a lid 1 onder d AOW' },
+  2016: { jaren: 65, maanden: 6, vindplaats: 'art. 7a lid 1 onder e AOW' },
+  2017: { jaren: 65, maanden: 9, vindplaats: 'art. 7a lid 1 onder f AOW' },
+  2018: { jaren: 66, maanden: 0, vindplaats: 'art. 7a lid 1 onder g AOW' },
+  2019: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder h AOW' },
+  2020: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder i AOW' },
+  2021: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder j AOW' },
+  2022: { jaren: 66, maanden: 7, vindplaats: 'art. 7a lid 1 onder k AOW' },
+  2023: { jaren: 66, maanden: 10, vindplaats: 'art. 7a lid 1 onder l AOW' },
+  2024: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder m AOW' },
+  2025: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder n AOW' },
+  // Vanaf hier komt de leeftijd uit de mededeling van de minister op grond van art. 7a
+  // lid 2 AOW. Elk van deze vijf is op 18-09-2026 op de Staatscourantpagina zelf
+  // gecontroleerd, op leeftijd, aanvangsleeftijd, kalenderjaar, dagtekening en kenmerk.
+  //
+  // Stcrt. 2020, 65110 — mededeling van 04-12-2020, nr. 2020-0000162440.
+  2026: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2020, 65110 (mededeling van 04-12-2020)' },
+  // Stcrt. 2021, 46409 — mededeling van 05-11-2021, nr. 2021-0000168058.
+  2027: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2021, 46409 (mededeling van 05-11-2021)' },
+  // Stcrt. 2022, 30748 — mededeling van 09-11-2022, nr. 2022-0000224155.
+  2028: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2022, 30748 (mededeling van 09-11-2022)' },
+  // Stcrt. 2023, 31782 — mededeling van 13-11-2023, nr. 2023-0000545753.
+  2029: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2023, 31782 (mededeling van 13-11-2023)' },
+  // Stcrt. 2024, 37287 — mededeling van 08-11-2024, nr. 2024-0000903093.
+  2030: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2024, 37287 (mededeling van 08-11-2024)' },
+  // Stcrt. 2025, 38647 — mededeling van 07-11-2025, nr. 2025-0000251283.
+  2031: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2025, 38647 (mededeling van 07-11-2025)' },
+};
+
+// Art. 7a lid 1 onder a AOW: vóór 1 januari 2013 was de pensioengerechtigde leeftijd
+// 65 jaar. Dat geldt voor ieder kalenderjaar vóór 2013 en vraagt dus geen eigen regel
+// per jaar.
+const LEEFTIJD_VOOR_2013 = { jaren: 65, maanden: 0, vindplaats: 'art. 7a lid 1 onder a AOW' };
+const EERSTE_JAAR_IN_DE_TABEL = 2013;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (maand === 2 && isSchrikkeljaar(jaar)) return 29;
+  return lengtes[maand - 1];
+}
+
+function ontleedDatum(tekst) {
+  if (typeof tekst !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tekst)) return null;
+  const jaar = Number(tekst.slice(0, 4));
+  const maand = Number(tekst.slice(5, 7));
+  const dag = Number(tekst.slice(8, 10));
+  if (maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+function alsTekst(datum) {
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return datum.jaar + '-' + tweeCijfers(datum.maand) + '-' + tweeCijfers(datum.dag);
+}
+
+// Telt een leeftijd in jaren en maanden bij een datum op. Valt de uitkomst op een dag die
+// in de doelmaand niet bestaat, bijvoorbeeld 31 mei plus drie maanden, dan wordt het de
+// laatste dag van die maand en wordt dat apart gemeld; de tool verzwijgt zo'n aanpassing
+// niet.
+function datumPlusLeeftijd(datum, leeftijd) {
+  const totaalMaanden = (datum.jaar + leeftijd.jaren) * 12 + (datum.maand - 1) + leeftijd.maanden;
+  const jaar = Math.floor(totaalMaanden / 12);
+  const maand = (totaalMaanden % 12) + 1;
+  const laatsteDag = dagenInMaand(jaar, maand);
+  return {
+    jaar,
+    maand,
+    dag: Math.min(datum.dag, laatsteDag),
+    dagAangepast: datum.dag > laatsteDag,
+  };
+}
+
+function leeftijdInJaar(jaar) {
+  if (jaar < EERSTE_JAAR_IN_DE_TABEL) return LEEFTIJD_VOOR_2013;
+  return AOW_LEEFTIJD_PER_JAAR[jaar] || null;
+}
+
+function laatstBekendeJaar() {
+  return Math.max(...Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number));
+}
+
+function leeftijdAlsTekst(leeftijd) {
+  const jaarDeel = leeftijd.jaren + (leeftijd.jaren === 1 ? ' jaar' : ' jaar');
+  if (leeftijd.maanden === 0) return jaarDeel;
+  return jaarDeel + ' en ' + leeftijd.maanden
+    + (leeftijd.maanden === 1 ? ' maand' : ' maanden');
+}
+
+// Art. 7a lid 1 AOW koppelt de leeftijd aan het kalenderjaar waarin zij wordt bereikt, maar
+// om te weten in welk jaar dat is moet je de leeftijd al kennen. De slotzin van lid 1 maakt
+// die rondgang eenduidig: wie in een kalenderjaar de pensioengerechtigde leeftijd heeft
+// bereikt, krijgt niet meer met de verhogingen van latere jaren te maken. Daarom telt het
+// vroegste kalenderjaar waarin de geboortedatum plus de dan geldende leeftijd binnen dat
+// jaar valt.
+function berekenAowDatum(geboortedatumTekst) {
+  const geboortedatum = ontleedDatum(geboortedatumTekst);
+  if (!geboortedatum) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{ soort: 'fout', tekst: 'Vul een geldige geboortedatum in.' }],
+    };
+  }
+
+  const meldingen = [];
+  const laatsteJaar = laatstBekendeJaar();
+
+  for (let jaar = geboortedatum.jaar + LEEFTIJD_VOOR_2013.jaren; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdInJaar(jaar);
+    if (!leeftijd) break;
+    const datum = datumPlusLeeftijd(geboortedatum, leeftijd);
+    if (datum.jaar !== jaar) continue;
+
+    if (datum.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De datum '
+             + 'is daarom op de laatste dag van die maand gezet. Laat dit geval bevestigen '
+             + 'door de Sociale Verzekeringsbank voordat u de datum in een dossier gebruikt.',
+      });
+    }
+    if (jaar < EERSTE_JAAR_IN_DE_TABEL) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De AOW-leeftijd is bereikt vóór 2013, toen zij nog 65 jaar was '
+             + '(art. 7a lid 1 onder a AOW).',
+      });
+    }
+
+    return {
+      heeftUitkomst: true,
+      meldingen,
+      geboortedatum: alsTekst(geboortedatum),
+      aowJaar: jaar,
+      leeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+      leeftijdTekst: leeftijdAlsTekst(leeftijd),
+      vindplaats: leeftijd.vindplaats,
+      aowDatum: alsTekst(datum),
+      dagAangepast: datum.dagAangepast,
+    };
+  }
+
+  return {
+    heeftUitkomst: false,
+    meldingen: [{
+      soort: 'fout',
+      tekst: 'Voor deze geboortedatum valt de AOW-leeftijd na ' + laatsteJaar + ', en voor dat '
+           + 'jaar is de pensioengerechtigde leeftijd nog niet vastgesteld. De tool rekent niet '
+           + 'door met de leeftijd van een ander jaar. Elke vaststelling wordt vijf jaar vooraf '
+           + 'in de Staatscourant bekendgemaakt (art. 7a lid 2 en 3 AOW). '
+           + 'De Sociale Verzekeringsbank publiceert voor geboortedata van 1 oktober 1964 tot en '
+           + 'met 31 december 2000 wel een verwachte AOW-leeftijd, op '
+           + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd. Dat is een raming op basis van de '
+           + 'levensverwachting die het CBS elk jaar in december bijstelt, en geen vastgestelde '
+           + 'leeftijd; zij hoort daarom niet als datum in een dossier.',
+    }],
+  };
+}
+// AOW-LEEFTIJD — EINDE
+
+// EIGENWONINGFORFAIT — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De staffel van het eigenwoningforfait. Twee tools hebben hem nodig: eigen-woning rekent
+// het saldo uit eigen woning uit, en familiebank zet het forfait tegenover de renteaftrek op
+// een familiebanklening. De staffel stond eerst alleen in eigen-woning, verweven in zijn
+// FISCAAL_PER_JAAR; zij is hierheen gelicht toen er een tweede gebruiker kwam.
+//
+// Bron van de wetsartikelen: geconsolideerde Wet inkomstenbelasting 2001, BWBR0011353,
+// versie 2026-02-21, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in
+// het manifest op 19-09-2026.
+
+// Art. 3.112 lid 1 Wet IB 2001, staffel geldend per 01-01-2026.
+//
+// Let op de vorm, want die wijkt af van een gewoon schijventarief: tot € 1.350.000 geldt het
+// percentage over de GEHELE eigenwoningwaarde en niet alleen over het deel boven de
+// schijfgrens. Alleen de hoogste schijf werkt met een vast bedrag plus een percentage over
+// het meerdere. Wie dit als gewone schijven bouwt, rekent structureel te weinig forfait.
+//
+// De wet zegt "meer dan" en "maar niet meer dan", dus een waarde die precies op een grens
+// valt hoort bij de lagere schijf.
+const EIGENWONINGFORFAIT_PER_JAAR = {
+  2026: {
+    vindplaats: 'art. 3.112 lid 1 Wet IB 2001',
+    staffel: [
+      { totEnMet: 12500, percentageOverGeheel: 0 },
+      { totEnMet: 25000, percentageOverGeheel: 0.0010 },
+      { totEnMet: 50000, percentageOverGeheel: 0.0020 },
+      { totEnMet: 75000, percentageOverGeheel: 0.0025 },
+      { totEnMet: 1350000, percentageOverGeheel: 0.0035 },
+      { totEnMet: Infinity, vastBedrag: 4725, vanaf: 1350000, percentageOverMeerdere: 0.0235 },
+    ],
+  },
+};
+
+// Geeft de staffel van een kalenderjaar, of null wanneer dat jaar er niet in staat. Een
+// onbekend jaar valt bewust niet stil terug op een ander jaar: de tool die dit aanroept
+// hoort dan te melden dat zij niet rekent.
+function forfaitstaffelVanJaar(jaar) {
+  return EIGENWONINGFORFAIT_PER_JAAR[jaar] || null;
+}
+
+// Het eigenwoningforfait bij een eigenwoningwaarde, gegeven de staffel van een jaar.
+function forfaitVolgensStaffel(eigenwoningwaarde, staffel) {
+  if (!(eigenwoningwaarde > 0)) return 0;
+  for (const schijf of staffel) {
+    if (eigenwoningwaarde <= schijf.totEnMet) {
+      if (schijf.percentageOverGeheel !== undefined) {
+        return eigenwoningwaarde * schijf.percentageOverGeheel;
+      }
+      return schijf.vastBedrag + (eigenwoningwaarde - schijf.vanaf) * schijf.percentageOverMeerdere;
+    }
+  }
+  return 0;
+}
+// EIGENWONINGFORFAIT — EINDE
+
+// AFTREK GERINGE SCHULD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De aftrek wegens geen of geringe eigenwoningschuld van art. 3.123a Wet IB 2001. Twee tools
+// hebben hem nodig, en om dezelfde reden: zij zetten allebei het eigenwoningforfait tegenover
+// de aftrekbare kosten van de eigen woning. Zodra het forfait het hoogste is, hoort deze
+// aftrek erbij, en zonder haar is het saldo uit eigen woning ongunstiger dan het werkelijk is.
+// De regel stond eerst alleen in familiebank; zij is hierheen gelicht toen eigen-woning haar
+// ook nodig had.
+//
+// Bron van het wetsartikel: geconsolideerde Wet inkomstenbelasting 2001, BWBR0011353, versie
+// 2026-02-21, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 20-09-2026.
+
+// Art. 3.123a lid 2 Wet IB 2001, percentage geldend per 01-01-2026 (Stcrt. 2025, 40487).
+//
+// Het percentage staat in de wet zelf en wordt jaarlijks verlaagd; het hoort daarom per
+// kalenderjaar in de tabel en niet als één vaste waarde. Een onbekend jaar valt bewust niet
+// stil terug op een ander jaar: de tool die dit aanroept hoort dan te melden dat zij niet
+// rekent.
+const AFTREK_GERINGE_SCHULD_PER_JAAR = {
+  2026: {
+    percentage: 0.71867,
+    vindplaats: 'art. 3.123a lid 1 en 2 Wet IB 2001',
+  },
+};
+
+function aftrekGeringeSchuldVanJaar(jaar) {
+  return AFTREK_GERINGE_SCHULD_PER_JAAR[jaar] || null;
+}
+
+// Lid 1 geeft recht op de aftrek zodra de voordelen uit eigen woning van art. 3.112 meer
+// bedragen dan de op die voordelen drukkende aftrekbare kosten; lid 2 stelt haar op een
+// percentage van dat verschil. Is het verschil nul of negatief, dan is er geen aftrek.
+//
+// De aftrek kijkt naar de hele eigen woning en niet naar één schuld: alle aftrekbare kosten
+// van die woning drukken op dezelfde voordelen. Een tool die maar één schuld kent, moet dus
+// weten of er nog een schuld naast staat, en dat melden wanneer zij het niet zeker weet.
+//
+// De verdeling tussen partners van lid 3 en de evenredige toerekening in de tijd van lid 4
+// zitten hier niet in; een tool die die nodig heeft, bouwt ze zelf en meldt dat.
+function aftrekVolgensPercentage(voordelenUitEigenWoning, aftrekbareKosten, percentage) {
+  const verschil = voordelenUitEigenWoning - aftrekbareKosten;
+  if (!(verschil > 0)) return 0;
+  return verschil * percentage;
+}
+// AFTREK GERINGE SCHULD — EINDE
+
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+// Herkomst: omgebouwd extern rekenmodel (Bestanden/, niet in Git). Elke jaargebonden
+// waarde draagt de vindplaats bij het jaar 2026. Zie ook OPENSTAAND.md voor de
+// vereenvoudigingen ten opzichte van het bronmodel.
+
+const BELASTINGJAAR = 2026;
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/belastingberekening (2026)
+const BOX1_TARIEF_2026 = {
+  schijf1Grens: 38883,          // 2026, Wet IB 2001 art. 2.10
+  schijf1GrensVoor1946: 41123,  // 2026, Wet IB 2001 art. 2.10a (geboren vóór 1-1-1946)
+  schijf2Grens: 78426,          // 2026
+  tariefSchijf1: 0.0810,        // 2026
+  tariefSchijf2: 0.3756,        // 2026
+  tariefSchijf3: 0.4950,        // 2026
+};
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/belastingberekening (2026)
+const PREMIE_VOLKSVERZEKERINGEN_2026 = {
+  aow: 0.1790, // 2026 — vervalt vanaf AOW-leeftijd
+  anw: 0.0010, // 2026 — blijft het hele jaar verschuldigd
+  wlz: 0.0965, // 2026 — blijft het hele jaar verschuldigd
+};
+
+function isGeborenVoor1946(geboortedatumIso) {
+  if (!geboortedatumIso) return false;
+  const jaar = Number(String(geboortedatumIso).slice(0, 4));
+  return Number.isFinite(jaar) && jaar < 1946;
+}
+
+function berekenIbSchijventarief(inkomenBox1, geborenVoor1946) {
+  if (!(inkomenBox1 > 0)) return 0;
+  const grens1 = geborenVoor1946 ? BOX1_TARIEF_2026.schijf1GrensVoor1946 : BOX1_TARIEF_2026.schijf1Grens;
+  const grens2 = BOX1_TARIEF_2026.schijf2Grens;
+  let ib = 0;
+  const deel1 = Math.min(inkomenBox1, grens1);
+  ib += deel1 * BOX1_TARIEF_2026.tariefSchijf1;
+  if (inkomenBox1 > grens1) {
+    const deel2 = Math.min(inkomenBox1, grens2) - grens1;
+    ib += deel2 * BOX1_TARIEF_2026.tariefSchijf2;
+  }
+  if (inkomenBox1 > grens2) {
+    const deel3 = inkomenBox1 - grens2;
+    ib += deel3 * BOX1_TARIEF_2026.tariefSchijf3;
+  }
+  return ib;
+}
+
+// Premiemaanden: het aantal maanden in het jaar waarin nog AOW-premie verschuldigd is
+// bij het bereiken van de AOW-leeftijd in de loop van het jaar. Bron: art. 10 lid 2 Wfsv
+// (2026): "Tot de premie [...] behoort met ingang van de eerste dag van de maand waarin de
+// verzekerde de pensioengerechtigde leeftijd [...] zal bereiken niet de premie voor de
+// algemene ouderdomsverzekering." De maand van AOW-ingang telt dus zelf niet meer mee als
+// premieplichtige maand, ongeacht op welke dag in die maand de AOW-datum valt. Bevestigd
+// door de Belastingdienst-tabel voor 2026 (wie in januari AOW-gerechtigd wordt, betaalt
+// dat jaar geen AOW-premie meer).
+function berekenPremiemaandenAow(aowDatumIso) {
+  if (!aowDatumIso) return 12;
+  const [, maandStr] = String(aowDatumIso).split('-');
+  const maand = Number(maandStr); // 1-12
+  if (!Number.isFinite(maand)) return 12;
+  const volledigeMaandenVoorAow = maand - 1;
+  return Math.min(12, Math.max(0, volledigeMaandenVoorAow));
+}
+
+// Aantal maanden in het jaar waarover AOW-uitkering wordt ontvangen. Bron: art. 7a AOW
+// (ingangsdatum AOW: de dag waarop de AOW-leeftijd wordt bereikt). Bij ingang in de loop
+// van het jaar loopt de uitkering vanaf de AOW-maand zelf t/m december, dus het spiegelbeeld
+// van `berekenPremiemaandenAow` (die juist de maanden vóór de AOW-maand telt).
+function berekenAowUitkeringMaanden(aowStatus, aowDatumIso) {
+  if (aowStatus === 'voor_1_januari') return 12;
+  if (aowStatus !== 'wordt_dit_jaar') return 0; // 'nog_niet' (of onbekend): geen AOW-uitkering
+  if (!aowDatumIso) return 0;
+  const [, maandStr] = String(aowDatumIso).split('-');
+  const maand = Number(maandStr); // 1-12
+  if (!Number.isFinite(maand)) return 0;
+  return Math.min(12, Math.max(0, 13 - maand));
+}
+
+// Bron: svb.nl, "Bedragen AOW" (svb.nl/nl/aow/bedragen-aow/aow-bedragen, geraadpleegd
+// 28-09-2026): bruto AOW-bedrag per maand (vóór loonheffing en vóór de bijdrage Zvw, die
+// in deze tool apart via `berekenZvwBijdrage` wordt berekend) plus het bruto vakantiegeld
+// per maand, bij een volledige (50 jaar) opbouw. De AOW-bedragen wijzigen halfjaarlijks (1
+// januari en 1 juli); deze kern-tool gebruikt één jaarconstante, het gemiddelde van de twee
+// halfjaarbedragen 2026, omdat de rest van de rekenkern ook met jaarconstanten werkt (geen
+// maandsplitsing binnen het jaar voor andere bedragen).
+//   Alleenstaand: januari € 1.637,57 + € 106,55 vakantiegeld; juli € 1.662,16 + € 104,78
+//     vakantiegeld. Gemiddeld per maand: € 1.755,53.
+//   Gehuwd/samenwonend (per persoon): januari € 1.122,12 + € 76,10 vakantiegeld; juli
+//     € 1.139,39 + € 74,85 vakantiegeld. Gemiddeld per maand: € 1.206,23.
+// Opbouw: art. 13 lid 1 AOW, 2% korting per volledig kalenderjaar dat de verzekering tussen
+// het 15e levensjaar en de AOW-leeftijd heeft ontbroken; standaard volledige opbouw bij 50
+// verzekeringsjaren (50 x 2% = 100%). Het bedrag hierboven is al het volledige (100%)
+// jaarbedrag; bij minder dan 50 verzekeringsjaren wordt naar evenredigheid gekort.
+function berekenAowUitkering(alleenstaand, verzekeringsjaren, aowUitkeringMaanden) {
+  if (!(aowUitkeringMaanden > 0)) return 0;
+  const MAANDBEDRAG_VOLLEDIG_ALLEENSTAAND = 1755.53; // 2026, jaargemiddelde
+  const MAANDBEDRAG_VOLLEDIG_GEHUWD = 1206.23;        // 2026, jaargemiddelde, per persoon
+  const maandbedrag = alleenstaand ? MAANDBEDRAG_VOLLEDIG_ALLEENSTAAND : MAANDBEDRAG_VOLLEDIG_GEHUWD;
+  const opbouwfactor = Math.min(1, Math.max(0, verzekeringsjaren || 0) / 50);
+  return Math.round(maandbedrag * aowUitkeringMaanden * opbouwfactor);
+}
+
+function bepaalPremiepercentageBox1(aowStatus, aowDatumIso) {
+  const { aow, anw, wlz } = PREMIE_VOLKSVERZEKERINGEN_2026;
+  if (aowStatus === 'voor_1_januari') {
+    return anw + wlz;
+  }
+  if (aowStatus === 'wordt_dit_jaar') {
+    const maanden = berekenPremiemaandenAow(aowDatumIso);
+    return aow * (maanden / 12) + anw + wlz;
+  }
+  // 'nog_niet' (of onbekend): volledig premiejaar
+  return aow + anw + wlz;
+}
+
+// Bron: art. 8.3 t/m 8.6 Wet IB 2001 (elke heffingskorting is opgebouwd uit een IB-deel en
+// een deel per volksverzekering, elk naar evenredigheid van het gecombineerde
+// heffingspercentage) en art. 12 lid 1 onder a Wfsv (het AOW-deel geldt alleen "indien
+// betrokkene premieplichtig is voor de algemene ouderdomsverzekering"). Voor een
+// AOW-gerechtigde vervalt alleen de AOW-premie (17,90%) uit de premie volksverzekeringen,
+// niet de Anw- (0,10%) en Wlz-premie (9,65%) — zie art. 10 lid 2 Wfsv. Daarom wordt elke
+// heffingskorting gesplitst in een IB-deel en een premiedeel, en het premiedeel gekort naar
+// rato van de daadwerkelijke (voor AOW-maanden geprorateerde) premie in plaats van de
+// volledige premie. Machinaal geverifieerd (28-09-2026) dat deze splitsing niet van
+// toepassing is op de bijdrage Zvw: bij AOW-gerechtigdheid of niet geldt hetzelfde vaste
+// lage Zvw-percentage (4,85%).
+function berekenAowKortingscorrectie(volledigeKorting, aowStatus, aowDatumIso) {
+  if (!(volledigeKorting > 0)) return volledigeKorting;
+  if (aowStatus !== 'voor_1_januari' && aowStatus !== 'wordt_dit_jaar') return volledigeKorting;
+  const ibPercentageSchijf1 = BOX1_TARIEF_2026.tariefSchijf1;
+  const { aow, anw, wlz } = PREMIE_VOLKSVERZEKERINGEN_2026;
+  const premiePercentageVolledig = aow + anw + wlz;
+  // Bij een AOW-jaar met prorata premie (maanden/12) rondt het bronmodel het geprorateerde
+  // premiepercentage af op drie decimalen (0,1%-punt) vóórdat het in deze breuk wordt
+  // gebruikt — machinaal bevestigd (28-09-2026): zonder deze afronding week de
+  // arbeidskorting-uitkomst € 2 af van het bronmodel (4.018 i.p.v. 4.016). Bij AOW-gerechtigd
+  // vóór 1 januari is het percentage (anw+wlz = 9,75%) al exact en hoeft niet te worden
+  // afgerond.
+  const premiePercentageGeprorateerdRuw = bepaalPremiepercentageBox1(aowStatus, aowDatumIso);
+  const premiePercentageGeprorateerd = aowStatus === 'wordt_dit_jaar'
+    ? Math.round(premiePercentageGeprorateerdRuw * 1000) / 1000
+    : premiePercentageGeprorateerdRuw;
+  const noemer = ibPercentageSchijf1 + premiePercentageVolledig;
+  const ibDeel = Math.ceil(volledigeKorting * (ibPercentageSchijf1 / noemer));
+  const premieDeel = Math.ceil(volledigeKorting * (premiePercentageGeprorateerd / noemer));
+  return Math.min(volledigeKorting, ibDeel + premieDeel);
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/aftrek-en-kortingen/content/afbouw-tarief-aftrekposten-bij-hoog-inkomen
+// ("Tariefsaanpassing aftrekposten als u hoog inkomen hebt", Wet IB 2001 art. 2.10 lid 2/3).
+// Voor 2026: het maximale aftrektarief voor grondslagverminderende posten (o.a. betaalde
+// hypotheekrente/eigenwoningrente, ondernemersaftrek, MKB-winstvrijstelling en persoonsgebonden
+// aftrek zoals betaalde partneralimentatie) is het tarief van de tweede schijf (37,56% in 2026),
+// niet het (hogere) toptarief van 49,50%. Voor het deel van deze aftrekposten dat het inkomen
+// van boven naar onder de tweede-schijfgrens (€ 78.426) drukt, wordt het verschil (11,94%
+// in 2026) teruggehaald. Machinaal geverifieerd tegen het bronmodel (bronmodelblok "Correctie
+// aftrek hoogste schijf"): bij een vaste variatie van de aftrekpost kwamen 9 van de 10
+// getoetste bedragen exact overeen met deze formule, één op € 1 na (afronding).
+function berekenAftrekbeperkingHoogsteSchijf(inkomenNaAftrek, aftrekpostTotaal) {
+  if (!(aftrekpostTotaal > 0)) return 0;
+  const grens2 = BOX1_TARIEF_2026.schijf2Grens;
+  const inkomenVoorAftrek = inkomenNaAftrek + aftrekpostTotaal;
+  const deelInTopSchijf = Math.min(aftrekpostTotaal, Math.max(0, inkomenVoorAftrek - grens2));
+  if (deelInTopSchijf <= 0) return 0;
+  const tariefsverschil = BOX1_TARIEF_2026.tariefSchijf3 - BOX1_TARIEF_2026.tariefSchijf2;
+  return Math.round(deelInTopSchijf * tariefsverschil);
+}
+
+function berekenBox1Heffing(inkomenBox1, geborenVoor1946, aowStatus, aowDatumIso, aftrekpostHoogsteSchijf) {
+  const ibComponent = berekenIbSchijventarief(inkomenBox1, geborenVoor1946);
+  const grens1 = geborenVoor1946 ? BOX1_TARIEF_2026.schijf1GrensVoor1946 : BOX1_TARIEF_2026.schijf1Grens;
+  const premiepercentage = bepaalPremiepercentageBox1(aowStatus, aowDatumIso);
+  const premieGrondslag = Math.max(0, Math.min(inkomenBox1, grens1));
+  const premieComponent = premieGrondslag * premiepercentage;
+  const correctieHoogsteSchijf = berekenAftrekbeperkingHoogsteSchijf(inkomenBox1, aftrekpostHoogsteSchijf || 0);
+  return ibComponent + premieComponent + correctieHoogsteSchijf;
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+function berekenAlgemeneHeffingskorting(verzamelinkomen) {
+  const MAX = 3115;      // 2026
+  const DREMPEL = 29736; // 2026
+  const AFBOUW_PCT = 0.06398; // 2026
+  if (verzamelinkomen <= DREMPEL) return MAX;
+  const afbouw = (verzamelinkomen - DREMPEL) * AFBOUW_PCT;
+  return Math.max(0, Math.round(MAX - afbouw));
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+function berekenArbeidskorting(grondslag) {
+  if (!(grondslag > 0)) return 0;
+  const S1_GRENS = 11965, S1_PCT = 0.08324, S1_MAX = 996;
+  const S2_GRENS = 25845, S2_PCT = 0.31009, S12_MAX = 5300;
+  const S3_GRENS = 45592, S3_PCT = 0.01950, S123_MAX = 5685;
+  const AFBOUW_PCT = 0.0651;
+  let ak;
+  if (grondslag <= S1_GRENS) {
+    ak = Math.min(grondslag * S1_PCT, S1_MAX);
+  } else if (grondslag <= S2_GRENS) {
+    ak = Math.min(S1_MAX + (grondslag - S1_GRENS) * S2_PCT, S12_MAX);
+  } else if (grondslag <= S3_GRENS) {
+    ak = Math.min(S12_MAX + (grondslag - S2_GRENS) * S3_PCT, S123_MAX);
+  } else {
+    ak = Math.max(0, S123_MAX - (grondslag - S3_GRENS) * AFBOUW_PCT);
+  }
+  return Math.round(ak);
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+// Aanname: het gepubliceerde percentage van 11,45% rondt af; hier wordt de exacte
+// breuk gebruikt (max / (top - drempel)) zodat het opbouwtraject het gepubliceerde
+// maximum precies bereikt bij de gepubliceerde grondslag (€ 32.710). Zie OPENSTAAND.md.
+function berekenIack(grondslag, vanToepassing) {
+  if (!vanToepassing) return 0;
+  const DREMPEL = 6239; // 2026
+  const TOP = 32710;    // 2026
+  const MAX = 3032;     // 2026
+  if (!(grondslag > DREMPEL)) return 0;
+  const pct = MAX / (TOP - DREMPEL);
+  return Math.round(Math.min((grondslag - DREMPEL) * pct, MAX));
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+function berekenOuderenkorting(verzamelinkomen, aowGerechtigdEindeJaar) {
+  if (!aowGerechtigdEindeJaar) return 0;
+  const DREMPEL = 46002; // 2026
+  const MAX = 2067;      // 2026
+  const AFBOUW_PCT = 0.15; // 2026
+  if (verzamelinkomen <= DREMPEL) return MAX;
+  return Math.max(0, Math.round(MAX - (verzamelinkomen - DREMPEL) * AFBOUW_PCT));
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+function berekenAlleenstaandeOuderenkorting(aowGerechtigdEindeJaar, alleenstaand) {
+  return (aowGerechtigdEindeJaar && alleenstaand) ? 540 : 0; // 2026, vast bedrag
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+// Bronmodelregel: jonggehandicaptenkorting en ouderenkorting sluiten elkaar wederzijds
+// uit — jgk telt alleen mee als de ouderenkorting op 0 uitkomt.
+function berekenJonggehandicaptenkorting(jgkVanToepassing, ouderenkorting) {
+  return (jgkVanToepassing && ouderenkorting === 0) ? 923 : 0; // 2026, vast bedrag
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/prive/werk_en_inkomen/zorgverzekeringswet/veranderingen-bijdrage-zvw/percentages-zvw (2026)
+// Volgorde: het werknemersloon (loon SVW + "andere uitkeringen") vult de gezamenlijke
+// maximumgrondslag van € 79.409 als eerste op, omdat daarover al Zvw is ingehouden door
+// de werkgever/uitkeringsinstantie. Wat overblijft wordt eerst gevuld met de
+// "inhouding"-grondslag (pensioen/AOW/lijfrente/DGA-salaris) en pas daarna met de
+// "aanslag"-grondslag.
+// winstNaMkb: winst uit onderneming ná investeringsaftrek, bijtelling auto ondernemer,
+// zelfstandigenaftrek én MKB-winstvrijstelling. De Zvw-aanslaggrondslag voor winst uit
+// onderneming is de winst ná deze aftrekposten, niet de brutowinst; bijtelling zit dus al
+// verwerkt in dit bedrag en wordt hier niet nogmaals opgeteld.
+function berekenZvwBijdrage(input, winstNaMkb) {
+  const MAX_GRONDSLAG = 79409; // 2026
+  const PCT = 0.0485;          // 2026
+
+  const werknemersgroep = Math.max(0, input.loonSvw || 0) + Math.max(0, input.andereUitkeringen || 0);
+  const inhoudingGrondslag = Math.max(0,
+    (input.pensioenUitkering || 0) + (input.aowUitkering || 0) +
+    (input.lijfrenteUitkering || 0) + (input.salarisDga || 0)
+  );
+  const aanslagGrondslag = Math.max(0,
+    (input.overigeBelasteInkomstenBox1 || 0) + (winstNaMkb || 0)
+  );
+
+  let ruimte = Math.max(0, MAX_GRONDSLAG - werknemersgroep);
+  const inhoudingBelast = Math.min(ruimte, inhoudingGrondslag);
+  ruimte -= inhoudingBelast;
+  const aanslagBelast = Math.min(ruimte, aanslagGrondslag);
+
+  const totaleGrondslag = inhoudingBelast + aanslagBelast;
+  return Math.round(totaleGrondslag * PCT);
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/veranderingen-inkomstenbelasting-2026/ondernemersaftrek-2026/zelfstandigenaftrek-2026 (2026)
+// winstBasis = winst uit onderneming - investeringsaftrek + bijtelling auto ondernemer,
+// vóór zelfstandigenaftrek en MKB-winstvrijstelling.
+function berekenZelfstandigenaftrek(vanToepassing, startersaftrekVanToepassing, aowBijBeginJaar, winstBasis) {
+  if (!vanToepassing) return 0;
+  const BASIS = 1200;     // 2026
+  const STARTERS = 2123;  // 2026
+  let bedrag = BASIS + (startersaftrekVanToepassing ? STARTERS : 0);
+  if (aowBijBeginJaar) bedrag = Math.ceil(bedrag / 2);
+  if (!startersaftrekVanToepassing) {
+    // niet-starters: zelfstandigenaftrek maakt de winst niet negatief
+    bedrag = Math.min(bedrag, Math.max(0, winstBasis));
+  }
+  // starters: geen aftopping op de winst (mag winstBasis negatief maken, tot 0 ondergrens
+  // is hier niet van toepassing — bronmodelregel: geen aftopping bij starters)
+  return bedrag;
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/veranderingen-inkomstenbelasting-2026/mkb-winstvrijstelling-2026 (2026)
+function berekenMkbWinstvrijstelling(winstBasis, zelfstandigenaftrek) {
+  const PCT = 0.127; // 2026
+  const grondslag = winstBasis - zelfstandigenaftrek;
+  return Math.ceil(grondslag * PCT);
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/prive/inkomstenbelasting/heffingskortingen_boxen_tarieven/boxen_en_tarieven/box_2/box_2 (2026)
+function berekenBox2Heffing(inkomenBox2) {
+  const GRENS = 68843;   // 2026
+  const PCT_LAAG = 0.245; // 2026
+  const PCT_HOOG = 0.31;  // 2026
+  if (!(inkomenBox2 > 0)) return 0;
+  const deel1 = Math.min(inkomenBox2, GRENS) * PCT_LAAG;
+  const deel2 = inkomenBox2 > GRENS ? (inkomenBox2 - GRENS) * PCT_HOOG : 0;
+  return Math.round(deel1 + deel2);
+}
+
+// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2026
+// en https://www.belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/bezittingen_en_schulden_box_3_ (2026)
+// Geen tegenbewijsregeling (werkelijk rendement) — nadrukkelijk buiten scope, zie OPENSTAAND.md.
+function berekenBox3(bank, overig, schulden, alleenstaand) {
+  const DREMPEL_SCHULDEN = 3800;               // 2026
+  const HEFFINGVRIJ_VERMOGEN_PP = 59357;       // 2026, per persoon
+  const RENDEMENT_BANK = 0.0128;               // 2026
+  const RENDEMENT_OVERIG = 0.06;               // 2026
+  const RENDEMENT_SCHULDEN = 0.027;            // 2026
+  const TARIEF = 0.36;                         // 2026
+
+  const bankPositief = Math.max(0, bank || 0);
+  const overigPositief = Math.max(0, overig || 0);
+  // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2026 (2026)
+  // "De drempel is € 3.800 per persoon. Dus voor u samen € 7.600." — de schuldendrempel
+  // verdubbelt bij fiscale partners, net als het heffingvrije vermogen.
+  const drempelSchulden = alleenstaand ? DREMPEL_SCHULDEN : DREMPEL_SCHULDEN * 2;
+  const schuldenBovenDrempel = Math.max(0, (schulden || 0) - drempelSchulden);
+  const heffingvrijVermogen = alleenstaand ? HEFFINGVRIJ_VERMOGEN_PP : HEFFINGVRIJ_VERMOGEN_PP * 2;
+
+  const grondslag = bankPositief + overigPositief - schuldenBovenDrempel;
+
+  if (grondslag <= heffingvrijVermogen || grondslag <= 0) {
+    return { forfaitairInkomen: 0, verschuldigd: 0 };
+  }
+
+  // Bron: art. 5.2 Wet IB 2001 en de Belastingdienst-pagina "Berekening box 3-inkomen
+  // 2026": het forfaitaire rendement over schulden (boven de drempel) wordt van het
+  // rendement over bank- en overige bezittingen AFGETROKKEN, niet erbij opgeteld.
+  const forfaitairRendement = Math.max(0,
+    bankPositief * RENDEMENT_BANK +
+    overigPositief * RENDEMENT_OVERIG -
+    schuldenBovenDrempel * RENDEMENT_SCHULDEN
+  );
+
+  const forfaitairInkomenGezamenlijk = Math.max(0, forfaitairRendement * (grondslag - heffingvrijVermogen) / grondslag);
+  const verschuldigdGezamenlijk = Math.ceil(forfaitairInkomenGezamenlijk * TARIEF);
+
+  // Bron: art. 2.17 lid 3 Wet IB 2001 (2026): de gezamenlijke grondslag sparen en beleggen
+  // wordt geacht bij de belastingplichtige en zijn partner voor de helft tot hun bezit te
+  // behoren, voor zover zij daarvoor geen onderlinge verhouding hebben gekozen. Zie ook
+  // belastingdienst.nl, "Verdelen grondslag sparen en beleggen". De
+  // ingevoerde bedragen zijn het gezamenlijke vermogen van beide partners; deze functie
+  // rekent daarom eerst gezamenlijk (met het al verdubbelde heffingvrije vermogen en de
+  // verdubbelde schuldendrempel) en kent daarna, bij het ontbreken van een eigen
+  // verdeelkeuze in deze kern-scope, de gebruikelijke 50/50-verdeling toe aan de
+  // belastingplichtige. Machinaal geverifieerd tegen het bronmodel (28-09-2026): een
+  // partnercasus met € 200.000 bank gaf in het bronmodel forfaitair inkomen € 520 en
+  // aanslag € 187 — exact de helft van het gezamenlijke, hier berekende bedrag.
+  if (alleenstaand) {
+    return { forfaitairInkomen: forfaitairInkomenGezamenlijk, verschuldigd: verschuldigdGezamenlijk };
+  }
+  // Bronmodel deelt het gezamenlijke, al afgeronde bedrag (naar boven op hele euro's
+  // afgerond bij de aanslag) door twee en rondt daarbij naar beneden af.
+  const forfaitairInkomen = Math.floor(forfaitairInkomenGezamenlijk / 2);
+  const verschuldigd = Math.floor(verschuldigdGezamenlijk / 2);
+  return { forfaitairInkomen, verschuldigd };
+}
+
+// Grondslag arbeidskorting/iack (art. 8.11 lid 1 Wet IB 2001, "arbeidsinkomen"): loon uit
+// dienstbetrekking (inclusief het loon van een DGA, dat fiscaal ook loon uit
+// dienstbetrekking is) + resultaat overige werkzaamheden (niet als los invoerveld
+// opgenomen in deze kern-scope, dus 0) + winst uit onderneming na ondernemersaftrek, niet
+// lager dan 0.
+function berekenArbeidskortingGrondslag(loonSvw, salarisDga, winstNaOndernemersaftrek) {
+  return Math.max(0, (loonSvw || 0) + (salarisDga || 0) + (winstNaOndernemersaftrek || 0));
+}
+
+function berekenCompleet(input) {
+  const geborenVoor1946 = isGeborenVoor1946(input.geboortedatum);
+  const aowGerechtigdEindeJaar = input.aowStatus === 'voor_1_januari' || input.aowStatus === 'wordt_dit_jaar';
+  const aowBijBeginJaar = input.aowStatus === 'voor_1_januari';
+
+  const winstBasis = (input.winstOnderneming || 0) - (input.investeringsaftrek || 0) + (input.bijtellingAutoOndernemer || 0);
+  const zelfstandigenaftrek = berekenZelfstandigenaftrek(
+    input.zelfstandigenaftrekVanToepassing, input.startersaftrekVanToepassing, aowBijBeginJaar, winstBasis
+  );
+  const mkbVrijstelling = berekenMkbWinstvrijstelling(winstBasis, zelfstandigenaftrek);
+  const winstNaOndernemersaftrek = winstBasis - zelfstandigenaftrek;
+  const winstNaMkb = winstNaOndernemersaftrek - mkbVrijstelling;
+
+  const forfaitstaffel = forfaitstaffelVanJaar(BELASTINGJAAR);
+  const eigenwoningforfait = forfaitstaffel
+    ? Math.round(forfaitVolgensStaffel(input.woz, forfaitstaffel.staffel))
+    : (() => { throw new Error('Eigenwoningforfait: geen staffel voor jaar ' + BELASTINGJAAR); })();
+  const aftrekTarief = aftrekGeringeSchuldVanJaar(BELASTINGJAAR);
+  const aftrekGeenOfGeringeEigenwoningschuld = aftrekTarief
+    ? Math.round(aftrekVolgensPercentage(eigenwoningforfait, input.renteEigenWoning || 0, aftrekTarief.percentage))
+    : 0;
+
+  const box1Inkomen =
+    (input.loonSvw || 0) +
+    (input.aowUitkering || 0) +
+    (input.pensioenUitkering || 0) +
+    (input.lijfrenteUitkering || 0) +
+    (input.andereUitkeringen || 0) +
+    (input.overigeBelasteInkomstenBox1 || 0) +
+    eigenwoningforfait -
+    (input.renteEigenWoning || 0) -
+    aftrekGeenOfGeringeEigenwoningschuld +
+    winstNaMkb +
+    (input.salarisDga || 0) +
+    (input.bijtellingAutoDga || 0) -
+    (input.eigenBijdrageAutoDga || 0) -
+    (input.premieAoVerzekering || 0) -
+    (input.lijfrentepremies || 0) -
+    (input.partneralimentatieBetaald || 0) -
+    (input.verrekeningVerliesBox1 || 0);
+
+  // Aftrekbeperking hoogste schijf (art. 2.10 lid 3 Wet IB 2001): renteaftrek eigen
+  // woning, betaalde partneralimentatie, de ondernemersaftrek (waaronder de
+  // zelfstandigenaftrek, art. 3.74) en de MKB-winstvrijstelling tellen mee als
+  // grondslagverminderende post die in de hoogste schijf tegen het lagere tarief van de
+  // tweede schijf wordt afgetrokken. De MKB-winstvrijstelling telt daarbij alleen mee als
+  // de winst ná ondernemersaftrek positief is (art. 2.10 lid 3 onder b); is die winst
+  // negatief, dan werkt de vrijstelling niet als aftrekpost in dit mechanisme. Zie
+  // berekenAftrekbeperkingHoogsteSchijf.
+  const aftrekpostHoogsteSchijf =
+    (input.renteEigenWoning || 0) + (input.partneralimentatieBetaald || 0) +
+    zelfstandigenaftrek + (winstNaOndernemersaftrek > 0 ? mkbVrijstelling : 0);
+  const box1Heffing = berekenBox1Heffing(
+    box1Inkomen, geborenVoor1946, input.aowStatus, input.aowDatum, aftrekpostHoogsteSchijf
+  );
+
+  const box2Inkomen = input.inkomenBox2 || 0;
+  const box2Heffing = berekenBox2Heffing(box2Inkomen);
+
+  const box3 = berekenBox3(input.box3Bank, input.box3Overig, input.box3Schulden, input.alleenstaand);
+
+  // Verzamelinkomen vóór verliesverrekening box 1, voor de afbouw van ahk en ouderenkorting.
+  const verzamelinkomenVoorVerliesverrekening =
+    box1Inkomen + (input.verrekeningVerliesBox1 || 0) + box2Inkomen + box3.forfaitairInkomen;
+
+  const akGrondslag = berekenArbeidskortingGrondslag(input.loonSvw, input.salarisDga, winstNaOndernemersaftrek);
+
+  const ahkVolledig = berekenAlgemeneHeffingskorting(verzamelinkomenVoorVerliesverrekening);
+  const akVolledig = berekenArbeidskorting(akGrondslag);
+  const iackVolledig = berekenIack(akGrondslag, input.iackVanToepassing);
+  const ahk = berekenAowKortingscorrectie(ahkVolledig, input.aowStatus, input.aowDatum);
+  const ak = berekenAowKortingscorrectie(akVolledig, input.aowStatus, input.aowDatum);
+  const iack = berekenAowKortingscorrectie(iackVolledig, input.aowStatus, input.aowDatum);
+  const ok = berekenOuderenkorting(verzamelinkomenVoorVerliesverrekening, aowGerechtigdEindeJaar);
+  const aok = berekenAlleenstaandeOuderenkorting(aowGerechtigdEindeJaar, input.alleenstaand);
+  const jgk = berekenJonggehandicaptenkorting(input.jgkVanToepassing, ok);
+
+  const totaalKortingen = ahk + ak + iack + ok + aok + jgk;
+
+  const ibTotaalVoorKortingen = box1Heffing + box2Heffing + box3.verschuldigd;
+  const ibTotaalNaKortingen = Math.max(0, ibTotaalVoorKortingen - totaalKortingen);
+
+  const zvw = berekenZvwBijdrage(input, winstNaMkb);
+
+  const brutoTotaal =
+    (input.loonSvw || 0) + (input.aowUitkering || 0) + (input.pensioenUitkering || 0) +
+    (input.lijfrenteUitkering || 0) + (input.andereUitkeringen || 0) +
+    (input.overigeBelasteInkomstenBox1 || 0) + (input.winstOnderneming || 0) +
+    (input.salarisDga || 0) + (input.inkomenBox2 || 0);
+
+  const netto = brutoTotaal - ibTotaalNaKortingen - zvw;
+
+  return {
+    box1Inkomen, box1Heffing,
+    box2Inkomen, box2Heffing,
+    box3Inkomen: box3.forfaitairInkomen, box3Heffing: box3.verschuldigd,
+    ahk, ak, iack, ok, aok, jgk, totaalKortingen,
+    ibTotaalVoorKortingen, ibTotaalNaKortingen,
+    zvw,
+    brutoTotaal, netto,
+    eigenwoningforfait, zelfstandigenaftrek, mkbVrijstelling,
+    aftrekGeenOfGeringeEigenwoningschuld,
+  };
+}
+// FISCALE KERN — EINDE
+
+function leesInvoer() {
+  const val = (id) => document.getElementById(id).value;
+  const num = (id) => Number(val(id)) || 0;
+  const bool = (id) => val(id) === 'ja';
+  return {
+    alleenstaand: bool('alleenstaand'),
+    geboortedatum: val('geboortedatum'),
+    iackVanToepassing: bool('iackVanToepassing'),
+    jgkVanToepassing: bool('jgkVanToepassing'),
+    aowStatus: val('aowStatus'),
+    aowDatum: val('aowDatum'),
+    loonSvw: num('loonSvw'),
+    aowUitkering: num('aowUitkering'),
+    pensioenUitkering: num('pensioenUitkering'),
+    lijfrenteUitkering: num('lijfrenteUitkering'),
+    andereUitkeringen: num('andereUitkeringen'),
+    overigeBelasteInkomstenBox1: num('overigeBelasteInkomstenBox1'),
+    woz: num('woz'),
+    renteEigenWoning: num('renteEigenWoning'),
+    winstOnderneming: num('winstOnderneming'),
+    investeringsaftrek: num('investeringsaftrek'),
+    bijtellingAutoOndernemer: num('bijtellingAutoOndernemer'),
+    zelfstandigenaftrekVanToepassing: bool('zelfstandigenaftrekVanToepassing'),
+    startersaftrekVanToepassing: bool('startersaftrekVanToepassing'),
+    salarisDga: num('salarisDga'),
+    bijtellingAutoDga: num('bijtellingAutoDga'),
+    eigenBijdrageAutoDga: num('eigenBijdrageAutoDga'),
+    premieAoVerzekering: num('premieAoVerzekering'),
+    lijfrentepremies: num('lijfrentepremies'),
+    partneralimentatieBetaald: num('partneralimentatieBetaald'),
+    verrekeningVerliesBox1: num('verrekeningVerliesBox1'),
+    inkomenBox2: num('inkomenBox2'),
+    box3Bank: num('box3Bank'),
+    box3Overig: num('box3Overig'),
+    box3Schulden: num('box3Schulden'),
+  };
+}
+
+function toonResultaat(r) {
+  const eur = (n) => n.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const rij = (label, bedrag) => `<tr><td>${label}</td><td class="bedrag">${eur(bedrag)}</td></tr>`;
+  const html = `
+    <tr><th>Onderdeel</th><th class="bedrag">Bedrag</th></tr>
+    ${rij('Inkomen box 1', r.box1Inkomen)}
+    ${rij('Inkomen box 2', r.box2Inkomen)}
+    ${rij('Forfaitair inkomen box 3', r.box3Inkomen)}
+    ${rij('IB/PH verschuldigd box 1', r.box1Heffing)}
+    ${rij('IB verschuldigd box 2', r.box2Heffing)}
+    ${rij('IB verschuldigd box 3', r.box3Heffing)}
+    ${rij('Algemene heffingskorting', r.ahk)}
+    ${rij('Arbeidskorting', r.ak)}
+    ${rij('Inkomensafhankelijke combinatiekorting', r.iack)}
+    ${rij('Ouderenkorting', r.ok)}
+    ${rij('Alleenstaande ouderenkorting', r.aok)}
+    ${rij('Jonggehandicaptenkorting', r.jgk)}
+    ${rij('Totaal heffingskortingen', r.totaalKortingen)}
+    ${rij('Verschuldigde IB vóór kortingen', r.ibTotaalVoorKortingen)}
+    <tr class="totaal">${rij('Verschuldigde IB na kortingen', r.ibTotaalNaKortingen).replace(/<tr>|<\/tr>/g, '')}</tr>
+    ${rij('Bijdrage Zvw', r.zvw)}
+    <tr class="totaal">${rij('Netto resultaat', r.netto).replace(/<tr>|<\/tr>/g, '')}</tr>
+  `;
+  document.getElementById('tabel-resultaat').innerHTML = html;
+  document.getElementById('resultaten').style.display = 'block';
+}
+
+document.getElementById('aowStatus').addEventListener('change', (e) => {
+  document.getElementById('aow-datumveld-wrap').style.display = e.target.value === 'wordt_dit_jaar' ? 'flex' : 'none';
+  verversAowUitkeringAuto();
+});
+
+// Vult "AOW-status dit jaar" (en, waar van toepassing, de AOW-datum) automatisch met de
+// uitkomst van berekenAowDatum zolang de gebruiker de checkbox "automatisch afleiden" aan
+// laat staan. Zet de gebruiker de checkbox uit, of levert de geboortedatum geen uitkomst op
+// (bijvoorbeeld een geboortedatum ver in de toekomst waarvoor de AOW-leeftijd nog niet is
+// vastgesteld), dan valt de tool terug op de bestaande handmatige keuze en wordt er niets
+// overschreven.
+function verversAowStatusAuto() {
+  const autoVeld = document.getElementById('aowStatusAuto');
+  const toelichting = document.getElementById('aow-toelichting');
+  if (!autoVeld.checked) {
+    toelichting.style.display = 'none';
+    return;
+  }
+  const geboortedatum = document.getElementById('geboortedatum').value;
+  const uitkomst = berekenAowDatum(geboortedatum);
+  if (!uitkomst.heeftUitkomst) {
+    toelichting.style.display = 'block';
+    toelichting.textContent = uitkomst.meldingen.map((m) => m.tekst).join(' ')
+      + ' De AOW-status hierboven blijft daarom een handmatige keuze.';
+    return;
+  }
+  const aowJaartal = Number(uitkomst.aowDatum.slice(0, 4));
+  let status;
+  if (aowJaartal < BELASTINGJAAR) status = 'voor_1_januari';
+  else if (aowJaartal === BELASTINGJAAR) status = 'wordt_dit_jaar';
+  else status = 'nog_niet';
+
+  document.getElementById('aowStatus').value = status;
+  document.getElementById('aow-datumveld-wrap').style.display = status === 'wordt_dit_jaar' ? 'flex' : 'none';
+  if (status === 'wordt_dit_jaar') {
+    document.getElementById('aowDatum').value = uitkomst.aowDatum;
+  }
+
+  const meldingTekst = uitkomst.meldingen.map((m) => m.tekst).join(' ');
+  toelichting.style.display = 'block';
+  toelichting.textContent = 'Automatisch afgeleid: AOW-leeftijd ' + uitkomst.leeftijdTekst
+    + ' (' + uitkomst.vindplaats + ').' + (meldingTekst ? ' ' + meldingTekst : '');
+
+  verversAowUitkeringAuto();
+}
+
+document.getElementById('geboortedatum').addEventListener('change', verversAowStatusAuto);
+document.getElementById('aowStatusAuto').addEventListener('change', verversAowStatusAuto);
+verversAowStatusAuto();
+
+// Vult "AOW-uitkering" automatisch met de berekende bruto jaaruitkering (svb.nl, zie
+// berekenAowUitkering) zolang de gebruiker de checkbox "automatisch berekenen" aan laat
+// staan. Zet de gebruiker de checkbox uit, dan blijft het bestaande, eventueel handmatig
+// aangepaste bedrag onaangeroerd — dat is de correctiemogelijkheid voor een individueel
+// afwijkende opbouw.
+function verversAowUitkeringAuto() {
+  const autoVeld = document.getElementById('aowUitkeringAuto');
+  if (!autoVeld.checked) return;
+  const aowStatus = document.getElementById('aowStatus').value;
+  const aowDatum = document.getElementById('aowDatum').value;
+  const alleenstaand = document.getElementById('alleenstaand').value === 'ja';
+  const verzekeringsjaren = Number(document.getElementById('aowVerzekeringsjaren').value) || 0;
+  const maanden = berekenAowUitkeringMaanden(aowStatus, aowDatum);
+  const bedrag = berekenAowUitkering(alleenstaand, verzekeringsjaren, maanden);
+  document.getElementById('aowUitkering').value = bedrag;
+}
+
+['aowDatum', 'alleenstaand', 'aowVerzekeringsjaren'].forEach((id) => {
+  document.getElementById(id).addEventListener('change', verversAowUitkeringAuto);
+});
+document.getElementById('aowUitkeringAuto').addEventListener('change', verversAowUitkeringAuto);
+verversAowUitkeringAuto();
+
+document.getElementById('btn-bereken').addEventListener('click', () => {
+  const input = leesInvoer();
+  const resultaat = berekenCompleet(input);
+  toonResultaat(resultaat);
+});
+</script>
+</body>
+</html>
