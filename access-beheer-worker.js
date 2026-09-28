@@ -110,6 +110,7 @@ const APP_IDS = {
   'familiebank.html': '7e166f74-a0cc-42e8-b3ea-9d4677f2341d',
   'eigen-woning.html': '068adb42-9aa6-42c8-8ef3-66649bf8973d',
   'kantoor-in-de-woning.html': '123011c5-fedc-4b34-aa9f-8e32f6db5ef3',
+  'bruto-netto-2026.html': '156c35b5-36af-4141-8b24-81484a5bdc2c',
 };
 
 export default {
