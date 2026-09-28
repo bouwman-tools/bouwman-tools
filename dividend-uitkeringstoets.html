@@ -3974,6 +3974,21 @@ function meldStatus(which, tekst, ok) {
   if (tekst) window.setTimeout(() => { if (n.textContent === tekst) n.textContent = ''; }, 4000);
 }
 
+/**
+ * Bouwt de HTML-tegenhanger van de platte besluittekst, met hetzelfde niet-
+ * proportionele lettertype en dezelfde regelindeling als op het scherm. Zonder
+ * deze HTML-variant op het klembord valt Word terug op zijn eigen proportionele
+ * lettertype; de spatie-uitgelijnde kolommen (bedragen, balansregels) en de
+ * handmatige regelafbreking op 74 tekens schuiven dan uit elkaar.
+ */
+function alsHtml(tekst) {
+  const escaped = String(tekst)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+  return '<div style="font-family: Consolas, \'Courier New\', monospace; font-size: 10.5pt; white-space: pre-wrap;">'
+    + escaped + '</div>';
+}
+
 async function kopieer(which) {
   const tekst = docEl(which).innerText;
   const btn = document.querySelector('[data-copy="' + which + '"]');
@@ -3987,7 +4002,14 @@ async function kopieer(which) {
   };
   try {
     if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(tekst);
+      if (window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/plain': new Blob([tekst], { type: 'text/plain' }),
+          'text/html': new Blob([alsHtml(tekst)], { type: 'text/html' })
+        })]);
+      } else {
+        await navigator.clipboard.writeText(tekst);
+      }
       gelukt();
       return;
     }
@@ -4599,7 +4621,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 27 sep 2026, 20:50</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 28 sep 2026, 15:08</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
