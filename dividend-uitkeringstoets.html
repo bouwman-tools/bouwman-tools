@@ -2667,16 +2667,46 @@ const KOL = 16;
 const NBSP = ' ';
 /** Bedrag voor doorlopende documenttekst; de harde ruimte houdt het bedrag bij elkaar. */
 function eurD(cents) { return '€' + NBSP + eur(cents, { bare: true }); }
+/**
+ * Registreert, naast de spatie-uitgelijnde platte tekst die de besluittekst nog altijd
+ * vormt, welke cellen een tabelregel bevat. De platte tekst zelf verandert hierdoor
+ * niets: dezelfde functies geven precies dezelfde string terug als voorheen, dus de
+ * besluittekst op het scherm, in het klembord en in bestaande tests blijft ongewijzigd.
+ * De afdruk naar PDF gebruikt dit register om dezelfde regel als een echte tabelrij te
+ * tekenen in plaats van in een apart, vaste-breedte lettertype.
+ */
+// Eén register per document: de aandeelhouders- en de bestuurstekst worden na elkaar
+// opnieuw opgebouwd zodra de invoer wijzigt, en de afdruk van het ene document mag de
+// registratie van het andere niet overschrijven.
+const _tabelRegisters = { ah: new Map(), bestuur: new Map() };
+let _tabelRegister = _tabelRegisters.ah;
+function _nieuweTabel(doc) { _tabelRegister = _tabelRegisters[doc]; _tabelRegister.clear(); }
+function _regRij(regel, cellen, uitlijn) { _tabelRegister.set(regel, { soort: 'rij', cellen: cellen, uitlijn: uitlijn }); return regel; }
+function _regSep(regel) { _tabelRegister.set(regel, { soort: 'sep' }); return regel; }
+/** Zoekt een afdrukregel op in het register van dit document, ook als de aanroeper er zelf nog een inspringing voor zette. */
+function _tabelOpzoek(doc, regel) {
+  const register = _tabelRegisters[doc];
+  if (!register) return null;
+  if (register.has(regel)) return { indent: 0, info: register.get(regel) };
+  const kaal = regel.replace(/^ +/, '');
+  if (register.has(kaal)) return { indent: regel.length - kaal.length, info: register.get(kaal) };
+  return null;
+}
+
+/** Regel "label : waarde" van de kopgegevens, bijvoorbeeld "Datum besluit : 12 maart 2026". */
+function labelRegel(label, waarde) {
+  return _regRij(label.padEnd(21) + ': ' + waarde, [label, waarde], ['links', 'links']);
+}
 function bedragRegel(label, cents, breedte, teken) {
   const b = breedte || 52;
   let val;
   if (teken === '-') val = (cents === 0 ? '' : '- ') + eur(Math.abs(cents), { bare: true });
   else if (teken === '+') val = (cents < 0 ? '- ' : '+ ') + eur(Math.abs(cents), { bare: true });
   else val = eur(cents, { bare: true });
-  return label.padEnd(b) + val.padStart(KOL);
+  return _regRij(label.padEnd(b) + val.padStart(KOL), [label.trim(), val]);
 }
 function scheidingsRegel(breedte) {
-  return ''.padEnd(breedte || 52) + '-'.repeat(KOL);
+  return _regSep(''.padEnd(breedte || 52) + '-'.repeat(KOL));
 }
 function pad(str, n) { return String(str).padEnd(n); }
 function padL(str, n) { return String(str).padStart(n); }
@@ -2746,6 +2776,7 @@ function aandeelhouderRegels(s) {
 }
 
 function maakAandeelhoudersbesluit(s, bt, lp, v) {
+  _nieuweTabel('ah');
   const L = [];
   const vb = voorbehoudBlok(v, s);
   if (vb) L.push(vb);
@@ -2758,11 +2789,11 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   L.push('van de besloten vennootschap met beperkte aansprakelijkheid');
   L.push(s.naamBV);
   L.push('');
-  L.push('Datum besluit        : ' + fmtDatum(s.datumBesluit));
-  L.push('Plaats               : ' + s.plaats);
-  L.push('Aard van de uitkering: ' + aardOmschrijving(s, true));
-  L.push('Bedrag               : € ' + eur(s.dividend, { bare: true }));
-  L.push('Betaalbaarstelling   : ' + fmtDatum(s.datumUitkering));
+  L.push(labelRegel('Datum besluit', fmtDatum(s.datumBesluit)));
+  L.push(labelRegel('Plaats', s.plaats));
+  L.push(labelRegel('Aard van de uitkering', aardOmschrijving(s, true)));
+  L.push(labelRegel('Bedrag', '€ ' + eur(s.dividend, { bare: true })));
+  L.push(labelRegel('Betaalbaarstelling', fmtDatum(s.datumUitkering)));
   L.push('');
   L.push('');
   L.push('1. BESLUITVORMEND ORGAAN');
@@ -2848,12 +2879,14 @@ function balansrouteRegels(s, br) {
   const L = [];
   const B = 44;
   const kol = (a, b) => padL(a, KOL) + padL(b, KOL);
-  const regel = (label, a, b) => pad(label, B) + kol(a, b);
+  const regel = (label, a, b) => _regRij(pad(label, B) + kol(a, b), [label.trim(), a, b]);
   const bedrag = (c) => eur(c, { bare: true });
   L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur heeft daarvoor twee balansen gebruikt: de balans per ' + fmtDatum(s.peildatum) + ' en een verwachte balans per ' + fmtDatum(s.datumVerwacht) + '. Beide zijn opgesteld zonder rekening te houden met deze uitkering; hieronder is de uitkering op beide momenten in mindering gebracht op de liquide middelen en het eigen vermogen. Bedragen in euro.', 74));
   L.push('');
-  L.push(pad('', B) + kol(fmtDatum(s.peildatum).replace(/^(\d+) (\w{3})\w* /, '$1 $2 '), fmtDatum(s.datumVerwacht).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ')));
-  L.push('-'.repeat(B + 2 * KOL));
+  const kopA = fmtDatum(s.peildatum).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
+  const kopB = fmtDatum(s.datumVerwacht).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
+  L.push(_regRij(pad('', B) + kol(kopA, kopB), ['', kopA, kopB]));
+  L.push(_regSep('-'.repeat(B + 2 * KOL)));
   const namen = {
     vasteActiva: 'Vaste activa', voorraden: 'Voorraden', vorderingen: 'Vorderingen en overige vlottende activa',
     liquide: 'Liquide middelen', eigenVermogen: 'Eigen vermogen', voorzieningen: 'Voorzieningen',
@@ -2864,7 +2897,7 @@ function balansrouteRegels(s, br) {
   L.push('');
   BALANS_PASSIEF.forEach(k => L.push(regel(namen[k], bedrag(s.balansPeil[k]), bedrag(s.balansVerwacht[k]))));
   L.push(regel('Totaal passiva', bedrag(br.peil.totaalPassief), bedrag(br.verwacht.totaalPassief)));
-  L.push('-'.repeat(B + 2 * KOL));
+  L.push(_regSep('-'.repeat(B + 2 * KOL)));
   L.push(regel('Voorgenomen uitkering', '-' + bedrag(s.dividend), '-' + bedrag(s.dividend)));
   L.push(regel('Liquide middelen na de uitkering', bedrag(br.peil.liquideNa), bedrag(br.verwacht.liquideNa)));
   L.push(regel('Werkkapitaal na de uitkering', bedrag(br.peil.werkkapitaal), bedrag(br.verwacht.werkkapitaal)));
@@ -2872,7 +2905,7 @@ function balansrouteRegels(s, br) {
   L.push(regel('Solvabiliteit (DK-norm* ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ')', fmtKengetal(br.peil.solvabiliteit, true), fmtKengetal(br.verwacht.solvabiliteit, true)));
   L.push(regel('Current ratio (DK-norm* ' + fmtKengetal(DK_NORM.current) + ')', fmtKengetal(br.peil.current), fmtKengetal(br.verwacht.current)));
   L.push(regel('Quick ratio (DK-norm* ' + fmtKengetal(DK_NORM.quick) + ')', fmtKengetal(br.peil.quick), fmtKengetal(br.verwacht.quick)));
-  L.push('-'.repeat(B + 2 * KOL));
+  L.push(_regSep('-'.repeat(B + 2 * KOL)));
   L.push('* interne DK-norm, geen wettelijke eis');
   L.push('');
   L.push(...wrapTekst('Het werkkapitaal is het totaal van voorraden, vorderingen en liquide middelen na de uitkering, verminderd met de kortlopende schulden. De solvabiliteit is het eigen vermogen gedeeld door het balanstotaal, beide na de uitkering. De current ratio deelt de vlottende activa door de kortlopende schulden, de quick ratio doet dat zonder de voorraden.', 74));
@@ -2928,6 +2961,7 @@ function balansrouteRegels(s, br) {
 }
 
 function maakBestuursbesluit(s, bt, lp, v, pd, br) {
+  _nieuweTabel('bestuur');
   const balans = s.route === 'balans' && !!br;
   const L = [];
   const vb = voorbehoudBlok(v, s);
@@ -2940,11 +2974,11 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push('van de besloten vennootschap met beperkte aansprakelijkheid');
   L.push(s.naamBV);
   L.push('');
-  L.push('Datum besluit        : ' + fmtDatum(s.datumBesluit));
-  L.push('Plaats               : ' + s.plaats);
-  L.push('Aard van de uitkering: ' + aardOmschrijving(s, true));
-  L.push('Bedrag               : € ' + eur(s.dividend, { bare: true }));
-  L.push('Betaalbaarstelling   : ' + fmtDatum(s.datumUitkering));
+  L.push(labelRegel('Datum besluit', fmtDatum(s.datumBesluit)));
+  L.push(labelRegel('Plaats', s.plaats));
+  L.push(labelRegel('Aard van de uitkering', aardOmschrijving(s, true)));
+  L.push(labelRegel('Bedrag', '€ ' + eur(s.dividend, { bare: true })));
+  L.push(labelRegel('Betaalbaarstelling', fmtDatum(s.datumUitkering)));
   L.push('');
   L.push('');
   L.push(meer ? '1. DE ONDERGETEKENDEN' : '1. DE ONDERGETEKENDE');
@@ -3053,19 +3087,22 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push('');
   L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Daartoe is een maandelijkse liquiditeitsprognose opgesteld over ' + lp.maanden + ' maanden, van ' + maandLabel(s.datumBesluit, 0) + ' tot en met ' + maandLabel(s.datumBesluit, lp.maanden - 1) + '. De periode loopt tot en met de twaalfde maand gerekend vanaf de maand van de uitkering, omdat de beoordeling ziet op de situatie na de uitkering. De prognose toetst de stand per maandeinde' + (lp.tussentijdsGebruikt ? ', en voor de hierna genoemde maanden een lagere stand binnen de maand' : '') + '. Bedragen in euro.', 74));
   L.push('');
-  L.push(pad('Maand', 10) + padL('Begin', 16) + padL('Kasmutatie', 16) + padL('Verplicht.', 16) + padL('Uitkering', 16) + padL('Eind', 16));
-  L.push('-'.repeat(90));
+  const kopLabels = ['Maand', 'Begin', 'Kasmutatie', 'Verplicht.', 'Uitkering', 'Eind'];
+  L.push(_regRij(pad('Maand', 10) + padL('Begin', 16) + padL('Kasmutatie', 16) + padL('Verplicht.', 16) + padL('Uitkering', 16) + padL('Eind', 16), kopLabels));
+  L.push(_regSep('-'.repeat(90)));
   lp.rijen.forEach(r => {
-    L.push(
-      pad(maandLabel(s.datumBesluit, r.i), 10) +
-      padL(eur(r.begin, { bare: true }), 16) +
-      padL(eur(r.ops, { bare: true }), 16) +
-      padL(r.verpl ? '-' + eur(r.verpl, { bare: true }) : '-', 16) +
-      padL(r.dividend ? '-' + eur(r.dividend, { bare: true }) : '-', 16) +
-      padL(eur(r.eind, { bare: true }), 16)
-    );
+    const maand = maandLabel(s.datumBesluit, r.i);
+    const begin = eur(r.begin, { bare: true });
+    const ops = eur(r.ops, { bare: true });
+    const verpl = r.verpl ? '-' + eur(r.verpl, { bare: true }) : '-';
+    const div = r.dividend ? '-' + eur(r.dividend, { bare: true }) : '-';
+    const eind = eur(r.eind, { bare: true });
+    L.push(_regRij(
+      pad(maand, 10) + padL(begin, 16) + padL(ops, 16) + padL(verpl, 16) + padL(div, 16) + padL(eind, 16),
+      [maand, begin, ops, verpl, div, eind]
+    ));
   });
-  L.push('-'.repeat(90));
+  L.push(_regSep('-'.repeat(90)));
   L.push('');
   L.push(bedragRegel('Liquide middelen bij aanvang', s.liqStart));
   L.push(bedragRegel('Laagste verwachte liquiditeitspositie', lp.laagste));
@@ -3073,9 +3110,10 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   // in geen enkele regel van de maandtabel hierboven. Het dossier moet kunnen laten
   // zien waar het vandaan komt.
   const laagsteRij = lp.laagsteMaand > 0 ? lp.rijen[lp.laagsteMaand - 1] : null;
-  L.push('  ' + pad('bereikt in', 20) + (lp.laagsteMaand === 0
+  const laagsteWaarde = lp.laagsteMaand === 0
     ? 'bij aanvang'
-    : maandLabel(s.datumBesluit, lp.laagsteMaand - 1) + ((laagsteRij && laagsteRij.tussentijds) ? ', binnen de maand' : '')));
+    : maandLabel(s.datumBesluit, lp.laagsteMaand - 1) + ((laagsteRij && laagsteRij.tussentijds) ? ', binnen de maand' : '');
+  L.push(_regRij('  ' + pad('bereikt in', 20) + laagsteWaarde, ['bereikt in', laagsteWaarde], ['links', 'links']));
   L.push(bedragRegel('Liquiditeitspositie einde prognoseperiode', lp.eindstand));
   L.push('');
   if (lp.tussentijdsGebruikt) {
@@ -3093,7 +3131,8 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
     L.push(bedragRegel('Bevestigde kredietlimiet', lp.kredietLimiet));
     L.push(bedragRegel('Laagste onbenutte kredietruimte', lp.laagsteRest));
     L.push(bedragRegel('Laagste beschikbare liquiditeit incl. krediet', lp.laagsteVrij));
-    L.push('  ' + pad('bereikt in', 20) + (lp.laagsteVrijMaand === 0 ? 'bij aanvang' : maandLabel(s.datumBesluit, lp.laagsteVrijMaand - 1)));
+    const laagsteVrijWaarde = lp.laagsteVrijMaand === 0 ? 'bij aanvang' : maandLabel(s.datumBesluit, lp.laagsteVrijMaand - 1);
+    L.push(_regRij('  ' + pad('bereikt in', 20) + laagsteVrijWaarde, ['bereikt in', laagsteVrijWaarde], ['links', 'links']));
     L.push('');
     L.push(...wrapTekst('Het bestuur heeft vastgesteld dat de kredietfaciliteit schriftelijk is verstrekt en op het toetsmoment daadwerkelijk beschikbaar en opneembaar is, en dat geen voorwaarden aan opname in de weg staan. ' + (s.kredietEinde ? 'De faciliteit loopt tot ' + fmtDatum(s.kredietEinde) + '; vanaf de eerste maand die na die datum eindigt is in deze prognose geen kredietruimte meegeteld.' : 'De faciliteit is gedurende de gehele prognoseperiode beschikbaar en wordt binnen die periode niet opgezegd of verlaagd.') + ' Aangenomen is dat een reeds opgenomen deel van de faciliteit in de beginstand is verwerkt. De onbenutte kredietruimte is per maand de limiet vermeerderd met de laagste stand van die maand voor zover die negatief is.', 74));
     L.push('');
@@ -4093,17 +4132,60 @@ function printBlokken(tekst) {
   return uit;
 }
 
+/**
+ * Zet een als 'tabel' geclassificeerd blok om in echte tabelrijen, opgezocht in het
+ * register van bedragRegel/labelRegel/scheidingsRegel e.d. (zie _regRij hierboven).
+ * Een regel die niet in het register staat — zoals de losse zin die in de bron bewust
+ * over twee fysieke regels loopt om in het oude vaste-breedte lettertype in de
+ * bedragkolom uit te komen — wordt als gewone alinea getoond in plaats van als rij met
+ * een enkele cel, zodat hij ook in een proportioneel lettertype leesbaar blijft.
+ */
+function printTabel(d, doc, regels) {
+  const frag = d.createDocumentFragment();
+  let tabel = null;
+  regels.forEach(r => {
+    const gevonden = _tabelOpzoek(doc, r);
+    if (!gevonden) {
+      tabel = null;
+      const p = d.createElement('p');
+      p.textContent = r.trim();
+      frag.appendChild(p);
+      return;
+    }
+    if (!tabel) { tabel = d.createElement('table'); tabel.className = 'tabel'; frag.appendChild(tabel); }
+    const tr = d.createElement('tr');
+    if (gevonden.info.soort === 'sep') {
+      tr.className = 'sep';
+      const td = d.createElement('td');
+      td.colSpan = 99;
+      tr.appendChild(td);
+    } else {
+      const cellen = gevonden.info.cellen;
+      const uitlijn = gevonden.info.uitlijn || cellen.map((_, i) => i === 0 ? 'links' : 'rechts');
+      cellen.forEach((c, i) => {
+        const td = d.createElement('td');
+        td.textContent = c;
+        if (uitlijn[i] === 'rechts') td.className = 'num';
+        if (i === 0 && gevonden.indent) td.style.paddingLeft = (4 + gevonden.indent * 2.5) + 'pt';
+        tr.appendChild(td);
+      });
+    }
+    tabel.appendChild(tr);
+  });
+  return frag;
+}
+
 /** Zet een afdrukblok om in DOM-knopen; tekst gaat altijd via textContent. */
-function printNode(d, b) {
+function printNode(d, doc, b) {
   const mk = (tag, cls, txt) => { const n = d.createElement(tag); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
   if (b.soort === 'kop') {
     const wrap = mk('div', 'kop');
     wrap.appendChild(mk('h2', '', b.tekst));
-    if (b.volgend) wrap.appendChild(printNode(d, b.volgend));
+    if (b.volgend) wrap.appendChild(printNode(d, doc, b.volgend));
     return wrap;
   }
   if (b.soort === 'lijn') return mk('hr');
-  if (b.soort === 'tabel') return mk('pre', '', b.regels.join('\n'));
+  if (b.soort === 'tabel') return printTabel(d, doc, b.regels);
   if (b.soort === 'titel' || b.soort === 'regels') {
     const wrap = mk('div', b.soort);
     b.regels.forEach(r => wrap.appendChild(mk('div', '', r)));
@@ -4129,18 +4211,26 @@ function printDoc(which) {
   const meta = d.createElement('meta'); meta.setAttribute('charset', 'UTF-8'); head.appendChild(meta);
   const t = d.createElement('title'); t.textContent = titel; head.appendChild(t);
   const st = d.createElement('style');
+  // Eén lettertype voor de hele afdruk. "Archia" stond hier eerder maar is nergens in de
+  // tool als @font-face geladen, dus viel altijd al terug op Segoe UI of Arial; de
+  // tabellen stonden daarnaast in Consolas. Nu overal hetzelfde gangbare lettertype, en
+  // de bedragen- en balanstabellen staan in een echte <table> in plaats van in een
+  // vaste-breedte blok, zodat de kolommen ook zonder monospace-lettertype recht blijven.
   st.textContent = '@page{size:A4 portrait;margin:22mm 20mm;@top-center{content:""}@bottom-center{content:""}}'
-    + 'body{margin:0;font-family:Archia,"Segoe UI",Arial,sans-serif;font-size:10.5pt;line-height:1.5;color:#111}'
+    + 'body{margin:0;font-family:Arial,"Segoe UI",sans-serif;font-size:10.5pt;line-height:1.5;color:#111}'
     + 'p{margin:0 0 8pt;orphans:3;widows:3}'
     + '.titel{margin:0 0 14pt}.titel div:first-child{font-weight:700;font-size:12pt;margin-bottom:2pt}'
     + 'h2{font-size:10.5pt;font-weight:700;margin:16pt 0 6pt;break-after:avoid}'
     + '.kop{break-inside:avoid}'
-    + 'pre{font-family:Consolas,"Courier New",monospace;font-size:9pt;line-height:1.45;white-space:pre;margin:0 0 8pt;break-inside:avoid}'
+    + 'table.tabel{border-collapse:collapse;width:100%;margin:0 0 8pt;font-size:9.5pt;break-inside:avoid}'
+    + 'table.tabel td{padding:1.5pt 4pt 1.5pt 0;vertical-align:top}'
+    + 'table.tabel td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;padding-right:0}'
+    + 'table.tabel tr.sep td{border-top:1px solid #333;padding:0}'
     + '.li{padding-left:16pt;text-indent:-16pt}'
     + '.regels{margin:0 0 8pt;break-inside:avoid}'
     + 'hr{border:0;border-top:1px solid #999;margin:10pt 0}';
   head.appendChild(st);
-  printBlokken(tekst).forEach(n => body.appendChild(printNode(d, n)));
+  printBlokken(tekst).forEach(n => body.appendChild(printNode(d, which, n)));
   try { w.focus(); } catch (e) { /* negeren */ }
   window.setTimeout(() => { try { w.print(); } catch (e) { /* negeren */ } }, 120);
 }
@@ -4621,7 +4711,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 28 sep 2026, 15:14</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 28 sep 2026, 15:35</div>
 </footer>
 <div class="bt-privacy-pill" style="position:fixed;top:50px;right:14px;z-index:9998;display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);"><div style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>Invoer wordt niet verstuurd</div>
 <a href="/cdn-cgi/access/logout" style="position:fixed;top:14px;right:14px;z-index:9998;font-size:11px;color:#A07860;text-decoration:none;background:#fff;border:1px solid #E8C4A8;padding:4px 12px;border-radius:20px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.08);" class="bt-logout-btn">Uitloggen</a>
