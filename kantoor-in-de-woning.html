@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Kantoor in de eigen woning</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 2rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  fieldset { margin-bottom: 1rem; }
+  label { display: inline-block; min-width: 260px; }
+  input, select { margin: 0.2rem 0; }
+  table { border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: right; }
+  th { background: #eee; }
+  .fout { color: #b00020; }
+</style>
+</head>
+<body>
+<h1>Kantoor in de eigen woning — rekenkern (POC)</h1>
+<p>Sober werkscherm. Kies variant en scenario, vul de invoer in en druk op "Bereken".</p>
+
+<fieldset>
+  <legend>Variant en scenario</legend>
+  <label for="variant">Variant</label>
+  <select id="variant">
+    <option value="dga">DGA</option>
+    <option value="ib">IB-ondernemer</option>
+  </select><br>
+  <label for="scenario">Scenario</label>
+  <select id="scenario"></select>
+</fieldset>
+
+<fieldset>
+  <legend>Invoer (gedeeld)</legend>
+  <label for="pandwaarde">Pandwaarde / kantoorwaarde (€)</label><input id="pandwaarde" type="number" value="400000"><br>
+  <label for="wozWaarde">WOZ-waarde (€)</label><input id="wozWaarde" type="number" value="400000"><br>
+  <p style="font-size:0.85rem;color:#555;max-width:640px;">Bodemwaarde bij de afschrijvingsbeperking = 100% van de WOZ-waarde van dat jaar
+  (per 2024, art. 3.30a Wet IB 2001). Voor jaren na het startjaar is er geen bekende
+  toekomstige WOZ-waarde: de tool rekent dan met een <strong>WOZ-waarde-prognose, geen
+  fiscale waarderingsregel</strong>, die met hetzelfde percentage groeit als de
+  vastgoedwaardestijging hierboven.</p>
+  <label for="financiering">Financiering (€)</label><input id="financiering" type="number" value="300000"><br>
+  <label for="rentepercentage">Rentepercentage</label><input id="rentepercentage" type="number" step="0.001" value="0.04"><br>
+  <label for="lasten">Jaarlijkse eigenaars-/huurderslasten (€)</label><input id="lasten" type="number" value="3000"><br>
+  <label for="indexatie">Indexatiepercentage lasten</label><input id="indexatie" type="number" step="0.001" value="0.02"><br>
+  <label for="afschrijvingspercentage">Afschrijvingspercentage opstal</label><input id="afschrijvingspercentage" type="number" step="0.001" value="0.02"><br>
+  <label for="waardestijging">Waardestijgingspercentage</label><input id="waardestijging" type="number" step="0.001" value="0.02"><br>
+  <label for="marginaalTarief">Marginaal IB-tarief</label><input id="marginaalTarief" type="number" step="0.0001" value="0.495"><br>
+  <label for="ibTariefVermogenswinst">IB-tarief vermogenswinst</label><input id="ibTariefVermogenswinst" type="number" step="0.0001" value="0.495"><br>
+  <label for="disconteringsvoet">Disconteringsvoet</label><input id="disconteringsvoet" type="number" step="0.001" value="0.03"><br>
+  <label for="startjaar">Startjaar</label><input id="startjaar" type="number" value="2026"><br>
+  <label for="aantalJaren">Aantal jaren</label><input id="aantalJaren" type="number" value="10"><br>
+  <label for="zakelijkGebruikPercentage">Zakelijk-gebruikpercentage (IB, ondernemingsvermogen)</label><input id="zakelijkGebruikPercentage" type="number" step="0.01" value="0.15"><br>
+  <label for="waardedrukPercentage">Waardedruk-correctie bij inbreng</label><input id="waardedrukPercentage" type="number" step="0.01" value="0.15"><br>
+  <label for="huurpercentage">Huurpercentage (TBS)</label><input id="huurpercentage" type="number" step="0.001" value="0.08"><br>
+  <label for="overigeKostenOverdrachtPercentage">Overige kosten overdracht naar de BV (% van de pandwaarde)</label><input id="overigeKostenOverdrachtPercentage" type="number" step="0.001" value="0.01"><br>
+</fieldset>
+
+<button id="berekenBtn">Bereken</button>
+<div id="uitkomst"></div>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document/window/fetch/DOM-toegang in dit blok.
+
+// Jaargebonden waarden. Vindplaats per waarde: zie BRONNEN.md (repositorywortel).
+const WAARDEN_PER_JAAR = {
+  2026: {
+    // Eigenwoningforfait — art. 3.112 lid 1 Wet IB 2001 (NIET art. 3.19, dat is een ander
+    // artikel, zie de bijtelling-ondernemingsvermogen-tabel hieronder). Wettekst zelf
+    // gelezen op wetten.overheid.nl, geraadpleegd 28-09-2026, geldig 01-01-2026:
+    // €0–12.500 nihil, €12.500–25.000 0,10%, €25.000–50.000 0,20%, €50.000–75.000 0,25%,
+    // €75.000–1.350.000 0,35%, boven €1.350.000: €4.725 + 2,35% van het meerdere.
+    // Voor de kantoorwaarden in deze tool (doorgaans > €75.000) zijn alleen het gewone
+    // (0,35%) en het verhoogde (2,35%) percentage en de villagrens gemodelleerd; de lagere
+    // schijven onder €75.000 zijn hier niet geïmplementeerd (edge case bij zeer lage
+    // woningwaarde, buiten het beoogde gebruiksdoel van deze tool).
+    ewfGewoonPercentage: 0.0035,
+    ewfVerhoogdPercentage: 0.0235,
+    ewfVillagrens: 1350000,
+
+    // "Bijtelling privé-gebruik woning" — art. 3.19 Wet IB 2001 (winst uit onderneming,
+    // niet de eigenwoningregeling). Van toepassing als de woning (of, via lid 5 onderdeel
+    // b, de werkruimte) tot het ondernemingsvermogen behoort. Wettekst zelf gelezen op
+    // wetten.overheid.nl, geraadpleegd 28-09-2026, geldig 01-01-2026: €0–12.500 nihil (niet
+    // gemodelleerd, zie hierboven), €12.500–25.000 0,80%, €25.000–50.000 0,90%,
+    // €50.000–75.000 1,00%, €75.000–1.350.000 1,10%, boven €1.350.000: €14.850 + 2,35% van
+    // het meerdere. Dit is een ANDERE (hogere) tabel dan het gewone eigenwoningforfait van
+    // art. 3.112 — voorheen ten onrechte dezelfde tabel gebruikt voor het "verhoogde
+    // forfait bij ondernemingsvermogen"; gecorrigeerd op 28-09-2026, zie BRONNEN.md open
+    // punt 4 (nu gesloten).
+    bijtellingOndernemingsvermogenPercentage: 0.011,
+    bijtellingOndernemingsvermogenVerhoogdPercentage: 0.0235,
+    bijtellingOndernemingsvermogenVillagrens: 1350000,
+    bijtellingOndernemingsvermogenVastBedragBovenVillagrens: 14850,
+
+    // Marginale IB-tarieven box 1. Eerste schijf: art. 2.10 lid 1 Wet IB 2001 legt zelf
+    // alleen het belastingtarief van 8,10% vast; het gecombineerde tarief van 35,75% is
+    // 8,10% belasting + 27,65% premies volksverzekeringen (17,90% AOW + 0,10% Anw + 9,65%
+    // Wlz, via de Wet financiering sociale verzekeringen) voor wie de AOW-leeftijd nog niet
+    // heeft bereikt. Tweede en derde schijf (37,56% / 49,50%) staan al als gecombineerd
+    // tarief in art. 2.10 lid 1 zelf. Wettekst zelf gelezen op wetten.overheid.nl,
+    // geraadpleegd 28-09-2026, geldig 01-01-2026. Deze tool gaat uit van een
+    // belastingplichtige die nog geen AOW-leeftijd heeft bereikt (art. 2.10a geeft een
+    // afwijkende, lagere eerste schijf voor wie dat wel heeft).
+    ibSchijven: [
+      { totEnMet: 38883, tarief: 0.3575 },
+      { totEnMet: 78426, tarief: 0.3756 },
+      { totEnMet: Infinity, tarief: 0.4950 },
+    ],
+
+    // Afschrijvingsbeperking — art. 3.30 Wet IB 2001 (IB) / art. 8 Wet Vpb 1969 (Vpb-schakel).
+    // Geen los percentage hier: bodemwaarde en jaarlijkse afschrijving zijn invoer/berekening.
+
+    // Vpb-tarief, art. 22 Wet Vpb 1969.
+    vpbSchijfgrens: 200000,
+    vpbTariefLaag: 0.19,
+    vpbTariefHoog: 0.258,
+
+    // Box 2-tarief, art. 2.12 Wet IB 2001.
+    box2Schijfgrens: 68843,
+    box2TariefLaag: 0.245,
+    box2TariefHoog: 0.31,
+
+    // Overdrachtsbelasting niet-woning bij inbreng kantoor in de BV, art. 14 lid 1 WBR.
+    // Geen inbrengvrijstelling toegepast: bij afzonderlijke inbreng van uitsluitend de
+    // kantoorruimte (geen inbreng van de onderneming als geheel) geldt het reguliere
+    // tarief, niet de vrijstelling van art. 15 lid 1 onderdeel e sub 2° WBR. Bevestigd met
+    // Kennisgroepstandpunt KG:052:2026:4 en art. 5 Uitvoeringsbesluit WBR, zie BRONNEN.md
+    // (open punt 5, gesloten 28-09-2026).
+    overdrachtsbelastingTarief: 0.104,
+
+    // TBS-vrijstelling, art. 3.99b Wet IB 2001.
+    tbsVrijstellingPercentage: 0.12,
+
+    // MKB-winstvrijstelling, art. 3.79a Wet IB 2001.
+    mkbWinstvrijstellingPercentage: 0.127,
+
+    // Waardedruk-correctie bij inbreng van duurzaam zelfbewoonde woning/werkruimte.
+    // Rechtsgrond: HR 1 februari 2013, ECLI:NL:HR:2013:BX4036 (geen vast percentage).
+    // Percentage: Besluit van 21 maart 2023, nr. 2023-14431 (Besluit Totaalwinst), onderdeel
+    // 3.2 — het bedoelde besluit van 20-06-2018 (nr. 2018-81323) is per 31-03-2023
+    // ingetrokken en door dit besluit vervangen, zie BRONNEN.md (open punt 3, gesloten
+    // 28-09-2026). Dit is desondanks een aanpasbare invoerwaarde: het arrest zelf schrijft
+    // geen vast percentage voor, dus een gebruiker kan een casusspecifiek percentage
+    // invullen; dit is alleen de standaardwaarde voor de UI.
+    waardedrukPercentageDefault: 0.15,
+
+    // Aftrekbeperking eigenwoningrente hoogste schijf: art. 2.10 lid 2 en lid 3 onderdeel d
+    // Wet IB 2001 (niet 2.10a, dat is de losse AOW-tabel). Percentage 11,94% staat expliciet
+    // in de wettekst, wettekst zelf gelezen op wetten.overheid.nl, zie BRONNEN.md (open punt
+    // 8, gesloten 28-09-2026).
+    aftrekbeperkingTweedeSchijfTarief: 0.3756,
+  },
+};
+
+function getWaarden(jaar) {
+  const waarden = WAARDEN_PER_JAAR[jaar];
+  if (!waarden) {
+    throw new Error('Geen fiscale waarden bekend voor jaar ' + jaar + '. Vul WAARDEN_PER_JAAR aan voordat dit jaar wordt gebruikt.');
+  }
+  return waarden;
+}
+
+// Afschrijvingsbeperking: bodemwaarde = 100% van de WOZ-waarde van dát jaar (art. 3.30a
+// Wet IB 2001 per 2024, zie BRONNEN.md). Jaarlijkse afschrijving is het laagste van het
+// afschrijvingspercentage over de boekwaarde en het verschil tussen boekwaarde en de
+// bodemwaarde van dat jaar, en nooit negatief. Boekwaarde daalt dus nooit onder de
+// bodemwaarde van dat jaar, maar gaat ook nooit omhoog als de bodemwaarde later stijgt:
+// een stijgende WOZ-waarde beperkt alleen verdere afschrijving, zij waardeert niet op.
+function berekenAfschrijving(boekwaardeVorig, bodemwaardeDitJaar, afschrijvingspercentage) {
+  const gewensteAfschrijving = boekwaardeVorig * afschrijvingspercentage;
+  const maximaleAfschrijving = Math.max(0, boekwaardeVorig - bodemwaardeDitJaar);
+  return Math.max(0, Math.min(gewensteAfschrijving, maximaleAfschrijving));
+}
+
+// WOZ-waarde-prognose per jaar. LET OP: dit is een prognose-aanname voor toekomstige jaren,
+// geen fiscale waarderingsregel. De fiscaal juiste bodemwaarde is de daadwerkelijke
+// WOZ-waarde van dat jaar; omdat deze tool met een startjaar en toekomstige jaren rekent,
+// is er voor elk jaar na het startjaar per definitie geen vastgestelde WOZ-waarde
+// beschikbaar. Deze prognose volgt (op verzoek, voor de gelijkwaardigheidstoets met het
+// bronmodel) hetzelfde groeipercentage als de vastgoedwaardestijging.
+function berekenWozWaardePrognoseReeks(startWozWaarde, wozGroeipercentage, aantalJaren) {
+  const waarden = [startWozWaarde];
+  for (let i = 1; i <= aantalJaren; i++) {
+    waarden.push(waarden[i - 1] * (1 + wozGroeipercentage));
+  }
+  return waarden;
+}
+
+// Boekwaarde-vervolg over de jaren, rekening houdend met de afschrijvingsbeperking en de
+// (per jaar prognosticeerde) bodemwaarde.
+function berekenBoekwaardeReeks(startBoekwaarde, bodemwaardeReeks, afschrijvingspercentage, aantalJaren) {
+  const boekwaarden = [startBoekwaarde];
+  const afschrijvingen = [0];
+  for (let i = 1; i <= aantalJaren; i++) {
+    const vorige = boekwaarden[i - 1];
+    const afschrijving = berekenAfschrijving(vorige, bodemwaardeReeks[i], afschrijvingspercentage);
+    afschrijvingen.push(afschrijving);
+    boekwaarden.push(vorige - afschrijving);
+  }
+  return { boekwaarden, afschrijvingen };
+}
+
+// Actuele waarde per jaar: waarde[jaar] = waarde[jaar-1] * (1 + waardestijgingspercentage).
+function berekenActueleWaardeReeks(startWaarde, waardestijgingspercentage, aantalJaren) {
+  const waarden = [startWaarde];
+  for (let i = 1; i <= aantalJaren; i++) {
+    waarden.push(waarden[i - 1] * (1 + waardestijgingspercentage));
+  }
+  return waarden;
+}
+
+// Meerwaarde per jaar: actuele waarde minus boekwaarde.
+function berekenMeerwaardeReeks(actueleWaarden, boekwaarden) {
+  return actueleWaarden.map((waarde, i) => waarde - boekwaarden[i]);
+}
+
+// Latente belastingclaim over de meerwaarde tegen een gegeven (variantafhankelijk) tarief.
+// DGA: gecombineerd Vpb+box 2-tarief (zelf doorrekenen, zie berekenVpbBox2Gecombineerd).
+// IB: IB-tarief over de vermogenswinst (invoer ibTariefVermogenswinst).
+function berekenLatenteClaim(meerwaarde, tarief) {
+  return Math.max(0, meerwaarde) * tarief;
+}
+
+// Cumulatieve rentedragende besparing: cumulatief[jaar] = cumulatief[jaar-1] * (1 + voet) + besparing[jaar].
+function berekenCumulatiefReeks(besparingen, disconteringsvoet) {
+  const cumulatief = [besparingen[0] || 0];
+  for (let i = 1; i < besparingen.length; i++) {
+    cumulatief.push(cumulatief[i - 1] * (1 + disconteringsvoet) + besparingen[i]);
+  }
+  return cumulatief;
+}
+
+// Eigenwoningforfait: percentage * waarde woondeel, met verhoogd percentage boven de villagrens.
+// Bron: BRONNEN.md, art. 3.112 lid 1 Wet IB 2001.
+function berekenEigenwoningforfait(waardeWoondeel, jaar) {
+  const w = getWaarden(jaar);
+  if (waardeWoondeel <= w.ewfVillagrens) {
+    return waardeWoondeel * w.ewfGewoonPercentage;
+  }
+  const deelTotVillagrens = w.ewfVillagrens * w.ewfGewoonPercentage;
+  const deelBovenVillagrens = (waardeWoondeel - w.ewfVillagrens) * w.ewfVerhoogdPercentage;
+  return deelTotVillagrens + deelBovenVillagrens;
+}
+
+// Bijtelling privé-gebruik woning bij ondernemingsvermogen: eigen, hogere tabel dan het
+// gewone eigenwoningforfait. Bron: BRONNEN.md, art. 3.19 Wet IB 2001. Boven de villagrens
+// een vast bedrag plus het verhoogde percentage over het meerdere (geen percentage van de
+// volledige waarde, zoals bij art. 3.112).
+function berekenBijtellingOndernemingsvermogen(waarde, jaar) {
+  const w = getWaarden(jaar);
+  if (waarde <= w.bijtellingOndernemingsvermogenVillagrens) {
+    return waarde * w.bijtellingOndernemingsvermogenPercentage;
+  }
+  const meerdere = waarde - w.bijtellingOndernemingsvermogenVillagrens;
+  return w.bijtellingOndernemingsvermogenVastBedragBovenVillagrens + meerdere * w.bijtellingOndernemingsvermogenVerhoogdPercentage;
+}
+
+// Marginaal IB-tarief bepalen bij een gegeven belastbaar inkomen (voor informatieve doeleinden;
+// de tool laat het marginale tarief primair als eigen invoer, dit is een hulpfunctie).
+function bepaalMarginaalTarief(belastbaarInkomen, jaar) {
+  const w = getWaarden(jaar);
+  for (const schijf of w.ibSchijven) {
+    if (belastbaarInkomen <= schijf.totEnMet) {
+      return schijf.tarief;
+    }
+  }
+  return w.ibSchijven[w.ibSchijven.length - 1].tarief;
+}
+
+// Vpb over de winst, twee schijven (art. 22 Wet Vpb 1969).
+function berekenVpb(winst, jaar) {
+  const w = getWaarden(jaar);
+  if (winst <= 0) return 0;
+  if (winst <= w.vpbSchijfgrens) {
+    return winst * w.vpbTariefLaag;
+  }
+  return w.vpbSchijfgrens * w.vpbTariefLaag + (winst - w.vpbSchijfgrens) * w.vpbTariefHoog;
+}
+
+// Box 2-heffing over een uitkering, twee schijven (art. 2.12 Wet IB 2001).
+function berekenBox2(uitkering, jaar) {
+  const w = getWaarden(jaar);
+  if (uitkering <= 0) return 0;
+  if (uitkering <= w.box2Schijfgrens) {
+    return uitkering * w.box2TariefLaag;
+  }
+  return w.box2Schijfgrens * w.box2TariefLaag + (uitkering - w.box2Schijfgrens) * w.box2TariefHoog;
+}
+
+// Gecombineerd Vpb + box 2, de twee tarieven na elkaar doorgerekend (geen vast gecombineerd
+// percentage, zie BRONNEN.md open punt 9): eerst Vpb over de winst, dan box 2 over de
+// resterende winst na Vpb die wordt uitgekeerd.
+function berekenVpbBox2Gecombineerd(winst, jaar) {
+  const vpb = berekenVpb(winst, jaar);
+  const uitkeerbaar = winst - vpb;
+  const box2 = berekenBox2(uitkeerbaar, jaar);
+  return {
+    vpb,
+    uitkeerbaar,
+    box2,
+    totaleHeffing: vpb + box2,
+    nettoResultaat: winst - vpb - box2,
+  };
+}
+
+// Overdrachtsbelasting bij inbreng (art. 14 lid 1 WBR). Geen vrijstelling toegepast: bij
+// afzonderlijke inbreng van uitsluitend de kantoorruimte geldt geen inbrengvrijstelling,
+// zie BRONNEN.md (KG:052:2026:4, art. 5 UBBR).
+function berekenOverdrachtsbelasting(waardeEconomischVerkeer, jaar) {
+  const w = getWaarden(jaar);
+  return waardeEconomischVerkeer * w.overdrachtsbelastingTarief;
+}
+
+// TBS-vrijstelling: 12% van het resultaat is vrijgesteld (art. 3.99b Wet IB 2001).
+function berekenTbsVrijstelling(resultaat, jaar) {
+  const w = getWaarden(jaar);
+  return resultaat * w.tbsVrijstellingPercentage;
+}
+
+// MKB-winstvrijstelling (art. 3.79a Wet IB 2001).
+function berekenMkbWinstvrijstelling(winst, jaar) {
+  const w = getWaarden(jaar);
+  return Math.max(0, winst) * w.mkbWinstvrijstellingPercentage;
+}
+
+// Waardedruk-correctie bij inbreng: waarde na correctie = waarde * (1 - waardedrukPercentage).
+// Het percentage is een aanpasbare invoerwaarde, geen hardcoded constante (zie BRONNEN.md
+// open punt 3): deze functie neemt het percentage als parameter.
+function berekenWaardeNaWaardedruk(waarde, waardedrukPercentage) {
+  return waarde * (1 - waardedrukPercentage);
+}
+
+// Aftrekbeperking eigenwoningrente hoogste schijf: het deel van de rente dat tegen het
+// marginale tarief boven het tweede-schijftarief zou worden afgetrokken, wordt afgetrokken
+// tegen het tweede-schijftarief in plaats van het (hogere) marginale tarief.
+// Bron: BRONNEN.md, art. 2.10/2.10a Wet IB 2001.
+function berekenAftrekbareRenteTegenEffectiefTarief(rente, marginaalTarief, jaar) {
+  const w = getWaarden(jaar);
+  const effectiefTarief = Math.min(marginaalTarief, w.aftrekbeperkingTweedeSchijfTarief);
+  return { effectiefTarief, aftrekbareWaarde: rente * effectiefTarief };
+}
+
+// Bijleenregeling (informatief, art. 3.119a/3.119aa Wet IB 2001): beperkt de aftrekbare rente
+// op de nieuwe eigenwoningschuld tot het deel van de schuld boven de niet-meegenomen
+// eigenwoningreserve. Zuiver informatief invoerveld; geen automatische koppeling aan een
+// eerdere verkoop in deze rekenkern.
+function berekenAftrekbareRenteMetBijleenregeling(renteTotaal, schuld, eigenwoningreserve) {
+  if (schuld <= 0 || renteTotaal <= 0) return 0;
+  const nietMeegenomen = Math.max(0, eigenwoningreserve);
+  const aftrekbaarDeel = Math.max(0, schuld - nietMeegenomen) / schuld;
+  return renteTotaal * aftrekbaarDeel;
+}
+
+// Bouwt de gedeelde jaarreeksen die elk scenario nodig heeft.
+// extraAfschrijvingsgrondslag: bijkomende verkrijgingskosten (bijv. overdrachtsbelasting
+// bij overdracht naar de BV) die niet zelf aftrekbaar zijn maar wel tot de kostprijs van
+// het bedrijfsmiddel horen en dus de afschrijvingsgrondslag verhogen (vaste fiscale
+// kostprijsleer voor bijkomende verkrijgingskosten van een bedrijfsmiddel; bevestigd tegen
+// het DGA-bronmodel, dat dezelfde optelling maakt — zie VERGELIJKING.md, "afschrijvings-
+// grondslag Kantoor BV-scenario"). De actuele waarde (voor de meerwaardeberekening) blijft
+// op de kale pandwaarde gebaseerd: de verkrijgingskosten verhogen niet de waarde in het
+// economische verkeer, alleen de fiscale boekwaarde.
+function berekenGedeeldeReeksen(invoer, extraAfschrijvingsgrondslag = 0) {
+  const bodemwaardeReeks = berekenWozWaardePrognoseReeks(invoer.wozWaarde, invoer.waardestijging, invoer.aantalJaren);
+  const { boekwaarden, afschrijvingen } = berekenBoekwaardeReeks(
+    invoer.pandwaarde + extraAfschrijvingsgrondslag, bodemwaardeReeks, invoer.afschrijvingspercentage, invoer.aantalJaren
+  );
+  const actueleWaarden = berekenActueleWaardeReeks(invoer.pandwaarde, invoer.waardestijging, invoer.aantalJaren);
+  const meerwaarden = berekenMeerwaardeReeks(actueleWaarden, boekwaarden);
+  const jaren = [];
+  for (let i = 0; i <= invoer.aantalJaren; i++) jaren.push(invoer.startjaar + i);
+  return { jaren, boekwaarden, afschrijvingen, actueleWaarden, meerwaarden };
+}
+
+// Combineert een reeks jaarresultaten (exclusief de latente claim) tot inclusief/exclusief-
+// uitkomsten, met de cumulatieve rentedragende besparing.
+function berekenInclusiefExclusief(jaarresultaten, meerwaarden, latentTarief, disconteringsvoet) {
+  const cumulatiefExclusief = berekenCumulatiefReeks(jaarresultaten, disconteringsvoet);
+  const laatsteIndex = jaarresultaten.length - 1;
+  const latenteClaimLaatsteJaar = berekenLatenteClaim(meerwaarden[laatsteIndex], latentTarief);
+  const cumulatiefInclusief = cumulatiefExclusief.map((waarde, i) =>
+    i === laatsteIndex ? waarde - latenteClaimLaatsteJaar : waarde
+  );
+  return { cumulatiefExclusief, cumulatiefInclusief, latenteClaimLaatsteJaar };
+}
+
+// ---- DGA-scenario's ----
+
+// Scenario 1: terbeschikkingstelling van het kantoor aan de eigen BV.
+function berekenTbs(invoer) {
+  const jaar = invoer.startjaar;
+  const reeksen = berekenGedeeldeReeksen(invoer);
+  const rente = invoer.financiering * invoer.rentepercentage;
+  const jaarresultaten = reeksen.jaren.map((_, i) => {
+    const huurvergoeding = invoer.huurpercentage * invoer.pandwaarde;
+    const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
+    // Rente op de aan het ter beschikking gestelde vermogensbestanddeel toerekenbare
+    // financiering is een kostenpost van het tbs-resultaat, vóór de tbs-vrijstelling
+    // (resultaatbegrip art. 3.92 Wet IB 2001: vergoeding minus kosten).
+    const resultaatVoorVrijstelling = huurvergoeding - lasten - rente - reeksen.afschrijvingen[i];
+    const vrijstelling = berekenTbsVrijstelling(resultaatVoorVrijstelling, jaar);
+    const belastResultaat = resultaatVoorVrijstelling - vrijstelling;
+    const belasting = belastResultaat > 0 ? belastResultaat * invoer.marginaalTarief : 0;
+    return resultaatVoorVrijstelling - belasting;
+  });
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, reeksen.meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { ...reeksen, jaarresultaten, ...combinatie };
+}
+
+// Scenario 2: overdracht van het kantoor aan de BV.
+function berekenKantoorBv(invoer) {
+  const jaar = invoer.startjaar;
+  const overdrachtsbelasting = berekenOverdrachtsbelasting(invoer.pandwaarde, jaar);
+  // Overige kosten van de overdracht naar de BV (bijvoorbeeld notaris- en advieskosten),
+  // als percentage van de pandwaarde. Fiscaal dezelfde behandeling als de
+  // overdrachtsbelasting: zelf niet aftrekbaar, maar bijkomende verkrijgingskosten die tot
+  // de kostprijs van het pand horen (zie ook het DGA-bronmodel, dat dit als apart
+  // invoerveld naast de overdrachtsbelasting opneemt — VERGELIJKING.md).
+  const overigeKostenOverdracht = invoer.pandwaarde * invoer.overigeKostenOverdrachtPercentage;
+  const verkrijgingskosten = overdrachtsbelasting + overigeKostenOverdracht;
+  // De overdrachtsbelasting en de overige overdrachtskosten zijn zelf niet aftrekbaar,
+  // maar horen als bijkomende verkrijgingskosten tot de kostprijs van het pand en
+  // verhogen dus de afschrijvingsgrondslag (zie toelichting bij berekenGedeeldeReeksen).
+  const reeksen = berekenGedeeldeReeksen(invoer, verkrijgingskosten);
+  const rente = invoer.financiering * invoer.rentepercentage;
+  const jaarresultaten = reeksen.jaren.map((_, i) => {
+    const huur = invoer.huurpercentage * invoer.pandwaarde;
+    const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
+    // Rente op de financiering van het pand is een kostenpost in de winst van de BV,
+    // vóór de Vpb-berekening (art. 22 Wet Vpb 1969). Geen bijzondere renteaftrekbeperking
+    // (bijv. earningsstripping) gemodelleerd; het bronmodel houdt daar ook geen rekening mee.
+    const winstBv = huur - lasten - rente - reeksen.afschrijvingen[i];
+    const combinatieVpbBox2 = berekenVpbBox2Gecombineerd(winstBv, jaar);
+    let resultaat = combinatieVpbBox2.nettoResultaat;
+    if (i === 0) resultaat -= verkrijgingskosten;
+    return resultaat;
+  });
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, reeksen.meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { ...reeksen, jaarresultaten, overdrachtsbelasting, overigeKostenOverdracht, ...combinatie };
+}
+
+// Scenario 3 (DGA en IB gedeeld): volledig onder de eigenwoningregeling, geen aparte
+// fiscale behandeling van het kantoordeel.
+function berekenHonderdPercentEigenWoning(invoer) {
+  const jaar = invoer.startjaar;
+  const reeksen = berekenGedeeldeReeksen(invoer);
+  const jaarresultaten = reeksen.jaren.map((_, i) => {
+    const forfait = berekenEigenwoningforfait(invoer.wozWaarde, jaar);
+    const rente = invoer.financiering * invoer.rentepercentage;
+    const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
+    const aftrek = renteEffectief.aftrekbareWaarde;
+    const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
+    return aftrek - forfait * invoer.marginaalTarief - lasten;
+  });
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, reeksen.meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { ...reeksen, jaarresultaten, ...combinatie };
+}
+
+// ---- IB-ondernemer-scenario's ----
+
+// Scenario 1: privévermogen, geen aftrek voor de werkruimte (art. 3.17 lid 1 onderdeel c sub 1).
+function berekenPrivevermogen(invoer) {
+  const jaar = invoer.startjaar;
+  const reeksen = berekenGedeeldeReeksen(invoer);
+  const jaarresultaten = reeksen.jaren.map((_, i) => {
+    const forfait = berekenEigenwoningforfait(invoer.wozWaarde, jaar);
+    const rente = invoer.financiering * invoer.rentepercentage;
+    const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
+    const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
+    return renteEffectief.aftrekbareWaarde - forfait * invoer.marginaalTarief - lasten;
+  });
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, reeksen.meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { ...reeksen, jaarresultaten, ...combinatie };
+}
+
+// Scenario 2: hele woning ondernemingsvermogen, zelfstandige werkruimte: verhoogd
+// eigenwoningforfait (art. 3.19 lid 5) en waardedruk-correctie bij inbreng.
+function berekenOvZelfstandig(invoer) {
+  return berekenOndernemingsvermogenBasis(invoer, true);
+}
+
+// Scenario 3: hele woning ondernemingsvermogen, niet-zelfstandige werkruimte: geen verhoogd
+// forfait, wel dezelfde waardedruk-logica.
+function berekenOvNietZelfstandig(invoer) {
+  return berekenOndernemingsvermogenBasis(invoer, false);
+}
+
+function berekenOndernemingsvermogenBasis(invoer, zelfstandig) {
+  const jaar = invoer.startjaar;
+  const reeksen = berekenGedeeldeReeksen(invoer);
+  const waardeNaWaardedruk = berekenWaardeNaWaardedruk(invoer.wozWaarde, invoer.waardedrukPercentage);
+  const jaarresultaten = reeksen.jaren.map((_, i) => {
+    // Bijtelling privé-gebruik woning (art. 3.19 Wet IB 2001), niet het gewone
+    // eigenwoningforfait: de werkruimte behoort tot het ondernemingsvermogen, en art. 3.19
+    // lid 5 onderdeel b rekent een werkruimte die anders onder de aftrekuitsluiting van
+    // art. 3.16 lid 1 zou vallen tot "woning" in de zin van dit artikel. Dit geldt zowel
+    // voor de zelfstandige als de niet-zelfstandige werkruimte; het onderscheid
+    // "zelfstandig" raakt hier niet de forfaitberekening zelf (gecorrigeerd 28-09-2026,
+    // zie BRONNEN.md open punt 4, nu gesloten — voorheen werd hier ten onrechte het
+    // gewone eigenwoningforfait van art. 3.112 gebruikt).
+    const forfait = berekenBijtellingOndernemingsvermogen(invoer.wozWaarde, jaar);
+    void zelfstandig; // bewust ongebruikt in de forfaitberekening zelf, zie toelichting hierboven
+    const rente = invoer.financiering * invoer.rentepercentage;
+    const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
+    const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
+    const winstVoorVrijstelling = renteEffectief.aftrekbareWaarde - forfait * invoer.marginaalTarief - lasten;
+    const mkbVrijstelling = berekenMkbWinstvrijstelling(winstVoorVrijstelling, jaar);
+    return winstVoorVrijstelling - mkbVrijstelling;
+  });
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, reeksen.meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { ...reeksen, jaarresultaten, waardeNaWaardedruk, ...combinatie };
+}
+
+// Scenario 4: woning gesplitst in box 3-deel en ondernemingsdeel, op basis van
+// zakelijkGebruikPercentage.
+function berekenGesplitst(invoer) {
+  const jaar = invoer.startjaar;
+  const p = invoer.zakelijkGebruikPercentage;
+  const invoerOndernemingsdeel = {
+    ...invoer,
+    pandwaarde: invoer.pandwaarde * p,
+    wozWaarde: invoer.wozWaarde * p,
+    financiering: invoer.financiering * p,
+    lasten: invoer.lasten * p,
+  };
+  const invoerPriveDeel = {
+    ...invoer,
+    pandwaarde: invoer.pandwaarde * (1 - p),
+    wozWaarde: invoer.wozWaarde * (1 - p),
+    financiering: invoer.financiering * (1 - p),
+    lasten: invoer.lasten * (1 - p),
+  };
+  const ondernemingsdeel = berekenOndernemingsvermogenBasis(invoerOndernemingsdeel, false);
+  const priveDeel = berekenPrivevermogen(invoerPriveDeel);
+  const jaarresultaten = ondernemingsdeel.jaarresultaten.map((v, i) => v + priveDeel.jaarresultaten[i]);
+  const meerwaarden = ondernemingsdeel.meerwaarden.map((v, i) => v + priveDeel.meerwaarden[i]);
+  const combinatie = berekenInclusiefExclusief(jaarresultaten, meerwaarden, invoer.ibTariefVermogenswinst, invoer.disconteringsvoet);
+  return { jaren: ondernemingsdeel.jaren, jaarresultaten, meerwaarden, ondernemingsdeel, priveDeel, ...combinatie };
+}
+
+// FISCALE KERN — EINDE
+</script>
+
+<script>
+(function () {
+  const scenariosPerVariant = {
+    dga: [
+      { value: 'tbs', label: 'Terbeschikkingstelling', fn: berekenTbs },
+      { value: 'kantoorBv', label: 'Kantoor naar de BV', fn: berekenKantoorBv },
+      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning },
+    ],
+    ib: [
+      { value: 'privevermogen', label: 'Privévermogen', fn: berekenPrivevermogen },
+      { value: 'ovZelfstandig', label: 'Ondernemingsvermogen, zelfstandig', fn: berekenOvZelfstandig },
+      { value: 'ovNietZelfstandig', label: 'Ondernemingsvermogen, niet-zelfstandig', fn: berekenOvNietZelfstandig },
+      { value: 'gesplitst', label: 'Gesplitst box 3 / onderneming', fn: berekenGesplitst },
+      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning },
+    ],
+  };
+
+  const variantEl = document.getElementById('variant');
+  const scenarioEl = document.getElementById('scenario');
+
+  function vulScenarios() {
+    scenarioEl.innerHTML = '';
+    scenariosPerVariant[variantEl.value].forEach((s) => {
+      const opt = document.createElement('option');
+      opt.value = s.value;
+      opt.textContent = s.label;
+      scenarioEl.appendChild(opt);
+    });
+  }
+  variantEl.addEventListener('change', vulScenarios);
+  vulScenarios();
+
+  function leesInvoer() {
+    const getal = (id) => parseFloat(document.getElementById(id).value);
+    return {
+      pandwaarde: getal('pandwaarde'),
+      wozWaarde: getal('wozWaarde'),
+      financiering: getal('financiering'),
+      rentepercentage: getal('rentepercentage'),
+      lasten: getal('lasten'),
+      indexatie: getal('indexatie'),
+      afschrijvingspercentage: getal('afschrijvingspercentage'),
+      waardestijging: getal('waardestijging'),
+      marginaalTarief: getal('marginaalTarief'),
+      ibTariefVermogenswinst: getal('ibTariefVermogenswinst'),
+      disconteringsvoet: getal('disconteringsvoet'),
+      startjaar: getal('startjaar'),
+      aantalJaren: getal('aantalJaren'),
+      zakelijkGebruikPercentage: getal('zakelijkGebruikPercentage'),
+      waardedrukPercentage: getal('waardedrukPercentage'),
+      huurpercentage: getal('huurpercentage'),
+      overigeKostenOverdrachtPercentage: getal('overigeKostenOverdrachtPercentage'),
+    };
+  }
+
+  document.getElementById('berekenBtn').addEventListener('click', function () {
+    const uitkomstEl = document.getElementById('uitkomst');
+    try {
+      const invoer = leesInvoer();
+      const scenario = scenariosPerVariant[variantEl.value].find((s) => s.value === scenarioEl.value);
+      const resultaat = scenario.fn(invoer);
+      let html = '<table><tr><th>Jaar</th><th>Jaarresultaat</th><th>Meerwaarde</th><th>Cumulatief excl. claim</th><th>Cumulatief incl. claim</th></tr>';
+      resultaat.jaren.forEach((jaar, i) => {
+        html += '<tr><td>' + jaar + '</td><td>' + (resultaat.jaarresultaten[i] !== undefined ? resultaat.jaarresultaten[i].toFixed(0) : '') + '</td><td>' + resultaat.meerwaarden[i].toFixed(0) + '</td><td>' + resultaat.cumulatiefExclusief[i].toFixed(0) + '</td><td>' + resultaat.cumulatiefInclusief[i].toFixed(0) + '</td></tr>';
+      });
+      html += '</table>';
+      uitkomstEl.innerHTML = html;
+    } catch (e) {
+      uitkomstEl.innerHTML = '<p class="fout">' + e.message + '</p>';
+    }
+  });
+})();
+</script>
+</body>
+</html>
