@@ -9,7 +9,7 @@
   --ink:#1c2430; --zacht:#5b6875; --lijn:#dde3ea; --vlak:#f6f8fa; --wit:#fff;
   --accent:#1f5f8b; --accent-zacht:#e8f1f7; --warn:#b4531a; --warn-vlak:#fdf1e7;
   --fout:#a02020; --fout-vlak:#fbecec; --ok:#1d6f42; --ok-vlak:#eaf4ee;
-  --s1:#5b6875; --s2:#1f5f8b; --s3:#2e8b74;
+  --s1:#5b6875; --s2:#1f5f8b; --s3:#2e8b74; --s4:#8a5a1f; --s5:#7a3b8f;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--vlak);color:var(--ink);
@@ -51,12 +51,15 @@ tr.verschil td{font-weight:600;background:var(--accent-zacht)}
 .hulp{font-size:13px;color:var(--zacht);margin:6px 0 0;max-width:70ch}
 .tabelbak{overflow-x:auto}
 
-/* ── uitkomst in drie kolommen ────────────────────────────────────────── */
-.drieluik{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:4px 0 18px}
+/* ── uitkomst naast elkaar, vijf scenario's ──────────────────────────────── */
+.drieluik{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;
+  margin:4px 0 18px}
 .paneel{border:1px solid var(--lijn);border-radius:8px;padding:14px}
 .paneel.bank{border-top:4px solid var(--s1)}
 .paneel.bv{border-top:4px solid var(--s2)}
 .paneel.aflossen{border-top:4px solid var(--s3)}
+.paneel.box3bv{border-top:4px solid var(--s4)}
+.paneel.box3bank{border-top:4px solid var(--s5)}
 .paneel h4{margin:0 0 2px;font-size:15px}
 .paneel .toelicht{font-size:12.5px;color:var(--zacht);margin:0 0 10px;min-height:2.6em}
 .paneel .groot{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -72,6 +75,7 @@ tr.verschil td{font-weight:600;background:var(--accent-zacht)}
 .balk .vul{height:100%}
 .balk .bedrag{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .v-bank{background:var(--s1)} .v-bv{background:var(--s2)} .v-aflossen{background:var(--s3)}
+.v-box3bv{background:var(--s4)} .v-box3bank{background:var(--s5)}
 .stip{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 
 .knoppen{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
@@ -100,6 +104,7 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
   table{font-size:11px}
   .afdrukblok{display:block}
   .drieluik{grid-template-columns:repeat(3,1fr)}
+  .drieluik .paneel{page-break-inside:avoid}
 }
 </style>
 </head>
@@ -108,8 +113,9 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
 
 <header>
   <h1>Hypotheek in BV</h1>
-  <p class="sub">De bankhypotheek doorlopen, oversluiten naar de eigen BV of aflossen, over één
-    jaar naast elkaar. <span id="versieStempel"></span></p>
+  <p class="sub">De bankhypotheek doorlopen, oversluiten naar de eigen BV, aflossen, of de
+    schuld omzetten naar box 3 bij de BV of bij de bank, over één jaar naast elkaar.
+    <span id="versieStempel"></span></p>
 </header>
 
 <div id="importmelding"></div>
@@ -161,7 +167,15 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
       <input type="number" id="renteBV" value="4" step="0.01" /></div>
     <div class="veld"><label for="renteSpaar">Rendement op het vrije vermogen (%)</label>
       <input type="number" id="renteSpaar" value="1.5" step="0.01" /></div>
+    <div class="veld"><label for="box3RenteBV">Rente box 3-lening bij de BV (%), scenario 4</label>
+      <input type="number" id="box3RenteBV" value="4" step="0.01" /></div>
+    <div class="veld"><label for="box3RenteBank">Rente box 3-lening bij de bank (%), scenario 5</label>
+      <input type="number" id="box3RenteBank" value="4" step="0.01" /></div>
   </div>
+  <p class="hulp">De twee box 3-scenario's (4 en 5) gaan uit van een lening die bewust niet als
+    eigenwoningschuld is vormgegeven: de rente is dan niet aftrekbaar. Die rente kan een ander
+    percentage hebben dan de hypotheekrente hierboven, omdat het een ander soort lening is
+    (doorgaans aflossingsvrij).</p>
 
   <h3>Inkomen en BV</h3>
   <div class="rij">
@@ -202,6 +216,28 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
     die tijd niet.</strong> Ze stonden eerder op "ja", en dat is de gunstigste stand van de
     twee: het antwoord kwam er dan stilzwijgend bij in plaats van uit een beoordeling. Hoeveel
     er van deze twee antwoorden afhangt, staat in de uitkomst zelf.</p>
+
+  <h3>Box 3-scenario's: forfait of werkelijke rente</h3>
+  <div class="rij">
+    <div class="veld"><label for="werkelijkeRenteBV">Werkelijke rente beproeven, box 3-lening
+      BV (scenario 4)</label>
+      <select id="werkelijkeRenteBV">
+        <option value="" selected>— nog niet beantwoord —</option>
+        <option value="ja">ja</option>
+        <option value="nee">nee</option>
+      </select></div>
+    <div class="veld"><label for="werkelijkeRenteBank">Werkelijke rente beproeven, box
+      3-lening bank (scenario 5)</label>
+      <select id="werkelijkeRenteBank">
+        <option value="" selected>— nog niet beantwoord —</option>
+        <option value="ja">ja</option>
+        <option value="nee">nee</option>
+      </select></div>
+  </div>
+  <p class="hulp">Art. 5.25 Wet IB 2001 laat toe met het werkelijke rendement te rekenen in
+    plaats van het forfait van art. 5.2, als dat lager uitkomt; niemand is verplicht dat te
+    doen. "Ja" laat de tool automatisch de laagste van beide nemen, zoals zij dat voor het
+    vrije vermogen altijd al doet. "Nee" rekent uitsluitend met het forfait.</p>
 
 </div>
 
@@ -249,8 +285,8 @@ details summary{cursor:pointer;font-size:14px;color:var(--accent)}
 // ==========================================================================
 
 const TOOL_ID = 'hypotheek-in-bv';
-const TOOL_VERSIE = '1.0.0';
-const DOSSIER_VERSIE = 2;
+const TOOL_VERSIE = '1.1.0';
+const DOSSIER_VERSIE = 3;
 
 /* ── Jaargebonden waarden ────────────────────────────────────────────────
    Eén blok per jaar, met de vindplaats bij de waarde zelf. Alle waarden zijn
@@ -325,8 +361,14 @@ const FISCAAL_PER_JAAR = {
 
     /* Art. 5.2 lid 2 Wet IB 2001: het forfaitaire rendement, als som van een
        percentage van de banktegoeden en van de overige bezittingen, verminderd
-       met een percentage van de schulden. */
-    box3Forfait: { banktegoeden: 0.0144, overigeBezittingen: 0.06, schulden: 0.0261 },
+       met een percentage van de schulden. Voorlopige percentages 2026, gemeten
+       op 28-09-2026: Belastingdienst, "Hoe is het box 3-inkomen op mijn
+       voorlopige aanslag 2026 berekend?" (belastingdienst.nl/box-3, pagina voor
+       aanslagjaar 2026). Definitieve vaststelling bij ministeriële regeling
+       volgt pas begin 2027, zie OPENSTAAND.md. Banktegoeden en schulden stonden
+       tot deze datum op het percentage van een eerder jaar (0,0144 resp. 0,0261)
+       en zijn hier gecorrigeerd; overige bezittingen (6%) klopte al. */
+    box3Forfait: { banktegoeden: 0.0128, overigeBezittingen: 0.06, schulden: 0.027 },
 
     /* Art. 5.3 lid 3 onder f Wet IB 2001: schulden tellen alleen mee voor zover
        hun gezamenlijke waarde die drempel te boven gaat. */
@@ -353,7 +395,14 @@ const SCENARIOS = [
   { id: 'bv', naam: 'Oversluiten naar de eigen BV',
     uitleg: 'Een BV wordt volgestort en neemt de schuld over; de rente gaat naar de BV.' },
   { id: 'aflossen', naam: 'Eigenwoningschuld aflossen',
-    uitleg: 'De schuld wordt met het vrije vermogen afgelost; er is geen rente meer.' }
+    uitleg: 'De schuld wordt met het vrije vermogen afgelost; er is geen rente meer.' },
+  { id: 'box3bv', naam: 'Schuld bij de BV omzetten naar box 3',
+    uitleg: 'De lening bij de BV wordt bewust zo vormgegeven dat zij geen eigenwoningschuld ' +
+      'is; de rente is niet aftrekbaar en de schuld valt in box 3.' },
+  { id: 'box3bank', naam: 'Schuld bij de bank omzetten naar box 3',
+    uitleg: 'De bankhypotheek wordt via een kasrondje afgelost en niet-aflossend herleend; de ' +
+      'rente is niet aftrekbaar, de schuld valt in box 3 en de BV belegt het vrijgekomen ' +
+      'vermogen.' }
 ];
 
 /** Het deel van een bedrag dat tussen twee grenzen valt. */
@@ -470,8 +519,18 @@ function algemeneHeffingskorting(jaar, verzamelinkomen) {
  * De schuldendrempel van art. 5.3 lid 3 onder f werkt in beide routes door: wat
  * onder de drempel blijft is voor box 3 geen schuld, en dan telt ook de rente
  * daarover niet mee in het werkelijke rendement.
+ *
+ * `toetsWerkelijkeRendement` (standaard true) zegt of het tegenbewijs van
+ * art. 5.25 überhaupt wordt beproefd. Op "false" wordt uitsluitend het forfait
+ * gebruikt. Dat is een keuze die de belastingplichtige zelf mag maken: hij is
+ * nooit verplicht tegenbewijs te leveren, dus deze schakelaar kan de uitkomst
+ * alleen ongunstiger maken dan de automatische keuze voor de laagste van de
+ * twee, nooit gunstiger. Besluit van Sylvain, 28-09-2026, bij het toevoegen
+ * van de twee box 3-scenario's: de schakelaars "werkelijke rente toepassen op
+ * de box 3-lening" (BV en bank) werken zo door.
  */
-function box3Positie(jaar, banktegoeden, schulden, ontvangenRente, betaaldeRente) {
+function box3Positie(jaar, banktegoeden, schulden, ontvangenRente, betaaldeRente,
+  toetsWerkelijkeRendement) {
   const w = fiscaalJaar(jaar);
   const bezit = Math.max(Number(banktegoeden) || 0, 0);
   const schuldBruto = Math.max(Number(schulden) || 0, 0);
@@ -487,7 +546,8 @@ function box3Positie(jaar, banktegoeden, schulden, ontvangenRente, betaaldeRente
 
   const werkelijk = Math.max((Number(ontvangenRente) || 0) -
     (Number(betaaldeRente) || 0) * deelTelt, 0);
-  const tegenbewijs = werkelijk < voordeel;
+  const beproefTegenbewijs = toetsWerkelijkeRendement !== false;
+  const tegenbewijs = beproefTegenbewijs && werkelijk < voordeel;
 
   return {
     banktegoeden: bezit,
@@ -562,12 +622,16 @@ function normaliseerInvoer(rauw) {
     renteBank: getal(r.renteBank),
     renteBV: getal(r.renteBV),
     renteSpaar: getal(r.renteSpaar),
+    box3RenteBV: getal(r.box3RenteBV),
+    box3RenteBank: getal(r.box3RenteBank),
     inkomen: getal(r.inkomen),
     kostenBV: getal(r.kostenBV),
     eenmaligBV: getal(r.eenmaligBV),
     boeterente: getal(r.boeterente),
     kwalificeert: JA_NEE(r.kwalificeert),
-    hypotheekrecht: JA_NEE(r.hypotheekrecht)
+    hypotheekrecht: JA_NEE(r.hypotheekrecht),
+    werkelijkeRenteBV: JA_NEE(r.werkelijkeRenteBV),
+    werkelijkeRenteBank: JA_NEE(r.werkelijkeRenteBank)
   };
 }
 
@@ -588,11 +652,14 @@ function valideerInvoer(inv) {
     fouten.push('De doorlopende kosten van de BV mogen niet negatief zijn.');
   }
   [['renteBank', 'de hypotheekrente bij de bank'], ['renteBV', 'de hypotheekrente bij de BV'],
-   ['renteSpaar', 'het rendement op het vrije vermogen']].forEach(function (p) {
-    if (!isGetal(inv[p[0]]) || inv[p[0]] < 0 || inv[p[0]] > 25) {
-      fouten.push('Vul voor ' + p[1] + ' een percentage tussen 0 en 25 in.');
-    }
-  });
+   ['renteSpaar', 'het rendement op het vrije vermogen'],
+   ['box3RenteBV', 'de rente op de box 3-lening bij de BV (scenario 4)'],
+   ['box3RenteBank', 'de rente op de box 3-lening bij de bank (scenario 5)']].forEach(
+    function (p) {
+      if (!isGetal(inv[p[0]]) || inv[p[0]] < 0 || inv[p[0]] > 25) {
+        fouten.push('Vul voor ' + p[1] + ' een percentage tussen 0 en 25 in.');
+      }
+    });
 
   // Het inkomen bepaalt het marginale tarief van box 1.
   if (!isGetal(inv.inkomen) || inv.inkomen < 0) {
@@ -610,9 +677,9 @@ function valideerInvoer(inv) {
     fouten.push('Vul een vrij vermogen in box 3 in; nul mag, negatief niet.');
   } else if (isGetal(inv.hoofdsom) && inv.vermogen < inv.hoofdsom) {
     fouten.push('Het vrije vermogen (' + Math.round(inv.vermogen) + ') is kleiner dan de ' +
-      'hoofdsom (' + Math.round(inv.hoofdsom) + '). Deze tool vergelijkt drie scenario’s ' +
-      'waarin de schuld volledig kan worden overgenomen of afgelost; met minder vermogen dan ' +
-      'de schuld bestaan die twee alternatieven niet.');
+      'hoofdsom (' + Math.round(inv.hoofdsom) + '). Deze tool vergelijkt scenario’s waarin de ' +
+      'schuld volledig kan worden overgenomen of afgelost; met minder vermogen dan de schuld ' +
+      'bestaan die alternatieven niet.');
   }
 
   // De twee toetsen moeten actief worden beantwoord; zie de fiscale regels in
@@ -626,6 +693,16 @@ function valideerInvoer(inv) {
     fouten.push('Beantwoord of er een hypotheekrecht aan de BV is verstrekt (art. 4.14a ' +
       'lid 6 Wet IB 2001). Van dat antwoord hangt af of de uitzondering op de regeling ' +
       'voor excessief lenen geldt; de tool vult het niet voor u in.');
+  }
+  if (inv.werkelijkeRenteBV !== 'ja' && inv.werkelijkeRenteBV !== 'nee') {
+    fouten.push('Beantwoord of voor de box 3-lening bij de BV (scenario 4) het werkelijke ' +
+      'rendement mag worden beproefd tegenover het forfait van art. 5.2 (art. 5.25 Wet IB ' +
+      '2001). "Nee" rekent uitsluitend met het forfait.');
+  }
+  if (inv.werkelijkeRenteBank !== 'ja' && inv.werkelijkeRenteBank !== 'nee') {
+    fouten.push('Beantwoord of voor de box 3-lening bij de bank (scenario 5) het werkelijke ' +
+      'rendement mag worden beproefd tegenover het forfait van art. 5.2 (art. 5.25 Wet IB ' +
+      '2001). "Nee" rekent uitsluitend met het forfait.');
   }
 
   if (fouten.length === 0) {
@@ -668,7 +745,7 @@ function rekenScenario(inv, opzet) {
 
   const ontvangenRente = opzet.banktegoeden * inv.renteSpaar / 100;
   const b3 = box3Positie(jaar, opzet.banktegoeden, opzet.box3Schuld,
-    ontvangenRente, opzet.renteOpBox3Schuld);
+    ontvangenRente, opzet.renteOpBox3Schuld, opzet.toetsWerkelijkeRendement);
 
   const regels = [];
   const basis = totaleHeffing(jaar, inv.inkomen, 0, 0, 0);
@@ -776,7 +853,68 @@ function berekenVolgensBron(inv, zonderGevoeligheid) {
     box2Inkomen: 0, heeftBV: false, eenmalig: inv.boeterente
   });
 
-  const verschil = { bv: bv.saldo - bank.saldo, aflossen: aflossen.saldo - bank.saldo };
+  /* Scenario 4: de lening bij de BV wordt bewust zo
+     vormgegeven dat zij geen eigenwoningschuld is (bijvoorbeeld aflossingsvrij).
+     De rente is dan niet aftrekbaar (art. 3.120 jo. 3.119a) en de schuld valt in
+     box 3 (art. 2.14 lid 3 onder a), ongeacht het antwoord op de toets
+     "kwalificeert" hierboven: die toets gaat over de lening zoals in scenario 2
+     is opgezet, dit scenario kiest er bewust voor niet te kwalificeren. Omdat de
+     lening zo nooit een eigenwoningschuld is, geldt de uitzondering van
+     art. 4.14a lid 6 hier nooit; het hypotheekrecht (invoerveld
+     "hypotheekrecht") verandert daar niets aan. */
+  const renteBox3BV = inv.hoofdsom * inv.box3RenteBV / 100;
+  const bvWinstBox3 = renteBox3BV - inv.kostenBV;
+  const vpbBox3BV = schijfBelasting(bvWinstBox3, w.vpbSchijven);
+  const nettoWinstBox3BV = bvWinstBox3 - vpbBox3BV;
+  const uitkeringBox3BV = Math.max(nettoWinstBox3BV, 0);
+  const fictiefBox3BV = Math.max(inv.hoofdsom - w.elevMaximum, 0);
+
+  const box3bv = rekenScenario(inv, {
+    renteLast: renteBox3BV, aftrekbareKosten: 0,
+    renteToelicht: 'aan de eigen BV, niet aftrekbaar want geen eigenwoningschuld',
+    banktegoeden: rest, box3Schuld: inv.hoofdsom, renteOpBox3Schuld: renteBox3BV,
+    toetsWerkelijkeRendement: inv.werkelijkeRenteBV === 'ja',
+    box2Inkomen: uitkeringBox3BV + fictiefBox3BV, fictiefVoordeel: fictiefBox3BV,
+    heeftBV: true, bvOpbrengst: renteBox3BV, bvKosten: inv.kostenBV,
+    vpb: vpbBox3BV, uitkering: uitkeringBox3BV, nettoWinst: nettoWinstBox3BV,
+    eenmalig: 0
+  });
+
+  /* Scenario 5: de bankhypotheek wordt via een kasrondje
+     afgelost en niet-aflossend herleend bij dezelfde bank. De rente is dan niet
+     aftrekbaar en de schuld valt in box 3, net als bij scenario 4 (art. 3.120
+     lid 1 onder a jo. 3.119a, art. 2.14 lid 3 onder a), maar nu bij de bank.
+     Art. 4.14a lid 1 verwijst naar art. 4.13 lid 1 onder f: een schuld die de
+     belastingplichtige "rechtens dan wel in feite direct of indirect" heeft bij
+     de eigen vennootschap. Deze scenarioberekening gaat uit van een zuivere
+     bankschuld zonder koppeling aan het vermogen dat de BV hier belegt, en
+     rekent daarom geen fictief voordeel. Geeft de BV bij dat kasrondje zekerheid
+     aan de bank over haar eigen tegoeden, dan kan de schuld alsnog "indirect"
+     bij de BV liggen; dat beoordeelt de adviseur per geval, de tool doet dat niet.
+     De BV belegt het vrijgekomen vermogen tegen het rendement van "renteSpaar"
+     en keert de winst na vpb uit als dividend. */
+  const renteBox3Bank = inv.hoofdsom * inv.box3RenteBank / 100;
+  const bvOpbrengstBelegd = rest * inv.renteSpaar / 100;
+  const bvWinstBelegd = bvOpbrengstBelegd - inv.kostenBV;
+  const vpbBelegd = schijfBelasting(bvWinstBelegd, w.vpbSchijven);
+  const nettoWinstBelegd = bvWinstBelegd - vpbBelegd;
+  const uitkeringBelegd = Math.max(nettoWinstBelegd, 0);
+
+  const box3bank = rekenScenario(inv, {
+    renteLast: renteBox3Bank, aftrekbareKosten: 0,
+    renteToelicht: 'aan de bank, niet aftrekbaar want geen eigenwoningschuld',
+    banktegoeden: 0, box3Schuld: inv.hoofdsom, renteOpBox3Schuld: renteBox3Bank,
+    toetsWerkelijkeRendement: inv.werkelijkeRenteBank === 'ja',
+    box2Inkomen: uitkeringBelegd, fictiefVoordeel: 0,
+    heeftBV: true, bvOpbrengst: bvOpbrengstBelegd, bvKosten: inv.kostenBV,
+    vpb: vpbBelegd, uitkering: uitkeringBelegd, nettoWinst: nettoWinstBelegd,
+    eenmalig: 0
+  });
+
+  const verschil = {
+    bv: bv.saldo - bank.saldo, aflossen: aflossen.saldo - bank.saldo,
+    box3bv: box3bv.saldo - bank.saldo, box3bank: box3bank.saldo - bank.saldo
+  };
 
   /* Hoeveel verandert het BV-voordeel als de rente bij de BV een procentpunt
      hoger wordt? De gedachte dat een hogere rente bij de eigen BV in de regel
@@ -792,9 +930,9 @@ function berekenVolgensBron(inv, zonderGevoeligheid) {
   }
 
   return {
-    scenarios: { bank: bank, bv: bv, aflossen: aflossen },
+    scenarios: { bank: bank, bv: bv, aflossen: aflossen, box3bv: box3bv, box3bank: box3bank },
     verschil: verschil,
-    eenmalig: { bank: 0, bv: bv.eenmalig, aflossen: aflossen.eenmalig },
+    eenmalig: { bank: 0, bv: bv.eenmalig, aflossen: aflossen.eenmalig, box3bv: 0, box3bank: 0 },
     context: {
       restVermogen: rest, renteBank: renteBank, renteBV: renteBV,
       bvWinst: bvWinst, vpb: vpb, nettoWinst: nettoWinst,
@@ -868,7 +1006,8 @@ function bouwBerekening(rauw) {
     terugverdientijd: {
       bv: res.verschil.bv > 0 && res.eenmalig.bv > 0 ? res.eenmalig.bv / res.verschil.bv : null,
       aflossen: res.verschil.aflossen > 0 && res.eenmalig.aflossen > 0
-        ? res.eenmalig.aflossen / res.verschil.aflossen : null
+        ? res.eenmalig.aflossen / res.verschil.aflossen : null,
+      box3bv: null, box3bank: null
     }
   };
 }
@@ -1161,8 +1300,8 @@ function bronregels(jaar) {
       pct(w.vpbSchijven[0].tarief) + ' tot en met € ' + nl(w.vpbSchijven[0].tot) +
       ' en € 38.000 vermeerderd met ' + pct(w.vpbSchijven[1].tarief) + ' daarboven.',
     'Box 3 ' + jaar + ': tarief ' + pct(w.box3Tarief) + ' (art. 2.13 Wet IB 2001), ' +
-      'forfaitair rendement 1,44% van de banktegoeden, 6% van de overige bezittingen en min ' +
-      '2,61% van de schulden (art. 5.2 lid 2), heffingvrij vermogen € ' +
+      'forfaitair rendement 1,28% van de banktegoeden, 6% van de overige bezittingen en min ' +
+      '2,70% van de schulden (art. 5.2 lid 2), heffingvrij vermogen € ' +
       nl(w.heffingvrijVermogen) + ' (art. 5.5), schuldendrempel € ' +
       nl(w.schuldendrempel) + ' (art. 5.3 lid 3 onder f), en de tegenbewijsregeling van ' +
       'art. 5.25 als het werkelijke rendement lager is.',
@@ -1187,17 +1326,25 @@ const INVOERVELDEN = [
   { id: 'renteBank', label: 'Hypotheekrente bank', soort: 'procent' },
   { id: 'renteBV', label: 'Hypotheekrente BV', soort: 'procent' },
   { id: 'renteSpaar', label: 'Rendement op het vrije vermogen', soort: 'procent' },
+  { id: 'box3RenteBV', label: 'Rente box 3-lening bij de BV (scenario 4)', soort: 'procent' },
+  { id: 'box3RenteBank', label: 'Rente box 3-lening bij de bank (scenario 5)', soort: 'procent' },
   { id: 'inkomen', label: 'Box 1-inkomen exclusief eigen woning', soort: 'euro' },
   { id: 'kostenBV', label: 'Doorlopende kosten BV per jaar', soort: 'euro' },
   { id: 'eenmaligBV', label: 'Eenmalige kosten oversluiten naar BV', soort: 'euro' },
   { id: 'boeterente', label: 'Boeterente bij aflossen bankhypotheek', soort: 'euro' },
   { id: 'kwalificeert', label: 'Lening bij de BV is eigenwoningschuld', soort: 'janee' },
-  { id: 'hypotheekrecht', label: 'Hypotheekrecht verstrekt aan de BV', soort: 'janee' }
+  { id: 'hypotheekrecht', label: 'Hypotheekrecht verstrekt aan de BV', soort: 'janee' },
+  { id: 'werkelijkeRenteBV', label: 'Werkelijke rente beproeven, box 3-lening BV (scenario 4)',
+    soort: 'janee' },
+  { id: 'werkelijkeRenteBank', label: 'Werkelijke rente beproeven, box 3-lening bank (scenario 5)',
+    soort: 'janee' }
 ];
 
 const AFBAKENING = [
   'De tool rekent één jaar. Zij geeft geen meerjarige doorkijk, want de fiscale waarden van ' +
-    'latere jaren zijn niet vastgesteld en worden hier niet aangenomen.',
+    'latere jaren zijn niet vastgesteld en worden hier niet aangenomen. Een geleidelijke ' +
+    'overname van de schuld door de BV, over meerdere jaren, hoort hier niet bij en staat als ' +
+    'open punt in OPENSTAAND.md.',
   'De tool rekent voor iemand die de AOW-leeftijd nog niet heeft bereikt en niet vóór ' +
     '1 januari 1946 is geboren; voor die laatste geldt de tarieftabel van art. 2.10a Wet IB 2001.',
   'Van de heffingskortingen wordt alleen de algemene heffingskorting toegepast. De ' +
@@ -1222,8 +1369,24 @@ const AFBAKENING = [
     'de dga houdt valt daar vaak buiten, maar dat is geen gegeven.',
   'De aanslag- en aangiftekosten, de vermogensbelasting van de BV zelf en de gevolgen voor ' +
     'toeslagen blijven buiten beeld.',
-  'De tool bepaalt geen advies. Zij zet drie scenario’s naast elkaar; welk scenario passend ' +
-    'is, beoordeelt de adviseur.',
+  'De tool bepaalt geen advies. Zij zet scenario’s naast elkaar; welk scenario passend is, ' +
+    'beoordeelt de adviseur.',
+  'De twee box 3-scenario’s (schuld omzetten naar box 3, bij de BV of bij de bank) gaan uit ' +
+    'van een lening die bewust niet als eigenwoningschuld is vormgegeven. Of dat in een ' +
+    'concreet geval ook echt lukt — bijvoorbeeld dat een kasrondje bij de bank fiscaal ' +
+    'standhoudt en dat de regels rond excessief lenen daarbij zijn beoordeeld — toetst de ' +
+    'tool niet.',
+  'Het scenario waarin de bankschuld naar box 3 gaat, gaat uit van een zuivere bankschuld ' +
+    'zonder koppeling aan vermogen dat de BV bij dezelfde bank belegt. Geeft de BV daarbij ' +
+    'zekerheid aan de bank over haar eigen tegoeden, dan kan de schuld op grond van art. ' +
+    '4.13 lid 1 onder f Wet IB 2001 alsnog “indirect” bij de BV liggen; dat beoordeelt de ' +
+    'adviseur, de tool niet.',
+  'Het fictieve reguliere voordeel van art. 4.14a toetst alleen de hoofdsom van de schuld in ' +
+    'het scenario zelf tegen het maximumbedrag van € 500.000. De wet telt daarvoor alle ' +
+    'schulden van de belastingplichtige en zijn fiscale partner aan de eigen vennootschap ' +
+    'samen (art. 4.14a lid 1 en 3) en houdt bij het maximumbedrag rekening met eerder belaste ' +
+    'bedragen (lid 2); heeft iemand nog andere schulden aan dezelfde BV, dan is deze uitkomst ' +
+    'een vereenvoudiging.',
   'De tool bewaart niets en stuurt niets naar een server.'
 ];
 
@@ -1328,7 +1491,8 @@ const euro = function (x) {
 let LAATSTE = null;
 
 const VELDEN = ['jaar', 'woz', 'hoofdsom', 'vermogen', 'renteBank', 'renteBV', 'renteSpaar',
-  'inkomen', 'kostenBV', 'eenmaligBV', 'boeterente', 'kwalificeert', 'hypotheekrecht'];
+  'box3RenteBV', 'box3RenteBank', 'inkomen', 'kostenBV', 'eenmaligBV', 'boeterente',
+  'kwalificeert', 'hypotheekrecht', 'werkelijkeRenteBV', 'werkelijkeRenteBank'];
 
 function leesInvoer() {
   const r = { kenmerk: el('kenmerk').value, opsteller: el('opsteller').value,
@@ -1377,7 +1541,7 @@ function herbereken() {
 }
 
 function toonDrieluik(res) {
-  const beste = ['bank', 'bv', 'aflossen'].reduce(function (a, b) {
+  const beste = SCENARIOS.map(function (s) { return s.id; }).reduce(function (a, b) {
     return res.scenarios[b].saldo > res.scenarios[a].saldo ? b : a;
   });
   el('drieluik').innerHTML = SCENARIOS.map(function (s) {
