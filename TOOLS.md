@@ -175,7 +175,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🔵 concept | Fiscale vastgoedtool | `/fiscale-vastgoedtool.html` | bouwman-tools/fiscale-vastgoedtool | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Fiscale vastgoedtool | `/fiscale-vastgoedtool.html` | bouwman-tools/fiscale-vastgoedtool | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
 - **Fiscale vastgoedtool**: Vergelijkt wat een verhuurd pand de DGA na belasting oplevert in box 3, onder de terbeschikkingstellingsregeling en in de eigen BV: bij aankoop, bij een pand in box 3 en bij een pand onder de tbs, per jaar doorgerekend met de latente belasting bij verkoop
