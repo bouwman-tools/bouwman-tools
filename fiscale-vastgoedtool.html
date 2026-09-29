@@ -738,6 +738,8 @@ function beginToestand(route, inv, jw) {
     t.kasPrive = -kosten;
     if (route === 'box3' || route === 'tbs') {
       t.schuldPrive = inv.schuld;
+      // Vanaf de verwerving ter beschikking gesteld: kostprijs inclusief aanschaffingskosten
+      // (Besluit ROW 2026, onderdeel 3.2.2.1, met verwijzing naar HR 22 januari 2010).
       if (route === 'tbs') t.boekwaarde = o.kostprijs;
     } else {
       t.schuldBv = o.financiering;
@@ -750,8 +752,10 @@ function beginToestand(route, inv, jw) {
   if (inv.situatie === 'box3') {
     t.schuldPrive = inv.schuld;
     if (route === 'tbs') {
-      // Bij de aanvang van de terbeschikkingstelling gaat het pand in op de waarde in het
-      // economische verkeer.
+      // Wordt een onroerende zaak op een later moment dan de verwerving ter beschikking
+      // gesteld, dan komt zij op de openingsbalans op de waarde in het economische verkeer op
+      // het moment dat de terbeschikkingstelling aanvangt (Besluit ROW 2026, Stcrt. 2026, 1724,
+      // onderdeel 3.2.2.1).
       t.boekwaarde = inv.waarde;
     }
     if (route === 'bv') vulOverdrachtIn(t, inv, jw, 0);
@@ -962,9 +966,15 @@ function signalenVoor(inv, routes) {
     }
   }
   if (inv.situatie === 'box3' && route('tbs')) {
-    s.push({ soort: 'let-op', tekst: 'Onder de terbeschikkingstelling laat de tool het pand ingaan op de waarde in ' +
-      'het economische verkeer bij de aanvang. Daarvoor is geen wetsartikel en geen rechtspraak gevonden die dat voor ' +
-      'een aanvang na 2001 vastlegt. Is de beginwaarde lager, dan valt de tbs-route ongunstiger uit.' });
+    s.push({ soort: 'info', tekst: 'Onder de terbeschikkingstelling gaat het pand in op de waarde in het ' +
+      'economische verkeer op het moment dat de terbeschikkingstelling aanvangt (Besluit ROW 2026, onderdeel ' +
+      '3.2.2.1). Vul die waarde in bij "Waarde in het economische verkeer".' });
+  }
+  if (inv.situatie === 'aankoop' && route('tbs')) {
+    s.push({ soort: 'info', tekst: 'In de tbs-route komt het pand op de fiscale balans voor de kostprijs inclusief ' +
+      'aanschaffingskosten. Dat geldt als het pand vanaf de aanschaf, met de gezamenlijke bedoeling van DGA en BV, ' +
+      'aan de BV ter beschikking wordt gesteld; begint de terbeschikkingstelling later, dan geldt de waarde in het ' +
+      'economische verkeer op dat moment (Besluit ROW 2026, onderdelen 3.2.1 en 3.2.2.1).' });
   }
   if (inv.situatie === 'box3' && route('tbs')) {
     s.push({ soort: 'info', tekst: 'De tbs-route gaat uit van een blijvende terbeschikkingstelling. Een tijdelijke ' +
@@ -972,9 +982,9 @@ function signalenVoor(inv, routes) {
       '(art. 2.14 lid 3 onderdeel b en c Wet IB 2001); de tool rekent zo’n besparing niet.' });
   }
   if (route('tbs') && inv.tbsKostenBijBv) {
-    s.push({ soort: 'info', tekst: 'Verhuurt de BV het pand door aan derden, dan valt de verhuur aan de BV naar de ' +
-      'tekst van art. 3.92 lid 1 onderdeel a Wet IB 2001 onder de terbeschikkingstelling ("direct of indirect"). ' +
-      'Rechtspraak over deze opzet is niet nagezocht.' });
+    s.push({ soort: 'info', tekst: 'Verhuurt de BV het pand door aan derden, dan blijft de verhuur aan de BV ' +
+      'terbeschikkingstelling: art. 3.92 lid 1 onderdeel a Wet IB 2001 vereist niet dat de vennootschap het pand zelf ' +
+      'gebruikt (Besluit ROW 2026, onderdeel 3.4; Kamerstukken II 1999/2000, 26 727, nr. 7, blz. 508).' });
   }
   if (inv.afschrijving > 0 && inv.situatie === 'tbs') {
     s.push({ soort: 'info', tekst: 'De bodemwaarde is de WOZ-waarde (art. 3.30a Wet IB 2001). Behoorde het pand ' +
@@ -1069,7 +1079,8 @@ const VINDPLAATSEN = [
   { waarde: 'Box 1-tarieven 2026: 35,75%, 37,56% tot € 78.426, 49,50% daarboven',
     bron: 'art. 2.10 lid 1 Wet IB 2001; de eerste schijf is 8,10% belasting plus 27,65% premies volksverzekeringen (art. 10 en 11 Wfsv en de regeling daarbij)' },
   { waarde: 'Tariefaanpassing 11,94%', bron: 'art. 2.10 lid 2 en lid 3 onderdeel c Wet IB 2001' },
-  { waarde: 'Terbeschikkingstelling', bron: 'art. 3.92 lid 1 onderdeel a Wet IB 2001; resultaat en afrekening art. 3.94 en 3.95 lid 1 jo. 3.61' },
+  { waarde: 'Terbeschikkingstelling', bron: 'art. 3.92 lid 1 onderdeel a Wet IB 2001; resultaat en afrekening art. 3.94 en 3.95 lid 1 jo. 3.61; eigen gebruik door de vennootschap niet vereist: Besluit ROW 2026 (Stcrt. 2026, 1724), onderdeel 3.4, en Kamerstukken II 1999/2000, 26 727, nr. 7, blz. 508 (onderverhuur door de vennootschap)' },
+  { waarde: 'Openingsbalans tbs: WEV bij aanvang na verwerving, kostprijs bij aanvang vanaf verwerving', bron: 'Besluit ROW 2026 (Stcrt. 2026, 1724), onderdelen 3.2.1 en 3.2.2.1' },
   { waarde: 'Terbeschikkingstellingsvrijstelling 12%', bron: 'art. 3.99b Wet IB 2001' },
   { waarde: 'Bodemwaarde gebouw: WOZ-waarde', bron: 'art. 3.30a lid 3 en 4 Wet IB 2001; art. 8 lid 1 Wet Vpb 1969' },
   { waarde: 'Box 2-tarieven 2026: 24,5% tot € 68.843, 31% daarboven', bron: 'art. 2.12 Wet IB 2001; partners art. 2.17' },
