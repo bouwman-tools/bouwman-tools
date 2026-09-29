@@ -121,6 +121,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Kantoor in de eigen woning | `/kantoor-in-de-woning.html` | bouwman-tools/kantoor-in-de-woning | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | 2026-09-28 |
+| 🔵 concept | Periodiek verrekenbeding | `/verrekenbeding.html` | bouwman-tools/verrekenbeding | **nee** | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟢 live | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
@@ -131,8 +132,17 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
 - **Hypotheek in BV**: Zet de bankhypotheek doorlopen, oversluiten naar de eigen BV en aflossen over een jaar naast elkaar, met box 1, box 2 en box 3, de toets op excessief lenen en de kwalificatie als eigenwoningschuld
 - **Kantoor in de eigen woning**: Rekent kantoorruimte in de eigen woning door voor de DGA (terbeschikkingstelling, kantoor naar de BV, 100% eigen woning) en de IB-ondernemer (privévermogen, ondernemingsvermogen zelfstandig of niet-zelfstandig, gesplitst, 100% eigen woning)
+- **Periodiek verrekenbeding**: Rekent een periodiek verrekenbeding in huwelijkse voorwaarden door: per jaar het overgespaarde inkomen en het bedrag dat de een de ander betaalt, een tekort naar verhouding van de vermogens en de achterstallige verrekening over een periode met de vermogensgroei per partner
 - **Tijdplan**: Zet leeftijden en mutatiemomenten van een gezin op een tijdlijn en rekent uit in welk jaar een leeftijd valt
 - **WW-uitkering**: Berekent de duur en de hoogte van een WW-uitkering op de eerste werkloosheidsdag: de opbouw uit fictief en feitelijk arbeidsverleden binnen de wettelijke ondergrens van drie en bovengrens van 24 maanden, en de uitkering per kalendermaand tegen 75 procent over de eerste twee maanden en 70 procent daarna, met het dagloon gemaximeerd op het maximumdagloon
+
+### Wettelijke verwijzingen: Periodiek verrekenbeding
+
+- [Burgerlijk Wetboek Boek 1, Artikel 1:84 \(versie 5 juli 2025\)](https://wetten.overheid.nl/BWBR0002656/2025-07-05)
+- [Burgerlijk Wetboek Boek 1, Artikel 1:132 \(versie 5 juli 2025\)](https://wetten.overheid.nl/BWBR0002656/2025-07-05)
+- [Burgerlijk Wetboek Boek 1, Artikel 1:135 \(versie 5 juli 2025\)](https://wetten.overheid.nl/BWBR0002656/2025-07-05)
+- [Burgerlijk Wetboek Boek 1, Artikel 1:137 \(versie 5 juli 2025\)](https://wetten.overheid.nl/BWBR0002656/2025-07-05)
+- [Burgerlijk Wetboek Boek 1, Artikel 1:141 \(versie 5 juli 2025\)](https://wetten.overheid.nl/BWBR0002656/2025-07-05)
 
 ## Kantoor
 
