@@ -112,6 +112,7 @@ const APP_IDS = {
   'kantoor-in-de-woning.html': '123011c5-fedc-4b34-aa9f-8e32f6db5ef3',
   'bruto-netto-2026.html': '156c35b5-36af-4141-8b24-81484a5bdc2c',
   'pensioen-odv.html': '54576b7e-6708-473c-8022-b0ef6b9f3efe',
+  'fiscale-vastgoedtool.html': '64083169-f03d-44a4-9153-714ddc40de18',
 };
 
 export default {
