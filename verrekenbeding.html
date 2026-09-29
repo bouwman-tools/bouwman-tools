@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Periodiek verrekenbeding</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
+
+/* De kopbalk even breed als de inhoud eronder (main). */
+:root { --bt-kopbalk-breedte: 1060px; }
+/* Tooleigen: invoervelden in een tabel smal houden, en een tabel breed laten scrollen op een smal scherm. */
+table input[type="number"] { width: 100%; min-width: 7em; text-align: right; }
+.kaart table { display: block; overflow-x: auto; }
+.tab[aria-pressed="true"] { outline: 2px solid var(--groen); }
+@media print { .kaart table { display: table; overflow: visible; } }
+</style>
+</head>
+<body>
+
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+          <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="bt-kopbalk-titel">Periodiek verrekenbeding</div>
+        <div class="bt-kopbalk-sub">Verrekening van inkomsten tussen partners</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 22:21</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+
+<main>
+  <h1 class="noprint">Periodiek verrekenbeding</h1>
+  <p class="inleiding noprint">
+    Reken de jaarlijkse verrekening van overgespaarde inkomsten uit huwelijkse voorwaarden
+    door, of een achterstallige verrekening over meer jaren. Daarnaast een hulp om de kosten
+    van de huishouding vast te stellen en een overzicht van het vermogen met de
+    verrekenposities uit eerdere jaren. De tool rekent de ingevulde situatie door en doet
+    geen voorstel.
+  </p>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="knop-afdrukken">Afdrukken voor het dossier</button>
+    <button type="button" id="knop-export" class="tweede">Exporteren naar Excel</button>
+    <button type="button" id="knop-opslaan" class="tweede">Opslaan als bestand</button>
+    <button type="button" id="knop-openen" class="tweede">Bestand openen</button>
+    <input type="file" id="bestand-openen" accept=".json,application/json" class="verborgen">
+  </div>
+  <div id="dossiermelding" class="noprint"></div>
+
+  <div class="kaart noprint">
+    <h2>Gegevens</h2>
+    <p class="toelichting">
+      Vul elk bedrag in als positief getal; bij een aftrekpost of een schuld trekt de tool het
+      zelf af. Alleen een verlies uit onderneming of een negatieve correctie vul je met een
+      minteken in. Opslaan als bestand bewaart de invoer op een plek die u zelf kiest; de tool
+      bewaart zelf niets en verstuurt niets.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="naam-0">Naam partner 1</label>
+        <input type="text" id="naam-0" value="Partner 1">
+      </div>
+      <div>
+        <label for="naam-1">Naam partner 2</label>
+        <input type="text" id="naam-1" value="Partner 2">
+      </div>
+      <div>
+        <label for="verrekenjaar">Jaar van de verrekening
+          <span class="bron">alleen een aanduiding; de regels gelden los van het jaar</span></label>
+        <input type="number" id="verrekenjaar" value="2026" min="1950" max="2100" step="1">
+      </div>
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+    </div>
+  </div>
+
+  <nav class="knoppenbalk noprint" aria-label="Onderdelen">
+    <button type="button" class="tweede tab" data-tab="periodiek">Periodieke verrekening</button>
+    <button type="button" class="tweede tab" data-tab="achterstallig">Achterstallige verrekening</button>
+    <button type="button" class="tweede tab" data-tab="kosten">Kosten van de huishouding</button>
+    <button type="button" class="tweede tab" data-tab="overzicht">Vermogensoverzicht</button>
+  </nav>
+
+  <section id="tab-periodiek" class="tabblad noprint">
+    <div class="kaart">
+      <h2>Periodieke verrekening over één jaar</h2>
+      <p class="toelichting">
+        Het gezamenlijke netto-inkomen min de kosten van de huishouding is wat samen is
+        overgespaard. Ieder heeft recht op de helft (art. 1:135 lid 1 BW). Wat de een al meer
+        heeft dan die helft, betaalt hij aan de ander; vorderingen over en weer vallen tegen
+        elkaar weg (art. 1:137 lid 2 BW).
+      </p>
+      <table id="invoer-periodiek"></table>
+      <div style="margin-top:14px;">
+        <label for="tekortregel">Als de kosten van de huishouding hoger zijn dan het gezamenlijke netto-inkomen
+          <span class="bron">art. 1:84 lid 1 BW, tenzij het beding iets anders regelt</span></label>
+        <select id="tekortregel">
+          <option value="art-1-84" selected>niets overgespaard; het tekort naar verhouding van de vermogens (art. 1:84 lid 1 BW)</option>
+          <option value="gelijk-delen">het tekort bij helfte delen (zoals het bronmodel rekent)</option>
+        </select>
+      </div>
+    </div>
+    <div class="kaart">
+      <h2>Uitkomst periodieke verrekening</h2>
+      <div id="uit-periodiek"></div>
+    </div>
+  </section>
+
+  <section id="tab-achterstallig" class="tabblad noprint verborgen">
+    <div class="kaart">
+      <h2>Achterstallige verrekening over een periode</h2>
+      <p class="toelichting">
+        Is er over een of meer jaren niet verrekend, dan blijft de verplichting bestaan en
+        omvat zij ook wat met het niet-verrekende is belegd (art. 1:141 lid 1 BW). Bij het einde
+        van het huwelijk wordt het aanwezige vermogen vermoed te zijn gevormd uit wat verrekend
+        had moeten worden (art. 1:141 lid 3 BW). De tool rekent met de vermogensgroei van ieder
+        over de periode: het beginvermogen en de correcties zijn het tegenbewijs.
+      </p>
+      <div class="rij">
+        <div>
+          <label for="aanvang">Aanvang van de periode</label>
+          <input type="date" id="aanvang" value="2025-01-01">
+        </div>
+        <div>
+          <label for="peildatum">Peildatum
+            <span class="bron">bij het einde: art. 1:142 lid 1 BW</span></label>
+          <input type="date" id="peildatum" value="2026-01-01">
+        </div>
+        <div>
+          <label for="aanleiding">Aanleiding</label>
+          <select id="aanleiding">
+            <option value="tijdens-huwelijk" selected>inhalen tijdens het huwelijk</option>
+            <option value="echtscheiding">echtscheiding (indiening van het verzoek)</option>
+            <option value="overlijden">overlijden</option>
+            <option value="anders">ander einde (art. 1:142 lid 1 BW)</option>
+          </select>
+        </div>
+      </div>
+      <div id="melding-aanleiding"></div>
+      <table id="invoer-achterstallig"></table>
+    </div>
+    <div class="kaart">
+      <h2>Uitkomst achterstallige verrekening</h2>
+      <div id="uit-achterstallig"></div>
+    </div>
+  </section>
+
+  <section id="tab-kosten" class="tabblad noprint verborgen">
+    <div class="kaart">
+      <h2>Kosten van de huishouding: begroting</h2>
+      <p class="toelichting">
+        Een schatting van de kosten per jaar. Neem het totaal over in de periodieke
+        verrekening als betaalde kosten van degene die ze droeg.
+      </p>
+      <table id="invoer-begroting"></table>
+      <div id="uit-begroting" style="margin-top:12px;"></div>
+    </div>
+    <div class="kaart">
+      <h2>Kosten van de huishouding: afgeleid uit het vermogen</h2>
+      <p class="toelichting">
+        Wat een partner binnenkreeg, min wat hij overhield en wat hij persoonlijk uitgaf, is
+        aan de huishouding besteed. Een volledige vermogensvergelijking geeft het meest
+        betrouwbare bedrag; is die bezwaarlijk, dan kan een schatting volstaan.
+      </p>
+      <table id="invoer-afleiding"></table>
+      <div id="uit-afleiding" style="margin-top:12px;"></div>
+    </div>
+  </section>
+
+  <section id="tab-overzicht" class="tabblad noprint verborgen">
+    <div class="kaart">
+      <h2>Vermogensoverzicht</h2>
+      <p class="toelichting">
+        Het vermogen van ieder en de verrekenvorderingen uit eerdere jaren die nog niet zijn
+        voldaan. Over die vorderingen rekent de tool geen rente. De totalen dienen ook voor de
+        verdeling van een tekort in de periodieke verrekening (art. 1:84 lid 1 BW).
+      </p>
+      <div class="rij">
+        <div>
+          <label for="overzicht-jaar">Jaar van het overzicht</label>
+          <input type="number" id="overzicht-jaar" value="2026" min="1950" max="2100" step="1">
+        </div>
+      </div>
+      <table id="invoer-overzicht"></table>
+      <h2 style="margin-top:18px;">Verrekenvorderingen uit eerdere jaren</h2>
+      <p class="toelichting">
+        Plus: partner 1 heeft een vordering op partner 2. Min: partner 1 is aan partner 2
+        verschuldigd. De positie van partner 2 is het tegengestelde.
+      </p>
+      <table id="invoer-vorderingen"></table>
+      <button type="button" class="tweede" id="knop-vordering" style="margin-top:10px;">Jaar toevoegen</button>
+    </div>
+    <div class="kaart">
+      <h2>Uitkomst vermogensoverzicht</h2>
+      <div id="uit-overzicht"></div>
+    </div>
+  </section>
+
+  <div class="kaart" id="dossierstuk"></div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// Bron van de wetsartikelen: Burgerlijk Wetboek Boek 1, BWBR0002656, versie 2025-07-05_0
+// (geldend vanaf 05-07-2025), opgehaald uit de KOOP-repository en gecontroleerd tegen de
+// SHA-512 in het manifest (begint met 27e169668196ccf7) op 29-09-2026. De verantwoording
+// staat in BRONNEN.md.
+//
+// Deze tool kent geen jaargebonden bedragen of percentages. De regels hieronder zijn
+// civielrechtelijk en gelden los van het jaar; het verrekenjaar is alleen een aanduiding.
+//
+// Tekenafspraak: elk bedrag wordt als positief getal ingevoerd. Of het optelt of aftrekt
+// volgt uit het veld zelf (TEKEN hieronder), niet uit het minteken dat de gebruiker typt.
+// Een inkomenspost mag negatief zijn (een verlies); een aftrekpost, een betaalde post of een
+// schuld niet.
+
+// Art. 1:135 lid 1 BW: de verrekening geschiedt bij helfte.
+const VERREKENDEEL = 0.5;
+
+// Afronding van de uitkomst op centen. De wet schrijft geen afronding voor; centen is de
+// kleinste eenheid waarin een verrekenvordering in geld (art. 1:137 lid 1 BW) te voldoen is.
+// Een halve cent gaat van nul af, voor een positief en een negatief bedrag gelijk. De kleine
+// toeslag vangt de binaire representatie op, waarin 0,005 net iets minder kan zijn.
+function opCenten(bedrag) {
+  const teken = bedrag < 0 ? -1 : 1;
+  const uit = teken * Math.round(Math.abs(bedrag) * 100 + 1e-6) / 100;
+  return uit === 0 ? 0 : uit;
+}
+
+// ---------------------------------------------------------------------------------------
+// Netto-inkomen van één partner over het verrekenjaar
+// ---------------------------------------------------------------------------------------
+//
+// Welke inkomsten onder het beding vallen, bepaalt het beding zelf (art. 1:132 lid 2 BW:
+// van de afdeling kan bij huwelijkse voorwaarden worden afgeweken). De wet bepaalt niet wat
+// inkomsten zijn (HR 6 oktober 2006, ECLI:NL:HR:2006:AX8847). De posten hieronder zijn een
+// eigen keuze die aansluit bij de opbouw van het bronmodel: bruto
+// inkomsten, verminderd met de daaraan toe te rekenen inkomstenbelasting, premies en rente.
+// Geen wettelijke opbouw: de gebruiker toetst haar aan het beding.
+//
+// teken +1: telt op; teken -1: wordt afgetrokken en moet als positief bedrag worden
+// ingevoerd.
+const INKOMENSPOSTEN = [
+  { sleutel: 'winst', label: 'Winst uit onderneming (kapitaalrekening)', teken: 1,
+    // Art. 1:141 lid 5 BW: bij een onderneming op eigen naam telt de niet-onttrokken winst
+    // mee voor zover dat in het maatschappelijk verkeer als redelijk wordt beschouwd.
+    // Of het fiscale winstbegrip geldt, hangt af van het beding; een uitleg die bij een
+    // beding dat aansluit bij de belastingwetgeving het fiscale begrip volgt, is niet
+    // onbegrijpelijk (HR 3 september 2010, ECLI:NL:HR:2010:BM6085).
+    toelichting: 'Sluit het beding niet aan bij het fiscale winstbegrip, laat dan fiscale posten zonder werkelijke inkomsten weg, zoals investeringsaftrek of willekeurige afschrijving.' },
+  { sleutel: 'bvWinst', label: 'Niet-uitgekeerde winst eigen BV, voor zover redelijk', teken: 1,
+    // Art. 1:141 lid 4 BW.
+    toelichting: 'Art. 1:141 lid 4 BW: alleen als het beding ondernemingswinsten omvat en de partner in overwegende mate bepaalt of de winst hem ten goede komt.' },
+  { sleutel: 'arbeid', label: 'Inkomsten uit arbeid, pensioen en lijfrente', teken: 1 },
+  { sleutel: 'vermogen', label: 'Inkomsten uit vermogen', teken: 1,
+    // Art. 1:133 lid 2 BW: vruchten van geërfd of geschonken vermogen vallen buiten de
+    // verrekening.
+    toelichting: 'Niet de vruchten van geërfd of geschonken vermogen (art. 1:133 lid 2 BW), en alleen als het beding vermogensinkomsten omvat.' },
+  { sleutel: 'overig', label: 'Overige inkomsten', teken: 1 },
+  { sleutel: 'ib', label: 'Inkomstenbelasting toe te rekenen aan deze inkomsten', teken: -1,
+    // Eigen keuze, geen wettelijke regel: alleen de belasting die op de te verrekenen
+    // inkomsten drukt.
+    toelichting: 'Alleen de belasting die op deze inkomsten drukt. Of belasting over vermogen (box 3) er ook af gaat, bepaalt het beding.' },
+  { sleutel: 'aov', label: 'Premie arbeidsongeschiktheidsverzekering', teken: -1 },
+  { sleutel: 'pensioen', label: 'Pensioenpremies', teken: -1 },
+  { sleutel: 'lijfrente', label: 'Lijfrentepremies', teken: -1 },
+  { sleutel: 'rente', label: 'Betaalde en bijgeschreven rente op schulden', teken: -1 },
+];
+
+function nettoInkomen(posten) {
+  let totaal = 0;
+  const regels = INKOMENSPOSTEN.map(function (post) {
+    const bedrag = Number(posten && posten[post.sleutel]) || 0;
+    const bijdrage = post.teken * bedrag;
+    totaal += bijdrage;
+    return { sleutel: post.sleutel, label: post.label, bedrag: bedrag, bijdrage: bijdrage };
+  });
+  return { totaal: totaal, regels: regels };
+}
+
+// ---------------------------------------------------------------------------------------
+// Invoercontrole
+// ---------------------------------------------------------------------------------------
+
+function isGetal(waarde) {
+  return typeof waarde === 'number' && isFinite(waarde);
+}
+
+// Geeft een lijst meldingen; een melding met ernst 'fout' blokkeert de uitkomst.
+function controleerBedragen(velden, bron, waar) {
+  const meldingen = [];
+  velden.forEach(function (veld) {
+    const waarde = bron ? bron[veld.sleutel] : undefined;
+    if (waarde === undefined || waarde === null || waarde === '') return;
+    if (!isGetal(waarde)) {
+      meldingen.push({ ernst: 'fout', tekst: waar + ', ' + veld.label + ': geen geldig bedrag.' });
+    } else if (veld.teken === -1 && waarde < 0) {
+      meldingen.push({ ernst: 'fout', tekst: waar + ', ' + veld.label +
+        ': vul dit als positief bedrag in. De tool trekt het zelf af.' });
+    } else if (veld.nietNegatief && waarde < 0) {
+      meldingen.push({ ernst: 'fout', tekst: waar + ', ' + veld.label +
+        ': een negatief bedrag is hier niet mogelijk.' });
+    }
+  });
+  return meldingen;
+}
+
+function bedrag(waarde) {
+  return isGetal(waarde) ? waarde : 0;
+}
+
+// ---------------------------------------------------------------------------------------
+// Periodieke verrekening over één jaar
+// ---------------------------------------------------------------------------------------
+//
+// Opbouw:
+// - overgespaard inkomen van beide samen = gezamenlijk netto-inkomen min de kosten van de
+//   huishouding;
+// - ieder heeft recht op de helft daarvan (art. 1:135 lid 1 BW) en de verplichting is
+//   wederkerig (art. 1:133 lid 1 BW);
+// - aan ieder is al toegekomen: het eigen netto-inkomen min wat hij aan de huishouding
+//   heeft betaald;
+// - de verrekenvorderingen over en weer worden van rechtswege verrekend tot het
+//   gemeenschappelijk beloop (art. 1:137 lid 2 BW), dus er resteert één verrekenbedrag;
+// - voorgeschoten bedragen (de een betaalde een persoonlijke post van de ander) en, bij
+//   een tekort, de vordering uit de draagplicht zijn geen verrekenvorderingen. Art. 1:137
+//   lid 2 BW draagt hun saldering niet. De tool telt ze op tot één saldo als rekenkundige
+//   samenvatting van wat over en weer openstaat; of partijen ze werkelijk verrekenen, is
+//   aan hen.
+//
+// Wie de kosten van de huishouding feitelijk betaalde maakt binnen deze berekening niet uit
+// zolang er iets is overgespaard: de helft van het gezamenlijke overschot is hetzelfde,
+// en wat de een te veel betaalde komt terug via "reeds toegekomen". Het beding kan een
+// draagplicht naast de verrekenplicht regelen; die vallen dan niet zonder meer tegen
+// elkaar weg (HR 8 maart 2024, ECLI:NL:HR:2024:338). Is er niets overgespaard, dan telt de
+// draagplicht wel; zie tekortRegel hieronder.
+//
+// Wat onder inkomsten valt is uitleg van het beding naar de Haviltex-maatstaf (HR 6 oktober
+// 2006, ECLI:NL:HR:2006:AX8847). Bij een beding over "zuivere inkomsten" die aan de
+// huishouding konden worden besteed, is een niet-gerealiseerde waardestijging geen inkomen
+// (HR 2 september 2005, ECLI:NL:HR:2005:AT4537); dat is uitleg van dat beding, geen
+// algemene regel.
+//
+// tekortRegel bepaalt wat er gebeurt als de kosten van de huishouding hoger zijn dan het
+// gezamenlijke netto-inkomen:
+// - 'art-1-84': er is niets overgespaard, dus er valt niets te verrekenen. Het tekort
+//   komt ten laste van de eigen vermogens naar evenredigheid daarvan (art. 1:84 lid 1 BW,
+//   tweede deel van de eerste volzin). Daarvoor zijn de vermogens van beide partners nodig.
+//   Welk vermogen en op welk moment, zegt de wet niet; de tool neemt als eigen keuze het
+//   totaal uit het vermogensoverzicht, met de verrekenposities uit eerdere jaren. Is het
+//   tekort groter dan de vermogens samen, dan geeft art. 1:84 lid 1 BW geen verdeling meer.
+//   Bij een beding gelijk aan art. 1:84 achtte de HR het betoog dat de aanvullende werking
+//   van redelijkheid en billijkheid dan tot een draagplicht bij helfte leidt, een stelling
+//   waarop moest worden ingegaan (HR 4 oktober 2019, ECLI:NL:HR:2019:1532). De tool rekent
+//   dat geval niet. Het voorbehoud van
+//   bijzondere omstandigheden (art. 1:84 lid 1, slot) beoordeelt zij evenmin.
+// - 'gelijk-delen': het tekort wordt bij helfte gedeeld, alsof het een negatief overschot
+//   is. Zo rekent het bronmodel; de tool biedt het alleen voor de vergelijking.
+const TEKORTREGELS = ['art-1-84', 'gelijk-delen'];
+
+const BETAALDE_POSTEN = [
+  { sleutel: 'kostenHuishouding', label: 'Betaalde kosten van de huishouding', nietNegatief: true },
+  { sleutel: 'voorgeschoten', label: 'Betaalde persoonlijke posten van de andere partner', nietNegatief: true },
+];
+
+function berekenPeriodiek(invoer, opties) {
+  const tekortRegel = (opties && opties.tekortRegel) || 'art-1-84';
+  const meldingen = [];
+  if (TEKORTREGELS.indexOf(tekortRegel) < 0) {
+    return { meldingen: [{ ernst: 'fout', tekst: 'Onbekende regel voor een tekort: ' + tekortRegel }] };
+  }
+  const partners = (invoer && invoer.partners) || [];
+  if (partners.length !== 2) {
+    return { meldingen: [{ ernst: 'fout', tekst: 'Er horen precies twee partners te zijn.' }] };
+  }
+  partners.forEach(function (p, i) {
+    const naam = p.naam || ('Partner ' + (i + 1));
+    meldingen.push.apply(meldingen, controleerBedragen(INKOMENSPOSTEN, p.posten, naam));
+    meldingen.push.apply(meldingen, controleerBedragen(BETAALDE_POSTEN, p, naam));
+  });
+  if (meldingen.some(function (m) { return m.ernst === 'fout'; })) return { meldingen: meldingen };
+
+  const netto = partners.map(function (p) { return nettoInkomen(p.posten); });
+  const kosten = partners.map(function (p) { return bedrag(p.kostenHuishouding); });
+  const voorgeschoten = partners.map(function (p) { return bedrag(p.voorgeschoten); });
+
+  const gezamenlijkInkomen = netto[0].totaal + netto[1].totaal;
+  const kostenHuishouding = kosten[0] + kosten[1];
+  const overschot = gezamenlijkInkomen - kostenHuishouding;
+  // Per saldo voorgeschoten door partner 1 aan partner 2 (negatief: andersom).
+  const voorschotSaldo = voorgeschoten[0] - voorgeschoten[1];
+
+  let overgespaard, aandeel, vordering1, tekort = null;
+  const reedsToegekomen = [netto[0].totaal - kosten[0], netto[1].totaal - kosten[1]];
+
+  if (overschot >= 0 || tekortRegel === 'gelijk-delen') {
+    overgespaard = overschot;
+    aandeel = VERREKENDEEL * overgespaard;
+    vordering1 = aandeel - reedsToegekomen[0] + voorschotSaldo;
+    if (overschot < 0) {
+      meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
+        'Het tekort is hier bij helfte gedeeld, zoals het bronmodel doet. Volgens art. 1:84 lid 1 BW komt een tekort ten laste van de eigen vermogens naar evenredigheid daarvan, tenzij het beding iets anders zegt.' });
+    }
+  } else {
+    // Art. 1:84 lid 1 BW. De inkomens zijn volledig aan de huishouding opgegaan; het tekort
+    // komt ten laste van de eigen vermogens naar evenredigheid daarvan.
+    overgespaard = 0;
+    aandeel = 0;
+    const vermogens = (invoer && invoer.vermogens) || [];
+    const v = [vermogens[0], vermogens[1]];
+    if (netto[0].totaal < 0 || netto[1].totaal < 0) {
+      meldingen.push({ ernst: 'fout', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen en een van de partners heeft een negatief netto-inkomen. ' +
+        'Hoe het tekort dan wordt gedragen volgt uit het beding en art. 1:84 lid 1 BW, maar niet eenduidig uit een rekenregel. De tool rekent dit niet uit.' });
+      return { meldingen: meldingen };
+    }
+    if (!isGetal(v[0]) || !isGetal(v[1]) || v[0] < 0 || v[1] < 0 || v[0] + v[1] <= 0) {
+      meldingen.push({ ernst: 'fout', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
+        'Er is dan niets overgespaard en het tekort komt ten laste van de eigen vermogens naar evenredigheid daarvan (art. 1:84 lid 1 BW). ' +
+        'Vul daarvoor op het blad Vermogensoverzicht het vermogen van beide partners in (samen meer dan nul, geen van beide negatief).' });
+      return { meldingen: meldingen };
+    }
+    const tekortBedrag = -overschot;
+    if (tekortBedrag > v[0] + v[1]) {
+      meldingen.push({ ernst: 'fout', tekst: 'Het tekort is groter dan de vermogens van beide partners samen. ' +
+        'Art. 1:84 lid 1 BW geeft dan geen verdeling meer. Bij een beding gelijk aan art. 1:84 achtte de Hoge Raad het betoog dat redelijkheid en billijkheid dan tot een draagplicht bij helfte leiden, een stelling waarop moest worden ingegaan (HR 4 oktober 2019, ECLI:NL:HR:2019:1532). ' +
+        'De tool rekent dit niet uit.' });
+      return { meldingen: meldingen };
+    }
+    const deel = [v[0] / (v[0] + v[1]), v[1] / (v[0] + v[1])];
+    const draagplicht = [netto[0].totaal + deel[0] * tekortBedrag, netto[1].totaal + deel[1] * tekortBedrag];
+    tekort = { bedrag: tekortBedrag, vermogens: v, deel: deel, draagplicht: draagplicht };
+    // Wat partner 1 meer betaalde dan zijn draagplicht, krijgt hij terug.
+    vordering1 = kosten[0] - draagplicht[0] + voorschotSaldo;
+    meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
+      'Er is niets overgespaard; het tekort is verdeeld naar verhouding van de vermogens (art. 1:84 lid 1 BW). Controleer of het beding iets anders zegt en of bijzondere omstandigheden zich tegen deze verdeling verzetten.' });
+  }
+
+  const vordering2 = -vordering1;
+  const uitkomst = uitkomstVanVordering(vordering1, partners);
+
+  return {
+    meldingen: meldingen,
+    tekortRegel: tekortRegel,
+    netto: netto,
+    kosten: kosten,
+    voorgeschoten: voorgeschoten,
+    gezamenlijkInkomen: gezamenlijkInkomen,
+    kostenHuishouding: kostenHuishouding,
+    overschot: overschot,
+    overgespaard: overgespaard,
+    aandeel: aandeel,
+    reedsToegekomen: reedsToegekomen,
+    voorschotSaldo: voorschotSaldo,
+    vordering: [vordering1, vordering2],
+    tekort: tekort,
+    uitkomst: uitkomst,
+  };
+}
+
+// Eén saldo van de een aan de ander, op centen. Voor de verrekenvorderingen zelf volgt dat
+// uit art. 1:137 lid 2 BW; voor voorschotten en draagplicht is het een samenvatting.
+function uitkomstVanVordering(vordering1, partners) {
+  const naam = function (i) { return (partners[i] && partners[i].naam) || ('Partner ' + (i + 1)); };
+  const afgerond = opCenten(vordering1);
+  if (afgerond === 0) return { schuldenaar: null, schuldeiser: null, bedrag: 0, tekst: 'Er valt niets te verrekenen.' };
+  const schuldenaar = afgerond > 0 ? 1 : 0;
+  const schuldeiser = 1 - schuldenaar;
+  const bedragUit = Math.abs(afgerond);
+  return {
+    schuldenaar: schuldenaar, schuldeiser: schuldeiser, bedrag: bedragUit,
+    tekst: naam(schuldenaar) + ' is aan ' + naam(schuldeiser) + ' verschuldigd',
+  };
+}
+
+// ---------------------------------------------------------------------------------------
+// Achterstallige verrekening over een periode
+// ---------------------------------------------------------------------------------------
+//
+// Is over een tijdvak niet afgerekend, dan blijft de verplichting over dat tijdvak bestaan
+// en strekt zij zich uit over wat met het niet-verrekende is belegd en herbelegd, en over
+// de vruchten daarvan (art. 1:141 lid 1 BW). Is bij het einde van het huwelijk niet
+// voldaan, dan wordt het dan aanwezige vermogen vermoed te zijn gevormd uit wat verrekend
+// had moeten worden, tenzij redelijkheid en billijkheid anders meebrengen (art. 1:141 lid 3
+// BW). De tool benadert dat met de vermogensgroei van ieder over de periode:
+// eindvermogen min beginvermogen, verminderd met wat buiten de verrekening valt (erfenis
+// en schenking, art. 1:133 lid 2 BW) en vermeerderd of verminderd met een eigen correctie.
+// Het beginvermogen is daarmee het tegenbewijs tegen het vermoeden voor vermogen van vóór
+// de periode. Het vermoeden gaat alleen over de vraag of het vermogen is gefinancierd uit
+// wat verrekend had moeten worden (HR 8 juni 2012, ECLI:NL:HR:2012:BV9605); dat een
+// waardestijging van zo gefinancierd vermogen meedeelt, volgt uit het verrekenbeding en de
+// beleggingsleer (art. 1:141 lid 1 BW; BV9605), niet uit het vermoeden. Wie het vermoeden wil weerleggen
+// moet dat stellen en zo nodig bewijzen; wie verrekening vraagt moet de omvang en waarde
+// stellen en zo nodig bewijzen, eventueel met een beschrijving (art. 1:143 BW; HR 19 april
+// 2019, ECLI:NL:HR:2019:637). De tool rekent met de bedragen die de gebruiker invult en
+// oordeelt niet over dat bewijs. De wet
+// schrijft geen rekenmethode voor en de rechter begroot (HR 13 maart 2020,
+// ECLI:NL:HR:2020:417): de vermogensgroei is één toelaatbare benadering, niet de enige.
+const VERMOGENSPOSTEN = [
+  { sleutel: 'onderneming', label: 'Kapitaalrekening onderneming en reserves BV', teken: 1 },
+  // Eigen keuze van de gebruiker, geen regel van de tool: of en hoe latente belasting van
+  // de waarde afgaat, is niet met een vindplaats vastgesteld (OPENSTAAND.md). Leeg telt als
+  // nul, en dan rekent de tool zonder aftrek.
+  { sleutel: 'abClaim', label: 'Latente belasting aanmerkelijk belang (AB-claim), als u die aftrekt', teken: -1 },
+  { sleutel: 'bank', label: 'Bankrekeningen', teken: 1 },
+  { sleutel: 'effecten', label: 'Effecten', teken: 1 },
+  { sleutel: 'kapitaalverzekering', label: 'Kapitaalverzekering', teken: 1 },
+  { sleutel: 'woning', label: 'Woning', teken: 1 },
+  { sleutel: 'overigBezit', label: 'Overige bezittingen', teken: 1 },
+  { sleutel: 'hypotheek', label: 'Woninghypotheek', teken: -1 },
+  { sleutel: 'overigeSchulden', label: 'Overige schulden', teken: -1 },
+];
+
+const CORRECTIEPOSTEN = [
+  // Premies voor een verzekering op het leven van de andere partner, betaald uit te
+  // verrekenen inkomen. Door ze bij de vermogensgroei van de betaler op te tellen, draagt de
+  // betaler ze rekenkundig uit zijn eigen helft en niet uit het gezamenlijk overgespaarde.
+  // Dit volgt de opbouw van het bronmodel en is een eigen keuze. De achtergrond is art. 13
+  // lid 1 Successiewet 1956 (een uitkering bij overlijden geldt als erfrechtelijke
+  // verkrijging voor zover zij is toe te rekenen aan een onttrekking aan het vermogen van de
+  // overledene), maar of deze correctie dat fiscale gevolg ook heeft, is niet met een bron
+  // vastgesteld en beoordeelt de tool niet (OPENSTAAND.md). De correctie werkt alleen in de
+  // achterstallige verrekening.
+  { sleutel: 'risicopremies', label: 'Risicopremies op het leven van de andere partner', teken: 1 },
+  // Art. 1:133 lid 2 BW: geen verrekening van wat krachtens erfrecht of gift is verkregen,
+  // met de vruchten en de zaaksvervanging daarvan.
+  { sleutel: 'erfenisSchenking', label: 'Ontvangen erfenissen en schenkingen, met de vruchten daarvan', teken: -1 },
+  // Een eigen correctie, positief of negatief. Bijvoorbeeld waardegroei van vermogen dat
+  // aantoonbaar niet uit te verrekenen inkomsten komt (tegenbewijs, art. 1:141 lid 3 BW).
+  { sleutel: 'overigeCorrectie', label: 'Overige correcties (plus of min)', teken: 0 },
+];
+
+function vermogenTotaal(posten) {
+  let totaal = 0;
+  VERMOGENSPOSTEN.forEach(function (post) {
+    totaal += post.teken * bedrag(posten && posten[post.sleutel]);
+  });
+  return totaal;
+}
+
+function berekenAchterstallig(invoer) {
+  const meldingen = [];
+  const partners = (invoer && invoer.partners) || [];
+  if (partners.length !== 2) {
+    return { meldingen: [{ ernst: 'fout', tekst: 'Er horen precies twee partners te zijn.' }] };
+  }
+  if (invoer.aanvang && invoer.peildatum && invoer.peildatum <= invoer.aanvang) {
+    meldingen.push({ ernst: 'fout', tekst: 'De peildatum ligt niet na de aanvang van de periode.' });
+  }
+  partners.forEach(function (p, i) {
+    const naam = p.naam || ('Partner ' + (i + 1));
+    meldingen.push.apply(meldingen, controleerBedragen(VERMOGENSPOSTEN, p.begin, naam + ', begin'));
+    meldingen.push.apply(meldingen, controleerBedragen(VERMOGENSPOSTEN, p.eind, naam + ', eind'));
+    meldingen.push.apply(meldingen, controleerBedragen(CORRECTIEPOSTEN, p.correcties, naam));
+  });
+  if (meldingen.some(function (m) { return m.ernst === 'fout'; })) return { meldingen: meldingen };
+
+  const perPartner = partners.map(function (p) {
+    const begin = vermogenTotaal(p.begin);
+    const eind = vermogenTotaal(p.eind);
+    const mutatie = eind - begin;
+    const posten = VERMOGENSPOSTEN.map(function (post) {
+      const b = bedrag(p.begin && p.begin[post.sleutel]);
+      const e = bedrag(p.eind && p.eind[post.sleutel]);
+      return { sleutel: post.sleutel, label: post.label, begin: b, eind: e, mutatie: post.teken * (e - b) };
+    });
+    let correctie = 0;
+    CORRECTIEPOSTEN.forEach(function (post) {
+      const w = bedrag(p.correcties && p.correcties[post.sleutel]);
+      correctie += (post.teken === 0 ? 1 : post.teken) * w;
+    });
+    return { begin: begin, eind: eind, mutatie: mutatie, correctie: correctie,
+      teVerrekenen: mutatie + correctie, posten: posten };
+  });
+
+  const totaal = perPartner[0].teVerrekenen + perPartner[1].teVerrekenen;
+  const aandeel = VERREKENDEEL * totaal;
+  const vordering1 = aandeel - perPartner[0].teVerrekenen;
+
+  if (totaal < 0) {
+    meldingen.push({ ernst: 'let op', tekst: 'Het vermogen van beide partners samen is over de periode gedaald. ' +
+      'De tool deelt die daling bij helfte, zoals het bronmodel doet. De wet zegt niet uitdrukkelijk of een daling wordt gedeeld; beoordeel of het beding dat meebrengt.' });
+  }
+
+  return {
+    meldingen: meldingen,
+    perPartner: perPartner,
+    totaal: totaal,
+    aandeel: aandeel,
+    vordering: [vordering1, -vordering1],
+    uitkomst: uitkomstVanVordering(vordering1, partners),
+  };
+}
+
+// ---------------------------------------------------------------------------------------
+// Kosten van de huishouding
+// ---------------------------------------------------------------------------------------
+//
+// Twee manieren om het bedrag vast te stellen dat in de periodieke verrekening wordt
+// gebruikt: een begroting van de kosten, of een afleiding per partner uit de
+// vermogensvergelijking (wat binnenkwam, min wat er bleef en wat persoonlijk werd
+// uitgegeven, is aan de huishouding besteed). De tool rekent beide; welke de gebruiker
+// kiest, blijft zijn keuze.
+const BEGROTINGSPOSTEN = [
+  'Huur woning', 'Onderhoud woning', 'Hypotheekrente', 'Gemeentelijke heffingen',
+  'Waterschapsbelasting', 'Gas, water en elektra', 'Opstal- en inboedelverzekering',
+  'Overige verzekeringen', 'Zorgverzekering en eigen risico', 'Overige ziektekosten',
+  'Abonnementen en contributies', 'Telefoon, internet en televisie',
+  'Kinderen (zakgeld, opvang, studie)', 'Auto, inclusief eigen bijdrage auto van de zaak',
+  'Vakanties', 'Kleding', 'Boodschappen', 'Uit eten', 'Persoonlijke verzorging', 'Overige',
+];
+
+function begrotingTotaal(bedragen) {
+  let totaal = 0;
+  (bedragen || []).forEach(function (b) { totaal += bedrag(b); });
+  return totaal;
+}
+
+// Begin- en eindvermogen mogen negatief zijn (meer schulden dan bezit); de overige posten
+// zijn bedragen die binnenkwamen of werden uitgegeven.
+const AFLEIDINGSPOSTEN = [
+  { sleutel: 'beginvermogen', label: 'Beginvermogen' },
+  { sleutel: 'eindvermogen', label: 'Af: eindvermogen' },
+  { sleutel: 'nettoInkomen', label: 'Bij: netto-inkomen' },
+  { sleutel: 'erfenissen', label: 'Bij: ontvangen erfenissen en schenkingen', nietNegatief: true },
+  { sleutel: 'vermogenswinst', label: 'Bij: vermogenswinsten en vermogensinkomsten (netto)' },
+  { sleutel: 'persoonlijk', label: 'Af: persoonlijke uitgaven', nietNegatief: true },
+];
+
+function afgeleideKosten(p) {
+  return bedrag(p && p.beginvermogen) - bedrag(p && p.eindvermogen) + bedrag(p && p.nettoInkomen)
+    + bedrag(p && p.erfenissen) + bedrag(p && p.vermogenswinst) - bedrag(p && p.persoonlijk);
+}
+
+// ---------------------------------------------------------------------------------------
+// Vermogensoverzicht
+// ---------------------------------------------------------------------------------------
+//
+// Het vermogen van ieder, met de verrekenvorderingen en -schulden uit eerdere jaren die
+// nog niet zijn voldaan. Over die vorderingen rekent de tool geen rente. Dat is een
+// afbakening en geen regel. Wordt de periodieke verrekening niet nagekomen, dan ontstaat
+// bij echtscheiding de vordering die daaruit volgt, en wordt zij opeisbaar, bij de indiening
+// van het echtscheidingsverzoek (art. 1:142 lid 1 onder b BW), behoudens andersluidende
+// afspraken; gold voor de periodieke verrekening een termijn (art. 6:83 onder a BW), dan is
+// de verrekenplichtige vanaf dat moment zonder ingebrekestelling in verzuim en loopt de
+// wettelijke rente (HR 2 december 2011, ECLI:NL:HR:2011:BU6591). Of er rente loopt
+// over jaartermijnen tijdens het huwelijk, beslist dat arrest niet. De rente bij uitstel
+// van betaling (art. 1:140 lid 1 BW) bepaalt de rechter op verzoek.
+const OVERZICHTPOSTEN = [
+  { sleutel: 'woning', label: 'Woning', teken: 1 },
+  { sleutel: 'hypotheek', label: 'Hypotheek woning', teken: -1 },
+  { sleutel: 'kapitaalverzekering', label: 'Kapitaalverzekering', teken: 1 },
+  { sleutel: 'bank', label: 'Bank- en spaarrekeningen', teken: 1 },
+  { sleutel: 'effecten', label: 'Effecten', teken: 1 },
+  { sleutel: 'onderneming', label: 'Ondernemingsvermogen IB (kapitaalrekening)', teken: 1 },
+  { sleutel: 'bv', label: 'BV (intrinsieke waarde)', teken: 1 },
+  { sleutel: 'overigBezit', label: 'Overige bezittingen', teken: 1 },
+  { sleutel: 'overigeSchulden', label: 'Overige schulden', teken: -1 },
+];
+
+// vorderingen: lijst { jaar, bedrag } met bedrag positief als partner 1 een vordering op
+// partner 2 heeft, negatief als het andersom is. De positie van partner 2 is het
+// tegengestelde (art. 1:133 lid 1 BW: de verplichting is wederkerig).
+function berekenVermogensoverzicht(invoer) {
+  const meldingen = [];
+  const partners = (invoer && invoer.partners) || [];
+  if (partners.length !== 2) {
+    return { meldingen: [{ ernst: 'fout', tekst: 'Er horen precies twee partners te zijn.' }] };
+  }
+  partners.forEach(function (p, i) {
+    meldingen.push.apply(meldingen, controleerBedragen(OVERZICHTPOSTEN, p.posten, (p.naam || ('Partner ' + (i + 1)))));
+  });
+  const vorderingen = (invoer.vorderingen || []).filter(function (r) { return r && isGetal(r.bedrag) && r.bedrag !== 0; });
+  (invoer.vorderingen || []).forEach(function (r) {
+    if (r && r.bedrag !== undefined && r.bedrag !== null && r.bedrag !== '' && !isGetal(r.bedrag)) {
+      meldingen.push({ ernst: 'fout', tekst: 'Verrekenvordering ' + (r.jaar || '') + ': geen geldig bedrag.' });
+    }
+  });
+  if (meldingen.some(function (m) { return m.ernst === 'fout'; })) return { meldingen: meldingen };
+
+  const bezit = partners.map(function (p) {
+    let t = 0;
+    OVERZICHTPOSTEN.forEach(function (post) { t += post.teken * bedrag(p.posten && p.posten[post.sleutel]); });
+    return t;
+  });
+  let positie1 = 0;
+  vorderingen.forEach(function (r) { positie1 += r.bedrag; });
+  const positie = [positie1, -positie1];
+  return {
+    meldingen: meldingen,
+    bezit: bezit,
+    verrekenpositie: positie,
+    totaal: [bezit[0] + positie[0], bezit[1] + positie[1]],
+  };
+}
+
+// ---------------------------------------------------------------------------------------
+// Alles in één keer, zoals het scherm, de afdruk en de export het gebruiken
+// ---------------------------------------------------------------------------------------
+//
+// De vermogens voor art. 1:84 lid 1 BW komen uit het vermogensoverzicht: het eigen
+// vermogen van ieder, met de verrekenpositie uit eerdere jaren. Rekent het overzicht niet
+// (een fout in de invoer), dan krijgt de periodieke verrekening geen vermogens en meldt zij
+// dat zelf wanneer zij ze nodig heeft.
+function rekenAlles(invoer) {
+  const namen = (invoer && invoer.namen) || [];
+  const metNamen = function (lijst) {
+    return (lijst || [{}, {}]).map(function (p, i) {
+      return Object.assign({}, p, { naam: namen[i] || ('Partner ' + (i + 1)) });
+    });
+  };
+  const overzicht = berekenVermogensoverzicht({
+    partners: metNamen(invoer.overzicht && invoer.overzicht.partners),
+    vorderingen: invoer.overzicht && invoer.overzicht.vorderingen,
+  });
+  const periodiek = berekenPeriodiek({
+    partners: metNamen(invoer.periodiek && invoer.periodiek.partners),
+    vermogens: overzicht.totaal,
+  }, { tekortRegel: invoer.tekortRegel });
+  const achterstallig = berekenAchterstallig(Object.assign({}, invoer.achterstallig, {
+    partners: metNamen(invoer.achterstallig && invoer.achterstallig.partners),
+  }));
+  const afleiding = (invoer.kosten && invoer.kosten.afleiding) || [{}, {}];
+  const kostenMeldingen = [];
+  afleiding.forEach(function (a, i) {
+    kostenMeldingen.push.apply(kostenMeldingen,
+      controleerBedragen(AFLEIDINGSPOSTEN, a, namen[i] || ('Partner ' + (i + 1))));
+  });
+  const kosten = {
+    meldingen: kostenMeldingen,
+    begroting: begrotingTotaal(invoer.kosten && invoer.kosten.begroting),
+    afgeleid: afleiding.map(afgeleideKosten),
+  };
+  return { periodiek: periodiek, achterstallig: achterstallig, kosten: kosten, overzicht: overzicht };
+}
+// FISCALE KERN — EINDE
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Pure functies zonder DOM; zij gebruiken de
+// uitkomst van rekenAlles en rekenen zelf niets, zodat scherm, afdruk en export dezelfde
+// getallen tonen.
+
+const TOOL_ID = 'verrekenbeding';
+const TOOLNAAM = 'Periodiek verrekenbeding';
+const TOOLVERSIE = '0.1.0';
+const TOOLDATUM = '2026-09-29';
+// Versie van het formaat van het dossierbestand, los van de toolversie.
+const DOSSIERFORMAAT = 1;
+
+const TEKORTREGEL_LABELS = {
+  'art-1-84': 'tekort naar verhouding van de vermogens (art. 1:84 lid 1 BW)',
+  'gelijk-delen': 'tekort bij helfte delen (zoals het bronmodel)',
+};
+
+const AANLEIDINGEN = {
+  'tijdens-huwelijk': 'inhalen tijdens het huwelijk (art. 1:141 lid 1 BW)',
+  'echtscheiding': 'echtscheiding: peildatum is de indiening van het verzoek (art. 1:142 lid 1 onder b BW)',
+  'overlijden': 'overlijden: peildatum is de dag van overlijden (art. 1:142 lid 1 onder a BW)',
+  'anders': 'ander einde, zie art. 1:142 lid 1 BW',
+};
+
+const VINDPLAATSEN = [
+  'Art. 1:132 BW: de afdeling geldt voor verrekenbedingen; van de meeste regels kan bij huwelijkse voorwaarden worden afgeweken. De tekst van het beding is leidend.',
+  'Art. 1:133 lid 1 BW: de verrekenplicht is wederkerig. Lid 2: erfenissen, schenkingen en de vruchten daarvan vallen buiten de verrekening.',
+  'Art. 1:135 lid 1 BW: verrekening bij helfte.',
+  'Art. 1:137 lid 1 en lid 2 BW: verrekening in geld; verrekenvorderingen over en weer vallen van rechtswege tegen elkaar weg. Voorschotten en een vordering uit de draagplicht telt de tool bij dat saldo op als samenvatting; art. 1:137 lid 2 BW geldt daarvoor niet.',
+  'Art. 1:84 lid 1 BW: de kosten van de huishouding komen ten laste van het gemene inkomen, dan van de eigen inkomens naar evenredigheid, dan van het gemene vermogen en ten slotte van de eigen vermogens naar evenredigheid, tenzij bijzondere omstandigheden zich daartegen verzetten. Afwijken kan bij schriftelijke overeenkomst (lid 3). Welk vermogen daarbij telt zegt de wet niet; de tool neemt het totaal uit het vermogensoverzicht.',
+  'Is het tekort groter dan de vermogens samen, dan geeft art. 1:84 lid 1 BW geen verdeling meer. Bij een beding gelijk aan art. 1:84 achtte de Hoge Raad het betoog dat redelijkheid en billijkheid dan tot een draagplicht bij helfte leiden, een stelling waarop moest worden ingegaan: HR 4 oktober 2019, ECLI:NL:HR:2019:1532. De tool rekent dat geval niet.',
+  'Art. 1:141 lid 1 BW: is over een tijdvak niet verrekend, dan blijft de plicht bestaan en omvat zij ook wat daarmee is belegd en herbelegd, met de vruchten.',
+  'Art. 1:141 lid 3 BW: bij het einde van het huwelijk wordt het aanwezige vermogen vermoed te zijn gevormd uit wat verrekend had moeten worden, tenzij uit redelijkheid en billijkheid in het licht van de aard en omvang van de verrekenplicht anders voortvloeit.',
+  'Art. 1:141 lid 4 en lid 5 BW: bij een beding dat ook ondernemingswinsten omvat, telt niet-uitgekeerde winst mee van een BV waarvan de partner in overwegende mate bepaalt of de winst hem ten goede komt, en niet-onttrokken winst van een eigen onderneming, voor zover in het maatschappelijk verkeer als redelijk beschouwd.',
+  'Art. 1:142 lid 1 BW: peildatum voor samenstelling en omvang van het te verrekenen vermogen bij het einde; voor de gevallen onder b tot en met f kan schriftelijk worden afgeweken (lid 2).',
+  'Uitleg van het beding naar de Haviltex-maatstaf; de wet bepaalt niet wat inkomsten zijn: HR 6 oktober 2006, ECLI:NL:HR:2006:AX8847. Bij een beding over zuivere inkomsten is een niet-gerealiseerde waardestijging geen inkomen: HR 2 september 2005, ECLI:NL:HR:2005:AT4537 (uitleg van dat beding).',
+  'Het vermoeden van art. 1:141 lid 3 BW gaat alleen over de vraag of het vermogen uit te verrekenen middelen is gefinancierd: HR 8 juni 2012, ECLI:NL:HR:2012:BV9605. Een waardestijging deelt mee via het verrekenbeding en de beleggingsleer (art. 1:141 lid 1 BW; BV9605). Wie verrekening vraagt stelt en bewijst zo nodig omvang en waarde, eventueel met een beschrijving (art. 1:143 BW); wie het vermoeden weerlegt stelt en bewijst dat: HR 19 april 2019, ECLI:NL:HR:2019:637. Er is geen voorgeschreven rekenmethode; de rechter begroot: HR 13 maart 2020, ECLI:NL:HR:2020:417.',
+  'Art. 13 lid 1 Successiewet 1956: een uitkering uit een levensverzekering bij overlijden geldt als erfrechtelijke verkrijging voor zover zij is toe te rekenen aan een onttrekking aan het vermogen van de overledene. De tool telt risicopremies op het leven van de ander bij de betaler; dat is een eigen keuze, en of het dit fiscale gevolg heeft beoordeelt zij niet.',
+  'Wettekst: BW Boek 1, BWBR0002656, versie geldend vanaf 05-07-2025, en Successiewet 1956, BWBR0002226, versie geldend vanaf 01-01-2026, beide gecontroleerd op 29-09-2026.',
+];
+
+const AFBAKENING = [
+  'De tool volgt een gebruikelijke opbouw van een periodiek verrekenbeding van overgespaarde inkomsten; die opbouw is een eigen keuze en geen wettelijke. Wat onder inkomsten valt en hoe de kosten van de huishouding worden gedragen, bepaalt het beding zelf; lees de tekst van het beding na.',
+  'De tool beoordeelt niet welke goederen tot het te verrekenen vermogen horen (art. 1:136 BW) en rekent geen gemengd gefinancierde goederen uit. Vul de bedragen daarvoor zelf in.',
+  'De tool rekent geen rente en geen betaling in termijnen (art. 1:140 BW). Wordt de periodieke verrekening niet nagekomen en gold er een termijn, dan kan vanaf de indiening van het echtscheidingsverzoek zonder ingebrekestelling wettelijke rente lopen over de vordering die dan ontstaat (HR 2 december 2011, ECLI:NL:HR:2011:BU6591).',
+  'De achterstallige verrekening benadert de verrekenplicht met de vermogensgroei over de periode. Een beginvermogen of een correctie is het tegenbewijs tegen het vermoeden van art. 1:141 lid 3 BW; of dat bewijs slaagt, en of de ingevulde waarden vaststaan, beoordeelt de tool niet. Waardegroei van vermogen van vóór de periode of van een erfenis telt mee zolang u haar niet als correctie aftrekt.',
+  'Of een latente belasting (AB-claim) van de waarde afgaat, is uw keuze; de tool legt daarvoor geen regel op.',
+  'Regelt het beding naast de verrekenplicht een draagplicht voor de kosten van de huishouding, dan kan een te veel of te weinig betaalde bijdrage een eigen vordering geven (HR 8 maart 2024, ECLI:NL:HR:2024:338). De tool rekent die niet apart uit wanneer er iets is overgespaard.',
+  'Het vermoeden van art. 1:141 lid 3 BW geldt bij het einde van het huwelijk. Bij inhalen tijdens het huwelijk is de uitkomst een berekening van wat partijen samen vaststellen.',
+  'De tool beoordeelt niet welk deel van de winst in een BV of onderneming in het maatschappelijk verkeer als redelijk geldt (art. 1:141 lid 4 en lid 5 BW). Vul het bedrag in dat u redelijk acht.',
+  'De tool verrekent bij helfte (art. 1:135 lid 1 BW). Een beding met ongelijke delen rekent zij niet; wat een echtgenoot dan meer krijgt dan de helft geldt als schenking of, bij overlijden, als erfrechtelijke verkrijging (art. 11 lid 4 Successiewet 1956, voor verrekening tijdens leven nieuw per 1 januari 2026). Het overgangsrecht daarvoor is niet in de tool verwerkt.',
+  'Fiscale gevolgen, zoals de erfbelasting over een verrekenvordering of over een verzekeringsuitkering (art. 13 Successiewet 1956), rekent de tool niet uit.',
+  'De tool doet geen voorstel en geeft geen advies. Zij rekent de ingevulde situatie door.',
+];
+
+// ------------------------------------------------------------------ opmaak van bedragen
+
+function bedragTekst(waarde) {
+  if (typeof waarde !== 'number' || !isFinite(waarde)) return '';
+  const r = opCenten(waarde);
+  const teken = r < 0 ? '-' : '';
+  const [heel, cent] = Math.abs(r).toFixed(2).split('.');
+  return teken + '€ ' + heel.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + cent;
+}
+
+function datumTekst(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
+  const d = iso.split('-');
+  return d[2] + '-' + d[1] + '-' + d[0];
+}
+
+// ------------------------------------------------------------------ opbouw van de uitgang
+//
+// Eén structuur waaruit het dossierstuk en de export allebei worden gemaakt. Een regel is
+// { label, waarde, soort } met soort 'bedrag', 'tekst' of 'kop'.
+
+function naamVan(invoer, i) {
+  return (invoer.namen && invoer.namen[i]) || ('Partner ' + (i + 1));
+}
+
+function tweeKolommen(invoer, velden, bronVan) {
+  return velden.map(function (veld) {
+    return { label: veld.label, waarden: [0, 1].map(function (i) {
+      const bron = bronVan(i);
+      const w = bron ? bron[veld.sleutel] : null;
+      return typeof w === 'number' ? w : null;
+    }) };
+  });
+}
+
+function meldingTeksten(uitkomst) {
+  return ((uitkomst && uitkomst.meldingen) || []).map(function (m) {
+    return (m.ernst === 'fout' ? 'Niet berekend: ' : 'Let op: ') + m.tekst;
+  });
+}
+
+function bouwUitgang(invoer, reken, kenmerk, datumISO) {
+  const namen = [naamVan(invoer, 0), naamVan(invoer, 1)];
+  const pp = (invoer.periodiek && invoer.periodiek.partners) || [{}, {}];
+  const ap = (invoer.achterstallig && invoer.achterstallig.partners) || [{}, {}];
+  const op = (invoer.overzicht && invoer.overzicht.partners) || [{}, {}];
+  const af = (invoer.kosten && invoer.kosten.afleiding) || [{}, {}];
+
+  const per = reken.periodiek;
+  const periodiek = {
+    titel: 'Periodieke verrekening ' + (invoer.verrekenjaar || ''),
+    invoer: tweeKolommen(invoer, INKOMENSPOSTEN, function (i) { return pp[i] && pp[i].posten; })
+      .concat(tweeKolommen(invoer, BETAALDE_POSTEN, function (i) { return pp[i]; })),
+    uitkomst: per.uitkomst ? [
+      { label: 'Netto-inkomen', waarden: [per.netto[0].totaal, per.netto[1].totaal] },
+      { label: 'Betaalde kosten van de huishouding', waarden: per.kosten },
+      { label: 'Reeds toegekomen (netto-inkomen min betaalde kosten)', waarden: per.reedsToegekomen },
+      { label: 'Gezamenlijk netto-inkomen', waarde: per.gezamenlijkInkomen },
+      { label: 'Kosten van de huishouding samen', waarde: per.kostenHuishouding },
+      { label: 'Overgespaarde inkomsten', waarde: per.overgespaard },
+      { label: 'Aan ieder komt toe (de helft)', waarde: per.aandeel },
+    ].concat(per.tekort ? [
+      { label: 'Tekort, gedragen naar vermogen', waarde: per.tekort.bedrag },
+      { label: 'Vermogen voor de verdeling van het tekort', waarden: per.tekort.vermogens },
+      { label: 'Draagplicht kosten van de huishouding', waarden: per.tekort.draagplicht },
+    ] : []).concat([
+      { label: 'Per saldo voorgeschoten (plus: te vorderen)', waarden: [per.voorschotSaldo, -per.voorschotSaldo] },
+      { label: 'Te vorderen (plus) of verschuldigd (min)', waarden: per.vordering },
+      { label: 'Uitkomst', tekst: per.uitkomst.tekst, waarde: per.uitkomst.bedrag, vet: true },
+    ]) : [],
+    meldingen: meldingTeksten(per),
+    keuzes: [{ label: 'Als de kosten hoger zijn dan het inkomen', tekst: TEKORTREGEL_LABELS[invoer.tekortRegel] || '' }],
+  };
+
+  const ach = reken.achterstallig;
+  const a = invoer.achterstallig || {};
+  const achterstallig = {
+    titel: 'Achterstallige verrekening',
+    keuzes: [
+      { label: 'Aanvang periode', tekst: datumTekst(a.aanvang) },
+      { label: 'Peildatum', tekst: datumTekst(a.peildatum) },
+      { label: 'Aanleiding', tekst: AANLEIDINGEN[a.aanleiding] || '' },
+    ],
+    invoer: [].concat(
+      tweeKolommen(invoer, VERMOGENSPOSTEN, function (i) { return ap[i] && ap[i].begin; })
+        .map(function (r) { return Object.assign(r, { label: r.label + ' (begin)' }); }),
+      tweeKolommen(invoer, VERMOGENSPOSTEN, function (i) { return ap[i] && ap[i].eind; })
+        .map(function (r) { return Object.assign(r, { label: r.label + ' (eind)' }); }),
+      tweeKolommen(invoer, CORRECTIEPOSTEN, function (i) { return ap[i] && ap[i].correcties; })),
+    uitkomst: ach.uitkomst ? [
+      { label: 'Vermogen aan het begin', waarden: [ach.perPartner[0].begin, ach.perPartner[1].begin] },
+      { label: 'Vermogen aan het eind', waarden: [ach.perPartner[0].eind, ach.perPartner[1].eind] },
+      { label: 'Vermogensgroei', waarden: [ach.perPartner[0].mutatie, ach.perPartner[1].mutatie] },
+      { label: 'Correcties', waarden: [ach.perPartner[0].correctie, ach.perPartner[1].correctie] },
+      { label: 'Te verrekenen vermogensgroei', waarden: [ach.perPartner[0].teVerrekenen, ach.perPartner[1].teVerrekenen] },
+      { label: 'Samen', waarde: ach.totaal },
+      { label: 'Aan ieder komt toe (de helft)', waarde: ach.aandeel },
+      { label: 'Te vorderen (plus) of verschuldigd (min)', waarden: ach.vordering },
+      { label: 'Uitkomst', tekst: ach.uitkomst.tekst, waarde: ach.uitkomst.bedrag, vet: true },
+    ] : [],
+    meldingen: meldingTeksten(ach),
+  };
+
+  const kosten = {
+    titel: 'Kosten van de huishouding',
+    keuzes: [],
+    invoer: BEGROTINGSPOSTEN.map(function (label, i) {
+      const w = invoer.kosten && invoer.kosten.begroting && invoer.kosten.begroting[i];
+      return { label: label, waarde: typeof w === 'number' ? w : null };
+    }).filter(function (r) { return r.waarde !== null; })
+      .concat(tweeKolommen(invoer, AFLEIDINGSPOSTEN, function (i) { return af[i]; })),
+    uitkomst: [
+      { label: 'Begrote kosten van de huishouding', waarde: reken.kosten.begroting },
+      { label: 'Afgeleid uit de vermogensvergelijking', waarden: reken.kosten.afgeleid },
+    ],
+    meldingen: meldingTeksten(reken.kosten),
+  };
+
+  const ov = reken.overzicht;
+  const vorderingen = ((invoer.overzicht && invoer.overzicht.vorderingen) || [])
+    .filter(function (r) { return r && typeof r.bedrag === 'number'; });
+  const overzicht = {
+    titel: 'Vermogensoverzicht' + (invoer.overzicht && invoer.overzicht.jaar ? ' ' + invoer.overzicht.jaar : ''),
+    keuzes: [],
+    invoer: tweeKolommen(invoer, OVERZICHTPOSTEN, function (i) { return op[i] && op[i].posten; })
+      .concat(vorderingen.map(function (r) {
+        return { label: 'Verrekenvordering ' + (r.jaar || 'eerder'), waarden: [r.bedrag, -r.bedrag] };
+      })),
+    uitkomst: ov.totaal ? [
+      { label: 'Vermogen', waarden: ov.bezit },
+      { label: 'Verrekenpositie eerdere jaren', waarden: ov.verrekenpositie },
+      { label: 'Totaal vermogen', waarden: ov.totaal, vet: true },
+    ] : [],
+    meldingen: meldingTeksten(ov),
+  };
+
+  return {
+    kop: { tool: TOOLNAAM, versie: TOOLVERSIE + ' (' + datumTekst(TOOLDATUM) + ')',
+      datum: datumTekst(datumISO), kenmerk: kenmerk || '', namen: namen },
+    secties: [periodiek, achterstallig, kosten, overzicht],
+    vindplaatsen: VINDPLAATSEN.slice(),
+    afbakening: AFBAKENING.slice(),
+  };
+}
+
+// ------------------------------------------------------------------ Excel-export
+
+function exportBladen(uitgang) {
+  const rijen = [];
+  const namen = uitgang.kop.namen;
+  const getal = function (w) { return typeof w === 'number' ? celGetal(opCenten(w), '#,##0.00') : null; };
+  rijen.push([celTekst(uitgang.kop.tool, true)]);
+  rijen.push([celTekst('Versie'), celTekst(uitgang.kop.versie)]);
+  rijen.push([celTekst('Datum export'), celTekst(uitgang.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(uitgang.kop.kenmerk)]);
+  rijen.push([celTekst('Partners'), celTekst(namen[0]), celTekst(namen[1])]);
+  uitgang.secties.forEach(function (s) {
+    rijen.push([]);
+    rijen.push([celTekst(s.titel, true)]);
+    s.keuzes.forEach(function (k) { rijen.push([celTekst(k.label), celTekst(k.tekst)]); });
+    rijen.push([celTekst('Invoer', true), celTekst(namen[0], true), celTekst(namen[1], true)]);
+    s.invoer.forEach(function (r) {
+      if (r.waarden) rijen.push([celTekst(r.label), getal(r.waarden[0]), getal(r.waarden[1])]);
+      else rijen.push([celTekst(r.label), getal(r.waarde)]);
+    });
+    if (s.uitkomst.length) {
+      rijen.push([celTekst('Uitkomst', true), celTekst(namen[0], true), celTekst(namen[1], true)]);
+      s.uitkomst.forEach(function (r) {
+        if (r.waarden) rijen.push([celTekst(r.label, r.vet), getal(r.waarden[0]), getal(r.waarden[1])]);
+        else if (r.tekst) rijen.push([celTekst(r.label, true), celTekst(r.tekst, true), getal(r.waarde)]);
+        else rijen.push([celTekst(r.label, r.vet), getal(r.waarde)]);
+      });
+    }
+    s.meldingen.forEach(function (m) { rijen.push([celTekst(m)]); });
+  });
+  const toelichting = [[celTekst('Vindplaatsen', true)]];
+  uitgang.vindplaatsen.forEach(function (v) { toelichting.push([celTekst(v)]); });
+  toelichting.push([]);
+  toelichting.push([celTekst('Afbakening', true)]);
+  uitgang.afbakening.forEach(function (v) { toelichting.push([celTekst(v)]); });
+  return [
+    { naam: 'Berekening', rijen: rijen, breedtes: [58, 22, 22] },
+    { naam: 'Toelichting', rijen: toelichting, breedtes: [140] },
+  ];
+}
+
+function slug(tekst) {
+  const s = String(tekst || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+// ------------------------------------------------------------------ dossierbestand
+//
+// Alleen invoer, geen uitkomsten: bij openen rekent de tool opnieuw. Elk veld wordt bij
+// openen gecontroleerd; een ontbrekend veld houdt het openen tegen, zodat een oud dossier
+// niet ongemerkt met een andere standaardwaarde wordt doorgerekend.
+
+// De velden van het dossier, als pad met soort. Uit de kern afgeleid, zodat een nieuw
+// invoerveld vanzelf in het dossier komt.
+function dossierVelden() {
+  const v = [
+    { pad: ['kenmerk'], soort: 'tekst' },
+    { pad: ['verrekenjaar'], soort: 'getal' },
+    { pad: ['namen', 0], soort: 'tekst' },
+    { pad: ['namen', 1], soort: 'tekst' },
+    { pad: ['tekortRegel'], soort: 'keuze', opties: Object.keys(TEKORTREGEL_LABELS) },
+    { pad: ['achterstallig', 'aanvang'], soort: 'datum' },
+    { pad: ['achterstallig', 'peildatum'], soort: 'datum' },
+    { pad: ['achterstallig', 'aanleiding'], soort: 'keuze', opties: Object.keys(AANLEIDINGEN) },
+    { pad: ['overzicht', 'jaar'], soort: 'getal' },
+  ];
+  [0, 1].forEach(function (i) {
+    INKOMENSPOSTEN.forEach(function (p) { v.push({ pad: ['periodiek', 'partners', i, 'posten', p.sleutel], soort: 'bedrag' }); });
+    BETAALDE_POSTEN.forEach(function (p) { v.push({ pad: ['periodiek', 'partners', i, p.sleutel], soort: 'bedrag' }); });
+    ['begin', 'eind'].forEach(function (m) {
+      VERMOGENSPOSTEN.forEach(function (p) { v.push({ pad: ['achterstallig', 'partners', i, m, p.sleutel], soort: 'bedrag' }); });
+    });
+    CORRECTIEPOSTEN.forEach(function (p) { v.push({ pad: ['achterstallig', 'partners', i, 'correcties', p.sleutel], soort: 'bedrag' }); });
+    AFLEIDINGSPOSTEN.forEach(function (p) { v.push({ pad: ['kosten', 'afleiding', i, p.sleutel], soort: 'bedrag' }); });
+    OVERZICHTPOSTEN.forEach(function (p) { v.push({ pad: ['overzicht', 'partners', i, 'posten', p.sleutel], soort: 'bedrag' }); });
+  });
+  BEGROTINGSPOSTEN.forEach(function (_, i) { v.push({ pad: ['kosten', 'begroting', i], soort: 'bedrag' }); });
+  return v;
+}
+
+function leesPad(bron, pad) {
+  let o = bron;
+  for (let i = 0; i < pad.length; i++) {
+    if (o === null || typeof o !== 'object' || !(pad[i] in o)) return { ontbreekt: true };
+    o = o[pad[i]];
+  }
+  return { waarde: o };
+}
+
+function zetPad(doel, pad, waarde) {
+  let o = doel;
+  for (let i = 0; i < pad.length - 1; i++) {
+    if (o[pad[i]] === undefined) o[pad[i]] = typeof pad[i + 1] === 'number' ? [] : {};
+    o = o[pad[i]];
+  }
+  o[pad[pad.length - 1]] = waarde;
+}
+
+function schrijfDossier(invoer, datumISO) {
+  const uit = {};
+  dossierVelden().forEach(function (veld) {
+    const r = leesPad(invoer, veld.pad);
+    zetPad(uit, veld.pad, r.ontbreekt || r.waarde === undefined ? null : r.waarde);
+  });
+  uit.overzicht.vorderingen = ((invoer.overzicht && invoer.overzicht.vorderingen) || [])
+    .filter(function (r) { return r && typeof r.bedrag === 'number'; })
+    .map(function (r) { return { jaar: r.jaar, bedrag: r.bedrag }; });
+  return JSON.stringify({
+    tool: TOOL_ID, formaat: DOSSIERFORMAAT, toolversie: TOOLVERSIE,
+    opgeslagen: datumISO, invoer: uit,
+  }, null, 2);
+}
+
+function geldigeWaarde(veld, w) {
+  if (w === null) return veld.soort !== 'keuze';
+  if (veld.soort === 'bedrag' || veld.soort === 'getal') return typeof w === 'number' && isFinite(w);
+  if (veld.soort === 'tekst') return typeof w === 'string';
+  if (veld.soort === 'datum') return typeof w === 'string' && (w === '' || /^\d{4}-\d{2}-\d{2}$/.test(w));
+  if (veld.soort === 'keuze') return veld.opties.indexOf(w) >= 0;
+  return false;
+}
+
+// Geeft { invoer, meldingen } of { fout }. Bij een fout blijft de huidige casus staan.
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(tekst); } catch (e) { return { fout: 'Het bestand is geen leesbaar dossierbestand.' }; }
+  if (!rauw || rauw.tool !== TOOL_ID) return { fout: 'Dit bestand hoort niet bij de tool ' + TOOLNAAM + '.' };
+  if (rauw.formaat !== DOSSIERFORMAAT) {
+    return { fout: 'Dit dossierbestand heeft formaat ' + rauw.formaat + '; deze versie van de tool leest formaat ' + DOSSIERFORMAAT + '.' };
+  }
+  const bron = rauw.invoer;
+  if (!bron || typeof bron !== 'object') return { fout: 'Het dossierbestand bevat geen invoer.' };
+  const invoer = {};
+  const ontbrekend = [], ongeldig = [];
+  dossierVelden().forEach(function (veld) {
+    const r = leesPad(bron, veld.pad);
+    if (r.ontbreekt) { ontbrekend.push(veld.pad.join('.')); return; }
+    if (!geldigeWaarde(veld, r.waarde)) { ongeldig.push(veld.pad.join('.')); return; }
+    zetPad(invoer, veld.pad, r.waarde);
+  });
+  if (ontbrekend.length || ongeldig.length) {
+    return { fout: 'Het dossier is niet geopend.' +
+      (ontbrekend.length ? ' Ontbrekende velden: ' + ontbrekend.join(', ') + '.' : '') +
+      (ongeldig.length ? ' Ongeldige waarden: ' + ongeldig.join(', ') + '.' : '') };
+  }
+  const vord = bron.overzicht && bron.overzicht.vorderingen;
+  if (!Array.isArray(vord) || !vord.every(function (r) {
+    return r && typeof r.bedrag === 'number' && isFinite(r.bedrag) && (typeof r.jaar === 'number' || r.jaar === null);
+  })) {
+    return { fout: 'Het dossier is niet geopend. De verrekenvorderingen uit eerdere jaren zijn onleesbaar.' };
+  }
+  invoer.overzicht.vorderingen = vord.map(function (r) { return { jaar: r.jaar, bedrag: r.bedrag }; });
+  const meldingen = [];
+  if (rauw.toolversie !== TOOLVERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met versie ' + rauw.toolversie + ' van de tool en is nu doorgerekend met versie ' +
+      TOOLVERSIE + '. De uitkomst kan afwijken van de oorspronkelijke; het dossierstuk of de export van toen is het bewijs daarvan.');
+  }
+  return { invoer: invoer, meldingen: meldingen };
+}
+// UITGANGEN — EINDE
+
+// PRESENTATIE — BEGIN
+// Het scherm: invoervelden opbouwen uit de definities in de kern, de invoer uitlezen,
+// rekenAlles aanroepen en de uitkomst tonen. Hier wordt niet gerekend.
+
+const $ = function (id) { return document.getElementById(id); };
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function namenNu() {
+  return [$('naam-0').value.trim() || 'Partner 1', $('naam-1').value.trim() || 'Partner 2'];
+}
+
+// Een tabel met een rij per veld en een invoer per partner. id-vorm: <voorvoegsel>-<i>-<sleutel>.
+function bouwTweekoloms(tabelId, velden, voorvoegsel, tekenAanduiding) {
+  const namen = namenNu();
+  const kop = '<tr><th></th><th class="getal">' + escapeHtml(namen[0]) + '</th><th class="getal">' +
+    escapeHtml(namen[1]) + '</th></tr>';
+  const rijen = velden.map(function (v) {
+    const teken = tekenAanduiding && v.teken === -1 ? ' <span class="bron">wordt afgetrokken</span>' : '';
+    const uitleg = v.toelichting ? '<span class="bron">' + escapeHtml(v.toelichting) + '</span>' : '';
+    return '<tr><td>' + escapeHtml(v.label) + teken + uitleg + '</td>' + [0, 1].map(function (i) {
+      return '<td class="getal"><input type="number" step="0.01" aria-label="' + escapeHtml(v.label + ', ' + namen[i]) +
+        '" id="' + voorvoegsel + '-' + i + '-' + v.sleutel + '"></td>';
+    }).join('') + '</tr>';
+  }).join('');
+  $(tabelId).innerHTML = kop + rijen;
+}
+
+function bouwAchterstallig() {
+  const namen = namenNu();
+  const kop = '<tr><th></th><th class="getal">' + escapeHtml(namen[0]) + ' begin</th><th class="getal">' +
+    escapeHtml(namen[0]) + ' eind</th><th class="getal">' + escapeHtml(namen[1]) + ' begin</th><th class="getal">' +
+    escapeHtml(namen[1]) + ' eind</th></tr>';
+  const cel = function (id, label) {
+    return '<td class="getal"><input type="number" step="0.01" aria-label="' + escapeHtml(label) + '" id="' + id + '"></td>';
+  };
+  const rijen = VERMOGENSPOSTEN.map(function (v) {
+    const teken = v.teken === -1 ? ' <span class="bron">wordt afgetrokken</span>' : '';
+    return '<tr><td>' + escapeHtml(v.label) + teken + '</td>' +
+      cel('ach-0-begin-' + v.sleutel, v.label + ', ' + namen[0] + ', begin') +
+      cel('ach-0-eind-' + v.sleutel, v.label + ', ' + namen[0] + ', eind') +
+      cel('ach-1-begin-' + v.sleutel, v.label + ', ' + namen[1] + ', begin') +
+      cel('ach-1-eind-' + v.sleutel, v.label + ', ' + namen[1] + ', eind') + '</tr>';
+  }).join('');
+  const correcties = CORRECTIEPOSTEN.map(function (v) {
+    const teken = v.teken === -1 ? ' <span class="bron">wordt afgetrokken</span>' : '';
+    return '<tr><td>' + escapeHtml(v.label) + teken + '</td>' +
+      '<td></td>' + cel('ach-0-corr-' + v.sleutel, v.label + ', ' + namen[0]) +
+      '<td></td>' + cel('ach-1-corr-' + v.sleutel, v.label + ', ' + namen[1]) + '</tr>';
+  }).join('');
+  $('invoer-achterstallig').innerHTML = kop + rijen +
+    '<tr><th colspan="5">Correcties over de periode</th></tr>' + correcties;
+}
+
+function bouwBegroting() {
+  $('invoer-begroting').innerHTML = '<tr><th>Post</th><th class="getal">Bedrag per jaar</th></tr>' +
+    BEGROTINGSPOSTEN.map(function (label, i) {
+      return '<tr><td>' + escapeHtml(label) + '</td><td class="getal"><input type="number" step="0.01" aria-label="' +
+        escapeHtml(label) + '" id="begroting-' + i + '"></td></tr>';
+    }).join('');
+}
+
+let vorderingRijen = [];
+
+function bouwVorderingen() {
+  const namen = namenNu();
+  $('invoer-vorderingen').innerHTML = '<tr><th>Jaar</th><th class="getal">' + escapeHtml(namen[0]) +
+    ' (plus: vordering)</th><th class="getal">' + escapeHtml(namen[1]) + '</th><th></th></tr>' +
+    vorderingRijen.map(function (r, i) {
+      return '<tr><td><input type="number" step="1" min="1950" max="2100" aria-label="Jaar" id="vord-jaar-' + i + '" value="' +
+        (r.jaar == null ? '' : r.jaar) + '"></td>' +
+        '<td class="getal"><input type="number" step="0.01" aria-label="Verrekenvordering" id="vord-bedrag-' + i + '" value="' +
+        (r.bedrag == null ? '' : r.bedrag) + '"></td>' +
+        '<td class="getal" id="vord-tegen-' + i + '"></td>' +
+        '<td><button type="button" class="tweede" data-verwijder="' + i + '">Verwijderen</button></td></tr>';
+    }).join('');
+}
+
+function leesVorderingen() {
+  vorderingRijen = vorderingRijen.map(function (_, i) {
+    return { jaar: getal($('vord-jaar-' + i)), bedrag: getal($('vord-bedrag-' + i)) };
+  });
+  return vorderingRijen;
+}
+
+// Een leeg veld geeft null; de kern rekent dat als nul. Een ongeldige invoer kan een
+// number-veld niet bevatten: de browser geeft dan een lege waarde.
+function getal(el) {
+  if (!el || el.value === '') return null;
+  const w = Number(el.value);
+  return isFinite(w) ? w : NaN;
+}
+
+function leesVelden(velden, idVan) {
+  const uit = {};
+  velden.forEach(function (v) { uit[v.sleutel] = getal($(idVan(v.sleutel))); });
+  return uit;
+}
+
+function leesInvoer() {
+  const invoer = {
+    kenmerk: $('kenmerk').value,
+    verrekenjaar: getal($('verrekenjaar')),
+    namen: namenNu(),
+    tekortRegel: $('tekortregel').value,
+    periodiek: { partners: [0, 1].map(function (i) {
+      return Object.assign({ posten: leesVelden(INKOMENSPOSTEN, function (s) { return 'per-' + i + '-' + s; }) },
+        leesVelden(BETAALDE_POSTEN, function (s) { return 'per-' + i + '-' + s; }));
+    }) },
+    achterstallig: {
+      aanvang: $('aanvang').value, peildatum: $('peildatum').value, aanleiding: $('aanleiding').value,
+      partners: [0, 1].map(function (i) {
+        return {
+          begin: leesVelden(VERMOGENSPOSTEN, function (s) { return 'ach-' + i + '-begin-' + s; }),
+          eind: leesVelden(VERMOGENSPOSTEN, function (s) { return 'ach-' + i + '-eind-' + s; }),
+          correcties: leesVelden(CORRECTIEPOSTEN, function (s) { return 'ach-' + i + '-corr-' + s; }),
+        };
+      }),
+    },
+    kosten: {
+      begroting: BEGROTINGSPOSTEN.map(function (_, i) { return getal($('begroting-' + i)); }),
+      afleiding: [0, 1].map(function (i) { return leesVelden(AFLEIDINGSPOSTEN, function (s) { return 'afl-' + i + '-' + s; }); }),
+    },
+    overzicht: {
+      jaar: getal($('overzicht-jaar')),
+      partners: [0, 1].map(function (i) { return { posten: leesVelden(OVERZICHTPOSTEN, function (s) { return 'ovz-' + i + '-' + s; }) }; }),
+      vorderingen: leesVorderingen(),
+    },
+  };
+  return invoer;
+}
+
+function zetVelden(velden, bron, idVan) {
+  velden.forEach(function (v) {
+    const w = bron ? bron[v.sleutel] : null;
+    $(idVan(v.sleutel)).value = w == null ? '' : String(w);
+  });
+}
+
+function zetInvoer(invoer) {
+  $('kenmerk').value = invoer.kenmerk || '';
+  $('verrekenjaar').value = invoer.verrekenjaar == null ? '' : invoer.verrekenjaar;
+  $('naam-0').value = invoer.namen[0] || '';
+  $('naam-1').value = invoer.namen[1] || '';
+  $('tekortregel').value = invoer.tekortRegel;
+  $('aanvang').value = invoer.achterstallig.aanvang || '';
+  $('peildatum').value = invoer.achterstallig.peildatum || '';
+  $('aanleiding').value = invoer.achterstallig.aanleiding;
+  $('overzicht-jaar').value = invoer.overzicht.jaar == null ? '' : invoer.overzicht.jaar;
+  vorderingRijen = invoer.overzicht.vorderingen.slice();
+  bouwAlles();
+  [0, 1].forEach(function (i) {
+    const p = invoer.periodiek.partners[i];
+    zetVelden(INKOMENSPOSTEN, p.posten, function (s) { return 'per-' + i + '-' + s; });
+    zetVelden(BETAALDE_POSTEN, p, function (s) { return 'per-' + i + '-' + s; });
+    const a = invoer.achterstallig.partners[i];
+    zetVelden(VERMOGENSPOSTEN, a.begin, function (s) { return 'ach-' + i + '-begin-' + s; });
+    zetVelden(VERMOGENSPOSTEN, a.eind, function (s) { return 'ach-' + i + '-eind-' + s; });
+    zetVelden(CORRECTIEPOSTEN, a.correcties, function (s) { return 'ach-' + i + '-corr-' + s; });
+    zetVelden(AFLEIDINGSPOSTEN, invoer.kosten.afleiding[i], function (s) { return 'afl-' + i + '-' + s; });
+    zetVelden(OVERZICHTPOSTEN, invoer.overzicht.partners[i].posten, function (s) { return 'ovz-' + i + '-' + s; });
+  });
+  BEGROTINGSPOSTEN.forEach(function (_, i) {
+    const w = invoer.kosten.begroting[i];
+    $('begroting-' + i).value = w == null ? '' : String(w);
+  });
+}
+
+// De invoertabellen dragen de namen van de partners in hun kop; bij een naamswijziging
+// worden ze opnieuw opgebouwd met behoud van de ingevulde waarden.
+function bouwAlles() {
+  bouwTweekoloms('invoer-periodiek', INKOMENSPOSTEN.concat(BETAALDE_POSTEN), 'per', true);
+  bouwAchterstallig();
+  bouwBegroting();
+  bouwTweekoloms('invoer-afleiding', AFLEIDINGSPOSTEN, 'afl', false);
+  bouwTweekoloms('invoer-overzicht', OVERZICHTPOSTEN, 'ovz', true);
+  bouwVorderingen();
+}
+
+function meldingenHtml(meldingen) {
+  return (meldingen || []).map(function (m) {
+    const klasse = m.ernst === 'fout' ? 'fout' : 'let-op';
+    return '<div class="melding ' + klasse + '">' + escapeHtml(m.tekst) + '</div>';
+  }).join('');
+}
+
+function regelsHtml(regels, namen) {
+  return '<table><tr><th></th><th class="getal">' + escapeHtml(namen[0]) + '</th><th class="getal">' +
+    escapeHtml(namen[1]) + '</th></tr>' + regels.map(function (r) {
+      const open = r.vet ? '<strong>' : '', dicht = r.vet ? '</strong>' : '';
+      if (r.tekst) {
+        return '<tr><td>' + open + escapeHtml(r.label) + dicht + '</td><td colspan="2" class="getal">' + open +
+          escapeHtml(r.tekst) + (r.waarde ? ': ' + bedragTekst(r.waarde) : '') + dicht + '</td></tr>';
+      }
+      if (r.waarden) {
+        return '<tr><td>' + open + escapeHtml(r.label) + dicht + '</td>' + r.waarden.map(function (w) {
+          return '<td class="getal">' + open + bedragTekst(w) + dicht + '</td>';
+        }).join('') + '</tr>';
+      }
+      return '<tr><td>' + open + escapeHtml(r.label) + dicht + '</td><td colspan="2" class="getal">' + open +
+        bedragTekst(r.waarde) + dicht + '</td></tr>';
+    }).join('') + '</table>';
+}
+
+function uitkomstBlok(uitkomst) {
+  if (!uitkomst) return '';
+  return '<div class="uitkomst" style="margin-bottom:12px;"><div class="blok"><div class="etiket">Uitkomst</div>' +
+    '<div class="waarde">' + (uitkomst.bedrag ? bedragTekst(uitkomst.bedrag) : '€ 0,00') + '</div>' +
+    '<div class="onder">' + escapeHtml(uitkomst.tekst) + '</div></div></div>';
+}
+
+let laatste = null;
+
+function toon() {
+  const invoer = leesInvoer();
+  const reken = rekenAlles(invoer);
+  const uitgang = bouwUitgang(invoer, reken, invoer.kenmerk, vandaagISO());
+  laatste = { invoer: invoer, reken: reken, uitgang: uitgang };
+  const namen = invoer.namen;
+  const [per, ach, kos, ovz] = uitgang.secties;
+
+  $('uit-periodiek').innerHTML = meldingenHtml(reken.periodiek.meldingen) + uitkomstBlok(reken.periodiek.uitkomst) +
+    (per.uitkomst.length ? regelsHtml(per.uitkomst.filter(function (r) { return !r.tekst; }), namen) : '');
+  $('uit-achterstallig').innerHTML = meldingenHtml(reken.achterstallig.meldingen) + uitkomstBlok(reken.achterstallig.uitkomst) +
+    (ach.uitkomst.length ? regelsHtml(ach.uitkomst.filter(function (r) { return !r.tekst; }), namen) : '');
+  $('uit-begroting').innerHTML = '<strong>Totaal begrote kosten: ' + bedragTekst(reken.kosten.begroting) + '</strong>';
+  $('uit-afleiding').innerHTML = meldingenHtml(reken.kosten.meldingen) +
+    regelsHtml([{ label: 'Afgeleide betaalde kosten van de huishouding', waarden: reken.kosten.afgeleid, vet: true }], namen);
+  $('uit-overzicht').innerHTML = meldingenHtml(reken.overzicht.meldingen) +
+    (ovz.uitkomst.length ? regelsHtml(ovz.uitkomst, namen) : '');
+  vorderingRijen.forEach(function (r, i) {
+    const cel = $('vord-tegen-' + i);
+    if (cel) cel.textContent = typeof r.bedrag === 'number' && isFinite(r.bedrag) ? bedragTekst(-r.bedrag) : '';
+  });
+
+  const aanleiding = invoer.achterstallig.aanleiding;
+  $('melding-aanleiding').innerHTML = aanleiding === 'tijdens-huwelijk'
+    ? '<div class="melding info">Tijdens het huwelijk geldt het vermoeden van art. 1:141 lid 3 BW niet. De uitkomst is een berekening van wat partijen samen vaststellen.</div>'
+    : '<div class="melding info">Bij het einde van het huwelijk geldt het vermoeden van art. 1:141 lid 3 BW: het dan aanwezige vermogen wordt vermoed te zijn gevormd uit wat verrekend had moeten worden. Kies de peildatum volgens art. 1:142 lid 1 BW.</div>';
+
+  toonDossierstuk(uitgang);
+}
+
+function toonDossierstuk(u) {
+  const namen = u.kop.namen;
+  const sectie = function (s) {
+    const heeftInvoer = s.invoer.some(function (r) {
+      return (r.waarden && r.waarden.some(function (w) { return w !== null; })) || (r.waarde !== undefined && r.waarde !== null);
+    });
+    if (!heeftInvoer && !s.keuzes.some(function (k) { return k.tekst; })) return '';
+    const invoerRegels = s.invoer.filter(function (r) {
+      return r.waarden ? r.waarden.some(function (w) { return w !== null; }) : r.waarde !== null;
+    });
+    return '<h3>' + escapeHtml(s.titel) + '</h3>' +
+      (s.keuzes.length ? '<ul class="afbakening">' + s.keuzes.map(function (k) {
+        return '<li>' + escapeHtml(k.label) + ': ' + escapeHtml(k.tekst) + '</li>';
+      }).join('') + '</ul>' : '') +
+      '<p class="toelichting">Invoer (niet ingevulde velden tellen als nul)</p>' + regelsHtml(invoerRegels, namen) +
+      (s.uitkomst.length ? '<p class="toelichting">Uitkomst</p>' + regelsHtml(s.uitkomst, namen) : '') +
+      s.meldingen.map(function (m) { return '<p class="toelichting">' + escapeHtml(m) + '</p>'; }).join('');
+  };
+  $('dossierstuk').innerHTML = '<h2>Dossierstuk ' + escapeHtml(u.kop.tool) + '</h2>' +
+    '<div class="kenmerkregel"><span>Kenmerk: ' + escapeHtml(u.kop.kenmerk || '(niet ingevuld)') + '</span>' +
+    '<span>Datum: ' + escapeHtml(u.kop.datum) + '</span><span>Partners: ' + escapeHtml(namen[0]) + ' en ' + escapeHtml(namen[1]) + '</span></div>' +
+    u.secties.map(sectie).join('') +
+    '<h3>Vindplaatsen</h3><ul class="vindplaatsen">' + u.vindplaatsen.map(function (v) { return '<li>' + escapeHtml(v) + '</li>'; }).join('') + '</ul>' +
+    '<h3>Afbakening</h3><ul class="afbakening">' + u.afbakening.map(function (v) { return '<li>' + escapeHtml(v) + '</li>'; }).join('') + '</ul>' +
+    '<div class="stempel">' + escapeHtml(u.kop.tool) + ', versie ' + escapeHtml(u.kop.versie) + '</div>';
+}
+
+function vandaagISO() {
+  const d = new Date();
+  const tw = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + tw(d.getMonth() + 1) + '-' + tw(d.getDate());
+}
+
+function download(naam, inhoud, type) {
+  const url = URL.createObjectURL(new Blob([inhoud], { type: type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function dossierMelding(tekst, soort) {
+  $('dossiermelding').innerHTML = tekst ? '<div class="melding ' + soort + '">' + escapeHtml(tekst) + '</div>' : '';
+}
+
+function kiesTab(naam) {
+  document.querySelectorAll('.tabblad').forEach(function (el) { el.classList.toggle('verborgen', el.id !== 'tab-' + naam); });
+  document.querySelectorAll('.tab').forEach(function (b) {
+    const actief = b.getAttribute('data-tab') === naam;
+    b.classList.toggle('tweede', !actief);
+    b.setAttribute('aria-pressed', actief ? 'true' : 'false');
+  });
+}
+
+function start() {
+  bouwAlles();
+  kiesTab('periodiek');
+  document.querySelector('main').addEventListener('input', function (e) {
+    if (e.target.id === 'naam-0' || e.target.id === 'naam-1') {
+      const invoer = leesInvoer();
+      zetInvoer(invoer);
+    }
+    toon();
+  });
+  document.querySelector('main').addEventListener('change', toon);
+  document.querySelectorAll('.tab').forEach(function (b) {
+    b.addEventListener('click', function () { kiesTab(b.getAttribute('data-tab')); });
+  });
+  $('knop-vordering').addEventListener('click', function () {
+    leesVorderingen();
+    const jaren = vorderingRijen.map(function (r) { return r.jaar; }).filter(function (j) { return typeof j === 'number'; });
+    const basis = getal($('overzicht-jaar')) || new Date().getFullYear();
+    vorderingRijen.push({ jaar: jaren.length ? Math.min.apply(null, jaren) - 1 : basis - 1, bedrag: null });
+    bouwVorderingen(); toon();
+  });
+  $('invoer-vorderingen').addEventListener('click', function (e) {
+    const i = e.target.getAttribute && e.target.getAttribute('data-verwijder');
+    if (i === null || i === undefined) return;
+    leesVorderingen(); vorderingRijen.splice(Number(i), 1); bouwVorderingen(); toon();
+  });
+  $('knop-afdrukken').addEventListener('click', function () { toon(); window.print(); });
+  $('knop-export').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'xlsx'), xlsxBytes(exportBladen(laatste.uitgang)),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+  $('knop-opslaan').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'json'), schrijfDossier(laatste.invoer, vandaagISO()), 'application/json');
+    dossierMelding('Het dossierbestand is opgeslagen in de map die uw browser voor downloads gebruikt.', 'info');
+  });
+  $('knop-openen').addEventListener('click', function () { $('bestand-openen').click(); });
+  $('bestand-openen').addEventListener('change', function (e) {
+    const bestand = e.target.files && e.target.files[0];
+    if (!bestand) return;
+    const lezer = new FileReader();
+    lezer.onload = function () {
+      const r = leesDossier(String(lezer.result));
+      if (r.fout) { dossierMelding(r.fout, 'fout'); }
+      else {
+        zetInvoer(r.invoer); toon();
+        dossierMelding(r.meldingen.length ? r.meldingen.join(' ') : 'Het dossier is geopend en opnieuw doorgerekend.', r.meldingen.length ? 'let-op' : 'info');
+      }
+      e.target.value = '';
+    };
+    lezer.onerror = function () { dossierMelding('Het bestand kon niet worden gelezen.', 'fout'); e.target.value = ''; };
+    lezer.onabort = function () { dossierMelding('Het lezen van het bestand is afgebroken.', 'fout'); e.target.value = ''; };
+    lezer.readAsText(bestand);
+  });
+  toon();
+}
+
+document.addEventListener('DOMContentLoaded', start);
+// PRESENTATIE — EINDE
+</script>
+</body>
+</html>
