@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiscale vastgoedtool</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+/* Eigen opmaak van deze tool, aanvullend op de gedeelde huisstijl. */
+.breed { overflow-x: auto; }
+.routedetail table { font-size: 12px; }
+.routedetail th, .routedetail td { white-space: nowrap; }
+.prognose { font-size: 11px; color: var(--geel); margin-left: 4px; }
+#dossierstuk .kenmerkregel { margin-bottom: 10px; }
+@media print {
+  .routedetail table { font-size: 8pt; }
+  .prognose { color: #000; }
+  .blok .waarde { color: #000; }
+  .blok { border: 1px solid #bbb; background: #fff; }
+  details > summary { list-style: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="noprint">
+  <a class="logo" href="https://joinadministraties.nl" target="_blank" rel="noopener">
+    <div class="logo-mark"><div class="lc"></div><div class="lc"></div></div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="logo-name">JOIN</span>
+      <span class="logo-sub">Administraties</span>
+    </div>
+  </a>
+  <div class="koptitel">Fiscale vastgoedtool<br><span style="font-weight:400">box 3, terbeschikkingstelling of BV</span></div>
+</header>
+
+<main>
+  <h1 class="noprint">Fiscale vastgoedtool</h1>
+  <p class="inleiding noprint">
+    Vergelijk wat een verhuurd pand de DGA na belasting oplevert in box 3, onder de
+    terbeschikkingstellingsregeling of in de eigen BV. De tool rekent elk jaar door, telt de
+    latente belasting bij verkoop mee en zet de routes naast elkaar. Zij geeft een uitkomst en
+    geen advies. Voor het rendement van het pand zelf, vóór belasting, is er de
+    <strong>rendementsscan vastgoedrendement</strong>; deze tool beantwoordt de fiscale vraag
+    waar het pand het best kan zitten.
+  </p>
+
+  <div class="kaart noprint">
+    <h2>Dossier</h2>
+    <p class="toelichting">De tool bewaart zelf niets en verstuurt niets. Opslaan zet een klein
+      bestand met alleen de invoer op een plek die u kiest; openen leest zo'n bestand weer in.</p>
+    <div class="rij">
+      <div>
+        <label for="kenmerk">Klantnaam of kenmerk
+          <span class="bron">komt op de afdruk, in de export en in de bestandsnaam</span></label>
+        <input type="text" id="kenmerk" value="" maxlength="80">
+      </div>
+    </div>
+    <div class="knoppenbalk" style="margin-top:14px">
+      <button type="button" class="tweede" id="knopOpslaan">Opslaan als bestand</button>
+      <button type="button" class="tweede" id="knopOpenen">Bestand openen</button>
+      <input type="file" id="bestandKiezer" accept=".json,application/json" class="verborgen">
+    </div>
+    <div id="dossiermelding"></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Uitgangssituatie</h2>
+    <p class="toelichting">Kies de vraag. De routes die de tool naast elkaar zet hangen ervan af.</p>
+    <div class="rij">
+      <div>
+        <label for="situatie">Situatie
+          <span class="bron">bepaalt welke routes worden vergeleken</span></label>
+        <select id="situatie">
+          <option value="aankoop">Nieuw aan te kopen pand: box 3, tbs of BV</option>
+          <option value="box3">Pand nu in box 3: laten, onder tbs brengen of naar de BV</option>
+          <option value="tbs">Pand nu onder de tbs: aanhouden of naar de BV</option>
+        </select>
+      </div>
+      <div>
+        <label for="startjaar">Eerste jaar van de vergelijking
+          <span class="bron">de overgang vindt plaats op 31 december van het jaar ervoor</span></label>
+        <select id="startjaar"></select>
+      </div>
+      <div>
+        <label for="looptijd">Aantal jaren
+          <span class="bron">1 tot en met 30</span></label>
+        <input type="number" id="looptijd" value="10" min="1" max="30" step="1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Het pand</h2>
+    <div class="rij">
+      <div>
+        <label for="waarde">Waarde in het economische verkeer
+          <span class="bron" data-situatie="aankoop">de koopsom</span>
+          <span class="bron" data-situatie="box3 tbs">ook de koopsom bij overdracht aan de BV (art. 9 Wet BRV 1970)</span></label>
+        <input type="number" id="waarde" value="600000" min="1" step="1000">
+      </div>
+      <div>
+        <label for="woz">WOZ-waarde
+          <span class="bron">bodemwaarde bij afschrijving (art. 3.30a Wet IB 2001) en, bij een woning, de waarde in box 3 (art. 5.20)</span></label>
+        <input type="number" id="woz" value="600000" min="1" step="1000">
+      </div>
+      <div>
+        <label for="waardestijging">Waardestijging per jaar in procenten
+          <span class="bron">een aanname, geldt ook voor de WOZ-waarde</span></label>
+        <input type="number" id="waardestijging" value="2" min="-50" max="50" step="0.1">
+      </div>
+      <div>
+        <label for="woning">Soort pand
+          <span class="bron">tarief overdrachtsbelasting, art. 14 Wet BRV 1970</span></label>
+        <select id="woning">
+          <option value="nee">Geen woning (bedrijfspand, winkel, kantoor)</option>
+          <option value="ja">Woning, niet het hoofdverblijf van de koper</option>
+        </select>
+      </div>
+      <div data-situatie="aankoop">
+        <label for="ovbBijAankoop">Overdrachtsbelasting bij de aankoop
+          <span class="bron">vrijgesteld bij levering van een nieuw gebouw met btw, art. 15 lid 1 onderdeel a Wet BRV 1970</span></label>
+        <select id="ovbBijAankoop">
+          <option value="ja">Verschuldigd</option>
+          <option value="nee">Vrijgesteld (nieuwbouw met btw)</option>
+        </select>
+      </div>
+      <div data-situatie="aankoop box3">
+        <label for="huurbescherming">Verhuur van de woning
+          <span class="bron">bij huurbescherming telt box 3 de WOZ-waarde maal de leegwaarderatio (art. 5.20 lid 3 en 5 Wet IB 2001)</span></label>
+        <select id="huurbescherming">
+          <option value="nee">Zonder huurbescherming, of geen woning</option>
+          <option value="ja">Met huurbescherming, voor onbepaalde tijd</option>
+        </select>
+      </div>
+      <div data-situatie="tbs">
+        <label for="boekwaardeTbs">Fiscale boekwaarde onder de tbs
+          <span class="bron">volgens de laatste fiscale balans van de werkzaamheid</span></label>
+        <input type="number" id="boekwaardeTbs" value="500000" min="0" step="1000">
+      </div>
+      <div>
+        <label for="afschrijving">Afschrijving op het gebouw per jaar
+          <span class="bron">onder tbs en in de BV; nooit onder de bodemwaarde (art. 3.30a Wet IB 2001)</span></label>
+        <input type="number" id="afschrijving" value="0" min="0" step="500">
+      </div>
+      <div data-situatie="aankoop box3 tbs">
+        <label for="bijkomendeKostenPct">Bijkomende kosten in procenten van de koopsom
+          <span class="bron" data-situatie="aankoop">notaris, makelaar, taxatie; zonder overdrachtsbelasting</span>
+          <span class="bron" data-situatie="box3 tbs">kosten van de overdracht aan de BV; zonder overdrachtsbelasting</span></label>
+        <input type="number" id="bijkomendeKostenPct" value="0.5" min="0" max="20" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Huur en kosten</h2>
+    <div class="rij">
+      <div>
+        <label for="huur">Huur per jaar
+          <span class="bron">van derden, of de huur die de BV bespaart als zij het pand zelf gebruikt</span></label>
+        <input type="number" id="huur" value="42000" min="0" step="500">
+      </div>
+      <div>
+        <label for="kosten">Kosten per jaar
+          <span class="bron">onderhoud, verzekering, belastingen; zonder rente en afschrijving</span></label>
+        <input type="number" id="kosten" value="9000" min="0" step="500">
+      </div>
+      <div>
+        <label for="indexatie">Indexatie huur en kosten in procenten
+          <span class="bron">een aanname</span></label>
+        <input type="number" id="indexatie" value="2" min="-50" max="50" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Financiering en herbelegging</h2>
+    <div class="rij">
+      <div>
+        <label for="schuld">Lening
+          <span class="bron" data-situatie="aankoop">in elke route even hoog; in de BV-route leent de BV</span>
+          <span class="bron" data-situatie="box3 tbs">de huidige lening van de DGA; wordt bij overdracht aan de BV afgelost</span></label>
+        <input type="number" id="schuld" value="300000" min="0" step="1000">
+      </div>
+      <div data-situatie="box3 tbs">
+        <label for="financieringBv">Lening van de BV bij overdracht
+          <span class="bron">de rest van de koopsom en kosten stort de DGA als agio</span></label>
+        <input type="number" id="financieringBv" value="300000" min="0" step="1000">
+      </div>
+      <div>
+        <label for="rente">Rente in procenten
+          <span class="bron">een aanname, in elke route gelijk</span></label>
+        <input type="number" id="rente" value="4" min="0" max="50" step="0.05">
+      </div>
+      <div>
+        <label for="aflossing">Aflossing per jaar, ten hoogste
+          <span class="bron">wordt verlaagd als de kasstroom van dat jaar niet toereikt</span></label>
+        <input type="number" id="aflossing" value="10000" min="0" step="500">
+      </div>
+      <div>
+        <label for="herbeleggingsrendement">Rendement op herbelegde kasstromen in procenten
+          <span class="bron">privé belast in box 3, in de BV belast met Vpb</span></label>
+        <input type="number" id="herbeleggingsrendement" value="3" min="-50" max="50" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Terbeschikkingstelling en BV</h2>
+    <div class="rij">
+      <div>
+        <label for="tbsVergoeding">Vergoeding van de BV aan de DGA per jaar
+          <span class="bron">tbs-route; moet zakelijk zijn, meestal gelijk aan de huur</span></label>
+        <input type="number" id="tbsVergoeding" value="42000" min="0" step="500">
+      </div>
+      <div>
+        <label for="tbsKostenBijBv">Wie draagt de kosten in de tbs-route
+          <span class="bron">bij onderverhuur draagt de BV ze vaak zelf</span></label>
+        <select id="tbsKostenBijBv">
+          <option value="nee">De DGA</option>
+          <option value="ja">De BV</option>
+        </select>
+      </div>
+      <div>
+        <label for="ibSchijf">Marginaal tarief box 1 van de DGA
+          <span class="bron">art. 2.10 Wet IB 2001; de tool houdt het hele traject dezelfde schijf aan</span></label>
+        <select id="ibSchijf"></select>
+      </div>
+      <div>
+        <label for="vpbOverigeWinst">Overige winst van de BV per jaar
+          <span class="bron">bepaalt welk Vpb-tarief op dit pand drukt (art. 22 Wet Vpb 1969)</span></label>
+        <input type="number" id="vpbOverigeWinst" value="0" min="0" step="1000">
+      </div>
+      <div>
+        <label for="box2Partners">Box 2 bij uitdeling
+          <span class="bron">art. 2.12 Wet IB 2001; partners hebben ieder een eigen eerste schijf</span></label>
+        <select id="box2Partners">
+          <option value="nee">Eén aandeelhouder</option>
+          <option value="ja">Fiscale partners, ieder de helft</option>
+        </select>
+      </div>
+      <div>
+        <label for="bvExtraKosten">Extra kosten van de BV per jaar
+          <span class="bron">alleen als de BV er voor dit pand nog moet komen</span></label>
+        <input type="number" id="bvExtraKosten" value="0" min="0" step="100">
+      </div>
+    </div>
+  </div>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="knopReken">Bereken</button>
+    <button type="button" class="tweede" id="knopAfdrukken">Afdrukken als dossierstuk</button>
+    <button type="button" class="tweede" id="knopExcel">Excel-export</button>
+  </div>
+
+  <div id="dossierstuk"></div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// Deze kern is gebouwd vanuit de wet. Er is geen formule, celadres of tekst uit een ander
+// rekenmodel overgenomen; de vergelijking daarmee staat in de private repository.
+//
+// Elke fiscale waarde staat in JAARWAARDEN met haar vindplaats ernaast. BRONNEN.md
+// herhaalt ze met de controledatum.
+
+const TOOL_ID = 'fiscale-vastgoedtool';
+const TOOL_VERSIE = '0.1.0';
+
+// ---------------------------------------------------------------------------
+// Jaarwaarden. Alleen jaren waarvan de waarden in een primaire bron zijn nagelezen.
+// Een startjaar dat hier niet staat rekent niet door. Een projectiejaar na het laatste
+// bekende jaar rekent wel door met de waarden van het laatste bekende jaar, maar alleen
+// zichtbaar: elk zo'n jaar krijgt in de uitkomst het kenmerk "prognose" en een signaal.
+// ---------------------------------------------------------------------------
+const JAARWAARDEN = {
+  2026: {
+    // Art. 2.10 lid 1 Wet IB 2001 (tarieftabel box 1, wie de AOW-leeftijd nog niet heeft
+    // bereikt). De wet noemt voor de eerste schijf 8,10%; 35,75% is dat tarief plus 27,65%
+    // premies volksverzekeringen (art. 10 en 11 Wet financiering sociale verzekeringen; de
+    // percentages staan in de ministeriële regeling op grond van art. 11, niet zelf gelezen),
+    // zoals de Belastingdienst het gecombineerde tarief voor 2026 publiceert. De tweede en derde
+    // schijf staan als gecombineerd tarief in art. 2.10 lid 1 zelf.
+    // https://wetten.overheid.nl/BWBR0011353/2026-01-01#Hoofdstuk2_Afdeling2.3_Artikel2.10
+    ibSchijven: [
+      { tot: 38883, tarief: 0.3575 },
+      { tot: 78426, tarief: 0.3756 },
+      { tot: Infinity, tarief: 0.4950 },
+    ],
+    // Art. 2.10 lid 2 en lid 3 onderdeel c Wet IB 2001: tariefaanpassing voor
+    // grondslagverminderende posten, waaronder de terbeschikkingstellingsvrijstelling mits
+    // het gezamenlijke resultaat uit werkzaamheden positief is. 11,94% over het deel van
+    // inkomen plus posten boven de grens van de tweede schijf (€ 78.426).
+    tariefaanpassing: 0.1194,
+    // Art. 3.99b lid 2 Wet IB 2001: terbeschikkingstellingsvrijstelling, 12% van het
+    // gezamenlijke resultaat uit werkzaamheden. Het resultaat omvat ook de afrekening over de
+    // stille reserve bij vervreemding of beëindiging (art. 3.94, art. 3.95 lid 1 jo. 3.61).
+    // https://wetten.overheid.nl/BWBR0011353/2026-01-01#Hoofdstuk3_Afdeling3.4_Artikel3.99b
+    tbsVrijstelling: 0.12,
+    // Art. 2.12 Wet IB 2001: box 2. Het inkomen uit aanmerkelijk belang is voor fiscale
+    // partners een gemeenschappelijk inkomensbestanddeel dat zij vrij mogen verdelen, ieder
+    // met een eigen eerste schijf (art. 2.17 lid 2 en lid 5 onderdeel b).
+    // https://wetten.overheid.nl/BWBR0011353/2026-01-01#Hoofdstuk2_Afdeling2.3_Artikel2.12
+    box2Schijven: [
+      { tot: 68843, tarief: 0.245 },
+      { tot: Infinity, tarief: 0.31 },
+    ],
+    // Art. 22 Wet Vpb 1969.
+    // https://wetten.overheid.nl/BWBR0002672/2026-01-01#HoofdstukV_Artikel22
+    vpbSchijven: [
+      { tot: 200000, tarief: 0.19 },
+      { tot: Infinity, tarief: 0.258 },
+    ],
+    // Box 3, forfaitair stelsel. Tarief art. 2.13 Wet IB 2001; forfaitair rendement art. 5.2
+    // lid 2: overige bezittingen 6% (vast bij het begin van het jaar, art. 10.6ter lid 3).
+    // Schulden 2,70%: dat is het definitieve percentage voor 2025 (Stcrt. 2026, 3708), dat
+    // sinds 21-02-2026 in art. 5.2 lid 2 staat en daarmee voorlopig ook voor 2026 geldt tot het
+    // na afloop van 2026 wordt vervangen (art. 10.6ter lid 4). De toestand per 1-1-2026 noemde
+    // nog 2,61%. Peildatum 1 januari (art. 5.2 lid 1).
+    // https://wetten.overheid.nl/BWBR0011353/2026-02-21#Hoofdstuk5_Afdeling5.1_Artikel5.2
+    box3: {
+      tarief: 0.36,
+      forfaitOverigeBezittingen: 0.06,
+      forfaitSchulden: 0.027,
+    },
+    // Art. 14 lid 1 en 2 Wet BRV 1970: overdrachtsbelasting, algemeen tarief en woning die
+    // niet het hoofdverblijf van de verkrijger wordt. Grondslag: de waarde, ten minste de
+    // tegenprestatie (art. 9 lid 1).
+    // https://wetten.overheid.nl/BWBR0002740/2026-01-01#HoofdstukII_Afdeling3_Artikel14
+    ovb: {
+      algemeen: 0.104,
+      woningNietHoofdverblijf: 0.08,
+    },
+    // Art. 3.30a lid 3 en 4 Wet IB 2001 (voor de tbs via art. 3.95 lid 1) en art. 8 lid 1
+    // Wet Vpb 1969: bodemwaarde van een gebouw is de WOZ-waarde, voor belegging en eigen
+    // gebruik gelijk sinds 1 januari 2024 (Stb. 2023, 499).
+    bodemwaarde: {
+      vpb: 1.0,
+      tbs: 1.0,
+    },
+    // Art. 17a lid 2 Uitvoeringsbesluit IB 2001: leegwaarderatio voor een verhuurde woning
+    // met huurbescherming, naar de jaarhuur als percentage van de WOZ-waarde: meer dan
+    // "boven" en niet meer dan "tot".
+    // https://wetten.overheid.nl/BWBR0012066/2026-01-01#Hoofdstuk5_Artikel17a
+    leegwaarderatio: [
+      { boven: 0, tot: 0.01, ratio: 0.73 },
+      { boven: 0.01, tot: 0.02, ratio: 0.79 },
+      { boven: 0.02, tot: 0.03, ratio: 0.84 },
+      { boven: 0.03, tot: 0.04, ratio: 0.90 },
+      { boven: 0.04, tot: 0.05, ratio: 0.95 },
+      { boven: 0.05, tot: Infinity, ratio: 1.00 },
+    ],
+  },
+};
+
+const JAREN = Object.keys(JAARWAARDEN).map(Number).sort((a, b) => a - b);
+const LAATST_BEKEND_JAAR = JAREN[JAREN.length - 1];
+
+// Geeft de waarden voor een kalenderjaar, met het kenmerk of het een prognose is.
+// Voor een jaar vóór het eerste bekende jaar bestaat geen uitkomst.
+function waardenVoorJaar(jaar) {
+  if (JAARWAARDEN[jaar]) return { waarden: JAARWAARDEN[jaar], prognose: false };
+  if (jaar > LAATST_BEKEND_JAAR) {
+    return { waarden: JAARWAARDEN[LAATST_BEKEND_JAAR], prognose: true };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Tabellen en tarieven
+// ---------------------------------------------------------------------------
+
+// Belasting volgens een schijventabel over een positief bedrag.
+function volgensTabel(bedrag, schijven) {
+  if (!(bedrag > 0)) return 0;
+  let belasting = 0;
+  let onder = 0;
+  for (const schijf of schijven) {
+    const deel = Math.min(bedrag, schijf.tot) - onder;
+    if (deel > 0) belasting += deel * schijf.tarief;
+    if (bedrag <= schijf.tot) break;
+    onder = schijf.tot;
+  }
+  return belasting;
+}
+
+// Vpb-effect van dit pand bovenop de overige winst van de BV. Een negatief resultaat
+// verlaagt de belasting over de overige winst of wordt verrekend (art. 20 Wet Vpb 1969);
+// dat laatste gaat uit van voldoende latere winst en staat als aanname in de tool.
+function vpbMarginaal(resultaat, overigeWinst, jw) {
+  const s = jw.vpbSchijven;
+  const basis = Math.max(0, overigeWinst);
+  const totaal = basis + resultaat;
+  const laagste = s[0].tarief;
+  const heffing = x => (x >= 0 ? volgensTabel(x, s) : x * laagste);
+  return heffing(totaal) - heffing(basis);
+}
+
+// Box 2-heffing over een voordeel uit aanmerkelijk belang in één jaar. Bij fiscale partners
+// wordt het voordeel gelijk verdeeld, zodat ieder zijn eigen eerste schijf benut.
+function box2Heffing(voordeel, partners, jw) {
+  if (!(voordeel > 0)) return 0;
+  if (partners) return 2 * volgensTabel(voordeel / 2, jw.box2Schijven);
+  return volgensTabel(voordeel, jw.box2Schijven);
+}
+
+// Het marginale box 1-tarief dat de gebruiker kiest, als index in de schijventabel.
+function ibTarief(schijfIndex, jw) {
+  return jw.ibSchijven[schijfIndex].tarief;
+}
+
+// IB over een tbs-resultaat (positief of negatief) bij een gegeven marginaal tarief.
+// De vrijstelling verlaagt het resultaat met 12%, ook een negatief resultaat. Ligt het
+// inkomen in de hoogste schijf en is het resultaat positief, dan werkt de vrijstelling door
+// de tariefaanpassing maar tegen het tarief van de tweede schijf. Een negatief resultaat
+// levert een negatieve heffing op: verrekening met ander box 1-inkomen.
+function ibOverTbsResultaat(resultaat, schijfIndex, jw) {
+  const t = ibTarief(schijfIndex, jw);
+  const vrijstelling = jw.tbsVrijstelling * resultaat;
+  const hoogste = schijfIndex === jw.ibSchijven.length - 1;
+  const aanpassing = hoogste && resultaat > 0 ? jw.tariefaanpassing * vrijstelling : 0;
+  return (resultaat - vrijstelling) * t + aanpassing;
+}
+
+// Leegwaarderatio bij een jaarhuur en WOZ-waarde. Zonder huur is er geen verhuur en dus
+// geen ratio.
+function leegwaarderatio(jaarhuur, woz, jw) {
+  if (!(jaarhuur > 0) || !(woz > 0)) return 1;
+  const pct = jaarhuur / woz;
+  const regel = jw.leegwaarderatio.find(r => pct > r.boven && pct <= r.tot);
+  return regel.ratio;
+}
+
+// Waarde van het pand in box 3 op de peildatum. Een woning staat op de WOZ-waarde, bij
+// verhuur met huurbescherming vermenigvuldigd met de leegwaarderatio (art. 5.20 lid 1 en 3
+// Wet IB 2001, art. 17a Uitvoeringsbesluit). Een ander pand staat op de waarde in het
+// economische verkeer (art. 5.19 lid 1).
+function box3WaardePand(inv, wev, woz, jaarhuur, jw) {
+  if (!inv.woning) return wev;
+  return woz * (inv.huurbescherming ? leegwaarderatio(jaarhuur, woz, jw) : 1);
+}
+
+// Tarief van de overdrachtsbelasting.
+function ovbTarief(woning, jw) {
+  return woning ? jw.ovb.woningNietHoofdverblijf : jw.ovb.algemeen;
+}
+
+// ---------------------------------------------------------------------------
+// Invoer
+// ---------------------------------------------------------------------------
+
+const SITUATIES = {
+  aankoop: {
+    naam: 'Nieuw aan te kopen pand',
+    vraag: 'In welke box hoort een pand dat de DGA nog gaat kopen?',
+    routes: ['box3', 'tbs', 'bv'],
+  },
+  box3: {
+    naam: 'Pand in box 3',
+    vraag: 'Blijft het pand in box 3, gaat het onder de terbeschikkingstellingsregeling of naar de BV?',
+    routes: ['box3', 'tbs', 'bv'],
+  },
+  tbs: {
+    naam: 'Pand onder de terbeschikkingstellingsregeling',
+    vraag: 'Blijft het pand ter beschikking gesteld, of gaat het naar de BV?',
+    routes: ['tbs', 'bv'],
+  },
+};
+
+const ROUTE_NAMEN = {
+  box3: 'Box 3 (privé)',
+  tbs: 'Terbeschikkingstelling (box 1)',
+  bv: 'In de BV (Vpb en box 2)',
+};
+
+const STANDAARD_INVOER = {
+  situatie: 'aankoop',
+  startjaar: 2026,
+  looptijd: 10,
+  waarde: 0,
+  woz: 0,
+  woning: false,
+  ovbBijAankoop: true,
+  huurbescherming: false,
+  waardestijging: 0,
+  huur: 0,
+  kosten: 0,
+  indexatie: 0,
+  schuld: 0,
+  rente: 0,
+  aflossing: 0,
+  herbeleggingsrendement: 0,
+  ibSchijf: 2,
+  vpbOverigeWinst: 0,
+  box2Partners: false,
+  bvExtraKosten: 0,
+  tbsVergoeding: 0,
+  tbsKostenBijBv: false,
+  afschrijving: 0,
+  bijkomendeKostenPct: 0,
+  boekwaardeTbs: 0,
+  financieringBv: 0,
+};
+
+// Veldbeschrijving: soort, grenzen en of het veld in de gekozen situatie meedoet.
+const VELDEN = {
+  situatie:      { soort: 'keuze', opties: Object.keys(SITUATIES) },
+  startjaar:     { soort: 'keuze', opties: JAREN },
+  looptijd:      { soort: 'geheel', min: 1, max: 30 },
+  waarde:        { soort: 'bedrag', min: 1 },
+  woz:           { soort: 'bedrag', min: 1 },
+  woning:        { soort: 'janee' },
+  ovbBijAankoop: { soort: 'janee' },
+  huurbescherming: { soort: 'janee' },
+  waardestijging: { soort: 'fractie', min: -0.5, max: 0.5 },
+  huur:          { soort: 'bedrag', min: 0 },
+  kosten:        { soort: 'bedrag', min: 0 },
+  indexatie:     { soort: 'fractie', min: -0.5, max: 0.5 },
+  schuld:        { soort: 'bedrag', min: 0 },
+  rente:         { soort: 'fractie', min: 0, max: 0.5 },
+  aflossing:     { soort: 'bedrag', min: 0 },
+  herbeleggingsrendement: { soort: 'fractie', min: -0.5, max: 0.5 },
+  ibSchijf:      { soort: 'keuze', opties: [0, 1, 2] },
+  vpbOverigeWinst: { soort: 'bedrag', min: 0 },
+  box2Partners:  { soort: 'janee' },
+  bvExtraKosten: { soort: 'bedrag', min: 0 },
+  tbsVergoeding: { soort: 'bedrag', min: 0 },
+  tbsKostenBijBv: { soort: 'janee' },
+  afschrijving:  { soort: 'bedrag', min: 0 },
+  bijkomendeKostenPct: { soort: 'fractie', min: 0, max: 0.2 },
+  boekwaardeTbs: { soort: 'bedrag', min: 0 },
+  financieringBv: { soort: 'bedrag', min: 0 },
+};
+
+function isGetal(x) { return typeof x === 'number' && Number.isFinite(x); }
+
+// Toetst de invoer. Geeft een lijst met fouten; een lege lijst betekent dat er gerekend kan
+// worden. Er wordt niets stil gecorrigeerd of aangevuld.
+function toetsInvoer(inv) {
+  const fouten = [];
+  if (!inv || typeof inv !== 'object') return ['Er is geen invoer.'];
+  for (const [veld, regel] of Object.entries(VELDEN)) {
+    const w = inv[veld];
+    if (w === undefined || w === null) { fouten.push(`Veld "${veld}" ontbreekt.`); continue; }
+    if (regel.soort === 'keuze') {
+      if (!regel.opties.includes(w)) fouten.push(`Veld "${veld}" heeft een onbekende waarde.`);
+    } else if (regel.soort === 'janee') {
+      if (typeof w !== 'boolean') fouten.push(`Veld "${veld}" moet ja of nee zijn.`);
+    } else {
+      if (!isGetal(w)) { fouten.push(`Veld "${veld}" is geen getal.`); continue; }
+      if (regel.soort === 'geheel' && !Number.isInteger(w)) fouten.push(`Veld "${veld}" moet een geheel getal zijn.`);
+      if (regel.min !== undefined && w < regel.min) fouten.push(`Veld "${veld}" is kleiner dan ${regel.min}.`);
+      if (regel.max !== undefined && w > regel.max) fouten.push(`Veld "${veld}" is groter dan ${regel.max}.`);
+    }
+  }
+  if (fouten.length) return fouten;
+
+  if (inv.aflossing > inv.schuld && inv.schuld > 0) {
+    fouten.push('De aflossing per jaar is hoger dan de schuld.');
+  }
+  const start = waardenVoorJaar(inv.startjaar);
+  if (!start || start.prognose) {
+    fouten.push(`Voor ${inv.startjaar} zijn de fiscale waarden niet vastgesteld; de tool rekent dat jaar niet door.`);
+    return fouten;
+  }
+  const overdracht = overdrachtNaarBv(inv, start.waarden);
+  if (overdracht.agio < 0) {
+    fouten.push('De financiering van de BV is hoger dan de koopsom plus de overdrachtsbelasting en de ' +
+      'bijkomende kosten. De BV zou de DGA dan meer betalen dan het pand kost.');
+  }
+  return fouten;
+}
+
+// ---------------------------------------------------------------------------
+// Het moment van de overgang, eind van het jaar vóór het startjaar
+// ---------------------------------------------------------------------------
+
+// De overdracht aan de BV: de BV betaalt de koopsom (de waarde in het economische
+// verkeer) plus overdrachtsbelasting en bijkomende kosten, en financiert dat met een
+// externe lening en voor het restant met een kapitaalstorting van de DGA (agio). Bij een
+// aankoop betaalt de BV de verkoper; bij een overdracht door de DGA ontvangt de DGA de
+// koopsom minus het deel dat hij als agio stort.
+function overdrachtNaarBv(inv, jw) {
+  const koopsom = inv.waarde;
+  // Bij een aankoop kan de levering zijn vrijgesteld, zoals bij een nieuw gebouw dat met
+  // btw wordt geleverd (art. 15 lid 1 onderdeel a Wet BRV 1970). Bij een overdracht door
+  // de DGA aan zijn BV is overdrachtsbelasting in deze tool altijd verschuldigd.
+  const vrijgesteld = inv.situatie === 'aankoop' && !inv.ovbBijAankoop;
+  const ovb = vrijgesteld ? 0 : koopsom * ovbTarief(inv.woning, jw);
+  const bijkomend = koopsom * inv.bijkomendeKostenPct;
+  const financiering = inv.situatie === 'aankoop' ? inv.schuld : inv.financieringBv;
+  const agio = koopsom + ovb + bijkomend - financiering;
+  return { koopsom, ovb, bijkomend, financiering, agio, kostprijs: koopsom + ovb + bijkomend };
+}
+
+// Stelt per route de begintoestand op. Bedragen zijn per 31 december van het jaar vóór het
+// startjaar, direct na een eventuele overgang.
+function beginToestand(route, inv, jw) {
+  const t = {
+    route,
+    waarde: inv.waarde,
+    woz: inv.woz,
+    schuldPrive: 0,
+    schuldBv: 0,
+    boekwaarde: null,          // fiscale boekwaarde (tbs of BV), null in box 3
+    kasPrive: 0,               // herbelegde kasstromen privé (box 3)
+    kasBv: 0,                  // herbelegde kasstromen in de BV
+    verkrijgingsprijs: 0,      // verhoging verkrijgingsprijs aandelen door storting
+    pandIn: route,             // box3, tbs of bv
+    eenmalig: [],              // belasting en kosten bij de overgang
+  };
+  const ib = inv.ibSchijf;
+
+  if (inv.situatie === 'aankoop') {
+    const o = overdrachtNaarBv(inv, jw);
+    const kosten = o.ovb + o.bijkomend;
+    if (o.ovb) t.eenmalig.push({ soort: 'Overdrachtsbelasting bij aankoop', bedrag: o.ovb });
+    if (o.bijkomend) t.eenmalig.push({ soort: 'Bijkomende aankoopkosten', bedrag: o.bijkomend });
+    // In elke route gaan de aankoopkosten verloren: zij verlagen het vermogen bij aanvang.
+    // In box 3 worden zij niet geactiveerd; onder tbs en in de BV wel (kostprijs).
+    t.kasPrive = -kosten;
+    if (route === 'box3' || route === 'tbs') {
+      t.schuldPrive = inv.schuld;
+      if (route === 'tbs') t.boekwaarde = o.kostprijs;
+    } else {
+      t.schuldBv = o.financiering;
+      t.boekwaarde = o.kostprijs;
+      t.verkrijgingsprijs = o.agio;
+    }
+    return t;
+  }
+
+  if (inv.situatie === 'box3') {
+    t.schuldPrive = inv.schuld;
+    if (route === 'tbs') {
+      // Bij de aanvang van de terbeschikkingstelling gaat het pand in op de waarde in het
+      // economische verkeer.
+      t.boekwaarde = inv.waarde;
+    }
+    if (route === 'bv') vulOverdrachtIn(t, inv, jw, 0);
+    return t;
+  }
+
+  // situatie tbs
+  t.schuldPrive = inv.schuld;
+  t.boekwaarde = inv.boekwaardeTbs;
+  if (route === 'bv') {
+    // Vervreemding aan de BV beëindigt de terbeschikkingstelling van dit pand: afrekening
+    // over het verschil tussen de koopsom en de boekwaarde in box 1.
+    const ibAfrekening = ibOverTbsResultaat(inv.waarde - inv.boekwaardeTbs, ib, jw);
+    t.eenmalig.push({ soort: 'IB over de stille reserve bij overdracht (box 1)', bedrag: ibAfrekening });
+    vulOverdrachtIn(t, inv, jw, ibAfrekening);
+  }
+  return t;
+}
+
+function vulOverdrachtIn(t, inv, jw, ibAfrekening) {
+  const o = overdrachtNaarBv(inv, jw);
+  t.eenmalig.push({ soort: 'Overdrachtsbelasting (betaald door de BV)', bedrag: o.ovb });
+  if (o.bijkomend) t.eenmalig.push({ soort: 'Bijkomende kosten (betaald door de BV)', bedrag: o.bijkomend });
+  t.schuldBv = o.financiering;
+  t.boekwaarde = o.kostprijs;
+  t.verkrijgingsprijs = o.agio;
+  // De DGA ontvangt de koopsom minus zijn agio, lost zijn eigen lening af en betaalt de
+  // afrekening; het restant (of tekort) is privévermogen in box 3.
+  t.kasPrive = (o.koopsom - o.agio) - inv.schuld - ibAfrekening;
+  t.schuldPrive = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Een jaar doorrekenen
+// ---------------------------------------------------------------------------
+
+function afschrijvingVoor(t, woz, bodemPct, gevraagd) {
+  if (t.boekwaarde === null || !(gevraagd > 0)) return 0;
+  const bodem = bodemPct * woz;
+  return Math.max(0, Math.min(gevraagd, t.boekwaarde - bodem));
+}
+
+// Box 3-heffing (forfaitair) over bezittingen en schulden op de peildatum 1 januari.
+// Marginaal gerekend: het heffingsvrij vermogen en de drempel voor schulden worden geacht
+// al door ander vermogen te zijn benut.
+function box3Forfaitair(bezittingenOverig, onroerendeZaak, schulden, jw) {
+  const b = jw.box3;
+  const voordeel = (onroerendeZaak + bezittingenOverig) * b.forfaitOverigeBezittingen -
+    schulden * b.forfaitSchulden;
+  return voordeel * b.tarief;
+}
+
+function rekenJaar(t, inv, j, jw) {
+  const factor = Math.pow(1 + inv.indexatie, j - 1);
+  const huur = inv.huur * factor;
+  const kosten = inv.kosten * factor;
+  const tbsVergoeding = inv.tbsVergoeding * factor;
+  const bvExtra = inv.bvExtraKosten * factor;
+  const wozJaar = inv.woz * Math.pow(1 + inv.waardestijging, j - 1);
+  const rh = inv.herbeleggingsrendement;
+  const r = {};
+
+  const waardeEinde = t.waarde * (1 + inv.waardestijging);
+
+  if (t.route === 'box3') {
+    const rente = t.schuldPrive * inv.rente;
+    const pandBox3 = box3WaardePand(inv, t.waarde, wozJaar, huur, jw);
+    const box3 = box3Forfaitair(t.kasPrive, pandBox3, t.schuldPrive, jw);
+    const kas = huur - kosten - rente - box3;
+    const aflossing = Math.max(0, Math.min(t.schuldPrive, inv.aflossing, kas));
+    r.aflossingVerlaagd = aflossing < Math.min(t.schuldPrive, inv.aflossing) - 0.005;
+    Object.assign(r, { huur, kosten, rente, pandBox3, box3, ib: 0, vpb: 0, aflossing, kasstroom: kas - aflossing });
+    t.kasPrive = t.kasPrive * (1 + rh) + kas - aflossing;
+    t.schuldPrive -= aflossing;
+  } else if (t.route === 'tbs') {
+    const rente = t.schuldPrive * inv.rente;
+    const afschrijving = afschrijvingVoor(t, wozJaar, jw.bodemwaarde.tbs, inv.afschrijving);
+    const kostenPrive = inv.tbsKostenBijBv ? 0 : kosten;
+    const kostenBv = inv.tbsKostenBijBv ? kosten : 0;
+    const resultaat = tbsVergoeding - kostenPrive - rente - afschrijving;
+    const ib = ibOverTbsResultaat(resultaat, inv.ibSchijf, jw);
+    const box3 = box3Forfaitair(t.kasPrive, 0, 0, jw);
+    const kas = tbsVergoeding - kostenPrive - rente - ib - box3;
+    const aflossing = Math.max(0, Math.min(t.schuldPrive, inv.aflossing, kas));
+    r.aflossingVerlaagd = aflossing < Math.min(t.schuldPrive, inv.aflossing) - 0.005;
+    // De BV ontvangt de huur van derden (of bespaart de huur bij eigen gebruik) en betaalt
+    // de tbs-vergoeding aan de DGA.
+    const rendementBv = t.kasBv * rh;
+    const winstBv = huur - kostenBv - tbsVergoeding - bvExtra + rendementBv;
+    const vpb = vpbMarginaal(winstBv, inv.vpbOverigeWinst, jw);
+    Object.assign(r, { huur, kosten, rente, afschrijving, tbsVergoeding, resultaatTbs: resultaat,
+      ib, box3, winstBv, vpb, aflossing, kasstroom: kas - aflossing });
+    t.kasPrive = t.kasPrive * (1 + rh) + kas - aflossing;
+    t.schuldPrive -= aflossing;
+    t.kasBv += winstBv - vpb;
+    t.boekwaarde -= afschrijving;
+  } else {
+    const rente = t.schuldBv * inv.rente;
+    const afschrijving = afschrijvingVoor(t, wozJaar, jw.bodemwaarde.vpb, inv.afschrijving);
+    const rendementBv = t.kasBv * rh;
+    const winstBv = huur - kosten - rente - afschrijving - bvExtra + rendementBv;
+    const vpb = vpbMarginaal(winstBv, inv.vpbOverigeWinst, jw);
+    const kasBvJaar = winstBv + afschrijving - vpb;          // rendement zit in de winst
+    const aflossing = Math.max(0, Math.min(t.schuldBv, inv.aflossing, kasBvJaar - rendementBv));
+    r.aflossingVerlaagd = aflossing < Math.min(t.schuldBv, inv.aflossing) - 0.005;
+    const box3 = box3Forfaitair(t.kasPrive, 0, 0, jw);
+    Object.assign(r, { huur, kosten, rente, afschrijving, winstBv, vpb, box3, ib: 0, aflossing,
+      kasstroom: kasBvJaar - aflossing });
+    t.kasBv += kasBvJaar - aflossing;
+    t.schuldBv -= aflossing;
+    t.boekwaarde -= afschrijving;
+    t.kasPrive = t.kasPrive * (1 + rh) - box3;
+  }
+  t.waarde = waardeEinde;
+  r.belasting = (r.ib || 0) + (r.vpb || 0) + (r.box3 || 0);
+  return r;
+}
+
+// Latente belasting en netto vermogen per 31 december, alsof het pand dan wordt verkocht en
+// de BV haar vermogen uitkeert. Nominaal, niet contant gemaakt.
+function stand(t, inv, jw) {
+  const s = { waarde: t.waarde, schuld: t.schuldPrive + t.schuldBv, kasPrive: t.kasPrive,
+    kasBv: t.kasBv, boekwaarde: t.boekwaarde, latentIb: 0, latentVpb: 0, latentBox2: 0 };
+  if (t.route === 'box3') {
+    s.netto = t.waarde - t.schuldPrive + t.kasPrive;
+    return s;
+  }
+  if (t.route === 'tbs') {
+    s.latentIb = ibOverTbsResultaat(t.waarde - t.boekwaarde, inv.ibSchijf, jw);
+    const evBv = t.kasBv;
+    s.latentBox2 = box2Heffing(evBv - t.verkrijgingsprijs, inv.box2Partners, jw);
+    s.netto = t.waarde - t.schuldPrive + t.kasPrive - s.latentIb + evBv - s.latentBox2;
+    return s;
+  }
+  s.latentVpb = vpbMarginaal(t.waarde - t.boekwaarde, inv.vpbOverigeWinst, jw);
+  const evBv = t.waarde - t.schuldBv + t.kasBv - s.latentVpb;
+  s.latentBox2 = box2Heffing(evBv - t.verkrijgingsprijs, inv.box2Partners, jw);
+  s.netto = evBv - s.latentBox2 + t.kasPrive;
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// De hele berekening
+// ---------------------------------------------------------------------------
+
+function bereken(inv) {
+  const fouten = toetsInvoer(inv);
+  if (fouten.length) return { fouten, signalen: [], routes: [] };
+
+  const start = waardenVoorJaar(inv.startjaar).waarden;
+  const routes = SITUATIES[inv.situatie].routes.map(route => {
+    const t = beginToestand(route, inv, start);
+    const begin = stand(t, inv, start);
+    const jaren = [];
+    for (let j = 1; j <= inv.looptijd; j++) {
+      const jaar = inv.startjaar + j - 1;
+      const { waarden, prognose } = waardenVoorJaar(jaar);
+      const regel = rekenJaar(t, inv, j, waarden);
+      jaren.push({ jaar, prognose, ...regel, ...stand(t, inv, waarden) });
+    }
+    const eenmaligTotaal = t.eenmalig.reduce((som, e) => som + e.bedrag, 0);
+    return { route, naam: ROUTE_NAMEN[route], eenmalig: t.eenmalig, eenmaligTotaal,
+      begin, jaren, eind: jaren[jaren.length - 1] };
+  });
+
+  return { fouten: [], signalen: signalenVoor(inv, routes), routes,
+    vergelijking: vergelijk(routes) };
+}
+
+// De route met het hoogste netto vermogen aan het eind, en het verschil per route.
+function vergelijk(routes) {
+  const eind = routes.map(r => ({ route: r.route, naam: r.naam, netto: r.eind.netto }));
+  const beste = eind.reduce((a, b) => (b.netto > a.netto ? b : a));
+  return { beste: beste.route, perRoute: eind.map(e => ({ ...e, verschilMetBeste: e.netto - beste.netto })) };
+}
+
+// Signalen: wat de gebruiker moet weten om deze uitkomst goed te lezen. Geen opmaak, alleen
+// tekst; de weergave bepaalt hoe het eruitziet.
+function signalenVoor(inv, routes) {
+  const s = [];
+  const jaren = routes[0].jaren;
+  const eerste = jaren[0].jaar;
+  const laatste = jaren[jaren.length - 1].jaar;
+  const reeks = lijst => lijst.length === 1 ? String(lijst[0])
+    : `${lijst[0]} tot en met ${lijst[lijst.length - 1]}`;
+  const route = id => routes.find(r => r.route === id);
+
+  const prognose = jaren.filter(j => j.prognose).map(j => j.jaar);
+  if (prognose.length) {
+    s.push({ soort: 'prognose', tekst: `Voor ${reeks(prognose)} zijn de fiscale waarden nog niet vastgesteld. ` +
+      `Die jaren rekenen met de waarden van ${LAATST_BEKEND_JAAR}; dat is een aanname en geen geldend recht.` });
+  }
+  if (laatste >= 2028) {
+    s.push({ soort: 'let-op', tekst: 'Ook vanaf 2028 rekent de tool box 3 volgens het forfaitaire stelsel. ' +
+      'Het wetsvoorstel Wet werkelijk rendement box 3 (Kamerstukken 36 748) is geen wet: de Eerste Kamer heeft de ' +
+      'stemming aangehouden. Wordt het wet, dan wordt verhuurd vastgoed in box 3 anders belast (de huur jaarlijks, ' +
+      'de waardestijging pas bij verkoop) en kan de vergelijking wezenlijk anders uitvallen.' });
+  }
+  if (route('box3')) {
+    s.push({ soort: 'info', tekst: 'De box 3-heffing is die over het forfaitaire rendement. Is het werkelijke ' +
+      'rendement lager, dan kan de tegenbewijsregeling (art. 5.25 Wet IB 2001) de heffing verlagen; de tool rekent ' +
+      'daar niet mee.' });
+    if (inv.woning && inv.huurbescherming) {
+      s.push({ soort: 'info', tekst: 'De leegwaarderatio volgt uit de huur als percentage van de WOZ-waarde ' +
+        '(art. 17a Uitvoeringsbesluit IB 2001). Niet getoetst: of de uitkomst ten minste 10% boven de waarde in ' +
+        'verhuurde staat ligt (dan geldt die waarde, lid 6), en of de huur tussen gelieerde partijen zakelijk is ' +
+        '(anders geen ratio, art. 5.20 lid 5 Wet IB 2001).' });
+    }
+  }
+  if (inv.situatie === 'box3' && route('tbs')) {
+    s.push({ soort: 'let-op', tekst: 'Onder de terbeschikkingstelling laat de tool het pand ingaan op de waarde in ' +
+      'het economische verkeer bij de aanvang. Daarvoor is geen wetsartikel en geen rechtspraak gevonden die dat voor ' +
+      'een aanvang na 2001 vastlegt. Is de beginwaarde lager, dan valt de tbs-route ongunstiger uit.' });
+  }
+  if (inv.situatie === 'box3' && route('tbs')) {
+    s.push({ soort: 'info', tekst: 'De tbs-route gaat uit van een blijvende terbeschikkingstelling. Een tijdelijke ' +
+      'verplaatsing rond 1 januari van niet meer dan zes maanden kan het pand voor box 3 toch laten meetellen ' +
+      '(art. 2.14 lid 3 onderdeel b en c Wet IB 2001); de tool rekent zo’n besparing niet.' });
+  }
+  if (route('tbs') && inv.tbsKostenBijBv) {
+    s.push({ soort: 'info', tekst: 'Verhuurt de BV het pand door aan derden, dan valt de verhuur aan de BV naar de ' +
+      'tekst van art. 3.92 lid 1 onderdeel a Wet IB 2001 onder de terbeschikkingstelling ("direct of indirect"). ' +
+      'Rechtspraak over deze opzet is niet nagezocht.' });
+  }
+  if (inv.afschrijving > 0 && inv.situatie === 'tbs') {
+    s.push({ soort: 'info', tekst: 'De bodemwaarde is de WOZ-waarde (art. 3.30a Wet IB 2001). Behoorde het pand ' +
+      'vóór 2024 al tot het vermogen van de werkzaamheid, werd het in eigen gebruik genomen, is er vóór 2024 al op ' +
+      'afgeschreven en zijn er nog geen drie volle jaren afschrijving om, dan kan tijdelijk de oude bodemwaarde ' +
+      'gelden (Stb. 2023, 499, art. XXXVII); de tool rekent daar niet mee.' });
+  }
+  const tbs = route('tbs');
+  if (tbs) {
+    const verlies = tbs.jaren.filter(j => j.resultaatTbs < 0).map(j => j.jaar);
+    if (verlies.length) {
+      s.push({ soort: 'let-op', tekst: `In ${reeks(verlies)} is het tbs-resultaat negatief. De tool verrekent ` +
+        'dat verlies met ander box 1-inkomen tegen het gekozen tarief; zonder ander inkomen valt de tbs-route ongunstiger uit.' });
+    }
+  }
+  const bvVerlies = routes.flatMap(r => r.jaren.filter(j => j.winstBv < 0).map(j => j.jaar));
+  if (bvVerlies.length) {
+    const uniek = [...new Set(bvVerlies)].sort((x, y) => x - y);
+    s.push({ soort: 'let-op', tekst: `In ${reeks(uniek)} lijdt de BV verlies op dit pand. De tool verrekent dat ` +
+      'met de overige winst of met latere winst (art. 20 Wet Vpb 1969).' });
+  }
+  const tekort = routes.flatMap(r => r.jaren.filter(j => j.kasstroom < -0.005).map(j => r.naam + ' ' + j.jaar));
+  if (tekort.length) {
+    s.push({ soort: 'let-op', tekst: 'De kasstroom na belasting is negatief in: ' + tekort.join(', ') +
+      '. De tool neemt aan dat het tekort uit ander vermogen wordt betaald.' });
+  }
+  const verlaagd = routes.flatMap(r => r.jaren.filter(j => j.aflossingVerlaagd).map(j => r.naam + ' ' + j.jaar));
+  if (verlaagd.length) {
+    s.push({ soort: 'info', tekst: 'De aflossing is verlaagd tot wat de kasstroom toeliet in: ' + verlaagd.join(', ') + '.' });
+  }
+  const negatief = routes.filter(r => r.eind.latentIb < -0.005 || r.eind.latentVpb < -0.005).map(r => r.naam);
+  if (negatief.length) {
+    s.push({ soort: 'info', tekst: 'De latente belasting is negatief in: ' + negatief.join(', ') + '. Bij verkoop ' +
+      'ontstaat dan een fiscaal verlies, bijvoorbeeld door geactiveerde aankoopkosten, dat de belasting verlaagt; ' +
+      'de tool telt dat voordeel mee.' });
+  }
+  if (eerste === 2026) {
+    s.push({ soort: 'info', tekst: 'De overgang is gerekend op 31 december 2025. Een overgang die nu wordt ' +
+      'voorbereid valt later; de jaren daarna rekenen dan met prognosewaarden.' });
+  }
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Verantwoording: gaat mee op het scherm, de afdruk en in de export.
+// ---------------------------------------------------------------------------
+
+const AANNAMES = [
+  'Netto vermogen is de waarde van het pand min de leningen, plus de herbelegde kasstromen, min alle latente ' +
+    'belasting alsof het pand aan het eind van dat jaar wordt verkocht en de BV haar vermogen in één keer uitkeert. ' +
+    'Nominaal, niet contant gemaakt.',
+  'De overgang vindt plaats op 31 december van het jaar vóór het eerste jaar van de vergelijking. Het pand staat ' +
+    'dan op de peildatum 1 januari niet meer in box 3.',
+  'Het gekozen box 1-tarief geldt voor elk jaar en ook voor de afrekening over de stille reserve. In de hoogste ' +
+    'schijf werkt de tbs-vrijstelling daardoor tegen 37,56% (tariefaanpassing, art. 2.10 lid 2 Wet IB 2001).',
+  'Box 3 is marginaal gerekend: het heffingsvrij vermogen en de schuldendrempel worden geacht al door ander ' +
+    'vermogen te zijn benut. Herbelegde kasstromen privé tellen als overige bezittingen.',
+  'De Vpb is marginaal gerekend boven de opgegeven overige winst van de BV. Een verlies wordt geacht verrekenbaar.',
+  'De latente box 2-heffing is berekend over het vermogen dat de BV aan dit pand toerekent, min het kapitaal dat de ' +
+    'DGA ervoor heeft gestort. Een negatief bedrag levert geen voordeel op.',
+  'Bij een overdracht aan de BV is de koopsom de waarde in het economische verkeer. De BV betaalt die met de ' +
+    'opgegeven lening en, voor het restant van koopsom, overdrachtsbelasting en kosten, met een kapitaalstorting van ' +
+    'de DGA. De DGA lost uit wat hij ontvangt zijn eigen lening af; het restant is privévermogen.',
+  'De tbs-vergoeding is zakelijk en de DGA heeft een aanmerkelijk belang in de BV (art. 3.92 lid 1 onderdeel a ' +
+    'Wet IB 2001).',
+  'De aflossing komt uit de kasstroom van het jaar en wordt verlaagd als die niet toereikt. Een negatieve kasstroom ' +
+    'komt uit ander vermogen.',
+  'De WOZ-waarde volgt dezelfde waardestijging als het pand.',
+];
+
+const AFBAKENING = [
+  'Dit is een fiscale keuzetool en geen rendementsscan. Voor het rendement van het pand vóór belasting en de ' +
+    'invloed van de financiering daarop is er de tool vastgoedrendement.',
+  'Geen btw en geen herziening van btw; geen vermindering van de overdrachtsbelasting bij een doorverkoop binnen zes ' +
+    'maanden (art. 13 Wet BRV 1970) en geen andere vrijstelling dan die voor een nieuw gebouw dat met btw wordt geleverd.',
+  'Geen IB-onderneming: geen ondernemersaftrek, MKB-winstvrijstelling of herinvesteringsreserve. Geen fiscale eenheid.',
+  'Geen tegenbewijsregeling in box 3 en geen Wet werkelijk rendement box 3.',
+  'Geen boxhopping. De tool berekent geen belastingbesparing voor het kort vóór 1 januari onder de ' +
+    'terbeschikkingstellingsregeling brengen van het pand en het kort daarna laten terugkeren naar box 3. Bij een ' +
+    'tijdelijke verplaatsing rond 1 januari kunnen de anti-arbitragebepalingen voor box 3 toepassing vinden, waardoor ' +
+    'het pand voor box 3 toch in aanmerking wordt genomen: bij een verplaatsing van niet meer dan drie maanden altijd, ' +
+    'bij meer dan drie en niet meer dan zes maanden tenzij zakelijke overwegingen aannemelijk worden gemaakt ' +
+    '(art. 2.14 lid 3 onderdeel b en c Wet IB 2001). Daarnaast moeten de gevolgen van de tijdelijke ' +
+    'terbeschikkingstelling afzonderlijk worden beoordeeld.',
+  'Geen overdracht tegen een andere prijs dan de waarde in het economische verkeer, en geen koopsom die de BV aan ' +
+    'de DGA schuldig blijft.',
+  'Geen renteaftrekbeperking in de Vpb, geen gebruikelijk loon, geen erf- of schenkbelasting en geen tarieven voor ' +
+    'wie de AOW-leeftijd heeft bereikt.',
+];
+
+const VINDPLAATSEN = [
+  { waarde: 'Box 1-tarieven 2026: 35,75%, 37,56% tot € 78.426, 49,50% daarboven',
+    bron: 'art. 2.10 lid 1 Wet IB 2001; de eerste schijf is 8,10% belasting plus 27,65% premies volksverzekeringen (art. 10 en 11 Wfsv en de regeling daarbij)' },
+  { waarde: 'Tariefaanpassing 11,94%', bron: 'art. 2.10 lid 2 en lid 3 onderdeel c Wet IB 2001' },
+  { waarde: 'Terbeschikkingstelling', bron: 'art. 3.92 lid 1 onderdeel a Wet IB 2001; resultaat en afrekening art. 3.94 en 3.95 lid 1 jo. 3.61' },
+  { waarde: 'Terbeschikkingstellingsvrijstelling 12%', bron: 'art. 3.99b Wet IB 2001' },
+  { waarde: 'Bodemwaarde gebouw: WOZ-waarde', bron: 'art. 3.30a lid 3 en 4 Wet IB 2001; art. 8 lid 1 Wet Vpb 1969' },
+  { waarde: 'Box 2-tarieven 2026: 24,5% tot € 68.843, 31% daarboven', bron: 'art. 2.12 Wet IB 2001; partners art. 2.17' },
+  { waarde: 'Vpb-tarieven 2026: 19% tot € 200.000, 25,8% daarboven', bron: 'art. 22 Wet Vpb 1969' },
+  { waarde: 'Box 3 2026: tarief 36%, overige bezittingen 6%, schulden 2,70% (voorlopig)', bron: 'art. 2.13 en 5.2 lid 2 Wet IB 2001 (toestand 21-02-2026); schulden: definitief percentage 2025 (Stcrt. 2026, 3708), voorlopig voor 2026 (art. 10.6ter lid 4)' },
+  { waarde: 'Box 3-waarde pand', bron: 'art. 5.19 lid 1 Wet IB 2001 (waarde in het economische verkeer); woning art. 5.20 (WOZ-waarde, leegwaarderatio)' },
+  { waarde: 'Leegwaarderatio 73% tot 100%', bron: 'art. 17a lid 2 Uitvoeringsbesluit IB 2001' },
+  { waarde: 'Overdrachtsbelasting 2026: 10,4%, woning 8%', bron: 'art. 14 lid 1 en 2 Wet BRV 1970; grondslag art. 9; nieuwbouw met btw art. 15 lid 1 onderdeel a' },
+  { waarde: 'Geen doorschuiving bij overdracht van een tbs-pand aan de BV', bron: 'art. 3.95 lid 1 en 2 Wet IB 2001 (art. 3.65 niet van toepassing); art. 3.99a vervallen per 2011' },
+  { waarde: 'Tijdelijke verplaatsing uit box 3 rond de peildatum', bron: 'art. 2.14 lid 3 onderdeel b en c Wet IB 2001' },
+  { waarde: 'Verkrijgingsprijs aandelen stijgt met een agiostorting', bron: 'gangbare uitleg; art. 4.21 lid 1 Wet IB 2001 regelt de verkrijging van aandelen, niet de storting op bestaande aandelen' },
+];
+// FISCALE KERN — EINDE
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Geen rekenlogica: alles wat hier staat
+// komt uit de uitkomst van bereken(), via één functie (uitgangModel), zodat het scherm,
+// de afdruk en de export niet uiteen kunnen lopen.
+
+const DOSSIER_FORMAAT = 1;
+
+// De labels zoals zij op het scherm staan. Een test bewaakt dat elk label in body.html
+// voorkomt.
+const INVOER_LABELS = {
+  situatie: 'Situatie',
+  startjaar: 'Eerste jaar van de vergelijking',
+  looptijd: 'Aantal jaren',
+  waarde: 'Waarde in het economische verkeer',
+  woz: 'WOZ-waarde',
+  waardestijging: 'Waardestijging per jaar in procenten',
+  woning: 'Soort pand',
+  ovbBijAankoop: 'Overdrachtsbelasting bij de aankoop',
+  huurbescherming: 'Verhuur van de woning',
+  boekwaardeTbs: 'Fiscale boekwaarde onder de tbs',
+  afschrijving: 'Afschrijving op het gebouw per jaar',
+  bijkomendeKostenPct: 'Bijkomende kosten in procenten van de koopsom',
+  huur: 'Huur per jaar',
+  kosten: 'Kosten per jaar',
+  indexatie: 'Indexatie huur en kosten in procenten',
+  schuld: 'Lening',
+  financieringBv: 'Lening van de BV bij overdracht',
+  rente: 'Rente in procenten',
+  aflossing: 'Aflossing per jaar, ten hoogste',
+  herbeleggingsrendement: 'Rendement op herbelegde kasstromen in procenten',
+  tbsVergoeding: 'Vergoeding van de BV aan de DGA per jaar',
+  tbsKostenBijBv: 'Wie draagt de kosten in de tbs-route',
+  ibSchijf: 'Marginaal tarief box 1 van de DGA',
+  vpbOverigeWinst: 'Overige winst van de BV per jaar',
+  box2Partners: 'Box 2 bij uitdeling',
+  bvExtraKosten: 'Extra kosten van de BV per jaar',
+};
+
+// Velden die op het scherm in procenten staan en in de kern als fractie.
+const PROCENTVELDEN = ['waardestijging', 'bijkomendeKostenPct', 'indexatie',
+  'rente', 'herbeleggingsrendement'];
+
+// Welke velden in welke situatie meedoen. Een veld dat niet meedoet, gaat wel mee in het
+// dossierbestand (het staat in de invoer) maar niet op de afdruk.
+const VELD_SITUATIES = {
+  huurbescherming: ['aankoop', 'box3'],
+  ovbBijAankoop: ['aankoop'],
+  boekwaardeTbs: ['tbs'],
+  bijkomendeKostenPct: ['aankoop', 'box3', 'tbs'],
+  financieringBv: ['box3', 'tbs'],
+};
+const doetMee = (veld, situatie) => !VELD_SITUATIES[veld] || VELD_SITUATIES[veld].includes(situatie);
+
+function invoerTekst(veld, waarde, jw) {
+  if (veld === 'situatie') return SITUATIES[waarde].naam;
+  if (veld === 'woning') return waarde ? 'Woning, niet het hoofdverblijf van de koper' : 'Geen woning';
+  if (veld === 'huurbescherming') return waarde ? 'Met huurbescherming, voor onbepaalde tijd' : 'Zonder huurbescherming, of geen woning';
+  if (veld === 'ovbBijAankoop') return waarde ? 'Verschuldigd' : 'Vrijgesteld (nieuwbouw met btw)';
+  if (veld === 'tbsKostenBijBv') return waarde ? 'De BV' : 'De DGA';
+  if (veld === 'box2Partners') return waarde ? 'Fiscale partners, ieder de helft' : 'Eén aandeelhouder';
+  if (veld === 'ibSchijf') return schijfOmschrijving(waarde, jw);
+  return null;
+}
+
+function schijfOmschrijving(index, jw) {
+  const s = jw.ibSchijven[index];
+  const pct = (s.tarief * 100).toFixed(2).replace('.', ',') + '%';
+  const onder = index === 0 ? 0 : jw.ibSchijven[index - 1].tot;
+  if (s.tot === Infinity) return `${pct} (inkomen boven € ${onder.toLocaleString('nl-NL')})`;
+  return `${pct} (inkomen tot € ${s.tot.toLocaleString('nl-NL')})`;
+}
+
+// Het ene model waaruit scherm, afdruk en export putten.
+function uitgangModel(inv, uitkomst, kenmerk, datum) {
+  const jw = JAARWAARDEN[inv.startjaar] || JAARWAARDEN[LAATST_BEKEND_JAAR];
+  const invoer = Object.keys(INVOER_LABELS)
+    .filter(veld => doetMee(veld, inv.situatie))
+    .map(veld => {
+      const w = inv[veld];
+      const tekst = invoerTekst(veld, w, jw);
+      if (tekst !== null) return { veld, label: INVOER_LABELS[veld], tekst };
+      if (PROCENTVELDEN.includes(veld)) return { veld, label: INVOER_LABELS[veld], getal: w * 100, formaat: 'procent' };
+      if (veld === 'startjaar' || veld === 'looptijd') return { veld, label: INVOER_LABELS[veld], getal: w, formaat: 'geheel' };
+      return { veld, label: INVOER_LABELS[veld], getal: w, formaat: 'bedrag' };
+    });
+  return {
+    kop: { tool: 'Fiscale vastgoedtool', toolVersie: TOOL_VERSIE, datum, kenmerk: kenmerk || '' },
+    situatie: SITUATIES[inv.situatie],
+    invoer,
+    uitkomst,
+    aannames: AANNAMES,
+    afbakening: AFBAKENING,
+    vindplaatsen: VINDPLAATSEN,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Excel-export: een bevroren resultaatblad, zonder formules.
+// ---------------------------------------------------------------------------
+
+const EURO = '#,##0';
+const PROCENT = '0.00';
+
+function excelBladen(model) {
+  const rijen = [];
+  const leeg = () => rijen.push([]);
+  const kop = tekst => rijen.push([celTekst(tekst, true)]);
+
+  kop(model.kop.tool);
+  rijen.push([celTekst('Versie'), celTekst(model.kop.toolVersie)]);
+  rijen.push([celTekst('Datum van de export'), celTekst(model.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(model.kop.kenmerk || 'geen kenmerk ingevuld')]);
+  rijen.push([celTekst('Vraag'), celTekst(model.situatie.vraag)]);
+  leeg();
+
+  kop('Invoer');
+  for (const r of model.invoer) {
+    rijen.push([celTekst(r.label), r.tekst !== undefined ? celTekst(r.tekst)
+      : celGetal(r.getal, r.formaat === 'procent' ? PROCENT : r.formaat === 'geheel' ? '0' : EURO)]);
+  }
+  leeg();
+
+  const u = model.uitkomst;
+  kop('Uitkomst: netto vermogen aan het eind');
+  for (const v of u.vergelijking.perRoute) {
+    rijen.push([celTekst(v.naam), celGetal(v.netto, EURO),
+      celTekst(v.route === u.vergelijking.beste ? 'hoogste' : ''),
+      celGetal(v.verschilMetBeste, EURO)]);
+  }
+  leeg();
+
+  kop('Eenmalig bij de overgang');
+  for (const r of u.routes) {
+    for (const e of r.eenmalig) rijen.push([celTekst(r.naam), celTekst(e.soort), celGetal(e.bedrag, EURO)]);
+  }
+  leeg();
+
+  for (const r of u.routes) {
+    kop('Per jaar: ' + r.naam);
+    rijen.push(JAARKOLOMMEN.map(k => celTekst(k.kop, true)));
+    for (const j of r.jaren) {
+      rijen.push(JAARKOLOMMEN.map(k => {
+        if (k.veld === 'jaar') return celTekst(j.jaar + (j.prognose ? ' (prognose)' : ''));
+        const w = j[k.veld];
+        return isGetal(w) ? celGetal(w, EURO) : celTekst('');
+      }));
+    }
+    leeg();
+  }
+
+  kop('Signalen');
+  for (const s of u.signalen) rijen.push([celTekst(s.tekst)]);
+  leeg();
+  kop('Aannames');
+  for (const a of model.aannames) rijen.push([celTekst(a)]);
+  leeg();
+  kop('Wat de tool niet doet');
+  for (const a of model.afbakening) rijen.push([celTekst(a)]);
+  leeg();
+  kop('Vindplaatsen');
+  for (const v of model.vindplaatsen) rijen.push([celTekst(v.waarde), celTekst(v.bron)]);
+
+  return [{ naam: 'Vergelijking', rijen, breedtes: [44, 22, 22, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18] }];
+}
+
+// De kolommen van de jaartabel, gedeeld door scherm en export.
+const JAARKOLOMMEN = [
+  { veld: 'jaar', kop: 'Jaar' },
+  { veld: 'waarde', kop: 'Waarde pand' },
+  { veld: 'schuld', kop: 'Lening' },
+  { veld: 'huur', kop: 'Huur' },
+  { veld: 'rente', kop: 'Rente' },
+  { veld: 'afschrijving', kop: 'Afschrijving' },
+  { veld: 'ib', kop: 'IB box 1' },
+  { veld: 'vpb', kop: 'Vpb' },
+  { veld: 'box3', kop: 'Box 3' },
+  { veld: 'kasPrive', kop: 'Herbelegd privé' },
+  { veld: 'kasBv', kop: 'Herbelegd in BV' },
+  { veld: 'latentIb', kop: 'Latente IB' },
+  { veld: 'latentVpb', kop: 'Latente Vpb' },
+  { veld: 'latentBox2', kop: 'Latente box 2' },
+  { veld: 'netto', kop: 'Netto vermogen' },
+];
+
+function slug(tekst) {
+  const s = String(tekst || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return s || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datum, extensie) {
+  return `fiscale-vastgoedtool-${slug(kenmerk)}-${datum}.${extensie}`;
+}
+
+// ---------------------------------------------------------------------------
+// Dossierbestand: alleen invoer, met tool-identificatie en formaatversie.
+// ---------------------------------------------------------------------------
+
+function maakDossier(inv, kenmerk) {
+  const invoer = {};
+  for (const veld of Object.keys(VELDEN)) invoer[veld] = inv[veld];
+  return JSON.stringify({ tool: TOOL_ID, formaat: DOSSIER_FORMAAT, toolVersie: TOOL_VERSIE,
+    kenmerk: kenmerk || '', invoer }, null, 2);
+}
+
+// Leest een dossierbestand. Geeft { ok: true, invoer, kenmerk, meldingen } of
+// { ok: false, fout }. Een ontbrekend veld is een fout en krijgt geen standaardwaarde.
+function leesDossier(tekst) {
+  let d;
+  try { d = JSON.parse(tekst); } catch (e) { return { ok: false, fout: 'Het bestand is geen leesbaar dossierbestand.' }; }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, fout: 'Het bestand is geen dossierbestand.' };
+  if (d.tool !== TOOL_ID) return { ok: false, fout: 'Dit bestand hoort niet bij de fiscale vastgoedtool.' };
+  if (!Number.isInteger(d.formaat)) return { ok: false, fout: 'Het bestand noemt geen geldige formaatversie.' };
+  if (d.formaat > DOSSIER_FORMAAT) {
+    return { ok: false, fout: 'Het bestand is gemaakt met een nieuwere versie van de tool en kan hier niet worden geopend.' };
+  }
+  if (d.formaat < 1) return { ok: false, fout: 'Het bestand heeft een onbekende formaatversie.' };
+  if (!d.invoer || typeof d.invoer !== 'object' || Array.isArray(d.invoer)) {
+    return { ok: false, fout: 'Het bestand bevat geen invoer.' };
+  }
+  const invoer = {};
+  const ontbrekend = [];
+  for (const veld of Object.keys(VELDEN)) {
+    if (!(veld in d.invoer)) ontbrekend.push(INVOER_LABELS[veld] || veld);
+    else invoer[veld] = d.invoer[veld];
+  }
+  if (ontbrekend.length) {
+    return { ok: false, fout: 'In het bestand ontbreken velden: ' + ontbrekend.join(', ') + '. Er is niets ingelezen.' };
+  }
+  const fouten = toetsInvoer(invoer);
+  if (fouten.length) return { ok: false, fout: 'Het bestand bevat ongeldige invoer: ' + fouten.join(' ') };
+  const meldingen = [];
+  if (d.toolVersie !== TOOL_VERSIE) {
+    meldingen.push(`Dit bestand is opgeslagen met versie ${d.toolVersie || 'onbekend'} van de tool; ` +
+      `het is opnieuw berekend met versie ${TOOL_VERSIE}. De uitkomst kan daardoor afwijken.`);
+  }
+  const kenmerk = typeof d.kenmerk === 'string' ? d.kenmerk : '';
+  return { ok: true, invoer, kenmerk, meldingen };
+}
+// UITGANGEN — EINDE
+
+// PRESENTATIE — BEGIN
+// Weergave en bediening. Rekent niets zelf: leest de velden, roept bereken() aan en toont
+// het model uit uitgangModel().
+
+const $ = id => document.getElementById(id);
+const eur = n => (isGetal(n) ? '€ ' + Math.round(n).toLocaleString('nl-NL') : '');
+const escape = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+let laatsteModel = null;
+
+function vandaag() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function vulKeuzes() {
+  $('startjaar').innerHTML = JAREN.map(j => `<option value="${j}">${j}</option>`).join('');
+  const jw = JAARWAARDEN[JAREN[0]];
+  $('ibSchijf').innerHTML = jw.ibSchijven
+    .map((s, i) => `<option value="${i}">${escape(schijfOmschrijving(i, jw))}</option>`).join('');
+  $('ibSchijf').value = String(jw.ibSchijven.length - 1);
+}
+
+// Leest alle velden van het scherm. Een leeg of onleesbaar getalveld wordt NaN en valt
+// daarna in toetsInvoer op; er komt nooit stil een standaardwaarde voor in de plaats.
+function leesInvoer() {
+  const inv = {};
+  for (const [veld, regel] of Object.entries(VELDEN)) {
+    const el = $(veld);
+    if (regel.soort === 'janee') inv[veld] = el.value === 'ja';
+    else if (veld === 'situatie') inv[veld] = el.value;
+    else {
+      const tekst = el.value.trim();
+      const n = tekst === '' ? NaN : Number(tekst);
+      inv[veld] = PROCENTVELDEN.includes(veld) ? n / 100 : n;
+    }
+  }
+  return inv;
+}
+
+function zetInvoer(inv) {
+  for (const [veld, regel] of Object.entries(VELDEN)) {
+    const el = $(veld);
+    const w = inv[veld];
+    if (regel.soort === 'janee') el.value = w ? 'ja' : 'nee';
+    else if (PROCENTVELDEN.includes(veld)) el.value = String(Math.round(w * 100 * 1e6) / 1e6);
+    else el.value = String(w);
+  }
+  toonVeldenVoorSituatie();
+}
+
+function toonVeldenVoorSituatie() {
+  const situatie = $('situatie').value;
+  document.querySelectorAll('[data-situatie]').forEach(el => {
+    el.classList.toggle('verborgen', !el.dataset.situatie.split(' ').includes(situatie));
+  });
+}
+
+function melding(soort, tekst) {
+  return `<div class="melding ${soort}">${escape(tekst)}</div>`;
+}
+
+function reken() {
+  const inv = leesInvoer();
+  const uitkomst = bereken(inv);
+  const doel = $('dossierstuk');
+  if (uitkomst.fouten.length) {
+    laatsteModel = null;
+    doel.innerHTML = `<div class="kaart">${uitkomst.fouten.map(f => melding('fout', f)).join('')}
+      <p class="toelichting">Er is geen uitkomst berekend.</p></div>`;
+    return;
+  }
+  laatsteModel = uitgangModel(inv, uitkomst, $('kenmerk').value.trim(), vandaag());
+  doel.innerHTML = dossierHtml(laatsteModel);
+}
+
+function dossierHtml(m) {
+  const u = m.uitkomst;
+  const beste = u.vergelijking.perRoute.find(v => v.route === u.vergelijking.beste);
+  const laatste = u.routes[0].eind.jaar;
+  const blokken = u.vergelijking.perRoute.map(v => `
+    <div class="blok">
+      <div class="etiket">${escape(v.naam)}</div>
+      <div class="waarde">${eur(v.netto)}</div>
+      <div class="onder">${v.route === beste.route ? 'hoogste netto vermogen' : 'verschil met de hoogste ' + eur(v.verschilMetBeste)}</div>
+    </div>`).join('');
+
+  const vergelijkTabel = `<table><thead><tr><th>Jaar</th>${u.routes.map(r => `<th class="getal">${escape(r.naam)}</th>`).join('')}</tr></thead>
+    <tbody>${u.routes[0].jaren.map((j, i) => `<tr><td>${j.jaar}${j.prognose ? ' <span class="prognose">prognose</span>' : ''}</td>${
+      u.routes.map(r => `<td class="getal">${eur(r.jaren[i].netto)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+  const eenmalig = u.routes.filter(r => r.eenmalig.length).map(r =>
+    r.eenmalig.map(e => `<tr><td>${escape(r.naam)}</td><td>${escape(e.soort)}</td><td class="getal">${eur(e.bedrag)}</td></tr>`).join('')).join('');
+
+  const perRoute = u.routes.map(r => `
+    <details class="routedetail" open>
+      <summary>${escape(r.naam)}: per jaar</summary>
+      <div class="breed"><table><thead><tr>${JAARKOLOMMEN.map(k => `<th class="${k.veld === 'jaar' ? '' : 'getal'}">${escape(k.kop)}</th>`).join('')}</tr></thead>
+      <tbody>${r.jaren.map(j => `<tr>${JAARKOLOMMEN.map(k => k.veld === 'jaar'
+        ? `<td>${j.jaar}</td>` : `<td class="getal">${eur(j[k.veld])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    </details>`).join('');
+
+  const invoerRijen = m.invoer.map(r => `<tr><td>${escape(r.label)}</td><td class="getal">${
+    r.tekst !== undefined ? escape(r.tekst)
+      : r.formaat === 'procent' ? escape(r.getal.toLocaleString('nl-NL', { maximumFractionDigits: 4 })) + '%'
+      : r.formaat === 'geheel' ? String(r.getal) : eur(r.getal)}</td></tr>`).join('');
+
+  return `
+  <div class="kaart">
+    <h2>Uitkomst</h2>
+    <div class="kenmerkregel"><span>Kenmerk: ${escape(m.kop.kenmerk || 'geen kenmerk ingevuld')}</span>
+      <span>Datum: ${escape(m.kop.datum)}</span><span>${escape(m.situatie.naam)}</span></div>
+    <p class="toelichting">${escape(m.situatie.vraag)} Netto vermogen eind ${laatste}, na aftrek van alle
+      latente belasting alsof het pand dan wordt verkocht en de BV haar vermogen uitkeert. Nominaal, niet contant gemaakt.</p>
+    <div class="uitkomst">${blokken}</div>
+    ${u.signalen.map(s => melding(s.soort === 'info' ? 'info' : 'let-op', s.tekst)).join('')}
+    <h3>Netto vermogen per jaar</h3>
+    ${vergelijkTabel}
+    ${eenmalig ? `<h3>Eenmalig bij de overgang</h3><table><tbody>${eenmalig}</tbody></table>` : ''}
+    <h3>Tussenstappen per route</h3>
+    ${perRoute}
+    <h3>Invoer</h3>
+    <table><tbody>${invoerRijen}</tbody></table>
+    <h3>Aannames</h3>
+    <ul class="afbakening">${m.aannames.map(a => `<li>${escape(a)}</li>`).join('')}</ul>
+    <h3>Wat de tool niet doet</h3>
+    <ul class="afbakening">${m.afbakening.map(a => `<li>${escape(a)}</li>`).join('')}</ul>
+    <h3>Vindplaatsen</h3>
+    <ul class="vindplaatsen">${m.vindplaatsen.map(v => `<li>${escape(v.waarde)}: ${escape(v.bron)}</li>`).join('')}</ul>
+    <p class="stempel">Fiscale vastgoedtool, versie ${escape(m.kop.toolVersie)}. Gebouwd vanuit de wet.</p>
+  </div>`;
+}
+
+function downloadBestand(naam, inhoud, type) {
+  const blob = new Blob([inhoud], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+
+function exporteer() {
+  reken();
+  if (!laatsteModel) return;
+  const bytes = xlsxBytes(excelBladen(laatsteModel));
+  downloadBestand(bestandsnaam(laatsteModel.kop.kenmerk, laatsteModel.kop.datum, 'xlsx'), bytes,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+function slaOp() {
+  const inv = leesInvoer();
+  const fouten = toetsInvoer(inv);
+  if (fouten.length) {
+    $('dossiermelding').innerHTML = fouten.map(f => melding('fout', f)).join('') +
+      melding('info', 'Niet opgeslagen: herstel eerst de invoer.');
+    return;
+  }
+  const kenmerk = $('kenmerk').value.trim();
+  downloadBestand(bestandsnaam(kenmerk, vandaag(), 'json'), maakDossier(inv, kenmerk), 'application/json');
+  $('dossiermelding').innerHTML = melding('info', 'Het dossierbestand is aangeboden om op te slaan.');
+}
+
+function openBestand(bestand) {
+  const lezer = new FileReader();
+  lezer.onload = () => {
+    const r = leesDossier(String(lezer.result));
+    if (!r.ok) { $('dossiermelding').innerHTML = melding('fout', r.fout + ' De huidige invoer is ongewijzigd.'); return; }
+    zetInvoer(r.invoer);
+    $('kenmerk').value = r.kenmerk;
+    $('dossiermelding').innerHTML = r.meldingen.map(t => melding('let-op', t)).join('') +
+      melding('info', 'Het dossier is geopend en opnieuw berekend.');
+    reken();
+  };
+  lezer.onerror = () => { $('dossiermelding').innerHTML = melding('fout', 'Het bestand kon niet worden gelezen. De huidige invoer is ongewijzigd.'); };
+  lezer.onabort = () => { $('dossiermelding').innerHTML = melding('fout', 'Het lezen van het bestand is afgebroken. De huidige invoer is ongewijzigd.'); };
+  lezer.readAsText(bestand);
+}
+
+function start() {
+  vulKeuzes();
+  toonVeldenVoorSituatie();
+  $('situatie').addEventListener('change', toonVeldenVoorSituatie);
+  $('knopReken').addEventListener('click', reken);
+  $('knopAfdrukken').addEventListener('click', () => { reken(); if (laatsteModel) window.print(); });
+  $('knopExcel').addEventListener('click', exporteer);
+  $('knopOpslaan').addEventListener('click', slaOp);
+  $('knopOpenen').addEventListener('click', () => $('bestandKiezer').click());
+  $('bestandKiezer').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) openBestand(f);
+    e.target.value = '';
+  });
+  reken();
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+}
+// PRESENTATIE — EINDE
+</script>
+</body>
+</html>
