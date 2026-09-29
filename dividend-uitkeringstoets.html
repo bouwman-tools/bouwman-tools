@@ -399,7 +399,7 @@
       <div>
         <div class="bt-kopbalk-titel">Dividend &amp; Uitkeringstoets</div>
         <div class="bt-kopbalk-sub">Balanstest · Liquiditeitsprognose · Besluitdocumenten</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:57</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 14:36</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -541,7 +541,7 @@
         <input type="checkbox" id="rcNetto" />
         <label for="rcNetto">
           Het verrekende of bijgeschreven bedrag is het bedrag na inhouding van eventueel verschuldigde dividendbelasting.
-          <span class="sub" style="font-weight:400;">Ingehouden dividendbelasting komt de aandeelhouder niet toe (art. 7 lid 1 en 2 Wet DB 1965) en wordt daarom niet verrekend; de vennootschap draagt haar op aangifte af (art. 7 lid 4 Wet DB 1965). De tool rekent geen tarief en behandelt al wat niet wordt verrekend als uitgaand geld. Zonder deze bevestiging blijft de uitkomst "nadere beoordeling noodzakelijk".</span>
+          <span class="sub" style="font-weight:400;">Ingehouden dividendbelasting komt de aandeelhouder niet toe (art. 7 lid 1 en 2 Wet DB 1965) en wordt daarom niet verrekend; de vennootschap draagt haar op aangifte af (art. 7 lid 4 Wet DB 1965). Wordt toch het brutobedrag verrekend, dan blijft de vennootschap de dividendbelasting verschuldigd en moet zij die aan de Belastingdienst betalen (art. 7 Wet DB 1965, art. 19 en 20 AWR); de verrekening met de rekening-courant maakt dat bedrag niet kleiner. De tool rekent geen tarief en behandelt al wat niet wordt verrekend als uitgaand geld. Zonder deze bevestiging blijft de uitkomst "nadere beoordeling noodzakelijk".</span>
         </label>
       </div>
       <div class="confirm" id="rcGeenAflossingWrap" style="margin-top:10px;">
@@ -3167,8 +3167,17 @@ function aandeelhouderRegels(s) {
  * Alinea's over de voldoening via de rekening-courant, voor beide besluiten. Verrekening
  * met een vordering en bijschrijving op een schuld krijgen een eigen formulering, omdat zij
  * juridisch en boekhoudkundig iets anders zijn (zie rcVoldoening).
+ *
+ * `metInstemming` (alleen in het aandeelhoudersbesluit, dat de aandeelhouder ondertekent):
+ * de aandeelhouder stemt ook als schuldenaar van de rekening-courant in met de verrekening.
+ * Zo is de verrekening een afspraak en hoeft niet vast te staan dat de vennootschap haar
+ * vordering al kan opeisen; eenzijdige verrekening vraagt dat de schuldenaar bevoegd is
+ * "zowel tot betaling van de schuld als tot het afdwingen van de betaling van de vordering"
+ * (art. 6:127 lid 2 BW). De instemming werkt alleen als die aandeelhouder zelf tekent; de
+ * tool zet alle aandeelhouders onder het besluit, maar de wet eist dat niet.
+ * Besloten door Sylvain op 29-09-2026 (OPENSTAAND punt 14).
  */
-function rcBesluitRegels(s, rc) {
+function rcBesluitRegels(s, rc, metInstemming) {
   const L = [];
   if (!rc || !rc.actief || rc.regels.length === 0) return L;
   rc.regels.forEach(r => {
@@ -3183,6 +3192,7 @@ function rcBesluitRegels(s, rc) {
       t = 'Het dividend van ' + r.naam + ' wordt tot een bedrag van ' + eurD(r.bedrag) + ' niet uitbetaald maar bijgeschreven op de rekening-courant tussen de vennootschap en ' + r.naam + '. De vennootschap is dat bedrag vanaf de betaalbaarstelling aan ' + r.naam + ' verschuldigd.';
     }
     if (r.restGeld !== null && r.restGeld > 0) t += ' Het restant van ' + eurD(r.restGeld) + ' wordt in geld betaald.';
+    if (metInstemming && r.wijze === 'vordering') t += ' ' + r.naam + ' ondertekent dit besluit mede als schuldenaar van de rekening-courant en stemt in met deze verrekening, ook voor zover de vennootschap haar vordering op dat moment nog niet kan opeisen.';
     L.push(...wrapTekst(t, 74));
     L.push('');
   });
@@ -3307,7 +3317,7 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   }
   L.push(...wrapTekst('De uitkering wordt betaalbaar gesteld op ' + fmtDatum(s.datumUitkering) + ', niet eerder dan nadat het bestuur de hierna bedoelde goedkeuring heeft verleend.', 74));
   L.push('');
-  const rcRegels = rcBesluitRegels(s, lp && lp.rc);
+  const rcRegels = rcBesluitRegels(s, lp && lp.rc, true);
   if (rcRegels.length) L.push(...rcRegels);
   else L.push('');
   L.push('4. BESTUURSGOEDKEURING (ART. 2:216 LID 2 BW)');
