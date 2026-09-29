@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-28
+Bijgewerkt: 2026-09-29
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -77,6 +77,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-26 |
 | 🟢 live | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🔵 concept | Pensioen in eigen beheer en oudedagsverplichting | `/pensioen-odv.html` | bouwman-tools/pensioen-odv | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
@@ -89,9 +90,15 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Earningsstripping**: Rekent de renteaftrekbeperking van art. 15b Wet Vpb door: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
 - **Gebruikelijk loon**: Toetst het DGA-loon aan de wettelijke norm: vergelijkingsloon, hoogste werknemer en afroommethode
 - **Herstructurering**: Loopt herstructureringstrajecten stap voor stap langs en adviseert met AI
+- **Pensioen in eigen beheer en oudedagsverplichting**: Waardeert een premievrij pensioen in eigen beheer fiscaal op een balansdatum, met ouderdoms- en partnerpensioen en de waarde op de volgende balansdata, en rekent een oudedagsverplichting door: de oprenting in de uitstelfase, de uitkeringsperiode en de termijnen, de oprenting in de uitkeringsfase en de stand per 31 december
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
 - **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
+
+### Wettelijke verwijzingen: Pensioen in eigen beheer en oudedagsverplichting
+
+- [Wet inkomstenbelasting 2001, Artikel 3.29 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet op de loonbelasting 1964, Artikel 38p, lid 2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0002471/2026-02-21)
 
 ## Belastingdienst
 
