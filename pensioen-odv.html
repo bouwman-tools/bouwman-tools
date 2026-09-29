@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pensioen en ODV</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.tabs button { background: var(--vlak); color: var(--wit); border: 1px solid var(--rand); }
+.tabs button.actief { background: var(--groen); color: var(--navy); border-color: var(--groen); }
+.onderdeel.verborgen { display: none; }
+.breed { overflow-x: auto; }
+td.getal, th.getal { text-align: right; white-space: nowrap; }
+.klein { font-size: 12px; color: var(--dim); }
+fieldset { border: 1px solid var(--rand); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
+legend { padding: 0 6px; color: var(--dim); font-size: 13px; }
+@media print {
+  .tabs { display: none; }
+  .klein { color: #444; }
+}
+</style>
+</head>
+<body>
+
+<header class="noprint">
+  <a class="logo" href="https://joinadministraties.nl" target="_blank" rel="noopener">
+    <div class="logo-mark"><div class="lc"></div><div class="lc"></div></div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="logo-name">JOIN</span>
+      <span class="logo-sub">Administraties</span>
+    </div>
+  </a>
+  <div class="koptitel">Pensioen en ODV<br><span style="font-weight:400">waardering en oudedagsverplichting</span></div>
+</header>
+
+<main>
+  <h1 class="noprint">Pensioen in eigen beheer en oudedagsverplichting</h1>
+  <p class="inleiding noprint">
+    Twee onderdelen in één tool. <strong>Waardering</strong> rekent de fiscale balanswaarde uit
+    van een premievrij pensioen in eigen beheer (art. 3.29 Wet IB 2001). <strong>ODV</strong>
+    rekent een oudedagsverplichting door: oprenting in de uitstelfase, de uitkeringsperiode en
+    de termijnen, en de stand per 31 december (art. 38p Wet LB 1964). De tool geeft een
+    uitkomst en doet geen voorstel.
+  </p>
+
+  <div class="tabs noprint" role="tablist">
+    <button type="button" id="tabWaardering" class="actief" role="tab">Waardering pensioen in eigen beheer</button>
+    <button type="button" id="tabOdv" role="tab">Oudedagsverplichting (ODV)</button>
+  </div>
+
+  <div class="kaart noprint">
+    <div class="rij">
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== WAARDERING ============================== -->
+  <section id="deelWaardering" class="onderdeel">
+    <div class="kaart noprint">
+      <h2>Gegevens voor de waardering</h2>
+      <p class="toelichting">Alle bedragen per jaar. Het pensioen is premievrij: sinds 1 april 2017
+        kan in eigen beheer niets meer worden opgebouwd, dus de bedragen blijven gelijk.</p>
+      <div class="rij">
+        <div>
+          <label for="wPeildatum">Balansdatum
+            <span class="bron">de datum waarop gewaardeerd wordt</span></label>
+          <input type="date" id="wPeildatum" value="2025-12-31">
+        </div>
+        <div>
+          <label for="wGeboortedatum">Geboortedatum dga</label>
+          <input type="date" id="wGeboortedatum" value="1962-03-15">
+        </div>
+        <div>
+          <label for="wGeslacht">Geslacht dga
+            <span class="bron">bepaalt de sterftetafel</span></label>
+          <select id="wGeslacht"><option value="man">man</option><option value="vrouw">vrouw</option></select>
+        </div>
+      </div>
+      <div class="rij">
+        <div>
+          <label for="wPensioenJaren">Pensioenleeftijd, jaren
+            <span class="bron">volgens de pensioenbrief, vaak 65 of 67</span></label>
+          <input type="number" id="wPensioenJaren" value="67" min="55" max="75" step="1">
+        </div>
+        <div>
+          <label for="wPensioenMaanden">en maanden</label>
+          <input type="number" id="wPensioenMaanden" value="0" min="0" max="11" step="1">
+        </div>
+        <div>
+          <label for="wOp">Ouderdomspensioen per jaar</label>
+          <input type="number" id="wOp" value="20000" min="0" step="1">
+        </div>
+        <div>
+          <label for="wPp">Partnerpensioen per jaar
+            <span class="bron">0 als er geen partnerpensioen is</span></label>
+          <input type="number" id="wPp" value="14000" min="0" step="1">
+        </div>
+      </div>
+      <fieldset>
+        <legend>Partnerpensioen</legend>
+        <div class="rij">
+          <div>
+            <label for="wPartnerVariant">Partnerpensioen gaat in bij overlijden
+              <span class="bron">volgens de pensioenbrief; de tool kiest dit niet voor u</span></label>
+            <select id="wPartnerVariant">
+              <option value="">maak een keuze</option>
+              <option value="altijd">vóór én na de pensioendatum</option>
+              <option value="naPensioendatum">alleen na de pensioendatum</option>
+            </select>
+          </div>
+          <div>
+            <label for="wPartnerGeslacht">Geslacht partner</label>
+            <select id="wPartnerGeslacht"><option value="vrouw">vrouw</option><option value="man">man</option></select>
+          </div>
+          <div>
+            <label for="wPartnerLeeftijd">Leeftijd partner</label>
+            <select id="wPartnerLeeftijd">
+              <option value="verschil">leeftijdsverschil</option>
+              <option value="geboortedatum">geboortedatum</option>
+            </select>
+          </div>
+          <div>
+            <label for="wPartnerVerschil">Partner ouder (+) of jonger (-), jaren
+              <span class="bron">gangbaar: vrouw 3 jaar jonger, man 3 jaar ouder</span></label>
+            <input type="number" id="wPartnerVerschil" value="-3" step="1">
+          </div>
+          <div>
+            <label for="wPartnerGeboortedatum">Geboortedatum partner</label>
+            <input type="date" id="wPartnerGeboortedatum" value="">
+          </div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Grondslagen</legend>
+        <div class="rij">
+          <div>
+            <label for="wRekenrente">Rekenrente, %
+              <span class="bron">ten minste 4%, art. 3.29 Wet IB 2001</span></label>
+            <input type="number" id="wRekenrente" value="4" min="4" max="10" step="0.01">
+          </div>
+          <div>
+            <label for="wTafel">Sterftetafel
+              <span class="bron">AG Periodetafel GBM/GBV</span></label>
+            <select id="wTafel">
+              <option value="automatisch">standaard bij het balansjaar</option>
+              <option value="2018-2023">AG Periodetafel 2018-2023 (afwijken)</option>
+              <option value="2019-2024">AG Periodetafel 2019-2024 (afwijken)</option>
+            </select>
+          </div>
+          <div>
+            <label for="wTafelMotivering">Motivering afwijkende tafel
+              <span class="bron">alleen bij afwijken van de standaardtafel; komt op het dossierstuk</span></label>
+            <input type="text" id="wTafelMotivering" value="">
+          </div>
+          <div>
+            <label for="wUitkering">Uitkering per maand
+              <span class="bron">wanneer in de maand wordt betaald</span></label>
+            <select id="wUitkering"><option value="achteraf">achteraf</option><option value="vooraf">vooraf</option></select>
+          </div>
+          <div>
+            <label for="wProjectie">Volgende balansdata
+              <span class="bron">aantal jaren vooruit, 0 tot 10</span></label>
+            <input type="number" id="wProjectie" value="4" min="0" max="10" step="1">
+          </div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <!-- ============================== ODV ============================== -->
+  <section id="deelOdv" class="onderdeel verborgen">
+    <div class="kaart noprint">
+      <h2>Gegevens voor de oudedagsverplichting</h2>
+      <p class="toelichting">De ODV is een aanspraak die niet van leven afhangt: wat na overlijden
+        resteert, gaat naar de erfgenamen (art. 38p lid 2 onder b en lid 3 Wet LB 1964). Er is
+        dus geen sterftetafel nodig.</p>
+      <div class="rij">
+        <div>
+          <label for="oStartwijze">Rekenen vanaf</label>
+          <select id="oStartwijze">
+            <option value="omzetting">de omzetting (uitstelfase en uitkeringsfase)</option>
+            <option value="ingang">de stand bij ingang (alleen uitkeringsfase)</option>
+          </select>
+        </div>
+        <div>
+          <label for="oGeboortedatum">Geboortedatum dga
+            <span class="bron">bepaalt de AOW-datum, art. 7a AOW</span></label>
+          <input type="date" id="oGeboortedatum" value="1956-02-10">
+        </div>
+        <div>
+          <label for="oAowHandmatig">Verwachte AOW-datum
+            <span class="bron">alleen als de AOW-leeftijd nog niet vaststaat; een raming</span></label>
+          <input type="date" id="oAowHandmatig" value="">
+        </div>
+      </div>
+      <div class="rij">
+        <div>
+          <label for="oOmzetting">Datum omzetting in ODV
+            <span class="bron">de dag waarop de ODV ontstaat, tussen 1-4-2017 en 31-12-2019</span></label>
+          <input type="date" id="oOmzetting" value="2018-07-01">
+        </div>
+        <div>
+          <label for="oKapitaal">Waarde ODV bij omzetting
+            <span class="bron">de fiscale balanswaarde die is omgezet</span></label>
+          <input type="number" id="oKapitaal" value="250000" min="0" step="1">
+        </div>
+        <div>
+          <label for="oStandIngang">Stand ODV op de ingangsdatum
+            <span class="bron">alleen bij rekenen vanaf de stand bij ingang</span></label>
+          <input type="number" id="oStandIngang" value="" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="rij">
+        <div>
+          <label for="oOprenting">Oprenting in de uitstelfase
+            <span class="bron">V&amp;A 17-027 laat beide toe</span></label>
+          <select id="oOprenting">
+            <option value="boekjaar">aan het einde van elk boekjaar</option>
+            <option value="verjaardag">op elke omzettingsverjaardag</option>
+          </select>
+        </div>
+        <div>
+          <label for="oBoekjaarEinde">Einde boekjaar (mm-dd)</label>
+          <input type="text" id="oBoekjaarEinde" value="12-31">
+        </div>
+        <div>
+          <label for="oIngang">Datum eerste ODV-termijn
+            <span class="bron">het moment van de eerste uitkering, V&amp;A 17-029</span></label>
+          <input type="date" id="oIngang" value="2022-06-01">
+        </div>
+      </div>
+      <div class="rij">
+        <div>
+          <label for="oFrequentie">Termijnen</label>
+          <select id="oFrequentie">
+            <option value="1">per maand</option>
+            <option value="3">per kwartaal</option>
+            <option value="6">per halfjaar</option>
+            <option value="12">per jaar</option>
+          </select>
+        </div>
+        <div>
+          <label for="oAfronding">Afronding verlengde of verkorte periode
+            <span class="bron">V&amp;A 17-029; eenmaal gekozen is definitief</span></label>
+          <select id="oAfronding">
+            <option value="maanden-op">hele maanden, naar boven</option>
+            <option value="maanden-af">hele maanden, naar beneden</option>
+            <option value="jaren-op">hele jaren, naar boven</option>
+            <option value="jaren-af">hele jaren, naar beneden</option>
+            <option value="dagen">in dagen nauwkeurig</option>
+          </select>
+        </div>
+        <div>
+          <label for="oAanname">Aangenomen marktrente latere jaren, %
+            <span class="bron">leeg laten = niet verder rekenen dan het laatst vastgestelde jaar</span></label>
+          <input type="number" id="oAanname" value="" step="0.001">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="rekenKnop">Bereken</button>
+    <button type="button" class="tweede" id="afdrukKnop">Afdrukken</button>
+    <button type="button" class="tweede" id="excelKnop">Excel-export</button>
+    <button type="button" class="tweede" id="opslaanKnop">Opslaan als bestand</button>
+    <button type="button" class="tweede" id="openenKnop">Bestand openen</button>
+    <input type="file" id="dossierInvoer" accept="application/json,.json" class="verborgen">
+  </div>
+  <p class="voorbehoud noprint" style="margin-top:-8px;margin-bottom:18px;">
+    Opslaan en openen gebeuren op uw eigen computer. De tool bewaart zelf niets en er gaat
+    niets naar een server. Het bestand bevat beide onderdelen.
+  </p>
+
+  <div id="dossierMelding" class="noprint" aria-live="polite"></div>
+  <div id="uitvoer" class="noprint" aria-live="polite"></div>
+
+  <div id="dossierstuk"></div>
+
+  <div class="kaart noprint">
+    <h2>Waarop de uitkomst is gebaseerd</h2>
+    <ul class="bronlijst" id="bronlijst"></ul>
+    <details>
+      <summary>Wat deze tool niet doet</summary>
+      <ul class="voorbehoud" id="afbakeningslijst"></ul>
+    </details>
+  </div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// AOW-LEEFTIJD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De pensioengerechtigde leeftijd en de AOW-datum. Twee tools hebben ze nodig: aow-datum
+// rekent ze uit als eigen uitkomst, en ww-uitkering gebruikt de AOW-datum om te bepalen
+// wanneer het recht op uitkering eindigt (art. 19 lid 1 onder i jo. art. 20 lid 1 onder a
+// WW). De tabel met zes Staatscourant-vindplaatsen hoort daarom op één plek te staan.
+
+// De pensioengerechtigde leeftijd per kalenderjaar waarin zij wordt bereikt.
+//
+// Tot en met 2025 staat de leeftijd in de wettekst zelf, in art. 7a lid 1 AOW. Vanaf 2026
+// verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule van lid 2, die
+// de minister op grond van diezelfde bepaling in de Staatscourant bekendmaakt; lid 3 bepaalt
+// dat zo'n vaststelling pas vijf jaar later in werking treedt. Voor die jaren staat hier
+// daarom de mededeling als vindplaats en niet de wet.
+//
+// Bron van de wetsartikelen: geconsolideerde Algemene Ouderdomswet, BWBR0002221, versie
+// 2026-07-01, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 18-09-2026.
+const AOW_LEEFTIJD_PER_JAAR = {
+  2013: { jaren: 65, maanden: 1, vindplaats: 'art. 7a lid 1 onder b AOW' },
+  2014: { jaren: 65, maanden: 2, vindplaats: 'art. 7a lid 1 onder c AOW' },
+  2015: { jaren: 65, maanden: 3, vindplaats: 'art. 7a lid 1 onder d AOW' },
+  2016: { jaren: 65, maanden: 6, vindplaats: 'art. 7a lid 1 onder e AOW' },
+  2017: { jaren: 65, maanden: 9, vindplaats: 'art. 7a lid 1 onder f AOW' },
+  2018: { jaren: 66, maanden: 0, vindplaats: 'art. 7a lid 1 onder g AOW' },
+  2019: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder h AOW' },
+  2020: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder i AOW' },
+  2021: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder j AOW' },
+  2022: { jaren: 66, maanden: 7, vindplaats: 'art. 7a lid 1 onder k AOW' },
+  2023: { jaren: 66, maanden: 10, vindplaats: 'art. 7a lid 1 onder l AOW' },
+  2024: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder m AOW' },
+  2025: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder n AOW' },
+  // Vanaf hier komt de leeftijd uit de mededeling van de minister op grond van art. 7a
+  // lid 2 AOW. Elk van deze vijf is op 18-09-2026 op de Staatscourantpagina zelf
+  // gecontroleerd, op leeftijd, aanvangsleeftijd, kalenderjaar, dagtekening en kenmerk.
+  //
+  // Stcrt. 2020, 65110 — mededeling van 04-12-2020, nr. 2020-0000162440.
+  2026: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2020, 65110 (mededeling van 04-12-2020)' },
+  // Stcrt. 2021, 46409 — mededeling van 05-11-2021, nr. 2021-0000168058.
+  2027: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2021, 46409 (mededeling van 05-11-2021)' },
+  // Stcrt. 2022, 30748 — mededeling van 09-11-2022, nr. 2022-0000224155.
+  2028: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2022, 30748 (mededeling van 09-11-2022)' },
+  // Stcrt. 2023, 31782 — mededeling van 13-11-2023, nr. 2023-0000545753.
+  2029: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2023, 31782 (mededeling van 13-11-2023)' },
+  // Stcrt. 2024, 37287 — mededeling van 08-11-2024, nr. 2024-0000903093.
+  2030: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2024, 37287 (mededeling van 08-11-2024)' },
+  // Stcrt. 2025, 38647 — mededeling van 07-11-2025, nr. 2025-0000251283.
+  2031: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2025, 38647 (mededeling van 07-11-2025)' },
+};
+
+// Art. 7a lid 1 onder a AOW: vóór 1 januari 2013 was de pensioengerechtigde leeftijd
+// 65 jaar. Dat geldt voor ieder kalenderjaar vóór 2013 en vraagt dus geen eigen regel
+// per jaar.
+const LEEFTIJD_VOOR_2013 = { jaren: 65, maanden: 0, vindplaats: 'art. 7a lid 1 onder a AOW' };
+const EERSTE_JAAR_IN_DE_TABEL = 2013;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (maand === 2 && isSchrikkeljaar(jaar)) return 29;
+  return lengtes[maand - 1];
+}
+
+function ontleedDatum(tekst) {
+  if (typeof tekst !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tekst)) return null;
+  const jaar = Number(tekst.slice(0, 4));
+  const maand = Number(tekst.slice(5, 7));
+  const dag = Number(tekst.slice(8, 10));
+  if (maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+function alsTekst(datum) {
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return datum.jaar + '-' + tweeCijfers(datum.maand) + '-' + tweeCijfers(datum.dag);
+}
+
+// Telt een leeftijd in jaren en maanden bij een datum op. Valt de uitkomst op een dag die
+// in de doelmaand niet bestaat, bijvoorbeeld 31 mei plus drie maanden, dan wordt het de
+// laatste dag van die maand en wordt dat apart gemeld; de tool verzwijgt zo'n aanpassing
+// niet.
+function datumPlusLeeftijd(datum, leeftijd) {
+  const totaalMaanden = (datum.jaar + leeftijd.jaren) * 12 + (datum.maand - 1) + leeftijd.maanden;
+  const jaar = Math.floor(totaalMaanden / 12);
+  const maand = (totaalMaanden % 12) + 1;
+  const laatsteDag = dagenInMaand(jaar, maand);
+  return {
+    jaar,
+    maand,
+    dag: Math.min(datum.dag, laatsteDag),
+    dagAangepast: datum.dag > laatsteDag,
+  };
+}
+
+function leeftijdInJaar(jaar) {
+  if (jaar < EERSTE_JAAR_IN_DE_TABEL) return LEEFTIJD_VOOR_2013;
+  return AOW_LEEFTIJD_PER_JAAR[jaar] || null;
+}
+
+function laatstBekendeJaar() {
+  return Math.max(...Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number));
+}
+
+function leeftijdAlsTekst(leeftijd) {
+  const jaarDeel = leeftijd.jaren + (leeftijd.jaren === 1 ? ' jaar' : ' jaar');
+  if (leeftijd.maanden === 0) return jaarDeel;
+  return jaarDeel + ' en ' + leeftijd.maanden
+    + (leeftijd.maanden === 1 ? ' maand' : ' maanden');
+}
+
+// Art. 7a lid 1 AOW koppelt de leeftijd aan het kalenderjaar waarin zij wordt bereikt, maar
+// om te weten in welk jaar dat is moet je de leeftijd al kennen. De slotzin van lid 1 maakt
+// die rondgang eenduidig: wie in een kalenderjaar de pensioengerechtigde leeftijd heeft
+// bereikt, krijgt niet meer met de verhogingen van latere jaren te maken. Daarom telt het
+// vroegste kalenderjaar waarin de geboortedatum plus de dan geldende leeftijd binnen dat
+// jaar valt.
+function berekenAowDatum(geboortedatumTekst) {
+  const geboortedatum = ontleedDatum(geboortedatumTekst);
+  if (!geboortedatum) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{ soort: 'fout', tekst: 'Vul een geldige geboortedatum in.' }],
+    };
+  }
+
+  const meldingen = [];
+  const laatsteJaar = laatstBekendeJaar();
+
+  for (let jaar = geboortedatum.jaar + LEEFTIJD_VOOR_2013.jaren; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdInJaar(jaar);
+    if (!leeftijd) break;
+    const datum = datumPlusLeeftijd(geboortedatum, leeftijd);
+    if (datum.jaar !== jaar) continue;
+
+    if (datum.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De datum '
+             + 'is daarom op de laatste dag van die maand gezet. Laat dit geval bevestigen '
+             + 'door de Sociale Verzekeringsbank voordat u de datum in een dossier gebruikt.',
+      });
+    }
+    if (jaar < EERSTE_JAAR_IN_DE_TABEL) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De AOW-leeftijd is bereikt vóór 2013, toen zij nog 65 jaar was '
+             + '(art. 7a lid 1 onder a AOW).',
+      });
+    }
+
+    return {
+      heeftUitkomst: true,
+      meldingen,
+      geboortedatum: alsTekst(geboortedatum),
+      aowJaar: jaar,
+      leeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+      leeftijdTekst: leeftijdAlsTekst(leeftijd),
+      vindplaats: leeftijd.vindplaats,
+      aowDatum: alsTekst(datum),
+      dagAangepast: datum.dagAangepast,
+    };
+  }
+
+  return {
+    heeftUitkomst: false,
+    meldingen: [{
+      soort: 'fout',
+      tekst: 'Voor deze geboortedatum valt de AOW-leeftijd na ' + laatsteJaar + ', en voor dat '
+           + 'jaar is de pensioengerechtigde leeftijd nog niet vastgesteld. De tool rekent niet '
+           + 'door met de leeftijd van een ander jaar. Elke vaststelling wordt vijf jaar vooraf '
+           + 'in de Staatscourant bekendgemaakt (art. 7a lid 2 en 3 AOW). '
+           + 'De Sociale Verzekeringsbank publiceert voor geboortedata van 1 oktober 1964 tot en '
+           + 'met 31 december 2000 wel een verwachte AOW-leeftijd, op '
+           + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd. Dat is een raming op basis van de '
+           + 'levensverwachting die het CBS elk jaar in december bijstelt, en geen vastgestelde '
+           + 'leeftijd; zij hoort daarom niet als datum in een dossier.',
+    }],
+  };
+}
+// AOW-LEEFTIJD — EINDE
+//
+// =========================================================================================
+// Algemeen: datums
+// =========================================================================================
+// Een datum is overal een object { jaar, maand, dag } en betekent het begin van die dag. De
+// ontleding, de maandlengte en het optellen van jaren en maanden komen uit het gedeelde blok
+// AOW-LEEFTIJD hierboven (ontleedDatum, alsTekst, dagenInMaand, datumPlusLeeftijd).
+
+function dagnummer(d) {
+  return Math.round(Date.UTC(d.jaar, d.maand - 1, d.dag) / 86400000);
+}
+
+function vergelijkDatum(a, b) {
+  return dagnummer(a) - dagnummer(b);
+}
+
+function laterste(a, b) { return vergelijkDatum(a, b) >= 0 ? a : b; }
+function vroegste(a, b) { return vergelijkDatum(a, b) <= 0 ? a : b; }
+
+function eersteJanuari(jaar) { return { jaar, maand: 1, dag: 1 }; }
+
+// Telt een aantal maanden op, ook negatief. Valt de dag niet in de doelmaand, dan wordt het
+// de laatste dag van die maand (zelfde regel als datumPlusLeeftijd).
+function plusMaanden(d, maanden) {
+  const totaal = d.jaar * 12 + (d.maand - 1) + maanden;
+  const jaar = Math.floor(totaal / 12);
+  const maand = totaal - jaar * 12 + 1;
+  return { jaar, maand, dag: Math.min(d.dag, dagenInMaand(jaar, maand)) };
+}
+
+function plusDagen(d, dagen) {
+  const t = new Date((dagnummer(d) + dagen) * 86400000);
+  return { jaar: t.getUTCFullYear(), maand: t.getUTCMonth() + 1, dag: t.getUTCDate() };
+}
+
+// Hele maanden tussen twee datums plus het restant naar rato van de lengte van de maand
+// waarin het restant valt. Van 1 juli tot 1 januari is dat precies 6. Elke tel begint bij
+// de begindatum zelf, zodat afkappen op een korte maand niet doorwerkt in de maanden erna.
+function maandenTussen(van, tot) {
+  const teken = vergelijkDatum(tot, van) < 0 ? -1 : 1;
+  if (teken < 0) return -maandenTussen(tot, van);
+  let heel = (tot.jaar - van.jaar) * 12 + (tot.maand - van.maand);
+  while (heel > 0 && vergelijkDatum(plusMaanden(van, heel), tot) > 0) heel--;
+  while (vergelijkDatum(plusMaanden(van, heel + 1), tot) <= 0) heel++;
+  const onder = plusMaanden(van, heel);
+  const boven = plusMaanden(van, heel + 1);
+  const rest = (dagnummer(tot) - dagnummer(onder)) / (dagnummer(boven) - dagnummer(onder));
+  return heel + rest;
+}
+
+// Hele jaren en resterende dagen tussen twee datums, zoals V&A 17-029 de verlenging en
+// verkorting van de uitkeringsperiode uitdrukt ("1 jaar en 138 dagen").
+function jarenEnDagenTussen(van, tot) {
+  let jaren = tot.jaar - van.jaar;
+  if (vergelijkDatum(plusMaanden(van, 12 * jaren), tot) > 0) jaren--;
+  const dagen = dagnummer(tot) - dagnummer(plusMaanden(van, 12 * jaren));
+  return { jaren, dagen };
+}
+
+// Leeftijd op een datum in jaren, met het deel van het lopende levensjaar naar rato van de
+// dagen tussen de laatste en de volgende verjaardag.
+function leeftijdOp(geboortedatum, peildatum) {
+  const { jaren } = jarenEnDagenTussen(geboortedatum, peildatum);
+  const vorige = plusMaanden(geboortedatum, 12 * jaren);
+  const volgende = plusMaanden(geboortedatum, 12 * (jaren + 1));
+  return jaren + (dagnummer(peildatum) - dagnummer(vorige)) / (dagnummer(volgende) - dagnummer(vorige));
+}
+
+function datumTekstNL(d) {
+  const t = n => String(n).padStart(2, '0');
+  return t(d.dag) + '-' + t(d.maand) + '-' + d.jaar;
+}
+
+// =========================================================================================
+// Deel 1: waardering van een pensioenverplichting in eigen beheer
+// =========================================================================================
+//
+// Grondslag: art. 3.29 Wet IB 2001 (via art. 8 lid 1 Wet Vpb 1969 ook voor de bv): de
+// waardering van pensioenverplichtingen vindt plaats "met inachtneming van algemeen aanvaarde
+// actuariële grondslagen, waarbij een rekenrente in aanmerking wordt genomen van ten minste
+// 4%". Bron: geconsolideerde Wet IB 2001, BWBR0011353, versie 2026-02-21, uit de
+// KOOP-repository, hashcode in het manifest gecontroleerd op 28-09-2026.
+//
+// De wet wijst geen sterftetafel aan, maar begrenst de keuze wel. Art. 34e lid 1 Wet Vpb 1969
+// laat voor het eigenbeheerlichaam art. 8 lid 6 Wet Vpb 1969 (tekst 2016) gelden: geen
+// overlevingstafel waarin rekening is gehouden met verwachtingen omtrent toekomstige
+// levensverwachtingen (dus geen prognosetafel), een leeftijdsterugstelling alleen ter correctie
+// naar een tafel van recentere datum, en niet hoger dan volgens het stelsel van verzekeraars.
+// Bron: BWBR0002672 versies 2026-01-01 en 2016-12-09, KOOP-repository, 29-09-2026.
+//
+// Het besluit van 19-03-2019, nr. 2019-6904, onderdelen B.1.1 en B.1.4 (CAP-site, gelezen op
+// 29-09-2026) gaat uit van de marktrente en de overlevingstafel ten tijde van het aangaan van
+// de verplichting; bij verzwaring van de grondslagen mag hoger worden gewaardeerd, bij
+// verlichting moet lager, maar niet lager dan met de oorspronkelijke grondslagen. Die
+// ondergrens kent de tool niet; zij meldt dat bij elke waardering (OPENSTAAND.md, punt W1).
+//
+// Deze tool rekent met de periodetafels GBM/GBV van het Koninklijk Actuarieel Genootschap.
+// Het AG schrijft dat de periodetafels "vooral ingezet" worden bij individuele regelingen
+// zoals voor dga's (actuarieelgenootschap.nl/kennisbank/periodetafels, 28-09-2026).
+
+const MINIMALE_REKENRENTE = 0.04; // art. 3.29 Wet IB 2001: "ten minste 4%"
+
+// Sterftekansen q(x) voor leeftijd 0 tot en met 120, per geslacht, uit de AG-kolommen van de
+// tafel en niet de ruwe CBS-kansen. Het AG noemt die kolom bij 2019-2024 "gladgestreken" en
+// bij 2018-2023 "afronding". Gegenereerd met
+// gereedschap/tafels-uit-ag.py uit het Excel-bestand van het AG; de SHA-256 van dat bestand
+// staat erbij, zodat wie het opnieuw downloadt kan nagaan dat het hetzelfde bestand is.
+// De tafel wordt gesloten met q = 1 vanaf leeftijd 121.
+const STERFTETAFELS = {
+  '2018-2023': {
+    naam: 'AG Periodetafel 2018-2023',
+    gepubliceerd: '2025-01-13',
+    bron: 'actuarieelgenootschap.nl/download/periodetafel-2018-2023-excel',
+    sha256: '1f317f247c350feba769b16ad4731f4d90a96f4a656035e4851d72c224d5622d',
+    man: [0.0038232,0.0002061,0.0001407,0.0001224,0.0001028,0.00008,0.000069,0.0000621,0.0000587,0.0000578,0.0000646,0.0000758,0.0000925,0.0001103,0.0001366,0.0001682,0.0002122,0.0002548,0.0003008,0.0003386,0.0003774,0.0003954,0.0004047,0.0004029,0.0003931,0.0003963,0.000411,0.0004321,0.0004525,0.0004755,0.0004976,0.0005234,0.0005531,0.0005845,0.0006269,0.0006695,0.0007083,0.0007674,0.0008227,0.0008849,0.0009537,0.0010377,0.0011318,0.0012298,0.001358,0.0014838,0.0016172,0.0017985,0.0020262,0.0022584,0.0024993,0.0027796,0.0030626,0.0033293,0.0036496,0.0040048,0.0044051,0.0048659,0.0053848,0.0059961,0.0066666,0.0074264,0.0082038,0.0090918,0.0100925,0.0111681,0.0123841,0.0136593,0.0150495,0.0165858,0.0183078,0.0202355,0.022441,0.0250131,0.027882,0.0311577,0.0350119,0.0393147,0.0441465,0.0496231,0.055714,0.0625224,0.0706972,0.0800105,0.0907938,0.103042,0.117479,0.1332296,0.1504773,0.1693539,0.1890766,0.2099344,0.2319851,0.2538116,0.2792599,0.3014644,0.3256637,0.3497657,0.3734875,0.396563,0.4187552,0.4398649,0.4597366,0.4782607,0.4953724,0.511048,0.5252995,0.5381678,0.5497161,0.5600236,0.5691793,0.5772777,0.5844142,0.5906829,0.5961738,0.6009716,0.6051551,0.6087961,0.61196,0.6147056,0.6170854],
+    vrouw: [0.0031331,0.0002212,0.0001145,0.000085,0.0000781,0.0000704,0.0000679,0.0000643,0.0000634,0.000061,0.0000621,0.0000665,0.0000707,0.000082,0.0000933,0.0001112,0.0001284,0.0001429,0.0001661,0.0001817,0.0001932,0.000195,0.0001989,0.0002043,0.0002053,0.0002113,0.000218,0.0002319,0.0002503,0.000274,0.0002994,0.000324,0.0003471,0.0003714,0.0004029,0.0004324,0.0004611,0.0004897,0.0005295,0.0005878,0.0006586,0.0007231,0.0008026,0.0008832,0.0009864,0.0010621,0.0011746,0.0012925,0.0014336,0.0016002,0.0017703,0.0019538,0.0021946,0.0024177,0.0026609,0.0029225,0.0032418,0.0035998,0.0039984,0.0044293,0.0049026,0.0054362,0.0060414,0.0066416,0.0073062,0.0080136,0.0087782,0.0095834,0.0104603,0.0114191,0.0125072,0.0137768,0.0151993,0.0168637,0.0188356,0.0210891,0.0236427,0.026509,0.0298376,0.0335716,0.0378566,0.0429738,0.0490144,0.0561336,0.0645596,0.0744558,0.085996,0.0992267,0.1142971,0.1310195,0.1491563,0.1684816,0.1888937,0.2114891,0.2343362,0.25807,0.283285,0.308954,0.3347376,0.360289,0.3852726,0.4093815,0.4323528,0.453977,0.4741031,0.4926387,0.5095457,0.5248329,0.5385479,0.5507668,0.5615862,0.5711151,0.5794681,0.5867606,0.593105,0.5986078,0.6033682,0.6074774,0.6110175,0.6140624,0.6166778],
+  },
+  '2019-2024': {
+    naam: 'AG Periodetafel 2019-2024',
+    gepubliceerd: '2026-01-07',
+    bron: 'actuarieelgenootschap.nl/download/periodetafel-2019-2024-excel',
+    sha256: 'a65b0e4246ee9d2bf75f023b903dd901368d15870751610da0fbe4ed1e6ee6db',
+    man: [0.0038271,0.0001976,0.0001575,0.0001258,0.0001014,0.0000803,0.0000719,0.0000641,0.0000612,0.000061,0.0000672,0.0000774,0.0000942,0.0001104,0.0001379,0.0001744,0.0002211,0.0002645,0.0003064,0.0003394,0.0003765,0.00039,0.0003969,0.0003847,0.0003834,0.0003902,0.0004078,0.000433,0.00045,0.0004766,0.0005046,0.0005302,0.0005554,0.0005869,0.0006339,0.0006757,0.0007202,0.0007852,0.0008386,0.000905,0.000973,0.0010512,0.0011407,0.0012401,0.0013641,0.0014826,0.0016174,0.0018019,0.0020083,0.0022484,0.0024828,0.0027586,0.0030546,0.003335,0.003651,0.0039941,0.0044005,0.0048436,0.0053553,0.0059702,0.0066186,0.0073578,0.0081258,0.0090161,0.0099889,0.0111055,0.0123347,0.0136316,0.0150997,0.0166611,0.0184254,0.0203098,0.0224565,0.0249967,0.0277798,0.0310911,0.0349053,0.0392604,0.0441617,0.0496303,0.0557725,0.0623776,0.0703751,0.0794502,0.0900347,0.1022974,0.1167349,0.1325528,0.150284,0.1697551,0.1899589,0.2110555,0.2337267,0.2561943,0.2814753,0.3035148,0.3279602,0.3522786,0.3761795,0.3993917,0.4216751,0.44283,0.4627029,0.4811878,0.4982251,0.5137971,0.5279218,0.5406465,0.5520401,0.5621867,0.5711796,0.5791168,0.5860966,0.5922149,0.5975633,0.6022273,0.6062863,0.6098122,0.6128705,0.6155196,0.6178116],
+    vrouw: [0.0031154,0.0002071,0.0001063,0.0000778,0.0000737,0.000066,0.0000629,0.0000623,0.0000624,0.0000604,0.0000634,0.0000709,0.0000766,0.0000863,0.0000984,0.0001102,0.000128,0.000141,0.0001585,0.0001689,0.0001868,0.0001949,0.0002023,0.0002127,0.0002136,0.00022,0.0002258,0.0002388,0.0002544,0.0002733,0.0003024,0.000328,0.0003516,0.0003778,0.0004073,0.0004383,0.0004652,0.0004992,0.0005362,0.0005964,0.0006695,0.0007342,0.0008108,0.0008843,0.0009866,0.0010652,0.0011787,0.0012938,0.0014295,0.0015939,0.0017541,0.0019321,0.0021624,0.0023799,0.0026206,0.0028949,0.0032198,0.0035675,0.0039549,0.004374,0.004848,0.0053841,0.0059687,0.0065727,0.0072598,0.0080125,0.0088309,0.009701,0.0106443,0.0116568,0.0127894,0.0140306,0.0153886,0.017029,0.0189579,0.0212034,0.0238402,0.0267729,0.0302091,0.0340149,0.0383302,0.0434333,0.0495286,0.056589,0.0648878,0.0746837,0.0862589,0.0995616,0.1148844,0.1320129,0.1504882,0.1706893,0.1922502,0.2151588,0.2383959,0.2613843,0.2868592,0.3127476,0.3387004,0.3643641,0.3893993,0.4134992,0.436404,0.4579102,0.4778749,0.4962147,0.5129011,0.5279521,0.5414231,0.5533974,0.5639772,0.5732756,0.5814103,0.5884987,0.5946543,0.599984,0.6045871,0.6085539,0.6119662,0.6148967,0.6174101],
+  },
+};
+
+// Standaardtafel per balansjaar (besluit Sylvain 29-09-2026, OPENSTAAND.md W1): een balansdatum
+// in jaar J rekent met de AG Periodetafel over de zes jaar tot en met J - 1, dus de tafel waarin
+// de sterftewaarnemingen tot en met het voorafgaande kalenderjaar zijn verwerkt. Het is niet noodzakelijk de tafel die op de
+// balansdatum al gepubliceerd was: 2018-2023 verscheen op 13-01-2025 en 2019-2024 op 07-01-2026,
+// dus na de balansdatum waarbij zij horen; bij het opmaken van de jaarrekening achteraf is zij
+// wel beschikbaar. Geen wettelijke regel: art. 3.29 Wet IB 2001 noemt geen tafel. Staat de
+// standaardtafel nog niet in STERFTETAFELS, dan rekent de tool niet stil met een andere tafel.
+const WAARNEMINGSJAREN_PERIODETAFEL = 6;
+
+function standaardTafelVoorBalansjaar(jaar) {
+  return (jaar - WAARNEMINGSJAREN_PERIODETAFEL) + '-' + (jaar - 1);
+}
+
+// Afwijken van de standaardtafel kan, maar alleen gemotiveerd; de motivering komt op het
+// dossierstuk. Tien tekens is het minimum om een lege of betekenisloze invulling te weren.
+const MINIMALE_MOTIVERING = 10;
+
+const LEEFTIJD_SLUITING = 121; // vanaf deze leeftijd q = 1
+
+// Aantal levenden l(x) voor x = 0 .. 122, met l(0) = 1.
+function levenden(q) {
+  const l = [1];
+  for (let x = 0; x <= LEEFTIJD_SLUITING; x++) {
+    const qx = x < LEEFTIJD_SLUITING && x < q.length ? q[x] : 1;
+    l.push(l[x] * (1 - qx));
+  }
+  return l;
+}
+
+// l(x) op een gebroken leeftijd: lineair tussen twee hele leeftijden. Dat is de aanname van
+// een gelijkmatige spreiding van de sterfte binnen het levensjaar, de gangbare aanname in de
+// actuariële praktijk.
+function levendenOp(l, x) {
+  if (x >= LEEFTIJD_SLUITING + 1) return 0;
+  if (x <= 0) return 1;
+  const k = Math.floor(x);
+  const f = x - k;
+  return l[k] * (1 - f) + l[k + 1] * f;
+}
+
+function overleving(l, x, t) {
+  const basis = levendenOp(l, x);
+  return basis > 0 ? levendenOp(l, x + t) / basis : 0;
+}
+
+// Contante waarde van 1 per jaar, in maandtermijnen, levenslang, ingaand op pensioenleeftijd
+// R en gewaardeerd op leeftijd x. Is x al R of ouder, dan is het pensioen ingegaan en lopen
+// de termijnen vanaf nu. Achteraf: de eerste termijn valt een maand na de ingang; vooraf: op
+// de ingang zelf.
+function factorOuderdomspensioen(x, R, l, rente, vooraf) {
+  const v = 1 / (1 + rente);
+  const uitstel = Math.max(R - x, 0);
+  const verschuiving = vooraf ? 0 : 1 / 12;
+  let som = 0;
+  for (let m = 0; ; m++) {
+    const t = uitstel + m / 12 + verschuiving;
+    if (x + t >= LEEFTIJD_SLUITING + 1) break;
+    som += Math.pow(v, t) * overleving(l, x, t);
+  }
+  return som / 12;
+}
+
+// Contante waarde van 1 per jaar partnerpensioen, in maandtermijnen, levenslang voor de
+// partner (leeftijd y) zodra de dga (leeftijd x) overlijdt: de zogenoemde reversionaire
+// lijfrente. De kans dat in maand t wordt uitgekeerd is: partner leeft, dga niet meer.
+function factorPartnerpensioenVanaf(x, y, lx, ly, rente, vooraf) {
+  const v = 1 / (1 + rente);
+  const verschuiving = vooraf ? 0 : 1 / 12;
+  let som = 0;
+  for (let m = 0; ; m++) {
+    const t = m / 12 + verschuiving;
+    if (y + t >= LEEFTIJD_SLUITING + 1) break;
+    som += Math.pow(v, t) * overleving(ly, y, t) * (1 - overleving(lx, x, t));
+  }
+  return som / 12;
+}
+
+// Twee varianten, en de pensioenregeling bepaalt welke geldt:
+// - 'altijd': het partnerpensioen gaat in bij overlijden van de dga, vóór of na de
+//   pensioendatum;
+// - 'naPensioendatum': het partnerpensioen gaat alleen in bij overlijden ná de pensioendatum,
+//   dus als beiden de pensioendatum van de dga halen.
+// Is de pensioendatum al bereikt, dan vallen de twee samen.
+function factorPartnerpensioen(x, y, R, lx, ly, rente, vooraf, variant) {
+  if (variant === 'altijd' || x >= R) {
+    return factorPartnerpensioenVanaf(x, y, lx, ly, rente, vooraf);
+  }
+  const n = R - x;
+  const v = 1 / (1 + rente);
+  return Math.pow(v, n) * overleving(lx, x, n) * overleving(ly, y, n)
+    * factorPartnerpensioenVanaf(x + n, y + n, lx, ly, rente, vooraf);
+}
+
+const PARTNERVARIANTEN = ['altijd', 'naPensioendatum'];
+
+// Rekenwijze op een gebroken leeftijd (besluit Sylvain 29-09-2026, OPENSTAAND.md W6): de factor
+// wordt berekend op de twee omliggende hele leeftijden van de dga en lineair geïnterpoleerd op de
+// exacte leeftijd op de balansdatum; 99,5 jaar is 50% van de factor op 99 en 50% op 100. Het
+// leeftijdsverschil met de partner blijft daarbij gelijk. Dat is een gebruikelijke werkwijze bij
+// actuariële factoren die per hele leeftijd worden vastgesteld. Binnen de factor zelf blijft de spreiding van de sterfte binnen
+// het levensjaar lineair (zie levendenOp); die bepaalt alleen de maandtermijnen.
+function interpoleerOpLeeftijd(x, factorOpHeleLeeftijd) {
+  const a = Math.floor(x);
+  const f = x - a;
+  if (f === 0) return factorOpHeleLeeftijd(a);
+  return (1 - f) * factorOpHeleLeeftijd(a) + f * factorOpHeleLeeftijd(a + 1);
+}
+
+function kiesTafel(peildatum, tafelKeuze, motivering, meldingen) {
+  const standaardId = standaardTafelVoorBalansjaar(peildatum.jaar);
+  const standaardAanwezig = Object.prototype.hasOwnProperty.call(STERFTETAFELS, standaardId);
+  if (!tafelKeuze || tafelKeuze === 'automatisch' || tafelKeuze === standaardId) {
+    if (!standaardAanwezig) {
+      meldingen.push({ soort: 'fout', tekst: 'Bij een balansdatum in ' + peildatum.jaar
+        + ' hoort standaard de AG Periodetafel ' + standaardId + ' (de waarnemingen tot en met '
+        + (peildatum.jaar - 1) + '). Die staat nog niet in de tool; het AG publiceert een nieuwe '
+        + 'periodetafel doorgaans begin januari. De tool rekent niet stil met een andere tafel. '
+        + 'Wilt u toch rekenen, kies dan een tafel en motiveer die afwijking.' });
+      return null;
+    }
+    return { id: standaardId, ...STERFTETAFELS[standaardId], afwijking: null };
+  }
+  const tafel = STERFTETAFELS[tafelKeuze];
+  if (!tafel) {
+    meldingen.push({ soort: 'fout', tekst: 'Onbekende sterftetafel: ' + tafelKeuze + '.' });
+    return null;
+  }
+  const reden = typeof motivering === 'string' ? motivering.trim() : '';
+  if (reden.length < MINIMALE_MOTIVERING) {
+    meldingen.push({ soort: 'fout', tekst: 'U wijkt af van de standaardtafel voor balansjaar '
+      + peildatum.jaar + ' (AG Periodetafel ' + standaardId
+      + (standaardAanwezig ? '' : ', nog niet in de tool') + '). Motiveer die afwijking in het veld '
+      + '"Motivering afwijkende tafel"; de motivering komt op het dossierstuk.' });
+    return null;
+  }
+  meldingen.push({ soort: 'let-op', tekst: 'Afwijkende tafel: de tool rekent met de ' + tafel.naam
+    + ' in plaats van de standaardtafel AG Periodetafel ' + standaardId
+    + (standaardAanwezig ? '' : ' (nog niet in de tool)') + '. Motivering: ' + reden });
+  return { id: tafelKeuze, ...tafel, afwijking: reden };
+}
+
+function isGetal(w) { return typeof w === 'number' && Number.isFinite(w); }
+
+// Invoer (alle bedragen per jaar, in euro's):
+//   peildatum, geboortedatum: 'jjjj-mm-dd'
+//   geslacht: 'man' | 'vrouw'
+//   pensioenleeftijdJaren, pensioenleeftijdMaanden: getallen
+//   ouderdomspensioen, partnerpensioen: bedrag per jaar
+//   partnerGeslacht: 'man' | 'vrouw'
+//   partnerLeeftijd: 'verschil' | 'geboortedatum'
+//   partnerVerschil: jaren dat de partner ouder is (negatief = jonger)
+//   partnerGeboortedatum: 'jjjj-mm-dd'
+//   partnerVariant: 'altijd' | 'naPensioendatum'
+//   rekenrente: fractie (0.04)
+//   tafel: 'automatisch' (de standaardtafel bij het balansjaar) of een sleutel uit STERFTETAFELS
+//   tafelMotivering: tekst, verplicht bij afwijken van de standaardtafel
+//   uitkering: 'achteraf' | 'vooraf'
+//   projectieJaren: aantal volgende balansdata (0 .. 10)
+function waardeerPensioen(invoer) {
+  const meldingen = [];
+  const fout = tekst => { meldingen.push({ soort: 'fout', tekst }); };
+
+  const peildatum = ontleedDatum(invoer.peildatum);
+  const geboortedatum = ontleedDatum(invoer.geboortedatum);
+  if (!peildatum) fout('Vul een geldige balansdatum in.');
+  if (!geboortedatum) fout('Vul een geldige geboortedatum van de dga in.');
+  if (!['man', 'vrouw'].includes(invoer.geslacht)) fout('Kies het geslacht van de dga.');
+  if (!isGetal(invoer.ouderdomspensioen) || invoer.ouderdomspensioen < 0) {
+    fout('Vul het ouderdomspensioen per jaar in (0 of meer).');
+  }
+  if (!isGetal(invoer.partnerpensioen) || invoer.partnerpensioen < 0) {
+    fout('Vul het partnerpensioen per jaar in (0 of meer).');
+  }
+  if (!isGetal(invoer.pensioenleeftijdJaren) || !Number.isInteger(invoer.pensioenleeftijdJaren)
+      || invoer.pensioenleeftijdJaren < 55 || invoer.pensioenleeftijdJaren > 75) {
+    fout('De pensioenleeftijd moet een heel aantal jaren tussen 55 en 75 zijn.');
+  }
+  if (!isGetal(invoer.pensioenleeftijdMaanden) || !Number.isInteger(invoer.pensioenleeftijdMaanden)
+      || invoer.pensioenleeftijdMaanden < 0 || invoer.pensioenleeftijdMaanden > 11) {
+    fout('De maanden bij de pensioenleeftijd moeten een heel getal van 0 tot en met 11 zijn.');
+  }
+  if (!isGetal(invoer.rekenrente)) {
+    fout('Vul de rekenrente in.');
+  } else if (invoer.rekenrente < MINIMALE_REKENRENTE - 1e-12) {
+    fout('De rekenrente is lager dan 4%. Art. 3.29 Wet IB 2001 schrijft een rekenrente van '
+      + 'ten minste 4% voor; de tool rekent daar niet mee.');
+  } else if (invoer.rekenrente > 0.10) {
+    fout('Een rekenrente boven 10% ligt buiten wat deze tool ondersteunt.');
+  }
+  if (!['achteraf', 'vooraf'].includes(invoer.uitkering)) fout('Kies of het pensioen vooraf of achteraf wordt uitgekeerd.');
+  if (!isGetal(invoer.projectieJaren) || !Number.isInteger(invoer.projectieJaren)
+      || invoer.projectieJaren < 0 || invoer.projectieJaren > 10) {
+    fout('Het aantal volgende balansdata moet een heel getal van 0 tot en met 10 zijn.');
+  }
+
+  const heeftPartnerpensioen = isGetal(invoer.partnerpensioen) && invoer.partnerpensioen > 0;
+  let partnerGeboortedatum = null;
+  if (heeftPartnerpensioen) {
+    if (!['man', 'vrouw'].includes(invoer.partnerGeslacht)) fout('Kies het geslacht van de partner.');
+    if (!PARTNERVARIANTEN.includes(invoer.partnerVariant)) {
+      fout('Kies wanneer het partnerpensioen ingaat: bij overlijden vóór én na de pensioendatum, '
+        + 'of alleen bij overlijden na de pensioendatum. De pensioenbrief bepaalt dit; de tool '
+        + 'kiest het niet voor u, omdat het de waardering wezenlijk verandert.');
+    }
+    if (invoer.partnerLeeftijd === 'geboortedatum') {
+      partnerGeboortedatum = ontleedDatum(invoer.partnerGeboortedatum);
+      if (!partnerGeboortedatum) fout('Vul een geldige geboortedatum van de partner in.');
+    } else if (invoer.partnerLeeftijd === 'verschil') {
+      if (!isGetal(invoer.partnerVerschil) || Math.abs(invoer.partnerVerschil) > 30) {
+        fout('Het leeftijdsverschil met de partner moet tussen -30 en 30 jaar liggen.');
+      }
+    } else {
+      fout('Kies hoe de leeftijd van de partner wordt bepaald.');
+    }
+  }
+
+  if (meldingen.some(m => m.soort === 'fout')) return { heeftUitkomst: false, meldingen };
+
+  const tafel = kiesTafel(peildatum, invoer.tafel, invoer.tafelMotivering, meldingen);
+  if (!tafel) return { heeftUitkomst: false, meldingen };
+
+  const R = invoer.pensioenleeftijdJaren + invoer.pensioenleeftijdMaanden / 12;
+  const lDga = levenden(tafel[invoer.geslacht]);
+  const lPartner = heeftPartnerpensioen ? levenden(tafel[invoer.partnerGeslacht]) : null;
+  const vooraf = invoer.uitkering === 'vooraf';
+
+  const rekenOp = function (datum) {
+    const x = leeftijdOp(geboortedatum, datum);
+    let y = null;
+    if (heeftPartnerpensioen) {
+      y = partnerGeboortedatum ? leeftijdOp(partnerGeboortedatum, datum) : x + invoer.partnerVerschil;
+    }
+    const fOp = interpoleerOpLeeftijd(x, a => factorOuderdomspensioen(a, R, lDga, invoer.rekenrente, vooraf));
+    const verschil = heeftPartnerpensioen ? y - x : 0;
+    const fPp = heeftPartnerpensioen
+      ? interpoleerOpLeeftijd(x, a => factorPartnerpensioen(a, a + verschil, R, lDga, lPartner,
+          invoer.rekenrente, vooraf, invoer.partnerVariant))
+      : 0;
+    const waardeOp = invoer.ouderdomspensioen * fOp;
+    const waardePp = heeftPartnerpensioen ? invoer.partnerpensioen * fPp : 0;
+    return {
+      datum: alsTekst(datum),
+      leeftijdDga: x,
+      leeftijdPartner: y,
+      pensioenIngegaan: x >= R,
+      factorOuderdomspensioen: fOp,
+      factorPartnerpensioen: fPp,
+      waardeOuderdomspensioen: waardeOp,
+      waardePartnerpensioen: waardePp,
+      totaal: waardeOp + waardePp,
+    };
+  };
+
+  const x0 = leeftijdOp(geboortedatum, peildatum);
+  if (vergelijkDatum(peildatum, geboortedatum) <= 0 || x0 < 18 || x0 > 110) {
+    return { heeftUitkomst: false, meldingen: [{ soort: 'fout', tekst: 'De leeftijd van de dga op de '
+      + 'balansdatum moet tussen 18 en 110 jaar liggen.' }] };
+  }
+  if (heeftPartnerpensioen) {
+    const y0 = partnerGeboortedatum ? leeftijdOp(partnerGeboortedatum, peildatum) : x0 + invoer.partnerVerschil;
+    if (!(y0 >= 18 && y0 <= 110)) {
+      return { heeftUitkomst: false, meldingen: [{ soort: 'fout', tekst: 'De leeftijd van de partner '
+        + 'op de balansdatum moet tussen 18 en 110 jaar liggen.' }] };
+    }
+    if (!partnerGeboortedatum) {
+      meldingen.push({ soort: 'info', tekst: 'De partner is ' + Math.abs(invoer.partnerVerschil)
+        + ' jaar ' + (invoer.partnerVerschil < 0 ? 'jonger' : 'ouder') + ' gesteld dan de dga. '
+        + 'Is de werkelijke partner bekend, dan kunt u ook diens geboortedatum invullen.' });
+    }
+    if (invoer.partnerGeslacht === invoer.geslacht) {
+      meldingen.push({ soort: 'info', tekst: 'Partner en dga hebben hetzelfde geslacht; de tool '
+        + 'rekent voor de partner met de tafel van het gekozen geslacht.' });
+    }
+  }
+  if (x0 >= R) {
+    meldingen.push({ soort: 'info', tekst: 'De pensioenleeftijd is op de balansdatum bereikt; '
+      + 'de tool waardeert een ingegaan ouderdomspensioen.' });
+  }
+  if (Math.abs(invoer.rekenrente - MINIMALE_REKENRENTE) > 1e-12) {
+    meldingen.push({ soort: 'info', tekst: 'U rekent met een rekenrente van '
+      + (invoer.rekenrente * 100).toLocaleString('nl-NL', { maximumFractionDigits: 3 })
+      + '%. Art. 3.29 Wet IB 2001 eist ten minste 4%.' });
+  }
+
+  // Besluit 19-03-2019, nr. 2019-6904, B.1.1 en B.1.4: grondslagen ten tijde van het aangaan,
+  // met een ondergrens die de tool niet kan toetsen. Daarom bij elke uitkomst deze melding.
+  meldingen.push({ soort: 'let-op', tekst: 'Controleer de ondergrens. Volgens het besluit van '
+    + '19-03-2019 (nr. 2019-6904, onderdelen B.1.1 en B.1.4) gelden de marktrente en de '
+    + 'overlevingstafel van het moment waarop de verplichting is aangegaan. Een zwaardere grondslag '
+    + 'mag, maar de waarde mag niet lager zijn dan met de oorspronkelijke grondslagen. De tool rekent '
+    + 'met de gekozen AG Periodetafel en kent die oorspronkelijke grondslagen niet. Was de marktrente '
+    + 'bij het aangaan hoger dan 4%, vul die dan in bij Rekenrente.' });
+
+  const nu = rekenOp(peildatum);
+  const projectie = [];
+  for (let k = 1; k <= invoer.projectieJaren; k++) {
+    projectie.push(rekenOp(plusMaanden(peildatum, 12 * k)));
+  }
+  if (projectie.length) {
+    meldingen.push({ soort: 'let-op', tekst: 'De volgende balansdata zijn berekend met dezelfde '
+      + 'tafel en dezelfde pensioenbedragen. Het AG publiceert elk jaar een nieuwe tafel; de '
+      + 'waardering op een latere balansdatum volgt uit de tafel die dan geldt.' });
+  }
+
+  return {
+    heeftUitkomst: true,
+    meldingen,
+    tafel: { id: tafel.id, naam: tafel.naam, gepubliceerd: tafel.gepubliceerd, bron: tafel.bron, sha256: tafel.sha256,
+      standaard: tafel.afwijking === null, afwijking: tafel.afwijking },
+    pensioenleeftijd: R,
+    nu,
+    projectie,
+  };
+}
+
+// =========================================================================================
+// Deel 2: oudedagsverplichting (ODV)
+// =========================================================================================
+//
+// Grondslag: art. 38p Wet LB 1964 (geconsolideerd, BWBR0002471, versie 2026-02-21, uit de
+// KOOP-repository, hashcode gecontroleerd op 28-09-2026). Lid 1: de ODV wordt jaarlijks
+// verhoogd met een bij ministeriële regeling bepaalde marktrente. Lid 2: uitkering in twintig
+// jaar in termijnen met een gelijke tussenperiode van ten hoogste een jaar; het jaarbedrag is
+// de stand aan het begin van het jaar gedeeld door het aantal resterende uitkeringsjaren;
+// de eerste termijn niet vóór de AOW-leeftijd min vijf jaar en uiterlijk twee maanden na de
+// AOW-leeftijd, met verlenging bij eerdere ingang (onder a, 2°) en verkorting bij omzetting na
+// AOW-leeftijd plus twee maanden (onder a, 3°).
+//
+// Uitvoering volgens het Centraal Aanspreekpunt Pensioenen van de Belastingdienst:
+// - V&A 17-027 (publicatiedatum 01-01-2020): oprenting in de uitstelfase na elk verstreken jaar
+//   of aan het eind van het boekjaar; bij een periode over twee kalenderjaren een gewogen
+//   gemiddelde van de marktrentes; in het ingangsjaar eerst oprenten tot de ingang; in de
+//   uitkeringsfase oprenten op de uitkeringsverjaardag, over de stand minus de in dat jaar
+//   vervallen termijnen.
+// - V&A 17-029 (publicatiedatum 31-03-2022): de uitkeringsperiode, en afronding van een
+//   verlengde of verkorte periode op dagen, hele maanden of hele jaren.
+// - V&A 19-007 (publicatiedatum 14-02-2024): een negatieve marktrente verlaagt de ODV.
+// Een V&A is een uitvoeringsstandpunt van de Belastingdienst en geen wet.
+
+// Marktrente per kalenderjaar: art. 12.3a Uitvoeringsregeling loonbelasting 2011, het
+// rekenkundig gemiddelde van de U-rendementen over de maanden van het voorafgaande jaar.
+// Elke waarde staat letterlijk in de laatste zin van art. 12.3a in de versie die dat jaar
+// gold. Bron: BWBR0028236, per versie uit de KOOP-repository gehaald en tegen de hashcode in
+// het manifest gecontroleerd op 28-09-2026.
+const MARKTRENTE_PER_JAAR = {
+  2017: { rente: 0.00059, vindplaats: 'art. 12.3a URLB 2011, versie 2017-04-01: 0,059%' },
+  2018: { rente: 0.0006, vindplaats: 'art. 12.3a URLB 2011, versie 2018-05-25: 0,06%' },
+  2019: { rente: 0.00269, vindplaats: 'art. 12.3a URLB 2011, versie 2019-01-01: 0,269%' },
+  2020: { rente: -0.00107, vindplaats: 'art. 12.3a URLB 2011, versie 2020-01-01: -0,107%' },
+  2021: { rente: -0.00382, vindplaats: 'art. 12.3a URLB 2011, versie 2021-01-01: -0,382%' },
+  2022: { rente: -0.0041, vindplaats: 'art. 12.3a URLB 2011, versie 2022-01-01: -0,410%' },
+  2023: { rente: 0.00699, vindplaats: 'art. 12.3a URLB 2011, versie 2023-01-01: 0,699%' },
+  2024: { rente: 0.02657, vindplaats: 'art. 12.3a URLB 2011, versie 2024-01-01: 2,657%' },
+  2025: { rente: 0.02602, vindplaats: 'art. 12.3a URLB 2011, versie 2025-01-01: 2,602%' },
+  2026: { rente: 0.02593, vindplaats: 'art. 12.3a URLB 2011, versie 2026-09-01: 2,593%' },
+};
+
+// De omzetting in een ODV kon tussen 1 april 2017 en 31 december 2019. Zo staat het in V&A
+// 17-029 (31-03-2022); art. 38n lid 2 Wet LB 1964 (tekst 2019) regelt de omzetting zelf, het
+// venster volgt uit de inwerkingtreding en het vervallen van die bepaling (Wet uitfasering
+// pensioen in eigen beheer, Stb. 2017, 115 en 116, volgens de bron-controleur 29-09-2026).
+const OMZETTING_VANAF = { jaar: 2017, maand: 4, dag: 1 };
+const OMZETTING_TOT_EN_MET = { jaar: 2019, maand: 12, dag: 31 };
+
+const STANDAARD_UITKERINGSJAREN = 20; // art. 38p lid 2, eerste volzin
+const VROEGSTE_INGANG_JAREN_VOOR_AOW = 5; // art. 38p lid 2 onder a, 1°
+const UITERSTE_INGANG_MAANDEN_NA_AOW = 2; // art. 38p lid 2 onder a, 1°
+const AFRONDINGEN = ['dagen', 'maanden-op', 'maanden-af', 'jaren-op', 'jaren-af'];
+const FREQUENTIES = [1, 3, 6, 12]; // maanden tussen twee termijnen; ten hoogste een jaar
+
+// Marktrente van een kalenderjaar. Een jaar zonder vastgestelde marktrente rekent alleen door
+// met een uitdrukkelijk opgegeven aanname, en dat wordt gemeld.
+function marktrenteVan(jaar, aangenomen) {
+  const vast = MARKTRENTE_PER_JAAR[jaar];
+  if (vast) return { rente: vast.rente, vastgesteld: true };
+  if (isGetal(aangenomen) && jaar > laatsteMarktrenteJaar()) return { rente: aangenomen, vastgesteld: false };
+  return null;
+}
+
+function laatsteMarktrenteJaar() {
+  return Math.max(...Object.keys(MARKTRENTE_PER_JAAR).map(Number));
+}
+
+// Oprentingspercentage over een periode van ten hoogste een jaar: per kalenderjaar de
+// marktrente maal het deel van het jaar dat in die periode valt (V&A 17-027: gewogen
+// gemiddelde bij een periode over twee kalenderjaren). Tijdsevenredig in maanden, met een
+// gebroken maand naar rato van haar dagen.
+function oprentingsfactor(van, tot, aangenomen) {
+  const stukken = [];
+  let ontbreekt = null;
+  let aanname = false;
+  for (let jaar = van.jaar; jaar <= tot.jaar; jaar++) {
+    const begin = laterste(van, eersteJanuari(jaar));
+    const eind = vroegste(tot, eersteJanuari(jaar + 1));
+    if (vergelijkDatum(eind, begin) <= 0) continue;
+    const deel = maandenTussen(begin, eind) / 12;
+    const mr = marktrenteVan(jaar, aangenomen);
+    if (!mr) { ontbreekt = jaar; break; }
+    if (!mr.vastgesteld) aanname = true;
+    stukken.push({ jaar, deel, rente: mr.rente, vastgesteld: mr.vastgesteld });
+  }
+  if (ontbreekt !== null) return { ok: false, ontbreektJaar: ontbreekt };
+  const percentage = stukken.reduce((s, x) => s + x.rente * x.deel, 0);
+  return { ok: true, percentage, stukken, aanname };
+}
+
+function ontbrekendeRenteMelding(jaar) {
+  return 'Voor ' + jaar + ' is de marktrente nog niet vastgesteld (art. 12.3a URLB 2011 noemt '
+    + 'haar pas in de versie die vanaf 1 januari van dat jaar geldt). Vul onder "Aangenomen marktrente" een '
+    + 'percentage in om verder te rekenen; de uitkomst is dan een raming.';
+}
+
+// Uitkeringsperiode in jaren, volgens art. 38p lid 2 en de afronding van V&A 17-029.
+function bepaalUitkeringsperiode(aowDatum, ingang, omzetting, afronding) {
+  const aowPlusTwee = plusMaanden(aowDatum, UITERSTE_INGANG_MAANDEN_NA_AOW);
+  let soort, verschil = null;
+  if (vergelijkDatum(ingang, aowDatum) < 0) {
+    soort = 'verlengd';
+    verschil = { van: ingang, tot: aowDatum };
+  } else if (vergelijkDatum(omzetting, aowPlusTwee) > 0) {
+    soort = 'verkort';
+    verschil = { van: aowDatum, tot: ingang };
+  } else {
+    soort = 'standaard';
+  }
+  if (soort === 'standaard') {
+    return { soort, jaren: STANDAARD_UITKERINGSJAREN, verschilTekst: '' };
+  }
+  // V&A 17-029 telt de dagen tussen de twee data zonder beide einddata mee te tellen: van
+  // 15-08-2022 tot 01-01-2024 is daar "1 jaar en 138 dagen" (15-08-2023 tot 01-01-2024 is 139
+  // dagen verschil). De tool volgt die telling.
+  const jdRuw = jarenEnDagenTussen(verschil.van, verschil.tot);
+  const jd = { jaren: jdRuw.jaren, dagen: jdRuw.dagen > 0 ? jdRuw.dagen - 1 : 0 };
+  const maanden = maandenTussen(verschil.van, verschil.tot);
+  const heleMaanden = Math.floor(maanden + 1e-9);
+  const restMaand = maanden - heleMaanden > 1e-9;
+  const jaarVerschil = jd.jaren + jd.dagen / 365;
+  const teken = soort === 'verlengd' ? 1 : -1;
+  let verschilJaren;
+  switch (afronding) {
+    case 'dagen': verschilJaren = jaarVerschil; break;
+    // Afronden slaat op de periode zelf: bij verkorting is "naar boven" dus het kleinste
+    // verschil. Zo staat het ook in de voorbeelden van V&A 17-029.
+    case 'maanden-op': verschilJaren = (teken > 0 ? heleMaanden + (restMaand ? 1 : 0) : heleMaanden) / 12; break;
+    case 'maanden-af': verschilJaren = (teken > 0 ? heleMaanden : heleMaanden + (restMaand ? 1 : 0)) / 12; break;
+    case 'jaren-op': verschilJaren = teken > 0 ? Math.ceil(jaarVerschil - 1e-12) : Math.floor(jaarVerschil + 1e-12); break;
+    case 'jaren-af': verschilJaren = teken > 0 ? Math.floor(jaarVerschil + 1e-12) : Math.ceil(jaarVerschil - 1e-12); break;
+    default: return null;
+  }
+  return {
+    soort,
+    jaren: STANDAARD_UITKERINGSJAREN + teken * verschilJaren,
+    verschilTekst: jd.jaren + ' jaar en ' + jd.dagen + ' dagen',
+  };
+}
+
+// Oprentingsmomenten in de uitstelfase, van de omzetting tot de ingang.
+function oprentingsmomenten(omzetting, ingang, wijze, boekjaarEinde) {
+  const momenten = [];
+  if (wijze === 'verjaardag') {
+    for (let k = 1; ; k++) {
+      const m = plusMaanden(omzetting, 12 * k);
+      if (vergelijkDatum(m, ingang) >= 0) break;
+      momenten.push(m);
+    }
+  } else {
+    // Het einde van het boekjaar is het einde van de dag; het moment van oprenting is dus het
+    // begin van de dag erna.
+    for (let jaar = omzetting.jaar - 1; jaar <= ingang.jaar; jaar++) {
+      const eind = plusDagen({ jaar, maand: boekjaarEinde.maand,
+        dag: Math.min(boekjaarEinde.dag, dagenInMaand(jaar, boekjaarEinde.maand)) }, 1);
+      if (vergelijkDatum(eind, omzetting) > 0 && vergelijkDatum(eind, ingang) < 0) momenten.push(eind);
+    }
+  }
+  momenten.push(ingang);
+  return momenten;
+}
+
+// Invoer:
+//   startwijze: 'omzetting' (rekenen vanaf de omzetting) | 'ingang' (stand bij ingang bekend)
+//   geboortedatum, omzettingsdatum, ingangsdatum: 'jjjj-mm-dd'
+//   aowDatumHandmatig: '' of 'jjjj-mm-dd' (alleen als de AOW-leeftijd nog niet vaststaat)
+//   kapitaalOmzetting: bedrag (bij startwijze 'omzetting')
+//   standBijIngang: bedrag (bij startwijze 'ingang')
+//   oprenting: 'verjaardag' | 'boekjaar'
+//   boekjaarEinde: 'mm-dd'
+//   frequentie: 1 | 3 | 6 | 12
+//   afronding: zie AFRONDINGEN
+//   aangenomenMarktrente: fractie of null
+function berekenOdv(invoer) {
+  const meldingen = [];
+  const fout = tekst => { meldingen.push({ soort: 'fout', tekst }); };
+
+  const geboortedatum = ontleedDatum(invoer.geboortedatum);
+  const omzetting = ontleedDatum(invoer.omzettingsdatum);
+  const ingang = ontleedDatum(invoer.ingangsdatum);
+  if (!geboortedatum) fout('Vul een geldige geboortedatum van de dga in.');
+  if (!omzetting) fout('Vul een geldige datum van omzetting in een ODV in.');
+  if (!ingang) fout('Vul een geldige datum van de eerste ODV-termijn in.');
+  if (!['omzetting', 'ingang'].includes(invoer.startwijze)) fout('Kies waarvandaan de tool rekent.');
+  if (invoer.startwijze === 'omzetting' && (!isGetal(invoer.kapitaalOmzetting) || invoer.kapitaalOmzetting <= 0)) {
+    fout('Vul de waarde van de ODV bij omzetting in (meer dan 0).');
+  }
+  if (invoer.startwijze === 'ingang' && (!isGetal(invoer.standBijIngang) || invoer.standBijIngang <= 0)) {
+    fout('Vul de stand van de ODV op de ingangsdatum in (meer dan 0).');
+  }
+  if (invoer.startwijze === 'omzetting' && !['verjaardag', 'boekjaar'].includes(invoer.oprenting)) {
+    fout('Kies de wijze van oprenten in de uitstelfase.');
+  }
+  let boekjaarEinde = { maand: 12, dag: 31 };
+  if (invoer.startwijze === 'omzetting' && invoer.oprenting === 'boekjaar') {
+    const m = /^(\d{2})-(\d{2})$/.exec(String(invoer.boekjaarEinde || ''));
+    const mnd = m ? Number(m[1]) : 0, dag = m ? Number(m[2]) : 0;
+    if (!m || mnd < 1 || mnd > 12 || dag < 1 || dag > dagenInMaand(2001, mnd)) {
+      fout('Vul het einde van het boekjaar in als mm-dd, bijvoorbeeld 12-31.');
+    } else {
+      boekjaarEinde = { maand: mnd, dag };
+    }
+  }
+  if (!FREQUENTIES.includes(invoer.frequentie)) fout('Kies de termijnfrequentie.');
+  if (!AFRONDINGEN.includes(invoer.afronding)) fout('Kies de afronding van de uitkeringsperiode.');
+  if (invoer.aangenomenMarktrente !== null && invoer.aangenomenMarktrente !== undefined
+      && (!isGetal(invoer.aangenomenMarktrente) || Math.abs(invoer.aangenomenMarktrente) > 0.10)) {
+    fout('De aangenomen marktrente moet een percentage tussen -10% en 10% zijn, of leeg.');
+  }
+  if (meldingen.length) return { heeftUitkomst: false, meldingen };
+
+  if (vergelijkDatum(omzetting, OMZETTING_VANAF) < 0 || vergelijkDatum(omzetting, OMZETTING_TOT_EN_MET) > 0) {
+    return { heeftUitkomst: false, meldingen: [{ soort: 'fout', tekst: 'Omzetting in een ODV kon '
+      + 'alleen tussen 1 april 2017 en 31 december 2019 (V&A 17-029 van het Centraal Aanspreekpunt '
+      + 'Pensioenen; art. 38n lid 2 Wet LB 1964, tekst 2019). '
+      + 'Controleer de omzettingsdatum.' }] };
+  }
+  if (vergelijkDatum(ingang, omzetting) < 0) {
+    return { heeftUitkomst: false, meldingen: [{ soort: 'fout', tekst: 'De eerste termijn kan niet '
+      + 'vóór de omzetting liggen.' }] };
+  }
+
+  // AOW-datum: uit het gedeelde blok, of een uitdrukkelijk opgegeven raming.
+  let aowDatum, aowRaming = false;
+  const aow = berekenAowDatum(invoer.geboortedatum);
+  if (aow.heeftUitkomst) {
+    aowDatum = ontleedDatum(aow.aowDatum);
+    aow.meldingen.forEach(m => meldingen.push(m));
+    if (invoer.aowDatumHandmatig) {
+      meldingen.push({ soort: 'info', tekst: 'De AOW-leeftijd staat voor deze geboortedatum vast; '
+        + 'de handmatig opgegeven AOW-datum is genegeerd.' });
+    }
+  } else if (invoer.aowDatumHandmatig && ontleedDatum(invoer.aowDatumHandmatig)) {
+    aowDatum = ontleedDatum(invoer.aowDatumHandmatig);
+    aowRaming = true;
+    meldingen.push({ soort: 'let-op', tekst: 'De AOW-leeftijd van deze dga is nog niet vastgesteld. '
+      + 'De tool rekent met de opgegeven AOW-datum ' + datumTekstNL(aowDatum) + ' als raming. '
+      + 'De vroegste en uiterste ingangsdatum en de uitkeringsperiode hangen daarvan af; '
+      + 'herbereken zodra de leeftijd in de Staatscourant is bekendgemaakt.' });
+  } else {
+    return { heeftUitkomst: false, meldingen: aow.meldingen.concat([{ soort: 'fout', tekst:
+      'Zonder AOW-datum kan de tool de uitkeringsperiode niet bepalen. Vul een verwachte AOW-datum '
+      + 'in als raming als u toch wilt rekenen.' }]) };
+  }
+
+  // Ingangsgrenzen, art. 38p lid 2 onder a.
+  const aowPlusTwee = plusMaanden(aowDatum, UITERSTE_INGANG_MAANDEN_NA_AOW);
+  const vroegsteIngang = laterste(plusMaanden(aowDatum, -12 * VROEGSTE_INGANG_JAREN_VOOR_AOW), omzetting);
+  const naLateOmzetting = vergelijkDatum(omzetting, aowPlusTwee) > 0;
+  const uitersteIngang = naLateOmzetting ? omzetting : aowPlusTwee;
+  if (vergelijkDatum(ingang, vroegsteIngang) < 0) {
+    return { heeftUitkomst: false, meldingen: meldingen.concat([{ soort: 'fout', tekst: 'De eerste termijn '
+      + 'ligt vóór ' + datumTekstNL(vroegsteIngang) + ', de dag waarop de dga de AOW-leeftijd min vijf '
+      + 'jaar bereikt (art. 38p lid 2 onder a, 1°, Wet LB 1964). Een eerdere uitkering maakt de ODV '
+      + 'fiscaal onzuiver; de tool rekent daar niet mee.' }]) };
+  }
+  if (naLateOmzetting) {
+    if (vergelijkDatum(ingang, plusMaanden(omzetting, 1)) > 0) {
+      meldingen.push({ soort: 'let-op', tekst: 'De omzetting lag meer dan twee maanden na de AOW-datum. '
+        + 'Dan moest de eerste termijn direct na de omzetting worden uitgekeerd (art. 38p lid 2 onder a, '
+        + '3°, Wet LB 1964). De opgegeven eerste termijn ligt meer dan een maand na de omzetting; '
+        + 'controleer of dat klopt. De grens van een maand is een signaal van de tool en staat niet '
+        + 'in de wet.' });
+    }
+  } else if (vergelijkDatum(ingang, uitersteIngang) > 0) {
+    return { heeftUitkomst: false, meldingen: meldingen.concat([{ soort: 'fout', tekst: 'De eerste termijn '
+      + 'ligt na ' + datumTekstNL(uitersteIngang) + ', twee maanden na de AOW-datum (art. 38p lid 2 '
+      + 'onder a, 1°, Wet LB 1964). Een latere ingang maakt de ODV fiscaal onzuiver; de tool rekent '
+      + 'daar niet mee.' }]) };
+  }
+
+  const periode = bepaalUitkeringsperiode(aowDatum, ingang, omzetting, invoer.afronding);
+  if (!(periode.jaren > 0)) {
+    return { heeftUitkomst: false, meldingen: meldingen.concat([{ soort: 'fout', tekst: 'De verkorte '
+      + 'uitkeringsperiode is nul of negatief. Controleer de AOW-datum en de omzettingsdatum.' }]) };
+  }
+
+  // ---- Uitstelfase
+  const uitstel = [];
+  let stand;
+  let aanname = false;
+  if (invoer.startwijze === 'omzetting') {
+    stand = invoer.kapitaalOmzetting;
+    let van = omzetting;
+    for (const tot of oprentingsmomenten(omzetting, ingang, invoer.oprenting, boekjaarEinde)) {
+      if (vergelijkDatum(tot, van) <= 0) continue;
+      const f = oprentingsfactor(van, tot, invoer.aangenomenMarktrente);
+      if (!f.ok) {
+        return { heeftUitkomst: false, meldingen: meldingen.concat([{ soort: 'fout', tekst: ontbrekendeRenteMelding(f.ontbreektJaar) }]) };
+      }
+      if (f.aanname) aanname = true;
+      const rente = stand * f.percentage;
+      uitstel.push({ van: alsTekst(van), tot: alsTekst(tot), beginstand: stand, percentage: f.percentage,
+        stukken: f.stukken, rente, eindstand: stand + rente, _van: van, _tot: tot, _basis: stand });
+      stand += rente;
+      van = tot;
+    }
+  } else {
+    stand = invoer.standBijIngang;
+  }
+  const standBijIngang = stand;
+
+  // ---- Uitkeringsfase
+  const uitkering = [];
+  const termijnen = [];
+  const f = invoer.frequentie;
+  let rest = periode.jaren;
+  for (let k = 0; rest > 1e-9; k++) {
+    const van = plusMaanden(ingang, 12 * k);
+    const tot = plusMaanden(ingang, 12 * (k + 1));
+    const beginstand = stand;
+    const jaarbedrag = beginstand / rest; // art. 38p lid 2: stand gedeeld door resterende jaren
+    const dezeJaar = Math.min(1, rest);
+    const aantal = Math.max(1, Math.ceil(dezeJaar * 12 / f - 1e-9));
+    const termijnbedrag = jaarbedrag * f / 12;
+    let totaalJaar = 0;
+    const dezeTermijnen = [];
+    for (let j = 0; j < aantal; j++) {
+      const bedrag = j < aantal - 1 ? termijnbedrag : jaarbedrag * dezeJaar - termijnbedrag * (aantal - 1);
+      const datum = plusMaanden(ingang, 12 * k + j * f);
+      dezeTermijnen.push({ datum: alsTekst(datum), bedrag, _datum: datum });
+      totaalJaar += bedrag;
+    }
+    termijnen.push(...dezeTermijnen);
+    const grondslag = beginstand - totaalJaar; // V&A 17-027: stand minus vervallen termijnen
+    let percentage = 0, stukken = [], rente = 0;
+    if (Math.abs(grondslag) > 1e-7) {
+      const of = oprentingsfactor(van, tot, invoer.aangenomenMarktrente);
+      if (!of.ok) {
+        return { heeftUitkomst: false, meldingen: meldingen.concat([{ soort: 'fout', tekst: ontbrekendeRenteMelding(of.ontbreektJaar) }]) };
+      }
+      if (of.aanname) aanname = true;
+      percentage = of.percentage;
+      stukken = of.stukken;
+      rente = grondslag * percentage;
+    }
+    uitkering.push({
+      uitkeringsjaar: k + 1, van: alsTekst(van), tot: alsTekst(tot), restperiode: rest,
+      beginstand, jaarbedrag, termijnbedrag, aantalTermijnen: aantal, termijnenTotaal: totaalJaar,
+      grondslag, percentage, stukken, rente, eindstand: grondslag + rente,
+      _van: van, _tot: tot, _basis: grondslag,
+    });
+    stand = grondslag + rente;
+    rest -= 1;
+  }
+
+  // ---- Kalenderjaaroverzicht: stand per 31 december, met de opgelopen maar nog niet
+  // bijgeschreven oprenting apart (V&A 17-027: transitorische post bij oprenting buiten de
+  // balansdatum).
+  const perioden = uitstel.concat(uitkering);
+  const eerste = invoer.startwijze === 'omzetting' ? omzetting : ingang;
+  const laatsteTermijn = termijnen[termijnen.length - 1]._datum;
+  const kalender = [];
+  let vorigeWaarde = invoer.startwijze === 'omzetting' ? invoer.kapitaalOmzetting : standBijIngang;
+  for (let jaar = eerste.jaar; jaar <= laatsteTermijn.jaar; jaar++) {
+    const moment = eersteJanuari(jaar + 1);
+    // wettelijke stand: startwaarde plus alle bijgeschreven oprenting tot en met het moment,
+    // min alle termijnen tot en met 31 december
+    let wettelijk = invoer.startwijze === 'omzetting' ? invoer.kapitaalOmzetting : standBijIngang;
+    let opgelopen = 0;
+    for (const p of perioden) {
+      if (vergelijkDatum(p._tot, moment) <= 0) {
+        wettelijk += p.rente;
+      } else if (vergelijkDatum(p._van, moment) < 0 && Math.abs(p._basis) > 1e-7) {
+        const of = oprentingsfactor(p._van, moment, invoer.aangenomenMarktrente);
+        if (of.ok) opgelopen += p._basis * of.percentage;
+      }
+    }
+    let betaald = 0;
+    let betaaldDitJaar = 0;
+    for (const t of termijnen) {
+      if (vergelijkDatum(t._datum, moment) < 0) betaald += t.bedrag;
+      if (t._datum.jaar === jaar) betaaldDitJaar += t.bedrag;
+    }
+    wettelijk -= betaald;
+    const waarde = wettelijk + opgelopen;
+    kalender.push({ jaar, beginwaarde: vorigeWaarde, termijnen: betaaldDitJaar,
+      rente: waarde - vorigeWaarde + betaaldDitJaar, standOdv: wettelijk, opgelopenRente: opgelopen,
+      eindwaarde: waarde });
+    vorigeWaarde = waarde;
+  }
+
+  if (aanname) {
+    meldingen.push({ soort: 'let-op', tekst: 'Voor jaren na ' + laatsteMarktrenteJaar() + ' rekent de '
+      + 'tool met de aangenomen marktrente van '
+      + (invoer.aangenomenMarktrente * 100).toLocaleString('nl-NL', { maximumFractionDigits: 3 })
+      + '%. Die jaren zijn een raming en veranderen zodra de marktrente is vastgesteld.' });
+  }
+  if (periode.soort !== 'standaard') {
+    meldingen.push({ soort: 'info', tekst: 'De uitkeringsperiode is ' + periode.soort + ' met '
+      + periode.verschilTekst + ' (art. 38p lid 2 onder a, ' + (periode.soort === 'verlengd' ? '2°' : '3°')
+      + ', Wet LB 1964) en afgerond volgens de gekozen methode (V&A 17-029). Een eenmaal '
+      + 'vastgestelde periode is definitief.' });
+  }
+
+  const schoon = rijen => rijen.map(r => {
+    const o = {};
+    Object.keys(r).forEach(s => { if (s[0] !== '_') o[s] = r[s]; });
+    return o;
+  });
+
+  return {
+    heeftUitkomst: true,
+    meldingen,
+    aowDatum: alsTekst(aowDatum),
+    aowRaming,
+    vroegsteIngang: alsTekst(vroegsteIngang),
+    uitersteIngang: alsTekst(uitersteIngang),
+    periode: { soort: periode.soort, jaren: periode.jaren, verschil: periode.verschilTekst },
+    standBijIngang,
+    eersteJaarbedrag: uitkering[0].jaarbedrag,
+    eersteTermijnbedrag: uitkering[0].termijnbedrag,
+    totaalUitgekeerd: termijnen.reduce((s, t) => s + t.bedrag, 0),
+    uitstel: schoon(uitstel),
+    uitkering: schoon(uitkering),
+    termijnen: schoon(termijnen),
+    kalender,
+    laatsteTermijn: alsTekst(laatsteTermijn),
+  };
+}
+// FISCALE KERN — EINDE
+</script>
+<script>
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+</script>
+<script>
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Geen DOM en geen rekenregels: deze functies
+// zetten om wat de kern heeft berekend. Er is één functie die vastlegt wat er in een uitgang
+// hoort (bouwUitgang), zodat het scherm, de afdruk en de export niet uiteen kunnen lopen.
+
+const TOOL_ID = 'pensioen-odv';
+const TOOL_NAAM = 'Pensioen in eigen beheer en oudedagsverplichting';
+const TOOL_VERSIE = '0.1.0';
+// Versie 2 (29-09-2026): veld tafelMotivering toegevoegd. Een bestand van versie 1 opent niet,
+// want een ontbrekende motivering mag niet stil leeg worden.
+const DOSSIER_FORMAATVERSIE = 2;
+const ONDERDELEN = ['waardering', 'odv'];
+
+// Per onderdeel de invoervelden. 'leegbaar' betekent: een lege waarde is een geldige keuze
+// (bijvoorbeeld geen partnergeboortedatum); ontbreken in een dossierbestand blijft een fout.
+const INVOERVELDEN = {
+  waardering: [
+    { sleutel: 'peildatum', label: 'Balansdatum', soort: 'datum' },
+    { sleutel: 'geboortedatum', label: 'Geboortedatum dga', soort: 'datum' },
+    { sleutel: 'geslacht', label: 'Geslacht dga', soort: 'keuze', waarden: ['man', 'vrouw'] },
+    { sleutel: 'pensioenleeftijdJaren', label: 'Pensioenleeftijd, jaren', soort: 'getal' },
+    { sleutel: 'pensioenleeftijdMaanden', label: 'Pensioenleeftijd, maanden', soort: 'getal' },
+    { sleutel: 'ouderdomspensioen', label: 'Ouderdomspensioen per jaar', soort: 'getal', formaat: '#,##0.00' },
+    { sleutel: 'partnerpensioen', label: 'Partnerpensioen per jaar', soort: 'getal', formaat: '#,##0.00' },
+    { sleutel: 'partnerVariant', label: 'Partnerpensioen gaat in bij overlijden', soort: 'keuze',
+      waarden: ['', 'altijd', 'naPensioendatum'],
+      tekst: { '': 'geen keuze gemaakt', altijd: 'vóór én na de pensioendatum', naPensioendatum: 'alleen na de pensioendatum' } },
+    { sleutel: 'partnerGeslacht', label: 'Geslacht partner', soort: 'keuze', waarden: ['man', 'vrouw'] },
+    { sleutel: 'partnerLeeftijd', label: 'Leeftijd partner bepaald via', soort: 'keuze', waarden: ['verschil', 'geboortedatum'],
+      tekst: { verschil: 'leeftijdsverschil', geboortedatum: 'geboortedatum' } },
+    { sleutel: 'partnerVerschil', label: 'Partner ouder (+) of jonger (-), jaren', soort: 'getal' },
+    { sleutel: 'partnerGeboortedatum', label: 'Geboortedatum partner', soort: 'datum', leegbaar: true },
+    { sleutel: 'rekenrente', label: 'Rekenrente', soort: 'getal', formaat: '0.00%', procent: true },
+    { sleutel: 'tafel', label: 'Sterftetafel', soort: 'keuze', waarden: ['automatisch', '2018-2023', '2019-2024'],
+      tekst: { automatisch: 'standaard bij het balansjaar' } },
+    { sleutel: 'tafelMotivering', label: 'Motivering afwijkende tafel', soort: 'tekst' },
+    { sleutel: 'uitkering', label: 'Uitkering per maand', soort: 'keuze', waarden: ['achteraf', 'vooraf'] },
+    { sleutel: 'projectieJaren', label: 'Volgende balansdata', soort: 'getal' },
+  ],
+  odv: [
+    { sleutel: 'startwijze', label: 'Rekenen vanaf', soort: 'keuze', waarden: ['omzetting', 'ingang'],
+      tekst: { omzetting: 'de omzetting', ingang: 'de stand bij ingang' } },
+    { sleutel: 'geboortedatum', label: 'Geboortedatum dga', soort: 'datum' },
+    { sleutel: 'aowDatumHandmatig', label: 'Verwachte AOW-datum (raming)', soort: 'datum', leegbaar: true },
+    { sleutel: 'omzettingsdatum', label: 'Datum omzetting in ODV', soort: 'datum' },
+    { sleutel: 'kapitaalOmzetting', label: 'Waarde ODV bij omzetting', soort: 'getal', formaat: '#,##0.00', leegbaar: true },
+    { sleutel: 'standBijIngang', label: 'Stand ODV op de ingangsdatum', soort: 'getal', formaat: '#,##0.00', leegbaar: true },
+    { sleutel: 'oprenting', label: 'Oprenting in de uitstelfase', soort: 'keuze', waarden: ['boekjaar', 'verjaardag'],
+      tekst: { boekjaar: 'aan het einde van elk boekjaar', verjaardag: 'op elke omzettingsverjaardag' } },
+    { sleutel: 'boekjaarEinde', label: 'Einde boekjaar (mm-dd)', soort: 'tekst' },
+    { sleutel: 'ingangsdatum', label: 'Datum eerste ODV-termijn', soort: 'datum' },
+    { sleutel: 'frequentie', label: 'Maanden tussen twee termijnen', soort: 'getal' },
+    { sleutel: 'afronding', label: 'Afronding uitkeringsperiode', soort: 'keuze', waarden: AFRONDINGEN,
+      tekst: { 'maanden-op': 'hele maanden, naar boven', 'maanden-af': 'hele maanden, naar beneden',
+        'jaren-op': 'hele jaren, naar boven', 'jaren-af': 'hele jaren, naar beneden', dagen: 'in dagen nauwkeurig' } },
+    { sleutel: 'aangenomenMarktrente', label: 'Aangenomen marktrente latere jaren', soort: 'getal', formaat: '0.000%', procent: true, leegbaar: true },
+  ],
+};
+
+const VINDPLAATSEN = {
+  waardering: [
+    'Waardering: art. 3.29 Wet IB 2001, van toepassing voor de vennootschapsbelasting via art. 8 lid 1 '
+    + 'Wet Vpb 1969: algemeen aanvaarde actuariële grondslagen met een rekenrente van ten minste 4%. '
+    + 'Geconsolideerde tekst BWBR0011353, versie 2026-02-21, gecontroleerd op 28-09-2026.',
+    'Sterftekansen: AG Periodetafel 2018-2023 (gepubliceerd 13-01-2025) en 2019-2024 (gepubliceerd '
+    + '07-01-2026) van het Koninklijk Actuarieel Genootschap, de AG-kolommen GBM/GBV (niet de ruwe CBS-kansen), '
+    + 'actuarieelgenootschap.nl/kennisbank/periodetafels. Het AG schrijft dat de periodetafels "vooral '
+    + 'ingezet" worden bij individuele regelingen zoals voor dga\'s.',
+    'Grenzen aan de sterftegrondslag: art. 34e lid 1 Wet Vpb 1969 jo. art. 8 lid 6 Wet Vpb 1969 (tekst '
+    + '2016): geen tafel met verwachtingen over de toekomstige levensverwachting (geen prognosetafel), '
+    + 'een leeftijdsterugstelling alleen als correctie naar een recentere tafel, en niet hoger dan het '
+    + 'stelsel van verzekeraars. BWBR0002672, versies 2026-01-01 en 2016-12-09.',
+    'Grondslagen ten tijde van het aangaan: besluit van 19-03-2019, nr. 2019-6904, onderdelen B.1.1 en '
+    + 'B.1.4. Een zwaardere grondslag mag; bij een lichtere grondslag niet lager dan de waarde met de '
+    + 'oorspronkelijke grondslagen.',
+    'Rekenwijze: contante waarde van maandtermijnen, levenslang; het partnerpensioen als '
+    + 'reversionaire lijfrente (de partner leeft, de dga niet meer). De factor wordt berekend op de '
+    + 'twee omliggende hele leeftijden en lineair geïnterpoleerd op de exacte leeftijd op de '
+    + 'balansdatum; dat is een gebruikelijke werkwijze bij factoren die per hele leeftijd worden '
+    + 'vastgesteld.',
+    'Geen opbouw meer sinds 1 april 2017: Wet uitfasering pensioen in eigen beheer en overige fiscale '
+    + 'pensioenmaatregelen (Kamerstukken 34 555); zo ook het besluit van 19-03-2019, nr. 2019-6904, '
+    + 'onderdeel B.1.1.',
+  ],
+  odv: [
+    'Oprenting met marktrente en uitkering in termijnen: art. 38p lid 1 en 2 Wet LB 1964, '
+    + 'geconsolideerde tekst BWBR0002471, versie 2026-02-21, gecontroleerd op 28-09-2026.',
+    'Marktrente per kalenderjaar: art. 12.3a Uitvoeringsregeling loonbelasting 2011 (BWBR0028236), '
+    + 'per jaar de versie die toen gold: 2017 0,059%; 2018 0,06%; 2019 0,269%; 2020 -0,107%; '
+    + '2021 -0,382%; 2022 -0,410%; 2023 0,699%; 2024 2,657%; 2025 2,602%; 2026 2,593%.',
+    'AOW-datum: art. 7a AOW en de mededelingen in de Staatscourant voor 2026 tot en met 2031 '
+    + '(gedeeld blok AOW-leeftijd uit gedeelde-kern).',
+    'Oprenting in uitstelfase, ingangsjaar en uitkeringsfase: V&A 17-027 van het Centraal '
+    + 'Aanspreekpunt Pensioenen, publicatiedatum 01-01-2020.',
+    'Uitkeringsperiode en afronding: V&A 17-029, publicatiedatum 31-03-2022. Negatieve marktrente: '
+    + 'V&A 19-007, publicatiedatum 14-02-2024. Een V&A is een uitvoeringsstandpunt van de '
+    + 'Belastingdienst en geen wet.',
+  ],
+};
+
+const AFBAKENING = {
+  waardering: [
+    'De tool waardeert alleen een premievrij ouderdomspensioen en een levenslang partnerpensioen, '
+    + 'zonder indexatie. Wezenpensioen, tijdelijk partnerpensioen, arbeidsongeschiktheidspensioen en '
+    + 'een indexatietoezegging vallen erbuiten.',
+    'Partnerpensioen volgens het bepaalde partnersysteem: de tool gaat ervan uit dat deze partner er is. '
+    + 'Een regeling op basis van een onbepaalde partner (met een partnerfrequentie) valt erbuiten.',
+    'Alleen de fiscale waardering van art. 3.29 Wet IB 2001. De commerciële waardering in de jaarrekening '
+    + 'en de waarde bij afkoop of overdracht vallen erbuiten.',
+    'De tool rekent met de gekozen AG Periodetafel. Zij toetst niet de ondergrens uit het besluit van '
+    + '19-03-2019 (waarde met de oorspronkelijke grondslagen) en kent de oorspronkelijke tafel van de '
+    + 'toezegging niet.',
+    'Standaardtafel: bij balansjaar J de AG Periodetafel over (J-6) tot en met (J-1), met de '
+    + 'waarnemingen tot en met het voorafgaande kalenderjaar; niet noodzakelijk de tafel die op de '
+    + 'balansdatum al gepubliceerd was. Voor balansjaar 2026 hoort de tafel 2020-2025, die nog niet in '
+    + 'de tool staat; tot dan rekent de tool alleen met een gemotiveerd gekozen andere tafel.',
+    'De tool rekent en adviseert niet.',
+  ],
+  odv: [
+    'De marktrente wordt altijd per kalenderjaar toegepast, zoals art. 12.3a URLB 2011 haar vaststelt, '
+    + 'ook als het boekjaar niet met het kalenderjaar samenvalt. Het kalenderjaaroverzicht toont de stand '
+    + 'per 31 december; bij een gebroken boekjaar leest u de stand op de balansdatum niet uit die tabel af.',
+    'Het aanwenden van de ODV voor een lijfrente (art. 38p lid 1 en 5), het overlijden van de dga vóór '
+    + 'of na de ingang (lid 2 onder b en lid 3) en afwikkeling bij onderdekking vallen erbuiten.',
+    'De tool berekent de termijnen tot op de cent zonder afronding. Een salarisadministratie die '
+    + 'afrondt, wijkt daardoor in centen af.',
+    'Voor jaren waarvoor de marktrente nog niet is vastgesteld rekent de tool alleen met een '
+    + 'uitdrukkelijk opgegeven aanname, en meldt dat als raming.',
+    'De tool rekent en adviseert niet.',
+  ],
+};
+
+function euro(bedrag) {
+  return bedrag.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function procentTekst(fractie, decimalen) {
+  return (fractie * 100).toLocaleString('nl-NL', { minimumFractionDigits: decimalen, maximumFractionDigits: decimalen }) + '%';
+}
+
+function veldTekst(veld, waarde) {
+  if (waarde === '' || waarde === null || waarde === undefined) return 'niet ingevuld';
+  if (veld.tekst && Object.prototype.hasOwnProperty.call(veld.tekst, waarde)) return veld.tekst[waarde];
+  if (veld.procent && typeof waarde === 'number') return procentTekst(waarde, 3);
+  if (veld.formaat === '#,##0.00' && typeof waarde === 'number') return euro(waarde);
+  if (veld.soort === 'datum') return datumTekstNL(ontleedDatum(waarde));
+  return String(waarde);
+}
+
+function invoerregelsVan(onderdeel, ruweInvoer) {
+  return INVOERVELDEN[onderdeel].map(function (veld) {
+    const w = ruweInvoer[veld.sleutel];
+    return { label: veld.label, tekst: veldTekst(veld, w),
+      getal: typeof w === 'number' ? w : undefined, formaat: veld.formaat };
+  });
+}
+
+function bouwUitgang(onderdeel, ruweInvoer, uitkomst, kenmerk, datumISO) {
+  const uitkomstregels = [];
+  const tabellen = [];
+  const r = uitkomst;
+  if (r.heeftUitkomst && onderdeel === 'waardering') {
+    const n = r.nu;
+    uitkomstregels.push(
+      { label: 'Sterftetafel', tekst: r.tafel.naam + ' (gepubliceerd ' + datumTekstNL(ontleedDatum(r.tafel.gepubliceerd)) + ')'
+        + (r.tafel.standaard ? ', de standaardtafel bij dit balansjaar' : ', afwijkend van de standaardtafel') },
+      { label: 'Motivering afwijkende tafel', tekst: r.tafel.standaard ? 'niet van toepassing' : r.tafel.afwijking },
+      { label: 'Leeftijd dga op de balansdatum', tekst: n.leeftijdDga.toFixed(4).replace('.', ','), getal: n.leeftijdDga, formaat: '0.0000' },
+      { label: 'Leeftijd partner op de balansdatum', tekst: n.leeftijdPartner === null ? 'niet van toepassing'
+        : n.leeftijdPartner.toFixed(4).replace('.', ','), getal: n.leeftijdPartner === null ? undefined : n.leeftijdPartner, formaat: '0.0000' },
+      { label: 'Factor ouderdomspensioen', tekst: n.factorOuderdomspensioen.toFixed(5).replace('.', ','), getal: n.factorOuderdomspensioen, formaat: '0.00000' },
+      { label: 'Factor partnerpensioen', tekst: n.factorPartnerpensioen.toFixed(5).replace('.', ','), getal: n.factorPartnerpensioen, formaat: '0.00000' },
+      { label: 'Waarde ouderdomspensioen', tekst: euro(n.waardeOuderdomspensioen), getal: n.waardeOuderdomspensioen, formaat: '#,##0.00' },
+      { label: 'Waarde partnerpensioen', tekst: euro(n.waardePartnerpensioen), getal: n.waardePartnerpensioen, formaat: '#,##0.00' },
+      { label: 'Fiscale waarde pensioenverplichting', tekst: euro(n.totaal), getal: n.totaal, formaat: '#,##0.00' }
+    );
+    tabellen.push({
+      titel: 'Waardering per balansdatum',
+      kolommen: ['Balansdatum', 'Leeftijd dga', 'Factor OP', 'Factor PP', 'Waarde OP', 'Waarde PP', 'Totaal'],
+      formaten: [null, '0.0000', '0.00000', '0.00000', '#,##0.00', '#,##0.00', '#,##0.00'],
+      rijen: [n].concat(r.projectie).map(function (p) {
+        return [datumTekstNL(ontleedDatum(p.datum)), p.leeftijdDga, p.factorOuderdomspensioen,
+          p.factorPartnerpensioen, p.waardeOuderdomspensioen, p.waardePartnerpensioen, p.totaal];
+      }),
+    });
+  }
+  if (r.heeftUitkomst && onderdeel === 'odv') {
+    uitkomstregels.push(
+      { label: 'AOW-datum', tekst: datumTekstNL(ontleedDatum(r.aowDatum)) + (r.aowRaming ? ' (raming)' : '') },
+      { label: 'Vroegst toegestane eerste termijn', tekst: datumTekstNL(ontleedDatum(r.vroegsteIngang)) },
+      { label: 'Uiterst toegestane eerste termijn', tekst: datumTekstNL(ontleedDatum(r.uitersteIngang)) },
+      { label: 'Uitkeringsperiode, jaren', tekst: r.periode.jaren.toFixed(4).replace('.', ',') + ' (' + r.periode.soort + ')',
+        getal: r.periode.jaren, formaat: '0.0000' },
+      { label: 'Stand ODV bij ingang, na oprenting', tekst: euro(r.standBijIngang), getal: r.standBijIngang, formaat: '#,##0.00' },
+      { label: 'Eerste jaarbedrag', tekst: euro(r.eersteJaarbedrag), getal: r.eersteJaarbedrag, formaat: '#,##0.00' },
+      { label: 'Eerste termijnbedrag', tekst: euro(r.eersteTermijnbedrag), getal: r.eersteTermijnbedrag, formaat: '#,##0.00' },
+      { label: 'Laatste termijn', tekst: datumTekstNL(ontleedDatum(r.laatsteTermijn)) },
+      { label: 'Totaal uitgekeerd', tekst: euro(r.totaalUitgekeerd), getal: r.totaalUitgekeerd, formaat: '#,##0.00' }
+    );
+    if (r.uitstel.length) {
+      tabellen.push({
+        titel: 'Uitstelfase: oprenting',
+        kolommen: ['Van', 'Tot', 'Beginstand', 'Oprenting %', 'Oprenting', 'Eindstand'],
+        formaten: [null, null, '#,##0.00', '0.0000%', '#,##0.00', '#,##0.00'],
+        rijen: r.uitstel.map(function (u) {
+          return [datumTekstNL(ontleedDatum(u.van)), datumTekstNL(ontleedDatum(u.tot)), u.beginstand, u.percentage, u.rente, u.eindstand];
+        }),
+      });
+    }
+    tabellen.push({
+      titel: 'Uitkeringsfase per uitkeringsjaar',
+      kolommen: ['Jaar', 'Vanaf', 'Resterende jaren', 'Beginstand', 'Jaarbedrag', 'Termijnbedrag', 'Termijnen',
+        'Uitgekeerd', 'Grondslag oprenting', 'Oprenting %', 'Oprenting', 'Eindstand'],
+      formaten: ['0', null, '0.0000', '#,##0.00', '#,##0.00', '#,##0.00', '0', '#,##0.00', '#,##0.00', '0.0000%', '#,##0.00', '#,##0.00'],
+      rijen: r.uitkering.map(function (u) {
+        return [u.uitkeringsjaar, datumTekstNL(ontleedDatum(u.van)), u.restperiode, u.beginstand, u.jaarbedrag,
+          u.termijnbedrag, u.aantalTermijnen, u.termijnenTotaal, u.grondslag, u.percentage, u.rente, u.eindstand];
+      }),
+    });
+    tabellen.push({
+      titel: 'Per kalenderjaar (stand per 31 december)',
+      kolommen: ['Jaar', 'Beginwaarde', 'Uitgekeerd', 'Oprenting toegerekend', 'Stand ODV', 'Opgelopen oprenting', 'Waarde 31-12'],
+      formaten: ['0', '#,##0.00', '#,##0.00', '#,##0.00', '#,##0.00', '#,##0.00', '#,##0.00'],
+      rijen: r.kalender.map(function (k) {
+        return [k.jaar, k.beginwaarde, k.termijnen, k.rente, k.standOdv, k.opgelopenRente, k.eindwaarde];
+      }),
+    });
+  }
+  return {
+    kop: { toolNaam: TOOL_NAAM, toolVersie: TOOL_VERSIE, datum: datumISO, kenmerk: (kenmerk || '').trim(),
+      onderdeel: onderdeel === 'waardering' ? 'Waardering pensioen in eigen beheer' : 'Oudedagsverplichting (ODV)' },
+    onderdeel,
+    heeftUitkomst: !!r.heeftUitkomst,
+    invoerregels: invoerregelsVan(onderdeel, ruweInvoer),
+    uitkomstregels,
+    tabellen,
+    meldingen: r.meldingen.map(function (m) { return m.tekst; }),
+    vindplaatsen: VINDPLAATSEN[onderdeel],
+    afbakening: AFBAKENING[onderdeel],
+  };
+}
+
+function exportBladen(uitgang) {
+  const rijen = [];
+  const leeg = function () { rijen.push([]); };
+  const kop = function (tekst) { rijen.push([celTekst(tekst, true)]); };
+  const paar = function (regel) {
+    rijen.push([
+      celTekst(regel.label),
+      typeof regel.getal === 'number' && isFinite(regel.getal)
+        ? celGetal(regel.getal, regel.formaat)
+        : celTekst(regel.tekst),
+    ]);
+  };
+
+  kop(uitgang.kop.toolNaam);
+  rijen.push([celTekst('Onderdeel'), celTekst(uitgang.kop.onderdeel)]);
+  rijen.push([celTekst('Versie'), celTekst(uitgang.kop.toolVersie)]);
+  rijen.push([celTekst('Datum van de export'), celTekst(uitgang.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(uitgang.kop.kenmerk || 'geen kenmerk ingevuld')]);
+  leeg();
+  kop('Invoer');
+  uitgang.invoerregels.forEach(paar);
+  leeg();
+  kop(uitgang.heeftUitkomst ? 'Uitkomst' : 'Geen uitkomst');
+  uitgang.uitkomstregels.forEach(paar);
+  leeg();
+  uitgang.tabellen.forEach(function (t) {
+    kop(t.titel);
+    rijen.push(t.kolommen.map(function (k) { return celTekst(k, true); }));
+    t.rijen.forEach(function (rij) {
+      rijen.push(rij.map(function (w, i) {
+        return typeof w === 'number' && isFinite(w) ? celGetal(w, t.formaten[i] || '0') : celTekst(w);
+      }));
+    });
+    leeg();
+  });
+  if (uitgang.meldingen.length) {
+    kop('Meldingen');
+    uitgang.meldingen.forEach(function (m) { rijen.push([celTekst(m)]); });
+    leeg();
+  }
+  kop('Vindplaatsen');
+  uitgang.vindplaatsen.forEach(function (v) { rijen.push([celTekst(v)]); });
+  leeg();
+  kop('Afbakening');
+  uitgang.afbakening.forEach(function (a) { rijen.push([celTekst(a)]); });
+  return [{ naam: uitgang.onderdeel === 'waardering' ? 'Waardering' : 'ODV', rijen,
+    breedtes: [40, 22, 16, 16, 16, 16, 16, 16, 18, 14, 14, 16] }];
+}
+
+function slug(tekst) {
+  const schoon = String(tekst || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return schoon || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+function schrijfDossier(actief, invoerPerOnderdeel, kenmerk, datumISO) {
+  const dossier = {
+    tool: TOOL_ID,
+    formaatVersie: DOSSIER_FORMAATVERSIE,
+    toolVersie: TOOL_VERSIE,
+    opgeslagen: datumISO,
+    kenmerk: (kenmerk || '').trim(),
+    actief,
+  };
+  ONDERDELEN.forEach(function (o) {
+    const invoer = {};
+    INVOERVELDEN[o].forEach(function (veld) { invoer[veld.sleutel] = invoerPerOnderdeel[o][veld.sleutel]; });
+    dossier[o] = invoer;
+  });
+  return dossier;
+}
+
+// Strikte typetoets. Number() zou van true, [], [5] en " " stil een waarde maken, en dan
+// opent een handmatig aangepast of ouder bestand met een andere grondslag dan waarmee het is
+// bewaard, zonder dat iemand het merkt.
+function isEchtGetal(waarde) {
+  return typeof waarde === 'number' && Number.isFinite(waarde);
+}
+
+function toetsVeld(veld, waarde) {
+  if (veld.leegbaar && (waarde === '' || waarde === null)) return null;
+  switch (veld.soort) {
+    case 'datum': return typeof waarde === 'string' && ontleedDatum(waarde) ? null : 'is geen bestaande datum in de vorm jjjj-mm-dd';
+    case 'getal': return isEchtGetal(waarde) ? null : 'is geen getal';
+    case 'keuze': return veld.waarden.includes(waarde) ? null : 'heeft een onbekende waarde';
+    case 'tekst': return typeof waarde === 'string' ? null : 'is geen tekst';
+    default: return 'heeft een onbekend soort';
+  }
+}
+
+function leesDossier(tekst) {
+  let rauw;
+  try {
+    rauw = JSON.parse(tekst);
+  } catch (e) {
+    return { ok: false, fout: 'Het bestand is geen leesbare JSON. Er is niets gewijzigd.' };
+  }
+  if (!rauw || typeof rauw !== 'object' || Array.isArray(rauw)) {
+    return { ok: false, fout: 'Het bestand bevat geen dossiergegevens. Er is niets gewijzigd.' };
+  }
+  if (rauw.tool !== TOOL_ID) {
+    return { ok: false, fout: 'Dit bestand hoort bij een andere tool (' + String(rauw.tool)
+      + ') en niet bij ' + TOOL_ID + '. Er is niets gewijzigd.' };
+  }
+  if (!isEchtGetal(rauw.formaatVersie)) {
+    return { ok: false, fout: 'Het bestand heeft geen leesbare formaatversie. Er is niets gewijzigd.' };
+  }
+  if (rauw.formaatVersie > DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fout: 'Dit bestand is geschreven met formaatversie ' + rauw.formaatVersie
+      + ', terwijl deze tool versie ' + DOSSIER_FORMAATVERSIE + ' kent. Werk de tool bij. Er is niets gewijzigd.' };
+  }
+  if (rauw.formaatVersie < DOSSIER_FORMAATVERSIE) {
+    return { ok: false, fout: 'Dit bestand heeft formaatversie ' + rauw.formaatVersie
+      + '. Er is voor die versie geen migratiepad vastgelegd, dus het wordt niet geopend. Er is niets gewijzigd.' };
+  }
+  if (!ONDERDELEN.includes(rauw.actief)) {
+    return { ok: false, fout: 'Het bestand zegt niet welk onderdeel actief was. Er is niets gewijzigd.' };
+  }
+  const invoer = {};
+  const gebreken = [];
+  ONDERDELEN.forEach(function (o) {
+    const deel = rauw[o];
+    if (!deel || typeof deel !== 'object' || Array.isArray(deel)) {
+      gebreken.push('het onderdeel "' + o + '" ontbreekt');
+      return;
+    }
+    invoer[o] = {};
+    INVOERVELDEN[o].forEach(function (veld) {
+      const waarde = deel[veld.sleutel];
+      if (waarde === undefined) {
+        gebreken.push('het veld "' + veld.label + '" (' + o + ') ontbreekt');
+        return;
+      }
+      const gebrek = toetsVeld(veld, waarde);
+      if (gebrek) { gebreken.push('"' + veld.label + '" (' + o + ') ' + gebrek); return; }
+      invoer[o][veld.sleutel] = waarde;
+    });
+  });
+  if (gebreken.length) {
+    return { ok: false, fout: 'Het bestand is niet geopend, want ' + gebreken.join(', ')
+      + '. De huidige invoer en uitkomst blijven staan.' };
+  }
+  const meldingen = [];
+  if (rauw.toolVersie !== TOOL_VERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met toolversie ' + String(rauw.toolVersie)
+      + ' en wordt geopend in versie ' + TOOL_VERSIE + '. De uitkomst wordt opnieuw berekend '
+      + 'en kan daardoor afwijken van wat er destijds stond.');
+  }
+  return { ok: true, actief: rauw.actief, invoer,
+    kenmerk: typeof rauw.kenmerk === 'string' ? rauw.kenmerk : '', meldingen };
+}
+// UITGANGEN — EINDE
+</script>
+<script>
+// Scherm: leest de velden, roept de kern aan en zet de uitkomst neer. Geen rekenregels.
+
+let actief = 'waardering';
+let laatsteUitgang = null;
+
+const $ = id => document.getElementById(id);
+
+function vandaagISO() {
+  const d = new Date();
+  const t = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + t(d.getMonth() + 1) + '-' + t(d.getDate());
+}
+
+// Een leeg getalveld is null; een ingevuld veld een getal. Procentvelden staan op het scherm
+// in procenten en in de kern als fractie.
+function getalUit(id, procent) {
+  const tekst = $(id).value.trim();
+  if (tekst === '') return null;
+  const n = Number(tekst);
+  if (!Number.isFinite(n)) return NaN;
+  return procent ? n / 100 : n;
+}
+
+function leesInvoer(onderdeel) {
+  if (onderdeel === 'waardering') {
+    return {
+      peildatum: $('wPeildatum').value,
+      geboortedatum: $('wGeboortedatum').value,
+      geslacht: $('wGeslacht').value,
+      pensioenleeftijdJaren: getalUit('wPensioenJaren'),
+      pensioenleeftijdMaanden: getalUit('wPensioenMaanden'),
+      ouderdomspensioen: getalUit('wOp'),
+      partnerpensioen: getalUit('wPp'),
+      partnerVariant: $('wPartnerVariant').value,
+      partnerGeslacht: $('wPartnerGeslacht').value,
+      partnerLeeftijd: $('wPartnerLeeftijd').value,
+      partnerVerschil: getalUit('wPartnerVerschil'),
+      partnerGeboortedatum: $('wPartnerGeboortedatum').value,
+      rekenrente: getalUit('wRekenrente', true),
+      tafel: $('wTafel').value,
+      tafelMotivering: $('wTafelMotivering').value,
+      uitkering: $('wUitkering').value,
+      projectieJaren: getalUit('wProjectie'),
+    };
+  }
+  return {
+    startwijze: $('oStartwijze').value,
+    geboortedatum: $('oGeboortedatum').value,
+    aowDatumHandmatig: $('oAowHandmatig').value,
+    omzettingsdatum: $('oOmzetting').value,
+    kapitaalOmzetting: getalUit('oKapitaal'),
+    standBijIngang: getalUit('oStandIngang'),
+    oprenting: $('oOprenting').value,
+    boekjaarEinde: $('oBoekjaarEinde').value.trim(),
+    ingangsdatum: $('oIngang').value,
+    frequentie: getalUit('oFrequentie'),
+    afronding: $('oAfronding').value,
+    aangenomenMarktrente: getalUit('oAanname', true),
+  };
+}
+
+// Voor het dossierbestand: een leeg veld wordt '' en niet null, zodat een getal nooit stil
+// een lege waarde wordt; de kern krijgt de velden altijd via leesInvoer.
+function voorDossier(onderdeel) {
+  const invoer = leesInvoer(onderdeel);
+  INVOERVELDEN[onderdeel].forEach(function (veld) {
+    if (invoer[veld.sleutel] === null) invoer[veld.sleutel] = '';
+  });
+  return invoer;
+}
+
+function zetGetal(id, waarde, procent) {
+  $(id).value = waarde === '' || waarde === null ? ''
+    : String(procent ? Math.round(waarde * 100 * 1e6) / 1e6 : waarde);
+}
+
+function schrijfInvoer(onderdeel, i) {
+  if (onderdeel === 'waardering') {
+    $('wPeildatum').value = i.peildatum;
+    $('wGeboortedatum').value = i.geboortedatum;
+    $('wGeslacht').value = i.geslacht;
+    zetGetal('wPensioenJaren', i.pensioenleeftijdJaren);
+    zetGetal('wPensioenMaanden', i.pensioenleeftijdMaanden);
+    zetGetal('wOp', i.ouderdomspensioen);
+    zetGetal('wPp', i.partnerpensioen);
+    $('wPartnerVariant').value = i.partnerVariant;
+    $('wPartnerGeslacht').value = i.partnerGeslacht;
+    $('wPartnerLeeftijd').value = i.partnerLeeftijd;
+    zetGetal('wPartnerVerschil', i.partnerVerschil);
+    $('wPartnerGeboortedatum').value = i.partnerGeboortedatum;
+    zetGetal('wRekenrente', i.rekenrente, true);
+    $('wTafel').value = i.tafel;
+    $('wTafelMotivering').value = i.tafelMotivering;
+    $('wUitkering').value = i.uitkering;
+    zetGetal('wProjectie', i.projectieJaren);
+    return;
+  }
+  $('oStartwijze').value = i.startwijze;
+  $('oGeboortedatum').value = i.geboortedatum;
+  $('oAowHandmatig').value = i.aowDatumHandmatig;
+  $('oOmzetting').value = i.omzettingsdatum;
+  zetGetal('oKapitaal', i.kapitaalOmzetting);
+  zetGetal('oStandIngang', i.standBijIngang);
+  $('oOprenting').value = i.oprenting;
+  $('oBoekjaarEinde').value = i.boekjaarEinde;
+  $('oIngang').value = i.ingangsdatum;
+  $('oFrequentie').value = String(i.frequentie);
+  $('oAfronding').value = i.afronding;
+  zetGetal('oAanname', i.aangenomenMarktrente, true);
+}
+
+function e(tekst) { return xmlTekst(String(tekst)); }
+
+function toonMeldingen(meldingen) {
+  return meldingen.map(m => '<div class="melding ' + m.soort + '">' + e(m.tekst) + '</div>').join('');
+}
+
+function celWaarde(w, formaat) {
+  if (typeof w !== 'number') return e(w);
+  if (formaat === '#,##0.00') return euro(w);
+  if (formaat === '0.0000%') return procentTekst(w, 4);
+  if (formaat === '0.00000') return w.toFixed(5).replace('.', ',');
+  if (formaat === '0.0000') return w.toFixed(4).replace('.', ',');
+  return String(w);
+}
+
+function tabelHtml(t) {
+  return '<h3>' + e(t.titel) + '</h3><div class="breed"><table><thead><tr>'
+    + t.kolommen.map((k, i) => '<th' + (t.formaten[i] ? ' class="getal"' : '') + '>' + e(k) + '</th>').join('')
+    + '</tr></thead><tbody>'
+    + t.rijen.map(rij => '<tr>' + rij.map((w, i) =>
+        '<td' + (typeof w === 'number' ? ' class="getal"' : '') + '>' + celWaarde(w, t.formaten[i]) + '</td>').join('') + '</tr>').join('')
+    + '</tbody></table></div>';
+}
+
+function blok(etiket, waarde, onder) {
+  return '<div class="blok"><div class="etiket">' + e(etiket) + '</div><div class="waarde">'
+    + e(waarde) + '</div><div class="onder">' + e(onder) + '</div></div>';
+}
+
+function toon(onderdeel, uitkomst, uitgang) {
+  const doel = $('uitvoer');
+  if (!uitkomst.heeftUitkomst) {
+    doel.innerHTML = '<div class="kaart">' + toonMeldingen(uitkomst.meldingen) + '</div>';
+    return;
+  }
+  let blokken;
+  if (onderdeel === 'waardering') {
+    const n = uitkomst.nu;
+    blokken = blok('Fiscale waarde', '€ ' + euro(n.totaal), 'op ' + datumTekstNL(ontleedDatum(n.datum)) + ', art. 3.29 Wet IB 2001')
+      + blok('Ouderdomspensioen', '€ ' + euro(n.waardeOuderdomspensioen), 'factor ' + n.factorOuderdomspensioen.toFixed(5).replace('.', ','))
+      + blok('Partnerpensioen', '€ ' + euro(n.waardePartnerpensioen), 'factor ' + n.factorPartnerpensioen.toFixed(5).replace('.', ','));
+  } else {
+    blokken = blok('Stand bij ingang', '€ ' + euro(uitkomst.standBijIngang), 'na oprenting tot de eerste termijn')
+      + blok('Eerste termijn', '€ ' + euro(uitkomst.eersteTermijnbedrag), 'jaarbedrag € ' + euro(uitkomst.eersteJaarbedrag))
+      + blok('Uitkeringsperiode', uitkomst.periode.jaren.toFixed(4).replace('.', ',') + ' jaar', uitkomst.periode.soort
+        + ', AOW-datum ' + datumTekstNL(ontleedDatum(uitkomst.aowDatum)) + (uitkomst.aowRaming ? ' (raming)' : ''));
+  }
+  doel.innerHTML = '<div class="kaart">' + toonMeldingen(uitkomst.meldingen)
+    + '<div class="uitkomst">' + blokken + '</div>'
+    + uitgang.tabellen.map(tabelHtml).join('') + '</div>';
+}
+
+function toonDossierstuk(uitgang) {
+  const regels = lijst => lijst.map(r => '<tr><td>' + e(r.label) + '</td><td>' + e(r.tekst) + '</td></tr>').join('');
+  $('dossierstuk').innerHTML =
+    '<div class="kaart">'
+    + '<h2>Dossierstuk: ' + e(uitgang.kop.onderdeel) + '</h2>'
+    + '<div class="kenmerkregel">'
+    + '<span><strong>Kenmerk:</strong> ' + e(uitgang.kop.kenmerk || 'niet ingevuld') + '</span>'
+    + '<span><strong>Datum:</strong> ' + e(uitgang.kop.datum) + '</span>'
+    + '</div>'
+    + '<h3>Invoer</h3><table>' + regels(uitgang.invoerregels) + '</table>'
+    + (uitgang.heeftUitkomst ? '<h3>Uitkomst</h3><table>' + regels(uitgang.uitkomstregels) + '</table>'
+      + uitgang.tabellen.map(tabelHtml).join('') : '<h3>Geen uitkomst</h3>')
+    + (uitgang.meldingen.length ? '<h3>Meldingen</h3><ul class="afbakening">'
+      + uitgang.meldingen.map(m => '<li>' + e(m) + '</li>').join('') + '</ul>' : '')
+    + '<h3>Vindplaatsen</h3><ul class="vindplaatsen">'
+    + uitgang.vindplaatsen.map(v => '<li>' + e(v) + '</li>').join('') + '</ul>'
+    + '<h3>Afbakening</h3><ul class="afbakening">'
+    + uitgang.afbakening.map(a => '<li>' + e(a) + '</li>').join('') + '</ul>'
+    + '<p class="stempel">' + e(uitgang.kop.toolNaam) + ', versie ' + e(uitgang.kop.toolVersie)
+    + '. Deze berekening is geen beslissing en geen advies.</p>'
+    + '</div>';
+}
+
+function toonBronnen() {
+  $('bronlijst').innerHTML = VINDPLAATSEN[actief].map(v => '<li>' + e(v) + '</li>').join('');
+  $('afbakeningslijst').innerHTML = AFBAKENING[actief].map(a => '<li>' + e(a) + '</li>').join('');
+}
+
+function reken() {
+  const invoer = leesInvoer(actief);
+  const uitkomst = actief === 'waardering' ? waardeerPensioen(invoer) : berekenOdv(invoer);
+  laatsteUitgang = bouwUitgang(actief, invoer, uitkomst, $('kenmerk').value, vandaagISO());
+  toon(actief, uitkomst, laatsteUitgang);
+  toonDossierstuk(laatsteUitgang);
+}
+
+function kiesOnderdeel(o) {
+  actief = o;
+  $('tabWaardering').classList.toggle('actief', o === 'waardering');
+  $('tabOdv').classList.toggle('actief', o === 'odv');
+  $('deelWaardering').classList.toggle('verborgen', o !== 'waardering');
+  $('deelOdv').classList.toggle('verborgen', o !== 'odv');
+  toonBronnen();
+  reken();
+}
+
+function toonDossierMelding(tekst, soort) {
+  $('dossierMelding').innerHTML = '<div class="kaart"><div class="melding ' + soort + '">' + e(tekst) + '</div></div>';
+}
+
+function wisDossierMelding() { $('dossierMelding').innerHTML = ''; }
+
+function bewaarBestand(bytes, naam, type) {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = naam;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exporteerExcel() {
+  wisDossierMelding();
+  reken();
+  bewaarBestand(
+    xlsxBytes(exportBladen(laatsteUitgang)),
+    bestandsnaam(laatsteUitgang.kop.kenmerk, laatsteUitgang.kop.datum, 'xlsx'),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+}
+
+function slaDossierOp() {
+  wisDossierMelding();
+  const kenmerk = $('kenmerk').value;
+  const datum = vandaagISO();
+  const dossier = schrijfDossier(actief, { waardering: voorDossier('waardering'), odv: voorDossier('odv') }, kenmerk, datum);
+  bewaarBestand(new TextEncoder().encode(JSON.stringify(dossier, null, 2)), bestandsnaam(kenmerk, datum, 'json'), 'application/json');
+  toonDossierMelding('Het dossier is als bestand aangeboden. Het is nergens anders bewaard.', 'info');
+}
+
+function verwerkDossierbestand(bestand) {
+  const lezer = new FileReader();
+  lezer.onerror = function () { toonDossierMelding('Het bestand kon niet worden gelezen. Er is niets gewijzigd.', 'fout'); };
+  // Zonder onabort eindigt een afgebroken keuze in stilte, terwijl de gebruiker denkt dat er
+  // iets is geladen.
+  lezer.onabort = function () { toonDossierMelding('Het lezen van het bestand is afgebroken. Er is niets gewijzigd.', 'fout'); };
+  lezer.onload = function () {
+    const uitslag = leesDossier(String(lezer.result));
+    if (!uitslag.ok) { toonDossierMelding(uitslag.fout, 'fout'); return; }
+    schrijfInvoer('waardering', uitslag.invoer.waardering);
+    schrijfInvoer('odv', uitslag.invoer.odv);
+    $('kenmerk').value = uitslag.kenmerk;
+    kiesOnderdeel(uitslag.actief);
+    toonDossierMelding(uitslag.meldingen.length ? uitslag.meldingen.join(' ')
+      : 'Het dossier is geopend en de uitkomst is opnieuw berekend met de huidige tool.',
+      uitslag.meldingen.length ? 'let-op' : 'info');
+  };
+  lezer.readAsText(bestand);
+}
+
+$('tabWaardering').addEventListener('click', () => kiesOnderdeel('waardering'));
+$('tabOdv').addEventListener('click', () => kiesOnderdeel('odv'));
+$('rekenKnop').addEventListener('click', reken);
+$('afdrukKnop').addEventListener('click', function () { reken(); window.print(); });
+$('excelKnop').addEventListener('click', exporteerExcel);
+$('opslaanKnop').addEventListener('click', slaDossierOp);
+$('openenKnop').addEventListener('click', function () { wisDossierMelding(); $('dossierInvoer').click(); });
+$('dossierInvoer').addEventListener('change', function (g) {
+  const bestand = g.target.files && g.target.files[0];
+  g.target.value = '';
+  if (bestand) verwerkDossierbestand(bestand);
+});
+kiesOnderdeel('waardering');
+</script>
+</body>
+</html>
