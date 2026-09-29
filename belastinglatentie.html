@@ -16,13 +16,14 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    padding: 2rem 1.25rem 4rem;
+    padding: 0;
     font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
     color: var(--inkt);
     background: #fff;
   }
-  main { max-width: 54rem; margin: 0 auto; }
-  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  main { max-width: 56.5rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  /* De naam van de tool staat op het scherm in de kopbalk; op papier boven het dossierstuk. */
+  .afdruktitel { display: none; font-size: 1.6rem; font-weight: 700; margin: 0 0 .25rem; }
   h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
   h3 { font-size: .95rem; margin: 1.25rem 0 .5rem; }
   p.intro { color: var(--gedempt); margin: 0 0 1.5rem; }
@@ -95,9 +96,9 @@
     /* Het formulier maakt op papier plaats voor het invoeroverzicht onder de uitkomst,
        dat uit dezelfde invoer is opgebouwd als de berekening zelf. */
     .noprint { display: none !important; }
-    main { max-width: none; }
+    main { max-width: none; padding: 0; }
     #uitkomst { margin-top: 0; }
-    h1 { font-size: 1.35rem; }
+    .afdruktitel { display: block; font-size: 1.35rem; }
     h2, h3 { page-break-after: avoid; }
     table, .melding { page-break-inside: avoid; }
     .melding { border: 1px solid var(--lijn); }
@@ -105,10 +106,132 @@
     details { margin-top: 1.5rem; page-break-inside: avoid; }
     summary { list-style: none; }
   }
+
+  /* De kopbalk even breed als de inhoud eronder. */
+  :root { --bt-kopbalk-breedte: 56.5rem; }
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
 </style>
 
+<body>
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+          <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="bt-kopbalk-titel">Belastinglatentie berekenen</h1>
+        <div class="bt-kopbalk-sub">Contante waarde van de belastinglatentie bij een aandelentransactie of een doorschuiving</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:26</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+
 <main>
-  <h1>Belastinglatentie berekenen</h1>
+  <div class="afdruktitel">Belastinglatentie berekenen</div>
   <p class="intro noprint">
     Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of een
     doorschuiving: het gemis aan afschrijvingsbasis op afschrijfbare meerwaarden en de
