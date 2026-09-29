@@ -175,9 +175,19 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
+| 🔵 concept | Fiscale vastgoedtool | `/fiscale-vastgoedtool.html` | bouwman-tools/fiscale-vastgoedtool | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
+- **Fiscale vastgoedtool**: Vergelijkt wat een verhuurd pand de DGA na belasting oplevert in box 3, onder de terbeschikkingstellingsregeling en in de eigen BV: bij aankoop, bij een pand in box 3 en bij een pand onder de tbs, per jaar doorgerekend met de latente belasting bij verkoop
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
+
+### Wettelijke verwijzingen: Fiscale vastgoedtool
+
+- [Wet inkomstenbelasting 2001, Artikel 3.92 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.99b \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 5.2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet op de vennootschapsbelasting 1969, Artikel 22 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002672/2026-01-01)
+- [Wet op belastingen van rechtsverkeer 1970, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
 
 ## Workers
 
