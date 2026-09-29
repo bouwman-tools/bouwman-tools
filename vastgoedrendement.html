@@ -16,11 +16,12 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    padding: 2rem 1.25rem 4rem;
+    padding: 0;
     font: 16px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
     color: var(--inkt);
     background: #fff;
   }
+  .pagina { padding: 2rem 1.25rem 4rem; }
   main { max-width: 54rem; margin: 0 auto; }
   h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
   h2 { font-size: 1.05rem; margin: 2rem 0 .75rem; padding-bottom: .3rem; border-bottom: 1px solid var(--lijn); }
@@ -79,12 +80,13 @@
   .afdrukknop:hover { background: var(--vlak); }
   .dossierdatum { color: var(--gedempt); font-size: .85rem; margin: .35rem 0 0; }
 
-  /* Kop en dossierbalk: het kenmerk, de datum en de drie uitgangen van de tool. */
-  header { max-width: 54rem; margin: 0 auto; display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
-  header h1 { margin: 0; }
-  header .versie { font-size: .82rem; color: var(--gedempt); }
+  /* Afdrukkop en dossierbalk: het kenmerk, de datum en de drie uitgangen van de tool.
+     De afdrukkop met naam en versiestempel staat alleen op papier; op het scherm staat de
+     naam in de kopbalk. */
+  .afdrukkop { display: none; }
+  .afdrukkop .versie { font-size: .82rem; color: var(--gedempt); }
   .dossierbalk {
-    max-width: 54rem; margin: .9rem auto 1.6rem; display: flex; flex-wrap: wrap;
+    max-width: 54rem; margin: 0 auto 1.6rem; display: flex; flex-wrap: wrap;
     align-items: flex-end; gap: .7rem; padding: .85rem .95rem;
     background: var(--vlak); border: 1px solid var(--lijn); border-radius: 6px;
   }
@@ -109,13 +111,15 @@
      afdruk zonder dat er een tweede plek ontstaat waar hetzelfde getal staat. */
   @media print {
     body { padding: 0; font-size: 10.5pt; background: #fff; color: #000; }
+    .pagina { padding: 0; }
     .noprint, button { display: none !important; }
     p.intro { display: none; }
-    /* De kop blijft juist wel staan: daar hangt de versiestempel aan, en zonder
+    /* De afdrukkop staat juist wel op papier: daar hangt de versiestempel aan, en zonder
        stempel is een dossierstuk niet te herleiden tot een versie van de tool. */
-    header { max-width: none; border-bottom: 1px solid #666; padding: 0 0 6px; }
-    header h1 { font-size: 1.35rem; }
-    header .versie { color: #444; }
+    .afdrukkop { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
+      border-bottom: 1px solid #666; padding: 0 0 6px; }
+    .afdrukkop .afdrukkop-titel { font-size: 1.35rem; font-weight: 700; }
+    .afdrukkop .versie { color: #444; }
     .dossierbalk { max-width: none; margin: .5rem 0 .8rem; padding: 0; background: none; border: 0; gap: 2rem; }
     .dossier-veld input { border: 0; padding: 0; background: none; width: auto; color: #000; font-weight: 600; }
     /* Een niet ingevuld kenmerk hoort leeg te blijven; de suggestie in het vak
@@ -139,12 +143,135 @@
     details { page-break-inside: avoid; }
     @page { size: A4 portrait; margin: 14mm 12mm; }
   }
+
+  /* De kopbalk even breed als de inhoud eronder. */
+  :root { --bt-kopbalk-breedte: 57rem; }
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
 </style>
 
-<header>
-  <h1>Rendementsstructuur vastgoed</h1>
+<body>
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+          <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="bt-kopbalk-titel">Rendementsstructuur vastgoed</h1>
+        <div class="bt-kopbalk-sub">Rendement op een vastgoedbelegging en wat de financiering met vreemd vermogen daarmee doet</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:28</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+
+<div class="pagina">
+<div class="afdrukkop">
+  <span class="afdrukkop-titel">Rendementsstructuur vastgoed</span>
   <span class="versie" id="versie"></span>
-</header>
+</div>
 
 <div class="dossierbalk">
   <div class="dossier-veld">
@@ -365,6 +492,7 @@
     </div>
   </details>
 </main>
+</div>
 
 <script>
 // FISCALE KERN — BEGIN
