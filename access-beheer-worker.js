@@ -113,6 +113,7 @@ const APP_IDS = {
   'bruto-netto-2026.html': '156c35b5-36af-4141-8b24-81484a5bdc2c',
   'pensioen-odv.html': '54576b7e-6708-473c-8022-b0ef6b9f3efe',
   'fiscale-vastgoedtool.html': '64083169-f03d-44a4-9153-714ddc40de18',
+  'verrekenbeding.html': 'a9913279-b179-41be-82ef-27b511dd4196',
 };
 
 export default {
