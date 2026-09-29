@@ -77,7 +77,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-26 |
 | 🟢 live | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
-| 🔵 concept | Pensioen in eigen beheer en oudedagsverplichting | `/pensioen-odv.html` | bouwman-tools/pensioen-odv | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Pensioen in eigen beheer en oudedagsverplichting | `/pensioen-odv.html` | bouwman-tools/pensioen-odv | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | 2026-09-29 |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
