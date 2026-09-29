@@ -150,6 +150,13 @@
       .rrow.best > .rr-naam { grid-column: auto; }
     }
     .rrow .rr-del { display: flex; align-items: center; justify-content: center; }
+    /* Rekening-courant per aandeelhouder: een tweede regel onder de rij, alleen zichtbaar
+       als voor voldoening via de rekening-courant is gekozen. */
+    .rrow .rr-rc { grid-column: 1 / -1; display: none; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px;
+      padding: 10px 12px; border: 1.5px dashed var(--border); border-radius: 8px; margin-top: -2px; }
+    #ahRows.rc-aan .rr-rc { display: grid; }
+    .rr-rc label { font-size: 12px; margin: 0; }
+    @media (max-width: 700px) { .rrow .rr-rc { grid-template-columns: 1fr; } }
     .rr-head { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: -2px; }
     @media (max-width: 700px) { .rr-head { display: none; } }
 
@@ -392,7 +399,7 @@
       <div>
         <div class="bt-kopbalk-titel">Dividend &amp; Uitkeringstoets</div>
         <div class="bt-kopbalk-sub">Balanstest · Liquiditeitsprognose · Besluitdocumenten</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:31</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:57</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -452,7 +459,7 @@
             <option value="interim">Interim-uitkering over het lopende boekjaar</option>
             <option value="reserves">Uitkering ten laste van de overige reserves</option>
           </select>
-          <span class="sub" id="aardGeld">De tool toetst alleen uitkeringen in geld. Bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van het bestuur van lid 2 wel nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).</span>
+          <span class="sub" id="aardGeld">De tool toetst alleen uitkeringen in geld, ook als die via de rekening-courant met de aandeelhouder worden voldaan (zie stap 2). Bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van het bestuur van lid 2 wel nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).</span>
         </label>
       </div>
       <div>
@@ -510,6 +517,51 @@
     <div class="rowset" id="ahRows"></div>
     <div class="field-echo err" id="ahBedragMelding" role="alert"></div>
     <div style="margin-top:12px;"><button type="button" class="btn small" id="addAh">+ Aandeelhouder toevoegen</button></div>
+
+    <fieldset style="margin-top:18px;">
+      <legend>Hoe wordt de uitkering voldaan?
+        <span class="sub">Wordt het dividend (deels) niet van de bank betaald maar via de rekening-courant met de aandeelhouder, kies dan de tweede mogelijkheid. Vul de rekening-courant dan niet in als liquide middelen: de tool rekent de verrekening zelf door.</span>
+      </legend>
+      <div class="radios">
+        <label class="ro"><input type="radio" name="voldoening" value="geld" checked /> <span>Volledig in geld, van de bankrekening van de vennootschap</span></label>
+        <label class="ro"><input type="radio" name="voldoening" value="rc" /> <span>Geheel of gedeeltelijk via de rekening-courant met de aandeelhouder</span></label>
+      </div>
+    </fieldset>
+    <div id="rcWrap" style="display:none;margin-top:12px;">
+      <p class="lead">
+        Kies per aandeelhouder hoe diens dividend wordt voldaan. De twee vormen van rekening-courant zijn niet hetzelfde.
+        <strong>Verrekenen met een vordering</strong> kan alleen als de vennootschap een vordering op de aandeelhouder heeft: die
+        vordering daalt, en voor het verrekende bedrag gaat er geen geld uit (art. 6:127 lid 1 BW). <strong>Bijschrijven op een
+        schuld</strong> aan de aandeelhouder betaalt niets af maar laat een schuld van de vennootschap ontstaan of groeien. Die
+        schuld is behoudens een andere afspraak opeisbaar (art. 6:38 BW), en de tool rekent haar daarom als betaling in de maand van de
+        betaalbaarstelling. Wat u niet verrekent of bijschrijft, wordt in geld betaald. De balanstest van lid 1 verandert niet:
+        het eigen vermogen daalt altijd met het volle dividend.
+      </p>
+      <div class="confirm" id="rcNettoWrap">
+        <input type="checkbox" id="rcNetto" />
+        <label for="rcNetto">
+          Het verrekende of bijgeschreven bedrag is het bedrag na inhouding van eventueel verschuldigde dividendbelasting.
+          <span class="sub" style="font-weight:400;">Ingehouden dividendbelasting komt de aandeelhouder niet toe (art. 7 lid 1 en 2 Wet DB 1965) en wordt daarom niet verrekend; de vennootschap draagt haar op aangifte af (art. 7 lid 4 Wet DB 1965). De tool rekent geen tarief en behandelt al wat niet wordt verrekend als uitgaand geld. Zonder deze bevestiging blijft de uitkomst "nadere beoordeling noodzakelijk".</span>
+        </label>
+      </div>
+      <div class="confirm" id="rcGeenAflossingWrap" style="margin-top:10px;">
+        <input type="checkbox" id="rcGeenAflossing" />
+        <label for="rcGeenAflossing">
+          De liquiditeitsprognose of de verwachte balans in stap 4 bevat geen aflossing van het deel van de rekening-courantvordering dat nu wordt verrekend.
+          <span class="sub" style="font-weight:400;">Na de verrekening komt dat bedrag niet meer binnen. Staat een aflossing er toch in, dan is de liquiditeit te hoog ingeschat.</span>
+        </label>
+      </div>
+      <div style="margin-top:10px;">
+        <label for="rcPost">Waar staat de rekening-courantvordering op de balans?
+          <span class="sub">Alleen van belang bij de balansroute in stap 4: het verrekende bedrag gaat daar van deze post af in plaats van van de liquide middelen.</span>
+          <select id="rcPost">
+            <option value="vorderingen">Vorderingen en overige vlottende activa</option>
+            <option value="vasteActiva">Vaste activa (financieel vast actief)</option>
+          </select>
+        </label>
+      </div>
+      <div class="calc-box" id="rcCalc"></div>
+    </div>
 
     <hr class="divider" />
 
@@ -1370,7 +1422,74 @@ function kredietTeltMee(s) {
     && (s.kredietLooptijd === true || !!s.kredietEinde);
 }
 
+/*
+ * Voldoening via de rekening-courant met de aandeelhouder. Besloten op 29 september 2026
+ * door de eigenaar, op verzoek uit de praktijk: het dividend gaat vaak niet van de bank af
+ * maar via de rekening-courant, en zonder aparte regel werd de rekening-courant als liquide
+ * middelen ingevoerd om de toets te laten kloppen.
+ *
+ * De twee richtingen zijn inhoudelijk verschillend en worden hier ook zo behandeld.
+ * - Verrekening met een vordering van de vennootschap op de aandeelhouder: beide
+ *   verbintenissen gaan teniet "tot hun gemeenschappelijk beloop" (art. 6:127 lid 1 BW). Er
+ *   verlaat geen geld de vennootschap; een actief, de vordering, daalt. Het verrekende
+ *   bedrag kan dus nooit hoger zijn dan die vordering, en ook niet hoger dan het dividend
+ *   van die aandeelhouder. Voor lid 2 telt alleen het deel in geld als uitgaande kasstroom.
+ * - Bijschrijving op een schuld van de vennootschap aan de aandeelhouder: er gaat geen geld
+ *   uit, maar een verplichting ontstaat of groeit. Behoudens een andere afspraak is die
+ *   schuld opeisbaar (art. 6:38 BW), en lid 2 vraagt juist of de vennootschap haar opeisbare schulden kan
+ *   blijven betalen. Modelkeuze M23: de tool behandelt de bijschrijving daarom als betaling
+ *   in de maand van betaalbaarstelling, alsof het bedrag direct wordt opgeëist.
+ * Lid 1 verandert in beide gevallen niet: het eigen vermogen daalt met het volle dividend.
+ *
+ * Het verrekende of bijgeschreven bedrag is het bedrag na inhouding van eventuele
+ * dividendbelasting; die komt de aandeelhouder niet toe en de vennootschap draagt haar op
+ * aangifte af (art. 7 lid 1, 2 en 4 Wet DB 1965). De tool rekent geen tarief
+ * (OPENSTAAND punt 5) en behandelt daarom al wat niet wordt verrekend als geld.
+ */
+const RC_WIJZEN = ['geld', 'vordering', 'schuld'];
+
+function rcVoldoening(s) {
+  const actief = s.voldoening === 'rc';
+  const regels = [];
+  let verrekend = 0;
+  let bijgeschreven = 0;
+  if (actief) {
+    const metNaam = s.ahMetNaam || [];
+    const enkel = metNaam.length === 1;
+    metNaam.forEach(a => {
+      const wijze = a.rcWijze || 'geld';
+      if (wijze === 'geld') return;
+      const bedrag = a.rcBedrag || 0;
+      // Het dividend van deze aandeelhouder: bij een enkele aandeelhouder het hele bedrag,
+      // anders het ingevulde bedrag per aandeelhouder (valideer eist dat).
+      const aandeel = enkel ? s.dividend : (a.bedrag === null || a.bedrag === undefined ? null : a.bedrag);
+      const stand = wijze === 'vordering' && a.rcStand !== null && a.rcStand !== undefined ? a.rcStand : null;
+      regels.push({
+        naam: a.naam,
+        wijze: wijze,
+        bedrag: bedrag,
+        aandeel: aandeel,
+        restGeld: aandeel === null ? null : aandeel - bedrag,
+        stand: stand,
+        restStand: stand === null ? null : stand - bedrag
+      });
+      if (wijze === 'vordering') verrekend += bedrag; else bijgeschreven += bedrag;
+    });
+  }
+  return {
+    actief: actief,
+    regels: regels,
+    verrekend: verrekend,
+    bijgeschreven: bijgeschreven,
+    // Uitgaand geld voor lid 2: alles behalve de verrekening. Een bijschrijving telt mee (M23).
+    kasUit: Math.max(0, s.dividend - verrekend),
+    // Wat daadwerkelijk van de bank gaat bij de betaalbaarstelling.
+    bank: Math.max(0, s.dividend - verrekend - bijgeschreven)
+  };
+}
+
 function liquiditeitsprognose(s) {
+  const rc = rcVoldoening(s);
   const offset = (s.datumBesluit && s.datumUitkering) ? maandVerschil(s.datumBesluit, s.datumUitkering) : null;
   const divMaand = (offset === null) ? null : offset + 1;      // 1-based
   const binnenPeriode = divMaand !== null && divMaand >= 1 && divMaand <= MAX_UITKERINGSMAAND;
@@ -1432,7 +1551,9 @@ function liquiditeitsprognose(s) {
     const begin = stand;
     const ops = s.pgOps[i] || 0;
     const verpl = s.pgVerpl[i] || 0;
-    const divBedrag = (binnenPeriode && divMaand === i + 1) ? s.dividend : 0;
+    // Alleen het deel dat niet met een vordering op de aandeelhouder wordt verrekend,
+    // gaat als uitgaand geld de prognose in (rcVoldoening).
+    const divBedrag = (binnenPeriode && divMaand === i + 1) ? rc.kasUit : 0;
     const eind = begin + ops - verpl - divBedrag;
     // Beslissende stand van deze maand: de eindstand, of de lagere tussentijdse
     // stand als de gebruiker die heeft opgegeven. Een opgegeven stand die hoger is
@@ -1462,6 +1583,7 @@ function liquiditeitsprognose(s) {
   return {
     rijen: rijen,
     maanden: maanden,
+    rc: rc,
     divMaand: divMaand,
     binnenPeriode: binnenPeriode,
     eindstand: stand,
@@ -1572,14 +1694,26 @@ const BALANS_ACTIEF = ['vasteActiva', 'voorraden', 'vorderingen', 'liquide'];
 const BALANS_PASSIEF = ['eigenVermogen', 'voorzieningen', 'langSchulden', 'kortSchulden'];
 const BALANS_MIN_MAANDEN = 11;                                    // M19: gelijk aan het einde van de maandprognose
 
-/** Kengetallen van één balans na aftrek van de uitkering. Bedragen in centen. */
-function balansNaUitkering(b, dividend) {
+/**
+ * Kengetallen van één balans na aftrek van de uitkering. Bedragen in centen.
+ *
+ * `verrekend` is het deel dat met een vordering op de aandeelhouder wordt verrekend
+ * (rcVoldoening). Dat deel gaat niet van de liquide middelen af maar van de post waaronder
+ * de rekening-courantvordering staat, `rcPost`: de vorderingen (vlottend) of de vaste
+ * activa (een financieel vast actief). Het eigen vermogen en het balanstotaal dalen in
+ * beide gevallen met het volle dividend.
+ */
+function balansNaUitkering(b, dividend, verrekend, rcPost) {
+  const rcAf = verrekend || 0;
+  const rcVast = rcPost === 'vasteActiva';
   const som = (posten) => posten.reduce((t, k) => t + (b[k] || 0), 0);
   const totaalActief = som(BALANS_ACTIEF);
   const totaalPassief = som(BALANS_PASSIEF);
-  const liquideNa = b.liquide - dividend;
-  const vlottendNa = b.voorraden + b.vorderingen + liquideNa;
-  const quickNa = b.vorderingen + liquideNa;
+  const liquideNa = b.liquide - (dividend - rcAf);
+  const vorderingenNa = b.vorderingen - (rcVast ? 0 : rcAf);
+  const vasteActivaNa = b.vasteActiva - (rcVast ? rcAf : 0);
+  const vlottendNa = b.voorraden + vorderingenNa + liquideNa;
+  const quickNa = vorderingenNa + liquideNa;
   const evNa = b.eigenVermogen - dividend;
   const totaalNa = totaalActief - dividend;
   // Zonder kortlopende schulden bestaat de ratio niet. Het DK-model deelde dan door 1,
@@ -1594,6 +1728,11 @@ function balansNaUitkering(b, dividend) {
     sluit: totaalActief === totaalPassief,
     verschil: totaalActief - totaalPassief,
     liquideNa: liquideNa,
+    vorderingenNa: vorderingenNa,
+    vasteActivaNa: vasteActivaNa,
+    // De post waaronder de rekening-courantvordering staat moet het verrekende bedrag
+    // kunnen dragen; anders klopt de opgegeven balanspost niet.
+    rcPostTekort: rcAf > 0 && (rcVast ? vasteActivaNa : vorderingenNa) < 0,
     vlottendNa: vlottendNa,
     werkkapitaal: vlottendNa - b.kortSchulden,
     evNa: evNa,
@@ -1610,16 +1749,22 @@ function balansNaUitkering(b, dividend) {
 }
 
 function balansroute(s) {
-  const peil = balansNaUitkering(s.balansPeil, s.dividend);
-  const verwacht = balansNaUitkering(s.balansVerwacht, s.dividend);
+  const rc = rcVoldoening(s);
+  const rcPost = s.rcPost === 'vasteActiva' ? 'vasteActiva' : 'vorderingen';
+  const peil = balansNaUitkering(s.balansPeil, s.dividend, rc.verrekend, rcPost);
+  const verwacht = balansNaUitkering(s.balansVerwacht, s.dividend, rc.verrekend, rcPost);
   const maandenNa = (s.datumUitkering && s.datumVerwacht) ? maandVerschil(s.datumUitkering, s.datumVerwacht) : null;
-  const dekkingPeil = s.balansPeil.liquide >= s.dividend;                     // M17
+  // M17: de liquide middelen moeten het deel dekken dat niet wordt verrekend. Een
+  // bijschrijving op een rekening-courantschuld telt daarbij mee als geld (M23).
+  const dekkingPeil = s.balansPeil.liquide >= rc.kasUit;
   const werkkapitaalOk = peil.werkkapitaal >= 0 && verwacht.werkkapitaal >= 0; // M16
   const bevestigd = s.bvGeenSignalen === true && s.bvVerwerkt === true;
   const onderNorm = (m) => m.onderNorm.solvabiliteit || m.onderNorm.current || m.onderNorm.quick;
   return {
     peil: peil,
     verwacht: verwacht,
+    rc: rc,
+    rcPost: rcPost,
     maandenNa: maandenNa,
     periodeKort: maandenNa !== null && maandenNa >= 0 && maandenNa < BALANS_MIN_MAANDEN,
     dekkingPeil: dekkingPeil,
@@ -1727,6 +1872,8 @@ function valideer(s, bt, lp, pd, br) {
       }
     }
   }
+
+  valideerRc(s, fouten, punten, prognose ? null : br);
 
   const pctSom = s.ahMetNaam.reduce((a, b) => a + (b.pct === null ? 0 : b.pct), 0);
   if (s.ahMetNaam.some(a => a.pct !== null) && Math.abs(pctSom - 100) > 0.001) {
@@ -1846,6 +1993,55 @@ function valideer(s, bt, lp, pd, br) {
   }
 
   return { fouten: fouten, punten: punten };
+}
+
+/**
+ * Controles bij voldoening via de rekening-courant (rcVoldoening). Wat de verrekening
+ * juridisch onmogelijk maakt of de berekening onbetrouwbaar, blokkeert; wat het bestuur nog
+ * moet bevestigen, vraagt nadere beoordeling. `br` is alleen gevuld in de balansroute.
+ */
+function valideerRc(s, fouten, punten, br) {
+  if (s.voldoening !== 'rc') return;
+  const rc = rcVoldoening(s);
+  const meer = s.ahMetNaam.length > 1;
+  if (s.ahMetNaam.some(a => a.rcBedragFout)) fouten.push('Een bedrag dat met de rekening-courant wordt verrekend of daarop wordt bijgeschreven, is geen geldig positief bedrag.');
+  if (s.ahMetNaam.some(a => a.rcStandFout)) fouten.push('Een stand van de rekening-courantvordering op de aandeelhouder is geen geldig bedrag van nul of hoger.');
+  if (rc.regels.length === 0) {
+    fouten.push('U hebt gekozen voor voldoening via de rekening-courant, maar bij geen enkele aandeelhouder een verrekening of bijschrijving gekozen. Kies die per aandeelhouder in stap 2, of kies voldoening in geld.');
+    return;
+  }
+  if (meer && s.ahMetNaam.some(a => a.bedrag === null)) {
+    fouten.push('Vul bij voldoening via de rekening-courant het bedrag van de uitkering per aandeelhouder in. Verrekening en bijschrijving gaan per aandeelhouder, en zonder dat bedrag staat niet vast tot welk bedrag ieders dividend kan worden verrekend of bijgeschreven.');
+  }
+  rc.regels.forEach(r => {
+    const wat = r.wijze === 'vordering' ? 'verrekend' : 'bijgeschreven';
+    if (r.bedrag <= 0) {
+      fouten.push('Vul bij ' + r.naam + ' het bedrag in dat wordt ' + wat + (r.wijze === 'vordering' ? ' met de rekening-courantvordering.' : ' op de rekening-courant.'));
+      return;
+    }
+    if (r.aandeel !== null && r.bedrag > r.aandeel) {
+      fouten.push('Bij ' + r.naam + ' wordt ' + eur(r.bedrag) + ' ' + wat + ', meer dan de uitkering van ' + eur(r.aandeel) + ' aan deze aandeelhouder.');
+    }
+    if (r.wijze === 'vordering') {
+      if (r.stand === null) {
+        fouten.push('Vul bij ' + r.naam + ' de rekening-courantvordering op de aandeelhouder op de betaalbaarstellingsdatum in. Zonder dat bedrag staat niet vast dat er iets te verrekenen valt.');
+      } else if (r.bedrag > r.stand) {
+        fouten.push('Bij ' + r.naam + ' wordt ' + eur(r.bedrag) + ' verrekend, meer dan de rekening-courantvordering van ' + eur(r.stand) + ' op de betaalbaarstellingsdatum. Verrekening doet beide verbintenissen alleen tenietgaan tot hun gemeenschappelijk beloop (art. 6:127 lid 1 BW); het meerdere is niet verrekend en moet in geld worden voldaan of op een andere wijze worden vastgelegd.');
+      }
+    }
+  });
+  if (br) {
+    const post = br.rcPost === 'vasteActiva' ? 'de vaste activa' : 'de vorderingen en overige vlottende activa';
+    [['de balans op de peildatum', br.peil], ['de verwachte balans', br.verwacht]].forEach(([naam, m]) => {
+      if (m.rcPostTekort) fouten.push('Op ' + naam + ' zijn ' + post + ' lager dan het verrekende bedrag van ' + eur(rc.verrekend) + '. De rekening-courantvordering op de aandeelhouder moet in die post zitten; controleer de balans of de post waaronder de vordering staat.');
+    });
+  }
+  if (rc.verrekend > 0 && !s.rcNetto) {
+    punten.push('Niet bevestigd is dat het verrekende bedrag het bedrag is na inhouding van eventueel verschuldigde dividendbelasting. Ingehouden dividendbelasting komt de aandeelhouder niet toe (art. 7 lid 1 en 2 Wet DB 1965) en wordt daarom niet verrekend; de vennootschap draagt haar op aangifte af (art. 7 lid 4 Wet DB 1965). Dat deel hoort als uitgaand geld in de ' + (br ? 'beoordeling' : 'prognose') + '. De tool behandelt al wat niet wordt verrekend als geld.');
+  }
+  if (rc.verrekend > 0 && !s.rcGeenAflossing) {
+    punten.push('Niet bevestigd is dat ' + (br ? 'de verwachte balans' : 'de prognose') + ' geen aflossing bevat van het deel van de rekening-courantvordering dat nu wordt verrekend. Door de verrekening komt die aflossing niet meer binnen; staat zij er wel in, dan is de liquiditeit te hoog ingeschat.');
+  }
 }
 
 /** Kengetal als percentage of ratio, of "n.v.t." als het niet bestaat. */
@@ -1977,7 +2173,25 @@ function ahRow() {
   b.type = 'button'; b.title = 'Rij verwijderen'; b.setAttribute('aria-label', 'Aandeelhouder verwijderen');
   b.addEventListener('click', () => { row.remove(); ensureMinRows(); bereken(); });
   c4.appendChild(b);
-  row.append(c1, c2, c3, c4);
+  // Tweede regel: voldoening via de rekening-courant (alleen zichtbaar als daarvoor is gekozen).
+  const rc = el('div', 'rr-rc');
+  const l1 = el('label', null, 'Voldoening van dit dividend');
+  const sel = el('select'); sel.className = 'ah-rcwijze';
+  [['geld', 'In geld'], ['vordering', 'Verrekenen met een vordering van de vennootschap op deze aandeelhouder'], ['schuld', 'Bijschrijven op een schuld van de vennootschap aan deze aandeelhouder']]
+    .forEach(([w, t]) => { const o = el('option', null, t); o.value = w; sel.appendChild(o); });
+  l1.appendChild(sel);
+  const l2 = el('label', 'rc-stand', 'Rekening-courantvordering op de aandeelhouder op de betaalbaarstellingsdatum');
+  l2.appendChild(el('span', 'sub', 'De verwachte of werkelijke opeisbare vordering op de datum waarop het dividend betaalbaar wordt gesteld.'));
+  const i5 = el('input'); i5.type = 'text'; i5.inputMode = 'decimal'; i5.className = 'ah-rcstand money'; i5.placeholder = '0,00'; i5.autocomplete = 'off';
+  l2.appendChild(i5);
+  const l3 = el('label', 'rc-bedrag');
+  const l3t = el('span', 'rc-bedrag-label', 'Bedrag');
+  l3.appendChild(l3t);
+  l3.appendChild(el('span', 'sub', 'Na inhouding van eventuele dividendbelasting. Het overige deel van dit dividend wordt in geld betaald.'));
+  const i6 = el('input'); i6.type = 'text'; i6.inputMode = 'decimal'; i6.className = 'ah-rcbedrag money'; i6.placeholder = '0,00'; i6.autocomplete = 'off';
+  l3.appendChild(i6);
+  rc.append(l1, l2, l3);
+  row.append(c1, c2, c3, c4, rc);
   return row;
 }
 
@@ -2103,15 +2317,41 @@ function leesInvoer() {
     const pct = leesPercentage(pctNode);
     const bed = parseCents(bedNode.value);
     bedNode.classList.toggle('invalid', !bed.valid || (bed.valid && !bed.empty && bed.cents < 0));
+    // Rekening-courant: alleen bij voldoening via de rekening-courant, en de stand van de
+    // vordering alleen bij verrekening.
+    const rcAan = radioVal('voldoening') === 'rc';
+    const wijze = rcAan ? row.querySelector('.ah-rcwijze').value : 'geld';
+    const standNode = row.querySelector('.ah-rcstand');
+    const rcBedNode = row.querySelector('.ah-rcbedrag');
+    const stand = parseCents(standNode.value);
+    const rcBed = parseCents(rcBedNode.value);
+    const standFout = wijze === 'vordering' && (!stand.valid || (!stand.empty && stand.cents < 0));
+    const rcBedFout = wijze !== 'geld' && (!rcBed.valid || (!rcBed.empty && rcBed.cents < 0));
+    standNode.classList.toggle('invalid', standFout);
+    rcBedNode.classList.toggle('invalid', rcBedFout);
+    row.querySelector('.rc-stand').style.display = wijze === 'vordering' ? '' : 'none';
+    row.querySelector('.rc-bedrag').style.display = wijze === 'geld' ? 'none' : '';
+    row.querySelector('.rc-bedrag-label').textContent = wijze === 'schuld'
+      ? 'Bedrag dat op de rekening-courant wordt bijgeschreven'
+      : 'Bedrag dat met de vordering wordt verrekend';
     s.aandeelhouders.push({
       naam: naam,
       pct: pct.waarde,
       pctFout: pct.fout,
       bedrag: (bed.valid && !bed.empty) ? bed.cents : null,
-      bedragFout: !bed.valid || (bed.valid && !bed.empty && bed.cents < 0)
+      bedragFout: !bed.valid || (bed.valid && !bed.empty && bed.cents < 0),
+      rcWijze: wijze,
+      rcStand: (wijze === 'vordering' && !standFout && !stand.empty) ? stand.cents : null,
+      rcStandFout: standFout,
+      rcBedrag: (wijze !== 'geld' && !rcBedFout && !rcBed.empty) ? rcBed.cents : null,
+      rcBedragFout: rcBedFout
     });
   });
   s.ahMetNaam = s.aandeelhouders.filter(a => a.naam !== '');
+  s.voldoening = radioVal('voldoening') || 'geld';
+  s.rcNetto = $('rcNetto').checked;
+  s.rcGeenAflossing = $('rcGeenAflossing').checked;
+  s.rcPost = $('rcPost').value;
 
   s.bestuurders = [];
   $('bestRows').querySelectorAll('.best-naam').forEach(n => {
@@ -2284,6 +2524,41 @@ function renderBalans(s, bt) {
   out.appendChild(wrap);
 }
 
+/** Overzicht in stap 2 van wat er via de rekening-courant gebeurt, per aandeelhouder en in totaal. */
+function renderRc(s, rc) {
+  const box = $('rcCalc');
+  box.textContent = '';
+  if (!rc.actief) return;
+  const rij = (label, val, cls, total) => {
+    const r = el('div', 'calc-row' + (total ? ' total' : ''));
+    r.appendChild(el('span', 'calc-label', label));
+    r.appendChild(el('span', 'calc-val' + (cls ? ' ' + cls : ''), val));
+    box.appendChild(r);
+  };
+  if (rc.regels.length === 0) {
+    box.appendChild(el('div', 'calc-row', 'Kies hierboven per aandeelhouder of diens dividend wordt verrekend of bijgeschreven.'));
+    return;
+  }
+  const datum = s.datumUitkering ? ' op ' + fmtDatum(s.datumUitkering) : '';
+  rc.regels.forEach(r => {
+    if (r.wijze === 'vordering') {
+      rij(r.naam + ': rekening-courantvordering' + datum, r.stand === null ? '—' : eur(r.stand));
+      rij('Af: verrekend met het dividend (geen betaling)', '- ' + eur(r.bedrag));
+      if (r.restStand !== null) rij('Resterende vordering op ' + r.naam, eur(r.restStand), r.restStand < 0 ? 'neg' : '');
+    } else {
+      rij(r.naam + ': bijgeschreven op de rekening-courantschuld (nieuwe opeisbare schuld)', eur(r.bedrag));
+    }
+    if (r.restGeld !== null && r.restGeld > 0) rij('Rest van het dividend van ' + r.naam + ', in geld', eur(r.restGeld));
+  });
+  rij('Voorgenomen uitkering', eur(s.dividend), '', true);
+  if (rc.verrekend > 0) rij('Waarvan verrekend met een vordering op de aandeelhouder', '- ' + eur(rc.verrekend));
+  if (rc.bijgeschreven > 0) rij('Waarvan bijgeschreven op een schuld aan de aandeelhouder', eur(rc.bijgeschreven));
+  rij('In de toets van lid 2 als uitgaand geld bij de betaalbaarstelling', eur(rc.kasUit), '', true);
+  if (rc.bijgeschreven > 0) {
+    box.appendChild(el('div', 'calc-row', 'De bijschrijving gaat niet van de bank af, maar telt in de toets als betaling omdat de schuld behoudens een andere afspraak direct opeisbaar is (art. 6:38 BW; modelkeuze M23).'));
+  }
+}
+
 function renderPrognose(s, lp) {
   const maandNaam = (m) => s.datumBesluit ? maandLabel(s.datumBesluit, m) : 'maand ' + (m + 1);
   const wanneerTekst = (m) => m === 0 ? 'bij aanvang' : maandNaam(m - 1);
@@ -2328,9 +2603,15 @@ function renderPrognose(s, lp) {
     rij('Kredietlimiet (niet meegeteld — bevestiging ontbreekt)', eur(s.kredietLimiet), 'neg');
   }
   rij('Prognoseperiode', lp.maanden + ' maanden' + (s.datumBesluit ? ' (' + maandNaam(0) + ' t/m ' + maandNaam(lp.maanden - 1) + ')' : ''));
-  rij('Uitkering opgenomen in', lp.binnenPeriode
+  rij(lp.rc.actief ? 'Uitgaand geld voor de uitkering opgenomen in' : 'Uitkering opgenomen in', lp.binnenPeriode
     ? (s.datumBesluit ? maandNaam(lp.divMaand - 1) + ' (maand ' + lp.divMaand + ')' : 'maand ' + lp.divMaand)
     : 'niet in de prognoseperiode');
+  if (lp.rc.actief) {
+    rij('Voorgenomen uitkering', eur(s.dividend));
+    if (lp.rc.verrekend > 0) rij('Waarvan verrekend met een vordering op de aandeelhouder (geen betaling)', '- ' + eur(lp.rc.verrekend));
+    if (lp.rc.bijgeschreven > 0) rij('Waarvan bijgeschreven op een schuld aan de aandeelhouder (telt als betaling, M23)', eur(lp.rc.bijgeschreven));
+    rij('Als uitgaand geld in de prognose', eur(lp.rc.kasUit));
+  }
   rij('Bestaande kortlopende schulden ingepland', eur(lp.verplGepland) + (s.bestaandeSchulden > 0 ? ' van ' + eur(s.bestaandeSchulden) : ''), (s.bestaandeSchulden > 0 && lp.verplOpen !== 0) ? 'neg' : '');
   rij('Liquiditeitspositie einde prognoseperiode', eur(lp.eindstand), lp.eindstand < 0 ? 'neg' : 'pos');
   // Komt het dieptepunt uit een opgegeven stand binnen de maand, zeg dat erbij: het
@@ -2415,6 +2696,11 @@ function renderBalansroute(s, br) {
     box.appendChild(r);
   };
   const p = br.peil, w = br.verwacht;
+  if (br.rc.verrekend > 0) {
+    const post = br.rcPost === 'vasteActiva' ? 'Vaste activa na verrekening met de rekening-courant' : 'Vorderingen na verrekening met de rekening-courant';
+    const k = br.rcPost === 'vasteActiva' ? 'vasteActivaNa' : 'vorderingenNa';
+    rij(post, eur(p[k]), eur(w[k]), p[k] < 0, w[k] < 0);
+  }
   rij('Liquide middelen', eur(p.liquideNa), eur(w.liquideNa), p.liquideNa < 0, w.liquideNa < 0);
   rij('Werkkapitaal (vlottende activa min kortlopende schulden)', eur(p.werkkapitaal), eur(w.werkkapitaal), p.werkkapitaal < 0, w.werkkapitaal < 0);
   rij('Eigen vermogen', eur(p.evNa), eur(w.evNa), p.evNa < 0, w.evNa < 0);
@@ -2430,10 +2716,11 @@ function renderBalansroute(s, br) {
     html = 'Vul een uitkeringsbedrag in om de balansen te beoordelen.';
   } else if (!br.dekkingPeil) {
     cls = 'warn'; icon = '×';
-    html = '<strong>Liquide middelen dekken de uitkering niet.</strong> Op de peildatum is er ' + eur(s.balansPeil.liquide) + ' aan liquide middelen, minder dan de uitkering van ' + eur(s.dividend) + '. Op basis van de balans kan de uitkering niet worden goedgekeurd. Dat is een modelkeuze van de tool: een kastekort op de peildatum is niet op zichzelf in strijd met art. 2:216 BW, maar de balans laat dan niet zien waaruit de vennootschap betaalt. Wordt de uitkering gefinancierd, bijvoorbeeld uit een kredietfaciliteit, onderbouw de goedkeuring dan met de maandprognose.';
+    html = '<strong>Liquide middelen dekken de uitkering niet.</strong> Op de peildatum is er ' + eur(s.balansPeil.liquide) + ' aan liquide middelen, minder dan '
+      + (br.rc.actief ? 'het deel van de uitkering dat als uitgaand geld telt (' + eur(br.rc.kasUit) + ')' : 'de uitkering van ' + eur(s.dividend)) + '. Op basis van de balans kan de uitkering niet worden goedgekeurd. Dat is een modelkeuze van de tool: een kastekort op de peildatum is niet op zichzelf in strijd met art. 2:216 BW, maar de balans laat dan niet zien waaruit de vennootschap betaalt. Wordt de uitkering gefinancierd, bijvoorbeeld uit een kredietfaciliteit, onderbouw de goedkeuring dan met de maandprognose.';
   } else if (!br.werkkapitaalOk || br.verwachtLiquideNegatief || !br.bevestigd || br.periodeKort) {
     cls = 'amber'; icon = '!';
-    html = '<strong>Balans alleen niet voldoende.</strong> De liquide middelen dekken de uitkering op de peildatum, maar '
+    html = '<strong>Balans alleen niet voldoende.</strong> De liquide middelen dekken ' + (br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering') + ' op de peildatum, maar '
       + (!br.bevestigd ? 'niet beide bevestigingen zijn gegeven' : (br.periodeKort ? 'de verwachte balans ligt te kort na de betaalbaarstelling' : 'het werkkapitaal of de liquide middelen worden na de uitkering negatief'))
       + '. ' + ADVIES_PROGNOSE;
   } else if (br.normSignaal || br.verwachtVerlies) {
@@ -2444,7 +2731,7 @@ function renderBalansroute(s, br) {
     html = '<strong>Balanstoets doorstaan, met een signaal.</strong> Het werkkapitaal blijft op beide momenten positief, maar ' + wat.join(' en ') + '. Een wettelijke eis is dat niet, en het is op zichzelf geen reden om de goedkeuring te weigeren; leg vast waarom de uitkering verantwoord is.';
   } else {
     cls = 'ok'; icon = '✓';
-    html = '<strong>Balanstoets doorstaan.</strong> De liquide middelen dekken de uitkering op de peildatum, het werkkapitaal blijft op beide momenten positief en de kengetallen liggen op of boven de interne DK-norm. Met de twee bevestigingen kan een maandprognose achterwege blijven (NBA-handreiking 1133, p. 8). Het oordeel blijft aan het bestuur.';
+    html = '<strong>Balanstoets doorstaan.</strong> De liquide middelen dekken ' + (br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering') + ' op de peildatum, het werkkapitaal blijft op beide momenten positief en de kengetallen liggen op of boven de interne DK-norm. Met de twee bevestigingen kan een maandprognose achterwege blijven (NBA-handreiking 1133, p. 8). Het oordeel blijft aan het bestuur.';
   }
   const wrap = el('div', 'toets-result ' + cls);
   wrap.appendChild(el('div', 'tr-icon', icon));
@@ -2555,8 +2842,8 @@ function renderConclusie(s, bt, lp, v, status, br) {
     s.route === 'balans'
       ? { ok: !br.dekkingPeil ? false : (br.werkkapitaalOk && !br.verwachtLiquideNegatief && br.bevestigd && !br.periodeKort && !br.normSignaal && !br.verwachtVerlies ? true : null),
           txt: '<strong>Balansen (art. 2:216 lid 2 BW):</strong> ' + (!br.dekkingPeil
-            ? 'de liquide middelen op de peildatum (' + eur(s.balansPeil.liquide) + ') dekken de uitkering niet.'
-            : 'liquide middelen dekken de uitkering op de peildatum; werkkapitaal na de uitkering ' + eur(br.peil.werkkapitaal) + ' op de peildatum en ' + eur(br.verwacht.werkkapitaal) + ' op de verwachte balans.') }
+            ? 'de liquide middelen op de peildatum (' + eur(s.balansPeil.liquide) + ') dekken ' + (br.rc.actief ? 'het deel van de uitkering in geld (' + eur(br.rc.kasUit) + ')' : 'de uitkering') + ' niet.'
+            : 'liquide middelen dekken ' + (br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering') + ' op de peildatum; werkkapitaal na de uitkering ' + eur(br.peil.werkkapitaal) + ' op de peildatum en ' + eur(br.verwacht.werkkapitaal) + ' op de verwachte balans.') }
       : { ok: lp.geslaagd, txt: '<strong>Liquiditeitsprognose over ' + lp.maanden + ' maanden (art. 2:216 lid 2 BW):</strong> ' + (lp.geslaagd
         ? 'doorstaan — ' + liqDetail + ', eindstand ' + eur(lp.eindstand) + '.'
         : (lp.binnenPeriode ? 'niet doorstaan — ' + liqDetail + '.' : 'onvolledig — de uitkering valt buiten de prognoseperiode.')) }
@@ -2568,7 +2855,7 @@ function renderConclusie(s, bt, lp, v, status, br) {
     c.appendChild(h);
     const p = el('div');
     p.innerHTML = (s.route === 'balans' && bt.geslaagd && v.fouten.length === 0)
-      ? 'De liquide middelen op de peildatum dekken de voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> niet. Volgens een modelkeuze van deze tool kan de goedkeuring dan niet op de balans steunen; dat is niet op zichzelf een strijdigheid met art. 2:216 BW. Onderbouw de goedkeuring met de maandprognose.'
+      ? 'De liquide middelen op de peildatum dekken ' + (br.rc.actief ? 'het deel van de voorgenomen uitkering dat als uitgaand geld telt, <strong>' + eur(br.rc.kasUit) + '</strong>,' : 'de voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong>') + ' niet. Volgens een modelkeuze van deze tool kan de goedkeuring dan niet op de balans steunen; dat is niet op zichzelf een strijdigheid met art. 2:216 BW. Onderbouw de goedkeuring met de maandprognose.'
       : 'De voorgenomen uitkering van <strong>' + eur(s.dividend) + '</strong> voldoet niet aan de vereisten van art. 2:216 BW zoals die uit de ingevoerde gegevens volgen.';
     b.appendChild(p);
     b.appendChild(lijst(deeltoetsen));
@@ -2585,7 +2872,7 @@ function renderConclusie(s, bt, lp, v, status, br) {
     c.appendChild(h);
     const p = el('div');
     p.innerHTML = s.route === 'balans'
-      ? 'De balanstest van lid 1 is doorstaan en de liquide middelen dekken de uitkering op de peildatum, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.'
+      ? 'De balanstest van lid 1 is doorstaan en de liquide middelen dekken ' + (br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering') + ' op de peildatum, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.'
       : 'De beide rekenkundige deeltoetsen zijn doorstaan, maar er zijn punten die het bestuur eerst moet beoordelen. De uitkomst is daarom niet zonder meer positief.';
     b.appendChild(p);
     b.appendChild(lijst(deeltoetsen));
@@ -2616,6 +2903,12 @@ function renderConclusie(s, bt, lp, v, status, br) {
     bevestigd.push(s.peb === 'ja'
       ? { ok: true, txt: 'Pensioen in eigen beheer, ODV of stamrecht aanwezig; waardering en dekking zijn afzonderlijk beoordeeld en bevestigd.' }
       : { ok: true, txt: 'Geen pensioen in eigen beheer, ODV of stamrecht in de vennootschap gemeld.' });
+    if (lp.rc.actief) {
+      const delen = [];
+      if (lp.rc.verrekend > 0) delen.push(eur(lp.rc.verrekend) + ' verrekend met een vordering op de aandeelhouder, netto na eventuele dividendbelasting en zonder aflossing van dat deel in de onderbouwing');
+      if (lp.rc.bijgeschreven > 0) delen.push(eur(lp.rc.bijgeschreven) + ' bijgeschreven op een schuld aan de aandeelhouder en als betaling bij de betaalbaarstelling meegeteld');
+      bevestigd.push({ ok: true, txt: 'Voldoening via de rekening-courant: ' + delen.join('; ') + '.' });
+    }
     b.appendChild(lijst(deeltoetsen.concat(bevestigd)));
     const na = el('div');
     na.style.marginTop = '10px';
@@ -2870,6 +3163,74 @@ function aandeelhouderRegels(s) {
   });
 }
 
+/**
+ * Alinea's over de voldoening via de rekening-courant, voor beide besluiten. Verrekening
+ * met een vordering en bijschrijving op een schuld krijgen een eigen formulering, omdat zij
+ * juridisch en boekhoudkundig iets anders zijn (zie rcVoldoening).
+ */
+function rcBesluitRegels(s, rc) {
+  const L = [];
+  if (!rc || !rc.actief || rc.regels.length === 0) return L;
+  rc.regels.forEach(r => {
+    let t;
+    if (r.wijze === 'vordering') {
+      // Verrekening werkt door een verklaring (art. 6:127 lid 1 BW); een overeenkomst met de
+      // aandeelhouder vermijdt de vraag of de vordering op hem al opeisbaar is (lid 2). De
+      // stand op een latere betaalbaarstellingsdatum is een verwachting.
+      const later = s.datumUitkering && s.datumBesluit && s.datumUitkering > s.datumBesluit;
+      t = 'De vennootschap en ' + r.naam + ' komen overeen dat het dividend van ' + r.naam + ' tot een bedrag van ' + eurD(r.bedrag) + ' wordt voldaan door verrekening met de vordering die de vennootschap in rekening-courant op ' + r.naam + ' heeft. Die vordering bedraagt ' + (later ? 'naar verwachting ' : '') + 'op de datum van betaalbaarstelling ' + eurD(r.stand) + ' en daalt door de verrekening tot ' + eurD(r.restStand) + '.';
+    } else {
+      t = 'Het dividend van ' + r.naam + ' wordt tot een bedrag van ' + eurD(r.bedrag) + ' niet uitbetaald maar bijgeschreven op de rekening-courant tussen de vennootschap en ' + r.naam + '. De vennootschap is dat bedrag vanaf de betaalbaarstelling aan ' + r.naam + ' verschuldigd.';
+    }
+    if (r.restGeld !== null && r.restGeld > 0) t += ' Het restant van ' + eurD(r.restGeld) + ' wordt in geld betaald.';
+    L.push(...wrapTekst(t, 74));
+    L.push('');
+  });
+  const geld = s.ahMetNaam.length > 1 && s.ahMetNaam.some(a => (a.rcWijze || 'geld') === 'geld');
+  if (geld) {
+    L.push(...wrapTekst('Het dividend van de overige aandeelhouders wordt in geld betaald.', 74));
+    L.push('');
+  }
+  L.push(...wrapTekst('Voor zover op de uitkering dividendbelasting moet worden ingehouden, wordt alleen het bedrag na inhouding ' + (rc.verrekend > 0 && rc.bijgeschreven > 0 ? 'verrekend of bijgeschreven' : (rc.verrekend > 0 ? 'verrekend' : 'bijgeschreven')) + '; de ingehouden dividendbelasting komt de aandeelhouder niet toe en wordt door de vennootschap op aangifte afgedragen (art. 7 Wet DB 1965).', 74));
+  L.push('');
+  return L;
+}
+
+/**
+ * Hoe de voldoening via de rekening-courant in de toets van lid 2 is verwerkt, voor
+ * paragraaf 4 van het bestuursbesluit. `waar` is "de prognose" of "de verwachte balans";
+ * `slotzin` zegt waar en wanneer het uitgaande geld is meegeteld.
+ */
+function rcLid2Regels(s, rc, waar, slotzin) {
+  const L = [];
+  const zin = [];
+  if (rc.verrekend > 0) {
+    zin.push('Van de uitkering van ' + eurD(s.dividend) + ' wordt ' + eurD(rc.verrekend) + ' voldaan door verrekening met een vordering van de vennootschap op de aandeelhouder. Daarvoor verlaat geen geld de vennootschap; de vordering in rekening-courant daalt met dat bedrag.');
+    zin.push(s.rcGeenAflossing
+      ? 'Het bestuur verklaart dat ' + waar + ' geen aflossing van het verrekende deel van die vordering bevat.'
+      : 'Niet bevestigd is dat ' + waar + ' geen aflossing van het verrekende deel van die vordering bevat. Dit moet worden nagegaan voordat de goedkeuring wordt verleend.');
+  }
+  if (rc.bijgeschreven > 0) {
+    zin.push(eurD(rc.bijgeschreven) + ' wordt bijgeschreven op de rekening-courant ten gunste van de aandeelhouder. Er gaat op dat moment geen geld uit, maar de vennootschap is dat bedrag vanaf de betaalbaarstelling verschuldigd, en behoudens een andere afspraak is die schuld opeisbaar (art. 6:38 BW). Het bestuur heeft het bedrag daarom behandeld als een betaling bij de betaalbaarstelling, alsof het direct wordt opgeëist.');
+  }
+  zin.push(slotzin
+    + (rc.verrekend === 0 || s.rcNetto ? ' Daarin zit ook de dividendbelasting die de vennootschap in geld afdraagt, voor zover die verschuldigd is.' : ''));
+  L.push(...wrapTekst(zin.join(' '), 74));
+  L.push('');
+  return L;
+}
+
+/** Korte aanduiding van de wijze van voldoening voor de kopgegevens, of null bij geld. */
+function voldoeningKort(rc) {
+  if (!rc || !rc.actief || rc.regels.length === 0) return null;
+  const delen = [];
+  if (rc.verrekend > 0) delen.push('verrekening in rekening-courant');
+  if (rc.bijgeschreven > 0) delen.push('bijschrijving in rekening-courant');
+  if (rc.bank > 0) delen.push('in geld');
+  if (delen.length === 0) return null;
+  return delen.length === 1 ? delen[0] : 'deels ' + delen.join(', deels ');
+}
+
 function maakAandeelhoudersbesluit(s, bt, lp, v) {
   _nieuweTabel('ah');
   const L = [];
@@ -2889,6 +3250,7 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   L.push(labelRegel('Aard van de uitkering', aardOmschrijving(s, true)));
   L.push(labelRegel('Bedrag', '€ ' + eur(s.dividend, { bare: true })));
   L.push(labelRegel('Betaalbaarstelling', fmtDatum(s.datumUitkering)));
+  if (voldoeningKort(lp && lp.rc)) L.push(labelRegel('Voldoening', voldoeningKort(lp.rc)));
   L.push('');
   L.push('');
   L.push('1. BESLUITVORMEND ORGAAN');
@@ -2945,7 +3307,9 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   }
   L.push(...wrapTekst('De uitkering wordt betaalbaar gesteld op ' + fmtDatum(s.datumUitkering) + ', niet eerder dan nadat het bestuur de hierna bedoelde goedkeuring heeft verleend.', 74));
   L.push('');
-  L.push('');
+  const rcRegels = rcBesluitRegels(s, lp && lp.rc);
+  if (rcRegels.length) L.push(...rcRegels);
+  else L.push('');
   L.push('4. BESTUURSGOEDKEURING (ART. 2:216 LID 2 BW)');
   L.push('');
   L.push(...wrapTekst('Dit besluit heeft geen gevolgen zolang het bestuur daaraan geen goedkeuring heeft verleend. Het bestuur weigert die goedkeuring slechts indien het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de uitkering niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden.', 74));
@@ -2976,7 +3340,10 @@ function balansrouteRegels(s, br) {
   const kol = (a, b) => padL(a, KOL) + padL(b, KOL);
   const regel = (label, a, b) => _regRij(pad(label, B) + kol(a, b), [label.trim(), a, b]);
   const bedrag = (c) => eur(c, { bare: true });
-  L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur heeft daarvoor twee balansen gebruikt: de balans per ' + fmtDatum(s.peildatum) + ' en een verwachte balans per ' + fmtDatum(s.datumVerwacht) + '. Beide zijn opgesteld zonder rekening te houden met deze uitkering; hieronder is de uitkering op beide momenten in mindering gebracht op de liquide middelen en het eigen vermogen. Bedragen in euro.', 74));
+  // Bij voldoening via de rekening-courant hoeven de liquide middelen alleen het deel te
+  // dekken dat als uitgaand geld telt (M17, rcVoldoening).
+  const uitk = (br.rc && br.rc.actief) ? 'het deel van de uitkering in geld' : 'de uitkering';
+  L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur heeft daarvoor twee balansen gebruikt: de balans per ' + fmtDatum(s.peildatum) + ' en een verwachte balans per ' + fmtDatum(s.datumVerwacht) + '. Beide zijn opgesteld zonder rekening te houden met deze uitkering; hieronder is de uitkering op beide momenten in mindering gebracht op de liquide middelen en het eigen vermogen' + (br.rc && br.rc.verrekend > 0 ? ', behalve dat het deel dat met de rekening-courantvordering op de aandeelhouder wordt verrekend niet van de liquide middelen maar van die vordering afgaat' : '') + '. Bedragen in euro.', 74));
   L.push('');
   const kopA = fmtDatum(s.peildatum).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
   const kopB = fmtDatum(s.datumVerwacht).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
@@ -2994,6 +3361,12 @@ function balansrouteRegels(s, br) {
   L.push(regel('Totaal passiva', bedrag(br.peil.totaalPassief), bedrag(br.verwacht.totaalPassief)));
   L.push(_regSep('-'.repeat(B + 2 * KOL)));
   L.push(regel('Voorgenomen uitkering', '-' + bedrag(s.dividend), '-' + bedrag(s.dividend)));
+  const rcV = br.rc && br.rc.verrekend > 0;
+  if (rcV) {
+    L.push(regel('waarvan verrekend met de rekening-courant', bedrag(br.rc.verrekend), bedrag(br.rc.verrekend)));
+    const k = br.rcPost === 'vasteActiva' ? 'vasteActivaNa' : 'vorderingenNa';
+    L.push(regel((br.rcPost === 'vasteActiva' ? 'Vaste activa' : 'Vorderingen') + ' na de verrekening', bedrag(br.peil[k]), bedrag(br.verwacht[k])));
+  }
   L.push(regel('Liquide middelen na de uitkering', bedrag(br.peil.liquideNa), bedrag(br.verwacht.liquideNa)));
   L.push(regel('Werkkapitaal na de uitkering', bedrag(br.peil.werkkapitaal), bedrag(br.verwacht.werkkapitaal)));
   L.push(regel('Eigen vermogen na de uitkering', bedrag(br.peil.evNa), bedrag(br.verwacht.evNa)));
@@ -3005,9 +3378,14 @@ function balansrouteRegels(s, br) {
   L.push('');
   L.push(...wrapTekst('Het werkkapitaal is het totaal van voorraden, vorderingen en liquide middelen na de uitkering, verminderd met de kortlopende schulden. De solvabiliteit is het eigen vermogen gedeeld door het balanstotaal, beide na de uitkering. De current ratio deelt de vlottende activa door de kortlopende schulden, de quick ratio doet dat zonder de voorraden.', 74));
   L.push('');
+  if (br.rc && br.rc.actief && br.rc.regels.length) {
+    L.push(...rcLid2Regels(s, br.rc, 'de verwachte balans', 'Als uitgaand geld voor de uitkering is ' + eurD(br.rc.kasUit) + ' op beide balansen in mindering gebracht op de liquide middelen'
+      + (br.rc.verrekend > 0 ? '; het verrekende deel is in mindering gebracht op ' + (br.rcPost === 'vasteActiva' ? 'de vaste activa' : 'de vorderingen') + ', waaronder de rekening-courantvordering staat.' : '.')));
+  }
+  const wat = (br.rc && br.rc.actief) ? 'het deel van de uitkering dat als uitgaand geld telt (' + eurD(br.rc.kasUit) + ')' : 'de uitkering';
   L.push(...wrapTekst(br.dekkingPeil
-    ? 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken de uitkering.'
-    : 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken de uitkering niet.', 74));
+    ? 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken ' + wat + '.'
+    : 'De liquide middelen op de peildatum (' + eurD(s.balansPeil.liquide) + ') dekken ' + wat + ' niet.', 74));
   L.push('');
   L.push(...wrapTekst(br.werkkapitaalOk
     ? 'Het werkkapitaal blijft na de uitkering op beide momenten positief of nul.'
@@ -3030,7 +3408,7 @@ function balansrouteRegels(s, br) {
     : 'NIET bevestigd: dat de bekende aflossingen en grote uitgaven tot de datum van de verwachte balans daarin zijn verwerkt.'), 74, '  '));
   L.push('');
   const voorwaarden = [];
-  if (!br.dekkingPeil) voorwaarden.push('de liquide middelen dekken de uitkering op de peildatum niet');
+  if (!br.dekkingPeil) voorwaarden.push('de liquide middelen dekken ' + uitk + ' op de peildatum niet');
   if (!br.werkkapitaalOk) voorwaarden.push('het werkkapitaal is na de uitkering niet op beide momenten positief');
   if (br.verwachtLiquideNegatief) voorwaarden.push('de liquide middelen zijn op de verwachte balans na de uitkering negatief');
   if (br.periodeKort) voorwaarden.push('de verwachte balans ligt minder dan ' + BALANS_MIN_MAANDEN + ' kalendermaanden na de betaalbaarstelling');
@@ -3045,7 +3423,7 @@ function balansrouteRegels(s, br) {
   if (voorwaarden.length > 0) {
     slot = 'Niet aan alle voorwaarden is voldaan om de goedkeuring op deze balansen te laten steunen: ' + voorwaarden.join('; ') + '. Voldoende eigen vermogen is een sterke aanwijzing dat de vennootschap haar opeisbare schulden kan blijven betalen, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71), en ook de verplichtingen in de periode moeten in het oordeel zijn betrokken (idem). Het bestuur legt hieronder vast hoe het de liquiditeit alsnog heeft beoordeeld, bij voorkeur met een maandelijkse liquiditeitsprognose. Zonder die beoordeling wordt de goedkeuring niet verleend.';
   } else {
-    slot = 'De liquide middelen dekken de uitkering, het werkkapitaal blijft op beide momenten positief of nul, er zijn geen signalen van betalingsproblemen en de bekende en voorzienbare verplichtingen zijn in de verwachte balans verwerkt. Voldoende eigen vermogen is onder normale bedrijfsomstandigheden een sterke aanwijzing dat de vennootschap aan de uitkeringstest voldoet, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71). Bij een onderneming zonder signalen van continuïteitsproblemen kan het bestuur ook zonder prognose voldoende inzicht hebben (NBA-handreiking 1133, p. 8). '
+    slot = 'De liquide middelen dekken ' + uitk + ', het werkkapitaal blijft op beide momenten positief of nul, er zijn geen signalen van betalingsproblemen en de bekende en voorzienbare verplichtingen zijn in de verwachte balans verwerkt. Voldoende eigen vermogen is onder normale bedrijfsomstandigheden een sterke aanwijzing dat de vennootschap aan de uitkeringstest voldoet, tenzij specifieke omstandigheden op problemen wijzen (Kamerstukken II 2006/07, 31 058, nr. 3, p. 71). Bij een onderneming zonder signalen van continuïteitsproblemen kan het bestuur ook zonder prognose voldoende inzicht hebben (NBA-handreiking 1133, p. 8). '
       + (signalen.length === 0
         ? 'Het bestuur is van oordeel dat een maandelijkse liquiditeitsprognose daarom achterwege kan blijven.'
         : 'Wel geldt: ' + signalen.join('; ') + '. Het bestuur legt hieronder vast waarom een maandelijkse liquiditeitsprognose desondanks achterwege kan blijven.');
@@ -3074,6 +3452,7 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push(labelRegel('Aard van de uitkering', aardOmschrijving(s, true)));
   L.push(labelRegel('Bedrag', '€ ' + eur(s.dividend, { bare: true })));
   L.push(labelRegel('Betaalbaarstelling', fmtDatum(s.datumUitkering)));
+  if (voldoeningKort(lp && lp.rc)) L.push(labelRegel('Voldoening', voldoeningKort(lp.rc)));
   L.push('');
   L.push('');
   L.push(meer ? '1. DE ONDERGETEKENDEN' : '1. DE ONDERGETEKENDE');
@@ -3091,7 +3470,9 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push('');
   L.push(...wrapTekst('Dat besluit heeft geen gevolgen zolang het bestuur daaraan geen goedkeuring heeft verleend (art. 2:216 lid 2 BW).', 74));
   L.push('');
-  L.push('');
+  const rcRegels = rcBesluitRegels(s, lp && lp.rc);
+  if (rcRegels.length) L.push(...rcRegels);
+  else L.push('');
   L.push('3. BEPERKTE BALANSTEST (ART. 2:216 LID 1 BW)');
   L.push('');
   L.push('Bedragen in euro, op basis van de balans per ' + fmtDatum(s.peildatum) + '.');
@@ -3219,8 +3600,12 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
     });
     L.push('');
   }
-  L.push(...wrapTekst('De uitkering is in de prognose opgenomen in ' + maandLabel(s.datumBesluit, lp.divMaand - 1) + ', overeenkomstig de voorgenomen betaalbaarstelling op ' + fmtDatum(s.datumUitkering) + '.', 74));
-  L.push('');
+  if (lp.rc && lp.rc.actief && lp.rc.regels.length) {
+    L.push(...rcLid2Regels(s, lp.rc, 'de prognose', 'Als uitgaand geld voor de uitkering is ' + eurD(lp.rc.kasUit) + ' in de prognose opgenomen in ' + maandLabel(s.datumBesluit, lp.divMaand - 1) + ', overeenkomstig de voorgenomen betaalbaarstelling op ' + fmtDatum(s.datumUitkering) + '.'));
+  } else {
+    L.push(...wrapTekst('De uitkering is in de prognose opgenomen in ' + maandLabel(s.datumBesluit, lp.divMaand - 1) + ', overeenkomstig de voorgenomen betaalbaarstelling op ' + fmtDatum(s.datumUitkering) + '.', 74));
+    L.push('');
+  }
   if (lp.kredietTelt) {
     L.push(bedragRegel('Bevestigde kredietlimiet', lp.kredietLimiet));
     L.push(bedragRegel('Laagste onbenutte kredietruimte', lp.laagsteRest));
@@ -3284,7 +3669,7 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   const conclusieTekst = (v.punten.length === 0)
     ? 'Op grond van het bovenstaande weet het bestuur niet, en behoort het redelijkerwijs niet te voorzien, dat de vennootschap na de uitkering niet zal kunnen blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur ziet daarom geen grond om de goedkeuring te weigeren.'
     : (balans
-      ? 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de balanstest van artikel 2:216 lid 1 BW ' + (bt.vanToepassing ? 'is doorstaan' : 'geen belemmering oplevert omdat zij niet van toepassing is') + ' en dat de liquide middelen de uitkering op de peildatum dekken, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Zolang die niet zijn beoordeeld, kan het bestuur op grond van de balansen niet vaststellen dat de vennootschap na de uitkering haar opeisbare schulden kan blijven betalen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.'
+      ? 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de balanstest van artikel 2:216 lid 1 BW ' + (bt.vanToepassing ? 'is doorstaan' : 'geen belemmering oplevert omdat zij niet van toepassing is') + ' en dat de liquide middelen ' + (br.rc && br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering') + ' op de peildatum dekken, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Zolang die niet zijn beoordeeld, kan het bestuur op grond van de balansen niet vaststellen dat de vennootschap na de uitkering haar opeisbare schulden kan blijven betalen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.'
       : 'Op grond van het bovenstaande komt het bestuur tot de conclusie dat de rekenkundige toetsen geen belemmering opleveren, maar dat de hierboven genoemde punten eerst nadere beoordeling vragen. Het bestuur legt de uitkomst van die beoordeling hieronder vast voordat het de goedkeuring verleent.');
   L.push(...wrapTekst(conclusieTekst, 74));
   L.push('');
@@ -3301,7 +3686,7 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push('');
   L.push('7. BESLUIT');
   L.push('');
-  L.push(...wrapTekst('Het bestuur verleent de goedkeuring als bedoeld in artikel 2:216 lid 2 BW aan het besluit tot een ' + aardOmschrijving(s, false) + ' ten bedrage van ' + eurD(s.dividend) + ', betaalbaar te stellen op ' + fmtDatum(s.datumUitkering) + '.', 74));
+  L.push(...wrapTekst('Het bestuur verleent de goedkeuring als bedoeld in artikel 2:216 lid 2 BW aan het besluit tot een ' + aardOmschrijving(s, false) + ' ten bedrage van ' + eurD(s.dividend) + ', betaalbaar te stellen op ' + fmtDatum(s.datumUitkering) + (rcRegels.length ? ' en te voldoen zoals in paragraaf 2 beschreven' : '') + '.', 74));
   L.push('');
   L.push(...wrapTekst('Het bestuur is ermee bekend dat voor de beoordeling het moment van betaalbaarstelling beslissend is. Wijzigen de omstandigheden tussen dit besluit en die datum wezenlijk, dan beoordeelt het bestuur op dat moment opnieuw of de goedkeuring in stand kan blijven, en gaat het niet tot uitkering over indien dat niet het geval is.', 74));
   L.push('');
@@ -3362,6 +3747,12 @@ const SCALAIRE_VELDEN = [
   { id: 'peildatum', soort: 'datum', label: 'Peildatum eigen vermogen' },
   { id: 'orgaan', soort: 'keuze', label: 'Bevoegd orgaan', opties: ['ava', 'enig', 'ander'] },
   { id: 'orgaanAnder', soort: 'tekst', label: 'Ander orgaan (omschrijving)' },
+  // Voldoening via de rekening-courant (29-09-2026). Optioneel met een standaardwaarde,
+  // zodat een dossierbestand van daarvoor gewoon opent als "volledig in geld".
+  { id: 'voldoening', soort: 'keuze', optioneel: true, standaard: 'geld', label: 'Wijze van voldoening', opties: ['geld', 'rc'] },
+  { id: 'rcNetto', soort: 'vink', optioneel: true, label: 'Verrekend of bijgeschreven bedrag is na inhouding van dividendbelasting' },
+  { id: 'rcGeenAflossing', soort: 'vink', optioneel: true, label: 'Geen aflossing van het verrekende deel van de vordering in prognose of verwachte balans' },
+  { id: 'rcPost', soort: 'keuze', optioneel: true, standaard: 'vorderingen', label: 'Balanspost van de rekening-courantvordering', opties: ['vorderingen', 'vasteActiva'] },
   // Anders dan de overige bedragen mag het eigen vermogen negatief zijn: art. 2:216 lid 1
   // BW stelt geen grens zonder gebonden reserves, en dat kan een negatief eigen vermogen
   // opleveren (zie README, "Beperkte balanstest"). Bij de balansroute komt de waarde
@@ -3428,6 +3819,14 @@ const KEUZE_LABELS = {
     balans: 'Balans op de peildatum en verwachte balans',
   },
   naPeriode: { nee: 'Nee', ja: 'Ja' },
+  voldoening: {
+    geld: 'Volledig in geld',
+    rc: 'Geheel of gedeeltelijk via de rekening-courant met de aandeelhouder',
+  },
+  rcPost: {
+    vorderingen: 'Vorderingen en overige vlottende activa',
+    vasteActiva: 'Vaste activa (financieel vast actief)',
+  },
   structuur: {
     enkel: 'Eén soort aandelen, geen bijzonderheden',
     bijzonder: 'Bijzondere aandelen, afwijkende rechten, certificaten of eigen aandelen',
@@ -3454,7 +3853,12 @@ function dossierUitInvoer(s, vandaag) {
     opgeslagen: vandaag,
     scalair: scalair,
     aandeelhouders: s.aandeelhouders.map(function (a) {
-      return { naam: a.naam, pct: a.pct === undefined ? null : a.pct, bedrag: a.bedrag === undefined ? null : a.bedrag };
+      return {
+        naam: a.naam, pct: a.pct === undefined ? null : a.pct, bedrag: a.bedrag === undefined ? null : a.bedrag,
+        rcWijze: a.rcWijze || 'geld',
+        rcStand: a.rcStand === undefined ? null : a.rcStand,
+        rcBedrag: a.rcBedrag === undefined ? null : a.rcBedrag,
+      };
     }),
     bestuurders: s.bestuurders.slice(),
     balansPeil: Object.assign({}, s.balansPeil),
@@ -3481,7 +3885,10 @@ function valideerScalairVeld(v, w, fouten) {
   // vóór dit veld bestond — krijgt de neutrale standaardwaarde in plaats van een
   // weigering: leeg bij tekst/datum, false bij een vink. Dat houdt oudere
   // formaatversie-1-bestanden leesbaar zonder de validatie elders te verzwakken.
-  if (v.optioneel && (w === undefined || w === null)) return v.soort === 'vink' ? false : '';
+  if (v.optioneel && (w === undefined || w === null)) {
+    if (v.soort === 'vink') return false;
+    return v.standaard !== undefined ? v.standaard : '';
+  }
   if (w === undefined || w === null) { fouten.push(v.label + ' ontbreekt'); return undefined; }
   if (v.soort === 'tekst') {
     if (typeof w !== 'string') { fouten.push(v.label + ' is geen tekst'); return undefined; }
@@ -3530,7 +3937,19 @@ function valideerAandeelhouders(lijst, fouten) {
     if (a.bedrag !== null && a.bedrag !== undefined && !isGeheelGetal(a.bedrag)) {
       fouten.push('Aandeelhouder ' + (i + 1) + ': bedrag is geen geldig bedrag'); continue;
     }
-    uit.push({ naam: a.naam, pct: (a.pct === undefined ? null : a.pct), bedrag: (a.bedrag === undefined ? null : a.bedrag) });
+    // Rekening-courant (29-09-2026): ontbreekt het veld, dan is het een ouder bestand en
+    // geldt "in geld". Een aanwezig veld moet wel geldig zijn.
+    const wijze = (a.rcWijze === undefined || a.rcWijze === null) ? 'geld' : a.rcWijze;
+    if (RC_WIJZEN.indexOf(wijze) === -1) { fouten.push('Aandeelhouder ' + (i + 1) + ': onbekende wijze van voldoening'); continue; }
+    const rcBedragOk = (w) => w === null || w === undefined || (isGeheelGetal(w) && w >= 0);
+    if (!rcBedragOk(a.rcStand)) { fouten.push('Aandeelhouder ' + (i + 1) + ': rekening-courantvordering is geen geldig bedrag'); continue; }
+    if (!rcBedragOk(a.rcBedrag)) { fouten.push('Aandeelhouder ' + (i + 1) + ': verrekend of bijgeschreven bedrag is geen geldig bedrag'); continue; }
+    uit.push({
+      naam: a.naam, pct: (a.pct === undefined ? null : a.pct), bedrag: (a.bedrag === undefined ? null : a.bedrag),
+      rcWijze: wijze,
+      rcStand: a.rcStand === undefined ? null : a.rcStand,
+      rcBedrag: a.rcBedrag === undefined ? null : a.rcBedrag,
+    });
   }
   return uit;
 }
@@ -3684,6 +4103,12 @@ function invoerRijen(s, lp) {
     let tekst = a.naam;
     if (a.pct !== null && a.pct !== undefined) tekst += ', ' + (a.pct * 100).toFixed(2).replace('.', ',') + '%';
     if (a.bedrag !== null && a.bedrag !== undefined) tekst += ', ' + eur(a.bedrag);
+    if (s.voldoening === 'rc' && a.rcWijze === 'vordering') {
+      tekst += '; verrekend met rekening-courantvordering: ' + (a.rcBedrag === null ? '—' : eur(a.rcBedrag))
+        + ' (vordering op de betaalbaarstellingsdatum ' + (a.rcStand === null ? '—' : eur(a.rcStand)) + ')';
+    } else if (s.voldoening === 'rc' && a.rcWijze === 'schuld') {
+      tekst += '; bijgeschreven op rekening-courantschuld: ' + (a.rcBedrag === null ? '—' : eur(a.rcBedrag));
+    }
     uit.push({ label: 'Aandeelhouder ' + (i + 1), tekst: tekst });
   });
   s.bestuurders.forEach(function (b, i) { uit.push({ label: 'Bestuurder ' + (i + 1), tekst: b }); });
@@ -3728,9 +4153,17 @@ function uitkomstRijen(s, bt, lp, pd, br, v, status) {
   uit.push(regelBedragCent('Eigen vermogen na de uitkering', bt.evNa));
   uit.push(regelBedragCent('Resterende uitkeringsruimte na de uitkering', bt.restRuimte));
 
+  const rc = (br && br.rc) || (lp && lp.rc);
+  if (rc && rc.actief) {
+    uit.push({ label: 'Wijze van voldoening', tekst: keuzeTekst('voldoening', 'rc') });
+    uit.push(regelBedragCent('Verrekend met een rekening-courantvordering op de aandeelhouder (geen betaling)', rc.verrekend));
+    uit.push(regelBedragCent('Bijgeschreven op een rekening-courantschuld aan de aandeelhouder (telt als betaling, M23)', rc.bijgeschreven));
+    uit.push(regelBedragCent('Uitgaand geld voor de uitkering in de toets van lid 2', rc.kasUit));
+  }
+
   if (s.route === 'balans' && br) {
     uit.push({ label: 'Onderbouwing lid 2', tekst: 'Balans op de peildatum en verwachte balans' });
-    uit.push({ label: 'Liquide middelen op de peildatum dekken de uitkering', tekst: br.dekkingPeil ? 'Ja' : 'Nee' });
+    uit.push({ label: 'Liquide middelen op de peildatum dekken ' + (br.rc && br.rc.actief ? 'het deel van de uitkering in geld' : 'de uitkering'), tekst: br.dekkingPeil ? 'Ja' : 'Nee' });
     [['peil', 'peildatum'], ['verwacht', 'verwachte balans']].forEach(function (paar) {
       const m = br[paar[0]], naam = paar[1];
       uit.push(regelBedragCent('Werkkapitaal na de uitkering (' + naam + ')', m.werkkapitaal));
@@ -3785,6 +4218,9 @@ const VINDPLAATSEN = [
   'Art. 2:216 lid 3 BW — bestuurders zijn jegens de vennootschap hoofdelijk verbonden voor het tekort dat door de uitkering is ontstaan, met wettelijke rente; de ontvanger kan tot vergoeding gehouden zijn tot maximaal het ontvangen bedrag of de ontvangen waarde.',
   'Art. 2:216 lid 11 BW — bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet; deze tool toetst alleen uitkeringen in geld.',
   'Art. 2:373 lid 4 BW — de wettelijke reserves zijn limitatief opgesomd; agio hoort daar niet bij.',
+  'Art. 6:127 lid 1 BW — bij verrekening gaan beide verbintenissen teniet tot hun gemeenschappelijk beloop; het dividend kan dus niet voor meer worden verrekend dan de vordering van de vennootschap op de aandeelhouder.',
+  'Art. 6:38 BW — is geen tijd voor de nakoming bepaald, dan kan terstond nakoming worden gevorderd; een rekening-courantschuld aan de aandeelhouder is dus behoudens een andere afspraak opeisbaar.',
+  'Art. 7 lid 1, 2 en 4 Wet DB 1965 — dividendbelasting wordt geheven door inhouding op de opbrengst door de vennootschap en op aangifte afgedragen; alleen het bedrag na inhouding kan met de rekening-courant worden verrekend of daarop worden bijgeschreven.',
   'De beoordeling van lid 2 strekt zich in de regel uit over ongeveer een jaar vanaf de uitkering (Kamerstukken II 2006/07, 31 058, nr. 3, p. 30 en 71; Kamerstukken I 2011/12, 31 058/32 426, C, p. 12); dat is een uitgangspunt, geen wettelijk maximum.',
   'Beslissend voor de aansprakelijkheid is het moment van betaalbaarstelling (Kamerstukken I 2011/12, 31 058/32 426, C, p. 14).',
   'Zonder wettelijke of statutaire reserves stelt lid 1 geen bovengrens en mag het eigen vermogen door de uitkering zelfs negatief worden (Kamerstukken I 2011/12, 31 058, E, p. 7 en p. 13-14).',
@@ -3796,12 +4232,13 @@ const MODELKEUZES = [
   'De werkkapitaaltoets van de balansroute (M16) en de roodgrens bij onvoldoende liquide middelen op de peildatum (M17) zijn modelkeuzes van deze tool en volgen niet rechtstreeks uit een bron.',
   'Een verwachte balans van ten minste elf kalendermaanden na de betaalbaarstelling (M19), oranje bij een negatieve verwachte liquiditeit (M20), de eis dat een balans moet sluiten (M21) en het signaal bij een verwacht verlies (M22) zijn eveneens modelkeuzes zonder eigen bron.',
   'De DK-normen (solvabiliteit 20%, current ratio 1, quick ratio 1) zijn interne kengetallen en geen wettelijke eis; eronder wordt de uitkomst oranje, nooit rood.',
+  'Een bijschrijving van dividend op een rekening-courantschuld aan de aandeelhouder telt in de toets van lid 2 als betaling bij de betaalbaarstelling, alsof de schuld direct wordt opgeëist (M23). Een schuld is behoudens een andere afspraak opeisbaar (art. 6:38 BW); de tool kent zo\'n afspraak geen gewicht toe.',
   'Zie update-bram-dividend-uitkeringstoets.md, §4 voor de volledige lijst modelkeuzes met hun vindplaats.',
 ];
 
 const AFBAKENING = [
   'De tool toetst uitsluitend het vennootschapsrechtelijke uitkeringsbesluit van art. 2:216 BW. Zij berekent geen dividendbelasting of inkomstenbelasting en geeft geen fiscaal advies; de fiscale signalering wijst alleen op de aandachtspunten per positie van de aandeelhouder.',
-  'De tool toetst alleen uitkeringen in geld; bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).',
+  'De tool toetst alleen uitkeringen in geld, ook als die worden voldaan door verrekening met of bijschrijving op de rekening-courant met de aandeelhouder; bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet (art. 2:216 lid 11 BW).',
   'De beoordeling van lid 2 blijft een oordeel van het bestuur; de tool structureert dat oordeel en legt het vast, maar neemt het niet over.',
   'De tool bewaart niets. Opslaan is een handeling van de gebruiker naar een plek die hij zelf kiest; er gaat geen invoer naar een server.',
 ];
@@ -4611,6 +5048,11 @@ function bereken() {
   }
   $('bvGeenSignalenWrap').classList.toggle('checked', s.bvGeenSignalen);
   $('bvVerwerktWrap').classList.toggle('checked', s.bvVerwerkt);
+  const rcAan = s.voldoening === 'rc';
+  $('rcWrap').style.display = rcAan ? 'block' : 'none';
+  $('ahRows').classList.toggle('rc-aan', rcAan);
+  $('rcNettoWrap').classList.toggle('checked', s.rcNetto);
+  $('rcGeenAflossingWrap').classList.toggle('checked', s.rcGeenAflossing);
 
   // afhankelijke velden tonen/verbergen
   $('orgaanAnderWrap').style.display = s.orgaan === 'ander' ? 'block' : 'none';
@@ -4639,6 +5081,7 @@ function bereken() {
   const v = valideer(s, bt, lp, pd, br);
   markeerAhBedragen(v);
 
+  renderRc(s, lp.rc);
   renderBalans(s, bt);
   renderPrognose(s, lp);
   renderBalansroute(s, br);
@@ -4717,6 +5160,10 @@ function zetInvoer(inv) {
   $('peildatum').value = inv.peildatum;
   document.querySelectorAll('input[name="orgaan"]').forEach((r) => { r.checked = r.value === inv.orgaan; });
   $('orgaanAnder').value = inv.orgaanAnder;
+  document.querySelectorAll('input[name="voldoening"]').forEach((r) => { r.checked = r.value === inv.voldoening; });
+  $('rcNetto').checked = inv.rcNetto;
+  $('rcGeenAflossing').checked = inv.rcGeenAflossing;
+  $('rcPost').value = inv.rcPost;
   $('eigenVermogen').value = eur(inv.eigenVermogen, { bare: true });
   $('verplichteReserves').value = eur(inv.reserves, { bare: true });
   $('dividend').value = eur(inv.dividend, { bare: true });
@@ -4755,6 +5202,9 @@ function zetInvoer(inv) {
     row.querySelector('.ah-naam').value = a.naam;
     row.querySelector('.ah-pct').value = a.pct === null ? '' : String(a.pct);
     row.querySelector('.ah-bedrag').value = a.bedrag === null ? '' : eur(a.bedrag, { bare: true });
+    row.querySelector('.ah-rcwijze').value = a.rcWijze || 'geld';
+    row.querySelector('.ah-rcstand').value = (a.rcStand === null || a.rcStand === undefined) ? '' : eur(a.rcStand, { bare: true });
+    row.querySelector('.ah-rcbedrag').value = (a.rcBedrag === null || a.rcBedrag === undefined) ? '' : eur(a.rcBedrag, { bare: true });
     $('ahRows').appendChild(row);
   });
   $('bestRows').textContent = '';
