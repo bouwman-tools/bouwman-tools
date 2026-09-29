@@ -19,13 +19,15 @@ body{
   margin:0; background:var(--vlak-2); color:var(--inkt);
   font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;
 }
-header.kop{
+/* De bedieningsrij direct onder de kopbalk. Hij plakt onder de kopbalk (ongeveer 88px hoog);
+   op een smal scherm loopt de kopbalk over twee regels en plakt de rij niet. */
+.bediening{
   background:var(--vlak); border-bottom:1px solid var(--lijn);
-  padding:14px 20px; position:sticky; top:0; z-index:20;
+  padding:14px 20px; position:sticky; top:88px; z-index:20;
   display:flex; gap:20px; align-items:center; flex-wrap:wrap;
 }
-header.kop h1{font-size:17px; margin:0; font-weight:600; letter-spacing:-.01em}
-header.kop .rest{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+@media (max-width:700px){ .bediening{position:static} }
+.bediening .rest{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 .modus{display:flex; border:1px solid var(--lijn-zwaar); border-radius:6px; overflow:hidden}
 .modus button{
   border:0; background:var(--vlak); padding:7px 14px; cursor:pointer;
@@ -122,7 +124,7 @@ details.uitleg p{margin:6px 0}
 @media print{
   :root{--vlak-2:#fff; --vlak-3:#fff; --accent-zacht:#fff}
   body{background:#fff}
-  header.kop, main, .noprint{display:none !important}
+  .bediening, main, .noprint{display:none !important}
   #dossierstuk{display:block; padding:0; font-size:11px}
   #dossierstuk h1{font-size:16px; margin:0 0 2px}
   #dossierstuk h2{
@@ -146,11 +148,130 @@ details.uitleg p{margin:6px 0}
   #dossierstuk .voet{margin-top:12px; border-top:1px solid var(--lijn); padding-top:5px}
   @page{size:A4 landscape; margin:12mm}
 }
+
+/* De kopbalk even breed als de inhoud eronder. */
+:root { --bt-kopbalk-breedte: 1500px; }
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
 </style>
 </head>
 <body>
-<header class="kop">
-  <h1>DCF-rekentool</h1>
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" rx="2" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+          <path d="M7 10h6M10 7v6" stroke="#1E2D4E" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="bt-kopbalk-titel">DCF-rekentool</h1>
+        <div class="bt-kopbalk-sub">Waardering van een onderneming volgens de discounted-cashflowmethode</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:30</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+<div class="bediening noprint">
   <div class="modus" role="group" aria-label="Modus">
     <button type="button" id="modus-eenvoudig" aria-pressed="true">Snelle scan</button>
     <button type="button" id="modus-uitgebreid" aria-pressed="false">Uitgebreid</button>
@@ -174,7 +295,7 @@ details.uitleg p{margin:6px 0}
     <button type="button" class="actie" id="knop-laden">Casus laden</button>
     <input type="file" id="bestand-laden" accept="application/json" class="verborgen">
   </div>
-</header>
+</div>
 
 <main>
   <div id="meldingen"></div>
