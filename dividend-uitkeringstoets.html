@@ -2716,13 +2716,29 @@ let _tabelRegister = _tabelRegisters.ah;
 function _nieuweTabel(doc) { _tabelRegister = _tabelRegisters[doc]; _tabelRegister.clear(); }
 function _regRij(regel, cellen, uitlijn) { _tabelRegister.set(regel, { soort: 'rij', cellen: cellen, uitlijn: uitlijn }); return regel; }
 function _regSep(regel) { _tabelRegister.set(regel, { soort: 'sep' }); return regel; }
+/**
+ * Bedragregel waarvan het label in de platte tekst over twee regels loopt. In de platte
+ * tekst verandert niets; in de afdruk en op het klembord wordt het één tabelrij met het
+ * volledige label, en valt de tweede regel weg. Zonder dit stond de eerste regel als losse
+ * alinea in een ander lettertype boven de tabel en brak de tabel in tweeën.
+ */
+function bedragRegelTweeRegels(regel1, regel2, cents, teken) {
+  const tweede = bedragRegel('    ' + regel2, cents, undefined, teken);
+  const bedrag = _tabelRegister.get(tweede).cellen[1];
+  _tabelRegister.set(tweede, { soort: 'vervolg' });
+  return [_regRij(regel1, [regel1 + ' ' + regel2, bedrag]), tweede];
+}
 /** Zoekt een afdrukregel op in het register van dit document, ook als de aanroeper er zelf nog een inspringing voor zette. */
 function _tabelOpzoek(doc, regel) {
   const register = _tabelRegisters[doc];
   if (!register) return null;
   if (register.has(regel)) return { indent: 0, info: register.get(regel) };
-  const kaal = regel.replace(/^ +/, '');
-  if (register.has(kaal)) return { indent: regel.length - kaal.length, info: register.get(kaal) };
+  // Stap voor stap inkorten en niet in een keer alle spaties weghalen: een scheidingslijn
+  // begint zelf met spaties (tot aan de bedragkolom), en die horen bij de geregistreerde regel.
+  for (let i = 1; i < regel.length && regel[i - 1] === ' '; i++) {
+    const kaal = regel.slice(i);
+    if (register.has(kaal)) return { indent: i, info: register.get(kaal) };
+  }
   return null;
 }
 
@@ -3035,8 +3051,7 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
   L.push('Bedragen in euro, op basis van de balans per ' + fmtDatum(s.peildatum) + '.');
   L.push('');
   L.push(bedragRegel('Eigen vermogen per ' + fmtDatum(s.peildatum), s.eigenVermogen));
-  L.push('Af: reserves die krachtens de wet of de statuten moeten');
-  L.push(bedragRegel('    worden aangehouden', s.reserves, undefined, '-'));
+  L.push(...bedragRegelTweeRegels('Af: reserves die krachtens de wet of de statuten moeten', 'worden aangehouden', s.reserves, '-'));
   L.push(scheidingsRegel());
   L.push(bedragRegel('Maximale uitkeringsruimte', bt.ruimte));
   L.push(bedragRegel('Voorgenomen uitkering', s.dividend, undefined, '-'));
@@ -4047,18 +4062,49 @@ function meldStatus(which, tekst, ok) {
 }
 
 /**
- * Bouwt de HTML-tegenhanger van de platte besluittekst, met hetzelfde niet-
- * proportionele lettertype en dezelfde regelindeling als op het scherm. Zonder
- * deze HTML-variant op het klembord valt Word terug op zijn eigen proportionele
- * lettertype; de spatie-uitgelijnde kolommen (bedragen, balansregels) en de
- * handmatige regelafbreking op 74 tekens schuiven dan uit elkaar.
+ * Bouwt de HTML-tegenhanger van de besluittekst voor het klembord, met dezelfde opbouw
+ * als de afdruk: kopjes, alinea's en de bedragen en balansregels als echte tabel. Eerder
+ * ging de tekst als spatie-uitgelijnd blok in Consolas mee; Word hield die spaties en het
+ * lettertype niet vast, waardoor de kolommen na het plakken uit elkaar vielen. De opmaak
+ * staat hier inline op elk element, want Word negeert bij plakken een stijlblad met klassen.
+ * Een scheidingsregel wordt een lijn boven de volgende rij in plaats van een lege rij, omdat
+ * Word een lege tabelrij op volle regelhoogte tekent.
  */
-function alsHtml(tekst) {
-  const escaped = String(tekst)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-  return '<div style="font-family: Consolas, \'Courier New\', monospace; font-size: 10.5pt; white-space: pre-wrap;">'
-    + escaped + '</div>';
+function klembordHtml(which, tekst) {
+  const d = document.implementation.createHTMLDocument('');
+  const wrap = d.createElement('div');
+  printBlokken(tekst).forEach(n => wrap.appendChild(printNode(d, which, n)));
+  const stijl = (el, css) => { el.setAttribute('style', css + (el.getAttribute('style') ? ';' + el.getAttribute('style') : '')); };
+  const LETTER = 'font-family:Arial,sans-serif;color:#111111';
+  stijl(wrap, LETTER + ';font-size:10.5pt;line-height:1.5');
+  wrap.querySelectorAll('p').forEach(p => stijl(p, LETTER + ';font-size:10.5pt;margin:0 0 8pt 0'
+    + (p.classList.contains('li') ? ';margin-left:16pt;text-indent:-16pt' : '')));
+  wrap.querySelectorAll('h2').forEach(h => stijl(h, LETTER + ';font-size:10.5pt;font-weight:bold;margin:16pt 0 6pt 0'));
+  wrap.querySelectorAll('.titel').forEach(t => {
+    stijl(t, 'margin:0 0 14pt 0');
+    if (t.firstElementChild) stijl(t.firstElementChild, 'font-weight:bold;font-size:12pt');
+  });
+  wrap.querySelectorAll('.regels').forEach(r => stijl(r, 'margin:0 0 8pt 0'));
+  wrap.querySelectorAll('table.tabel').forEach(tabel => {
+    tabel.setAttribute('border', '0');
+    tabel.setAttribute('cellspacing', '0');
+    tabel.setAttribute('cellpadding', '0');
+    tabel.setAttribute('width', '100%');
+    stijl(tabel, 'border-collapse:collapse;width:100%;margin:0 0 8pt 0');
+    Array.from(tabel.querySelectorAll('tr.sep')).forEach(sep => {
+      const volgende = sep.nextElementSibling, vorige = sep.previousElementSibling;
+      if (volgende && !volgende.classList.contains('sep')) volgende.querySelectorAll('td').forEach(td => stijl(td, 'border-top:1pt solid #333333'));
+      else if (vorige) vorige.querySelectorAll('td').forEach(td => stijl(td, 'border-bottom:1pt solid #333333'));
+      sep.remove();
+    });
+    tabel.querySelectorAll('td').forEach(td => {
+      const num = td.classList.contains('num');
+      if (num) td.setAttribute('align', 'right');
+      stijl(td, LETTER + ';font-size:9.5pt;line-height:1.3;vertical-align:top;padding:1.5pt ' + (num ? '0' : '4pt') + ' 1.5pt 0'
+        + (num ? ';text-align:right;white-space:nowrap' : ''));
+    });
+  });
+  return wrap.outerHTML;
 }
 
 async function kopieer(which) {
@@ -4077,7 +4123,7 @@ async function kopieer(which) {
       if (window.ClipboardItem) {
         await navigator.clipboard.write([new ClipboardItem({
           'text/plain': new Blob([tekst], { type: 'text/plain' }),
-          'text/html': new Blob([alsHtml(tekst)], { type: 'text/html' })
+          'text/html': new Blob([klembordHtml(which, tekst)], { type: 'text/html' })
         })]);
       } else {
         await navigator.clipboard.writeText(tekst);
@@ -4185,6 +4231,7 @@ function printTabel(d, doc, regels) {
       frag.appendChild(p);
       return;
     }
+    if (gevonden.info.soort === 'vervolg') return;
     if (!tabel) { tabel = d.createElement('table'); tabel.className = 'tabel'; frag.appendChild(tabel); }
     const tr = d.createElement('tr');
     if (gevonden.info.soort === 'sep') {
@@ -4744,7 +4791,7 @@ function switchTab(tab) {
 <footer class="bt-page-footer">
   <div class="bt-privacy"><div class="bt-privacy-dot green"></div>Rekent volledig in uw browser — uw invoer wordt niet verstuurd en niet opgeslagen</div>
   <div class="bt-footerbrand"><div class="dot"></div><span>een <strong>bouwman.tools</strong> product</span><div class="tip">Gebouwd door Sylvain Bouwman</div></div>
-  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 28 sep 2026, 15:45</div>
+  <div style="width:100%;text-align:right;font-size:10px;color:#94a3b8;margin-top:2px;"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 11:38</div>
 </footer>
 </body>
 </html>
