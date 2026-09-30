@@ -77,6 +77,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-26 |
 | 🟢 live | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🔵 concept | Organogram en structuursignalen | `/organogram-structuur.html` | bouwman-tools/organogram-structuur | **nee** | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟢 live | Pensioen in eigen beheer en oudedagsverplichting | `/pensioen-odv.html` | bouwman-tools/pensioen-odv | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | 2026-09-29 |
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
@@ -91,11 +92,21 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Earningsstripping**: Rekent de renteaftrekbeperking van art. 15b Wet Vpb door: aftrekruimte, niet-aftrekbaar saldo aan renten en voortwenteling (boekjaren 2019–2026)
 - **Gebruikelijk loon**: Toetst het DGA-loon aan de wettelijke norm: vergelijkingsloon, hoogste werknemer en afroommethode
 - **Herstructurering**: Loopt herstructureringstrajecten stap voor stap langs en adviseert met AI
+- **Organogram en structuursignalen**: Voer een concernstructuur in met personen, rechtspersonen en percentages; de tool tekent het organogram en signaleert mogelijke UBO's, aanmerkelijk belang en een mogelijke fiscale eenheid voor de Vpb en de btw
 - **Pensioen in eigen beheer en oudedagsverplichting**: Waardeert een premievrij pensioen in eigen beheer fiscaal op een balansdatum, met ouderdoms- en partnerpensioen en de waarde op de volgende balansdata, en rekent een oudedagsverplichting door: de oprenting in de uitstelfase, de uitkeringsperiode en de termijnen, de oprenting in de uitkeringsfase en de stand per 31 december
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
 - **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
 - **Vermogen van box 3 naar de BV**: Vergelijkt wat er overblijft van beleggingen of andere bezittingen in box 3, na inbreng in een eigen BV of na overdracht tegen een lening aan de BV (tbs): twintig jaar vooruit met de overgang naar werkelijk rendement, en twee jaar rond de peildatum met de jojo via de BV of de lening
+
+### Wettelijke verwijzingen: Organogram en structuursignalen
+
+- [Uitvoeringsbesluit Wwft 2018, Artikel 3 \(versie 30 april 2026\)](https://wetten.overheid.nl/BWBR0041193/2026-04-30)
+- [Wet inkomstenbelasting 2001, Artikel 4.6 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 4.10 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet op de vennootschapsbelasting 1969, Artikel 15 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002672/2026-01-01)
+- [Wet op de omzetbelasting 1968, Artikel 7 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002629/2026-01-01)
+- [Burgerlijk Wetboek Boek 2, Artikel 24a \(versie 1 juli 2026\)](https://wetten.overheid.nl/BWBR0003045/2026-07-01)
 
 ### Wettelijke verwijzingen: Pensioen in eigen beheer en oudedagsverplichting
 
