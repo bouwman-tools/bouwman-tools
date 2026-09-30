@@ -130,7 +130,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-23 |
-| 🟢 live | BOR bij schenken | `/bor-schenken.html` | bouwman-tools/bor-schenken | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | BOR bij schenken | `/bor-schenken.html` | bouwman-tools/bor-schenken | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Bruto-netto 2026 | `/bruto-netto-2026.html` | Sylvainbouwman/bruto-netto-2026 | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-24 |
 | 🟢 live | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
@@ -237,13 +237,6 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Wet inkomstenbelasting 2001, Artikel 3.30a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet inkomstenbelasting 2001, Artikel 3.79a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet op belastingen van rechtsverkeer, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- BOR bij schenken (`bor-schenken.html`)
 
 ## Workers
 
