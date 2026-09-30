@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organogram en structuursignalen</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
+
+/* Tooleigen opmaak. De kopbalk even breed als de inhoud eronder (main). */
+:root { --bt-kopbalk-breedte: 1060px; }
+.knoppenrij { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+button.klein { padding: 7px 14px; font-size: 13px; }
+button.wis { padding: 4px 10px; background: transparent; color: var(--dim); border: 1px solid var(--rand); font-size: 15px; line-height: 1; }
+button.wis:hover { color: var(--wit); background: var(--vlak); }
+table.invoer td { padding: 4px 4px; vertical-align: middle; }
+table.invoer input, table.invoer select { padding: 6px 8px; font-size: 13.5px; }
+table.invoer td:last-child { width: 40px; text-align: right; }
+.kaart > div > table { display: block; overflow-x: auto; }
+#uit-signalen h3, #dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#uit-signalen h3:first-child { margin-top: 0; }
+.signaal { margin-bottom: 14px; }
+.signaal .melding { margin: 8px 0 0; }
+
+/* Organogram */
+.organogram { overflow-x: auto; }
+svg.og { display: block; max-width: 100%; height: auto; margin: 6px auto 0; font-family: inherit; }
+.og-vak { stroke-width: 1.5; }
+.og-rp { fill: var(--navy-light); stroke: var(--rand); }
+.og-persoon { fill: var(--navy); stroke: var(--groen); }
+.og-fe { stroke: var(--geel); stroke-width: 2; stroke-dasharray: 5 3; }
+.og-naam { fill: var(--wit); font-size: 13px; font-weight: 700; }
+.og-etiket { fill: var(--dim); font-size: 11px; }
+.og-ubo { fill: var(--groen); font-weight: 700; }
+.og-lijn { fill: none; stroke: rgba(255,255,255,0.45); stroke-width: 1.5; }
+.og-pijlpunt, .og-pijl-afdrukpunt { fill: rgba(255,255,255,0.6); }
+.og-pct { fill: var(--wit); font-size: 12px; font-weight: 700; paint-order: stroke; stroke: var(--navy-card); stroke-width: 4px; }
+.og-relatie { fill: none; stroke: var(--groen); stroke-width: 1.2; stroke-dasharray: 4 4; }
+.og-rel-tekst { fill: var(--groen); font-size: 10.5px; }
+
+@media print {
+  .og-rp { fill: #fff; stroke: #24304A; }
+  .og-persoon { fill: #fff; stroke: #24304A; }
+  .og-fe { stroke: #000; }
+  .og-naam { fill: #000; }
+  .og-etiket, .og-rel-tekst { fill: #333; }
+  .og-ubo { fill: #000; }
+  .og-lijn, .og-relatie { stroke: #555; }
+  .og-pijlpunt, .og-pijl-afdrukpunt { fill: #555; }
+  .og-pct { fill: #000; stroke: #fff; }
+  .organogram { overflow: visible; page-break-inside: avoid; }
+  .kaart > div > table { display: table; overflow: visible; }
+  #dossierstuk .signaal .melding { background: #fff; }
+  #dossierstuk .toelichting { color: #333; }
+}
+</style>
+</head>
+<body>
+
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="7" y="2" width="6" height="4" rx="1" stroke="#1E2D4E" stroke-width="1.5"/>
+          <rect x="2" y="14" width="6" height="4" rx="1" stroke="#1E2D4E" stroke-width="1.5"/>
+          <rect x="12" y="14" width="6" height="4" rx="1" stroke="#1E2D4E" stroke-width="1.5"/>
+          <path d="M10 6v4M5 14v-4h10v4" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+        </svg>
+      </div>
+      <div>
+        <div class="bt-kopbalk-titel">Organogram en structuursignalen</div>
+        <div class="bt-kopbalk-sub">UBO, aanmerkelijk belang en mogelijke fiscale eenheid uit de ingevoerde structuur</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 30 sep 2026, 11:46</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+
+<main>
+  <h1 class="noprint">Organogram en structuursignalen</h1>
+  <p class="inleiding noprint">
+    Voer de personen en rechtspersonen in en wie welk percentage van wie houdt. De tool tekent het
+    organogram en geeft signalen: wie mogelijk UBO is, wie een aanmerkelijk belang heeft en waar een
+    fiscale eenheid voor de vennootschapsbelasting of de btw mogelijk is. Het zijn signalen, geen
+    conclusies: de tool ziet alleen wat is ingevoerd en toetst de overige voorwaarden niet.
+  </p>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="knop-afdrukken">Afdrukken voor het dossier</button>
+    <button type="button" id="knop-export" class="tweede">Exporteren naar Excel</button>
+    <button type="button" id="knop-opslaan" class="tweede">Opslaan als bestand</button>
+    <button type="button" id="knop-openen" class="tweede">Bestand openen</button>
+    <button type="button" id="knop-voorbeeld" class="tweede">Voorbeeld laden</button>
+    <button type="button" id="knop-leeg" class="tweede">Leeg beginnen</button>
+    <input type="file" id="bestand-openen" accept=".json,application/json" class="verborgen">
+  </div>
+  <div id="dossiermelding" class="noprint"></div>
+
+  <div class="kaart noprint">
+    <h2>Algemeen</h2>
+    <p class="toelichting">
+      Opslaan als bestand bewaart de invoer op een plek die u zelf kiest, bijvoorbeeld de klantmap.
+      De tool bewaart zelf niets en verstuurt niets. Zij doet ook geen Wwft-registratie: die blijft in
+      de Wwft-check van de kantooromgeving.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Personen en rechtspersonen</h2>
+    <p class="toelichting">Iedereen die in de structuur voorkomt: aandeelhouders, bestuurders en de vennootschappen zelf.</p>
+    <div id="tabel-entiteiten"></div>
+    <div class="knoppenrij">
+      <button type="button" class="tweede klein" data-voegtoe="persoon">Persoon toevoegen</button>
+      <button type="button" class="tweede klein" data-voegtoe="bv">Rechtspersoon toevoegen</button>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Belangen</h2>
+    <p class="toelichting">
+      Per regel: wie houdt welk deel van het geplaatste kapitaal van welke rechtspersoon. Laat het
+      stemrecht leeg als het gelijk is aan het kapitaalpercentage.
+    </p>
+    <div id="tabel-belangen"></div>
+    <div class="knoppenrij"><button type="button" class="tweede klein" data-voegtoe="belang">Belang toevoegen</button></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Relaties tussen personen</h2>
+    <p class="toelichting">
+      Nodig voor het aanmerkelijk belang: de partner telt mee (art. 4.6 Wet IB 2001) en via de
+      meetrekregeling ook bloed- en aanverwanten in de rechte lijn (art. 4.10). Aanverwanten leidt de
+      tool zelf af uit partner en bloedverwant.
+    </p>
+    <div id="tabel-relaties"></div>
+    <div class="knoppenrij"><button type="button" class="tweede klein" data-voegtoe="relatie">Relatie toevoegen</button></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Bestuurders</h2>
+    <p class="toelichting">Natuurlijke personen die bestuurder zijn. Nodig voor de pseudo-UBO als niemand meer dan 25% heeft.</p>
+    <div id="tabel-bestuurders"></div>
+    <div class="knoppenrij"><button type="button" class="tweede klein" data-voegtoe="bestuurder">Bestuurder toevoegen</button></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>UBO volgens aangeleverd uittreksel</h2>
+    <p class="toelichting">
+      Optioneel. Neem over wie op het UBO-uittreksel van de klant staat; de tool legt dat naast haar
+      eigen afleiding en meldt een verschil. Het uittreksel zelf hoort in het dossier, niet in de tool.
+    </p>
+    <div id="tabel-uittreksel"></div>
+    <div class="knoppenrij"><button type="button" class="tweede klein" data-voegtoe="uittreksel">Regel toevoegen</button></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Organogram</h2>
+    <div id="uit-meldingen"></div>
+    <div id="uit-organogram" class="organogram"></div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Signalen</h2>
+    <div id="uit-signalen"></div>
+  </div>
+
+  <div class="kaart" id="dossierstuk"></div>
+</main>
+
+<script>
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// Afleidingen uit een ingevoerde concernstructuur: UBO, aanmerkelijk belang en de
+// percentagetoets van de fiscale eenheid Vpb en btw. Elke uitkomst is een SIGNAAL: de tool
+// ziet alleen wat is ingevoerd en toetst de overige voorwaarden van die regelingen niet.
+//
+// Percentages zijn fracties (0,25 is 25%). Een belang heeft een kapitaalpercentage (van het
+// geplaatste of nominaal gestorte kapitaal) en een stemrechtpercentage; leeg stemrecht is
+// gelijk aan het kapitaalpercentage.
+
+// ------------------------------------------------------------------ drempels en vindplaatsen
+//
+// Vindplaatsen getoetst door de bron-controleur op 30-09-2026 tegen de wettekst die toen gold;
+// zie BRONNEN.md voor versie, link en oordeel per waarde.
+
+const DREMPELS = {
+  // UBO: MEER DAN 25% van de aandelen, stemrechten of eigendomsbelang, direct of indirect.
+  // Art. 3 lid 1 onder a, 1°, eerste streepje, Uitvoeringsbesluit Wwft 2018 (BWBR0041193,
+  // versie 30-04-2026). Precies 25% is dus geen UBO.
+  ubo: 0.25,
+  // Aanmerkelijk belang: TEN MINSTE 5% van het geplaatste kapitaal, direct of indirect, alleen
+  // of samen met de partner. Art. 4.6 onder a Wet IB 2001 (BWBR0011353, versie 21-02-2026).
+  // Precies 5% is dus al een aanmerkelijk belang.
+  ab: 0.05,
+  // Fiscale eenheid Vpb: juridische en economische eigendom van TEN MINSTE 95% van de aandelen
+  // in het nominaal gestorte kapitaal, met ten minste 95% van de stemrechten (en recht op ten
+  // minste 95% van winst en vermogen, dat de tool niet apart ziet). Art. 15 lid 1 Wet Vpb 1969
+  // (BWBR0002672, versie 01-01-2026); middellijk bezit via een lid van de eenheid: lid 3.
+  feVpb: 0.95,
+  // Fiscale eenheid btw, financiële verwevenheid: de MEERDERHEID (meer dan 50%) van de aandelen
+  // met de zeggenschap, direct of indirect in één en dezelfde handen. Art. 7 lid 4 Wet OB 1968
+  // (BWBR0002629, versie 01-01-2026) met het Beleidsbesluit belastingplicht en fiscale eenheid
+  // omzetbelasting, Stcrt. 2024, 38545, par. 3.3.1.
+  feBtw: 0.5,
+  // Beheersen van een tussenhouder bij de UBO-toets via zeggenschap: MEER DAN de helft van de
+  // stemrechten, zelf of via beheerste rechtspersonen. Art. 3 lid 1 onder a, 1°, tweede
+  // streepje Uitvoeringsbesluit Wwft 2018 verwijst naar de voorwaarden voor consolidatie
+  // (art. 2:406 jo. 2:24a BW); art. 2:24a lid 1 onder a BW (BWBR0003045, versie 01-07-2026):
+  // meer dan de helft van de stemrechten. Getoetst door de bron-controleur op 30-09-2026:
+  // onderbouwd voor stemrechten van rechtspersonen; benoemingsrecht (lid 1 onder b),
+  // stemovereenkomsten en toerekening (lid 3 en 4) ziet de tool niet, en voor een natuurlijk
+  // persoon als beheerser is de grens een analogie. Zie BRONNEN.md.
+  beheersing: 0.5,
+};
+
+// Een kleine marge tegen afrondingsruis bij doorvermenigvuldigen (0,6 × 0,5 = 0,3 kan in
+// drijvende komma 0,30000000000000004 worden). Ruim onder 0,01 procentpunt.
+const EPS = 1e-9;
+
+const SOORTEN = {
+  persoon: 'natuurlijk persoon',
+  bv: 'besloten vennootschap (BV)',
+  nv: 'naamloze vennootschap (NV)',
+  stichting: 'stichting',
+  overig: 'overige rechtspersoon of buitenlandse entiteit',
+};
+const VENNOOTSCHAPPEN = ['bv', 'nv'];
+
+const RELATIESOORTEN = {
+  partner: 'partner (art. 1.2 Wet IB 2001)',
+  'rechte-lijn': 'bloedverwant in de rechte lijn (ouder, kind, kleinkind)',
+};
+
+// Rekenwijze van het indirecte belang voor de UBO-toets.
+//   'vermenigvuldigen': de percentages per laag worden met elkaar vermenigvuldigd en over
+//                       alle wegen opgeteld (60% van de holding × 40% = 24%);
+//   'zeggenschap':      wie een tussenhouder beheerst (meer dan 50% van de stemmen), krijgt
+//                       het volle belang van die tussenhouder toegerekend.
+//   'beide':            signaal als een van de twee boven de drempel uitkomt.
+// Geen bron geeft een rekenregel (bron-controleur 30-09-2026). De Nota van toelichting bij
+// art. 3 (Stb. 2018, 241) onderbouwt zeggenschap het best; vermenigvuldigen volgt de AMLR
+// (Verordening (EU) 2024/1624), die nog niet van toepassing is. Besluit Sylvain 30-09-2026:
+// 'beide', zodat een signaal liever een keer te veel dan te weinig verschijnt.
+const UBO_METHODEN = {
+  vermenigvuldigen: 'percentages per laag vermenigvuldigen',
+  zeggenschap: 'volle belang toerekenen via een beheerste tussenhouder',
+  beide: 'signaal als vermenigvuldigen of zeggenschap boven de drempel uitkomt',
+};
+const UBO_METHODE = 'beide';
+
+// ------------------------------------------------------------------ hulpfuncties
+
+function rond(w) { return Math.round(w * 1e10) / 1e10; }
+function boven(w, grens) { return w > grens + EPS; }
+function tenMinste(w, grens) { return w >= grens - EPS; }
+
+function stemVan(b) { return b.stemmen === null || b.stemmen === undefined ? b.kapitaal : b.stemmen; }
+
+function isPersoon(e) { return e && e.soort === 'persoon'; }
+function isVennootschap(e) { return e && VENNOOTSCHAPPEN.indexOf(e.soort) >= 0; }
+
+// ------------------------------------------------------------------ controle van de invoer
+//
+// Geeft een lijst meldingen { ernst: 'fout' | 'let-op', tekst }. Bij een fout rekent de tool
+// niets door, want dan klopt geen enkel afgeleid percentage.
+
+function controleer(invoer) {
+  const m = [];
+  const ent = invoer.entiteiten || [];
+  const bel = invoer.belangen || [];
+  const perId = {};
+  ent.forEach(function (e) {
+    if (!e.id) { m.push({ ernst: 'fout', tekst: 'Een entiteit heeft geen kenmerk.' }); return; }
+    if (perId[e.id]) m.push({ ernst: 'fout', tekst: 'Het kenmerk ' + e.id + ' komt twee keer voor.' });
+    perId[e.id] = e;
+    if (!SOORTEN[e.soort]) m.push({ ernst: 'fout', tekst: naamVan(e) + ' heeft geen geldige soort.' });
+    if (!String(e.naam || '').trim()) m.push({ ernst: 'fout', tekst: 'Een entiteit heeft geen naam.' });
+  });
+  const totaal = {};
+  const totaalStem = {};
+  bel.forEach(function (b, i) {
+    const nr = 'Belang ' + (i + 1);
+    const h = perId[b.houder], d = perId[b.in];
+    if (!h || !d) { m.push({ ernst: 'fout', tekst: nr + ': houder of deelneming ontbreekt.' }); return; }
+    if (b.houder === b.in) { m.push({ ernst: 'fout', tekst: nr + ': ' + naamVan(d) + ' kan geen aandelen in zichzelf houden in deze tool.' }); return; }
+    if (isPersoon(d)) { m.push({ ernst: 'fout', tekst: nr + ': ' + naamVan(d) + ' is een natuurlijk persoon en heeft geen aandeelhouders.' }); return; }
+    [['kapitaal', b.kapitaal], ['stemrecht', stemVan(b)]].forEach(function (p) {
+      if (typeof p[1] !== 'number' || !isFinite(p[1]) || p[1] <= 0 || p[1] > 1 + EPS) {
+        m.push({ ernst: 'fout', tekst: nr + ' (' + naamVan(h) + ' in ' + naamVan(d) + '): het ' + p[0] + 'percentage moet groter dan 0 en ten hoogste 100 zijn.' });
+      }
+    });
+    totaal[b.in] = (totaal[b.in] || 0) + (b.kapitaal || 0);
+    totaalStem[b.in] = (totaalStem[b.in] || 0) + (stemVan(b) || 0);
+  });
+  Object.keys(totaal).forEach(function (id) {
+    if (!perId[id]) return;
+    if (totaal[id] > 1 + EPS) m.push({ ernst: 'fout', tekst: 'In ' + naamVan(perId[id]) + ' is samen ' + pct(totaal[id]) + ' van het kapitaal ingevoerd, meer dan 100%.' });
+    else if (totaal[id] < 1 - EPS) m.push({ ernst: 'let-op', tekst: 'In ' + naamVan(perId[id]) + ' is ' + pct(totaal[id]) + ' van het kapitaal ingevoerd. De rest ligt bij niet ingevoerde houders; de tool rekent die niet mee.' });
+    if (totaalStem[id] > 1 + EPS) m.push({ ernst: 'fout', tekst: 'In ' + naamVan(perId[id]) + ' is samen ' + pct(totaalStem[id]) + ' van de stemrechten ingevoerd, meer dan 100%.' });
+  });
+  if (!m.some(function (x) { return x.ernst === 'fout'; })) {
+    const kring = zoekKring(ent, bel);
+    if (kring) m.push({ ernst: 'fout', tekst: 'Kringbezit: ' + kring.map(function (id) { return naamVan(perId[id]); }).join(' → ') + '. De tool rekent geen kringbezit door.' });
+  }
+  (invoer.relaties || []).forEach(function (r, i) {
+    const a = perId[r.a], b = perId[r.b];
+    if (!a || !b || !isPersoon(a) || !isPersoon(b) || r.a === r.b || !RELATIESOORTEN[r.soort]) {
+      m.push({ ernst: 'fout', tekst: 'Relatie ' + (i + 1) + ': kies twee verschillende natuurlijke personen en een soort relatie.' });
+    }
+  });
+  const partners = {};
+  (invoer.relaties || []).forEach(function (r) {
+    if (r.soort !== 'partner') return;
+    [r.a, r.b].forEach(function (id) { partners[id] = (partners[id] || 0) + 1; });
+  });
+  Object.keys(partners).forEach(function (id) {
+    if (partners[id] > 1 && perId[id]) m.push({ ernst: 'fout', tekst: naamVan(perId[id]) + ' heeft meer dan één partner ingevoerd.' });
+  });
+  (invoer.bestuurders || []).forEach(function (r, i) {
+    if (!isPersoon(perId[r.persoon]) || !perId[r.entiteit] || isPersoon(perId[r.entiteit])) {
+      m.push({ ernst: 'fout', tekst: 'Bestuurder ' + (i + 1) + ': kies een natuurlijk persoon en een rechtspersoon.' });
+    }
+  });
+  (invoer.uittreksel || []).forEach(function (r, i) {
+    if (!isPersoon(perId[r.persoon]) || !perId[r.entiteit] || isPersoon(perId[r.entiteit])) {
+      m.push({ ernst: 'fout', tekst: 'Regel ' + (i + 1) + ' van het UBO-uittreksel: kies een natuurlijk persoon en een rechtspersoon.' });
+    }
+  });
+  return m;
+}
+
+function naamVan(e) { return e ? String(e.naam || e.id) : '(onbekend)'; }
+function pct(f) { return String(Math.round(f * 1e6) / 1e4).replace('.', ',') + '%'; }
+
+// Diepte-eerst op het houdersgraaf; geeft de eerste kring als lijst kenmerken, of null.
+function zoekKring(ent, bel) {
+  const uit = {};
+  bel.forEach(function (b) { (uit[b.houder] = uit[b.houder] || []).push(b.in); });
+  const staat = {};
+  const pad = [];
+  let gevonden = null;
+  function bezoek(id) {
+    if (gevonden) return;
+    staat[id] = 1; pad.push(id);
+    (uit[id] || []).forEach(function (n) {
+      if (gevonden) return;
+      if (staat[n] === 1) { gevonden = pad.slice(pad.indexOf(n)).concat([n]); return; }
+      if (!staat[n]) bezoek(n);
+    });
+    pad.pop(); staat[id] = 2;
+  }
+  ent.forEach(function (e) { if (!staat[e.id]) bezoek(e.id); });
+  return gevonden;
+}
+
+// ------------------------------------------------------------------ doorgerekende belangen
+
+// Houders per deelneming: { in: [{ houder, kapitaal, stemmen }] }.
+function houdersPer(bel) {
+  const h = {};
+  bel.forEach(function (b) { (h[b.in] = h[b.in] || []).push({ houder: b.houder, kapitaal: b.kapitaal, stemmen: stemVan(b) }); });
+  return h;
+}
+
+// Doorvermenigvuldigd belang van elke houder in doel: som over alle wegen van het product
+// van de percentages. Vereist een structuur zonder kring (controleer() bewaakt dat).
+// Geeft { houderId: { kapitaal, stemmen } }, inclusief tussenhouders.
+function doorgerekendIn(doel, houders) {
+  const uit = {};
+  function loop(id, fk, fs) {
+    (houders[id] || []).forEach(function (h) {
+      const k = fk * h.kapitaal, s = fs * h.stemmen;
+      const r = uit[h.houder] = uit[h.houder] || { kapitaal: 0, stemmen: 0 };
+      r.kapitaal += k; r.stemmen += s;
+      loop(h.houder, k, s);
+    });
+  }
+  loop(doel, 1, 1);
+  Object.keys(uit).forEach(function (id) { uit[id].kapitaal = rond(uit[id].kapitaal); uit[id].stemmen = rond(uit[id].stemmen); });
+  return uit;
+}
+
+// Wie beheerst wie: X beheerst Y als de stemmen van X zelf plus die van de rechtspersonen
+// die X beheerst samen MEER DAN de grens zijn. Standaard de meerderheid (meer dan 50%).
+// Geeft { houderId: [beheerste entiteiten] } voor elke houder.
+function beheersing(ent, bel, grens) {
+  const houders = houdersPer(bel);
+  const g = grens === undefined ? DREMPELS.beheersing : grens;
+  const uit = {};
+  ent.forEach(function (x) {
+    const beheerst = {};
+    let gewijzigd = true;
+    while (gewijzigd) {
+      gewijzigd = false;
+      ent.forEach(function (y) {
+        if (y.id === x.id || beheerst[y.id] || isPersoon(y)) return;
+        let s = 0;
+        (houders[y.id] || []).forEach(function (h) { if (h.houder === x.id || beheerst[h.houder]) s += h.stemmen; });
+        if (boven(s, g)) { beheerst[y.id] = true; gewijzigd = true; }
+      });
+    }
+    uit[x.id] = ent.filter(function (y) { return beheerst[y.id]; }).map(function (y) { return y.id; });
+  });
+  return uit;
+}
+
+// Belang via zeggenschap: het eigen directe belang plus het volle directe belang van elke
+// rechtspersoon die de houder beheerst.
+function zeggenschapsbelangIn(doel, houderId, houders, beheerst) {
+  const set = {}; (beheerst[houderId] || []).forEach(function (id) { set[id] = true; });
+  let k = 0, s = 0;
+  (houders[doel] || []).forEach(function (h) {
+    if (h.houder === houderId || set[h.houder]) { k += h.kapitaal; s += h.stemmen; }
+  });
+  return { kapitaal: rond(k), stemmen: rond(s) };
+}
+
+// ------------------------------------------------------------------ UBO
+
+// Per BV of NV: de natuurlijke personen met meer dan 25% (kapitaal of stemmen), met het
+// belang volgens beide rekenwijzen. Zonder UBO volgen de pseudo-UBO's: de ingevoerde
+// bestuurders (hoger leidinggevend personeel, art. 3 lid 1 onder a, 2°, en lid 6: elke
+// bestuurder in de zin van art. 2:9 BW).
+function uboSignalen(invoer, methode) {
+  const mth = methode || UBO_METHODE;
+  const ent = invoer.entiteiten, bel = invoer.belangen;
+  const houders = houdersPer(bel);
+  const beheerst = beheersing(ent, bel, DREMPELS.beheersing);
+  const perId = {}; ent.forEach(function (e) { perId[e.id] = e; });
+  return ent.filter(function (e) { return !isPersoon(e); }).map(function (e) {
+    if (!isVennootschap(e)) {
+      return { entiteit: e.id, beoordeeld: false, reden: 'De UBO-regels voor een ' + SOORTEN[e.soort] + ' rekent de tool niet (art. 3 lid 1 onder b tot en met e Uitvoeringsbesluit Wwft 2018).' };
+    }
+    const door = doorgerekendIn(e.id, houders);
+    const personen = ent.filter(function (p) { return isPersoon(p) && (door[p.id] || zeggenschapsbelangIn(e.id, p.id, houders, beheerst).kapitaal > 0); });
+    const rijen = personen.map(function (p) {
+      const v = door[p.id] || { kapitaal: 0, stemmen: 0 };
+      const z = zeggenschapsbelangIn(e.id, p.id, houders, beheerst);
+      const direct = (houders[e.id] || []).filter(function (h) { return h.houder === p.id; }).reduce(function (a, h) { return a + h.kapitaal; }, 0);
+      const uboV = boven(v.kapitaal, DREMPELS.ubo) || boven(v.stemmen, DREMPELS.ubo);
+      const uboZ = boven(z.kapitaal, DREMPELS.ubo) || boven(z.stemmen, DREMPELS.ubo);
+      return {
+        persoon: p.id, direct: rond(direct), vermenigvuldigd: v, zeggenschap: z,
+        uboVermenigvuldigen: uboV, uboZeggenschap: uboZ,
+        ubo: mth === 'zeggenschap' ? uboZ : mth === 'vermenigvuldigen' ? uboV : (uboV || uboZ),
+      };
+    }).sort(function (a, b) { return b.vermenigvuldigd.kapitaal - a.vermenigvuldigd.kapitaal; });
+    const ubos = rijen.filter(function (r) { return r.ubo; }).map(function (r) { return r.persoon; });
+    const pseudo = ubos.length ? [] : (invoer.bestuurders || []).filter(function (b) { return b.entiteit === e.id; }).map(function (b) { return b.persoon; });
+    const methodenVerschillen = rijen.some(function (r) { return r.uboVermenigvuldigen !== r.uboZeggenschap; });
+    const uitt = (invoer.uittreksel || []).filter(function (u) { return u.entiteit === e.id; }).map(function (u) { return u.persoon; });
+    let vergelijking = null;
+    if (uitt.length) {
+      const verwacht = ubos.length ? ubos : pseudo;
+      const alleenAfgeleid = verwacht.filter(function (id) { return uitt.indexOf(id) < 0; });
+      const alleenUittreksel = uitt.filter(function (id) { return verwacht.indexOf(id) < 0; });
+      vergelijking = { gelijk: !alleenAfgeleid.length && !alleenUittreksel.length, alleenAfgeleid: alleenAfgeleid, alleenUittreksel: alleenUittreksel };
+    }
+    return { entiteit: e.id, beoordeeld: true, methode: mth, rijen: rijen, ubos: ubos, pseudo: pseudo,
+      geenBestuurder: !ubos.length && !pseudo.length, methodenVerschillen: methodenVerschillen, vergelijking: vergelijking };
+  });
+}
+
+// ------------------------------------------------------------------ aanmerkelijk belang
+
+// Partner en bloedverwanten in de rechte lijn per persoon.
+function familie(relaties) {
+  const partner = {}, lijn = {};
+  (relaties || []).forEach(function (r) {
+    if (r.soort === 'partner') { partner[r.a] = r.b; partner[r.b] = r.a; }
+    if (r.soort === 'rechte-lijn') {
+      (lijn[r.a] = lijn[r.a] || []).push(r.b);
+      (lijn[r.b] = lijn[r.b] || []).push(r.a);
+    }
+  });
+  return { partner: partner, lijn: lijn };
+}
+
+// Per natuurlijk persoon en vennootschap waarin hij rechtstreeks aandelen houdt:
+//   'eigen'      : eigen aandelen ten minste 5% van het geplaatste kapitaal;
+//   'partner'    : samen met de partner ten minste 5% (art. 4.6 onder a, "alleen of tezamen
+//                  met zijn partner");
+//   'meesleep'   : zelf geen ab, maar de partner of een bloed- of aanverwant in de rechte
+//                  lijn heeft er wel een (art. 4.10 Wet IB 2001).
+// De tool rekent alleen rechtstreeks gehouden aandelen: aandelen die een BV houdt zijn aandelen
+// van die BV, niet van haar aandeelhouder. Zie de afbakening voor middellijk houden.
+function abSignalen(invoer) {
+  const ent = invoer.entiteiten, bel = invoer.belangen;
+  const perId = {}; ent.forEach(function (e) { perId[e.id] = e; });
+  const fam = familie(invoer.relaties);
+  const direct = {};  // direct[persoon][vennootschap] = kapitaal
+  bel.forEach(function (b) {
+    if (!isPersoon(perId[b.houder]) || isPersoon(perId[b.in])) return;
+    const r = direct[b.houder] = direct[b.houder] || {};
+    r[b.in] = rond((r[b.in] || 0) + b.kapitaal);
+  });
+  const eigenOfPartner = function (p, v) {
+    const eigen = (direct[p] && direct[p][v]) || 0;
+    const partner = fam.partner[p];
+    const pd = (partner && direct[partner] && direct[partner][v]) || 0;
+    return { eigen: eigen, samen: rond(eigen + pd) };
+  };
+  const heeftAbZonderMeesleep = function (p, v) {
+    const x = eigenOfPartner(p, v);
+    return x.eigen > 0 && tenMinste(x.samen, DREMPELS.ab);
+  };
+  // Aanverwanten in de rechte lijn: de bloedverwanten in de rechte lijn van de partner, en de
+  // partners van de eigen bloedverwanten in de rechte lijn.
+  const verwanten = function (p) {
+    const set = {};
+    (fam.lijn[p] || []).forEach(function (q) { set[q] = 'bloedverwant in de rechte lijn'; });
+    const partner = fam.partner[p];
+    if (partner) set[partner] = 'partner';
+    if (partner) (fam.lijn[partner] || []).forEach(function (q) { if (!set[q]) set[q] = 'aanverwant in de rechte lijn'; });
+    (fam.lijn[p] || []).forEach(function (q) { const pq = fam.partner[q]; if (pq && pq !== p && !set[pq]) set[pq] = 'aanverwant in de rechte lijn'; });
+    delete set[p];
+    return set;
+  };
+  const uit = [];
+  Object.keys(direct).forEach(function (p) {
+    Object.keys(direct[p]).forEach(function (v) {
+      const x = eigenOfPartner(p, v);
+      const rij = { persoon: p, vennootschap: v, eigen: x.eigen, samenMetPartner: x.samen, ab: false, grond: null, via: null };
+      if (tenMinste(x.eigen, DREMPELS.ab)) { rij.ab = true; rij.grond = 'eigen'; }
+      else if (tenMinste(x.samen, DREMPELS.ab)) { rij.ab = true; rij.grond = 'partner'; rij.via = fam.partner[p]; }
+      else {
+        const vw = verwanten(p);
+        const met = Object.keys(vw).filter(function (q) { return heeftAbZonderMeesleep(q, v); });
+        if (met.length) { rij.ab = true; rij.grond = 'meesleep'; rij.via = met[0]; rij.relatie = vw[met[0]]; }
+      }
+      uit.push(rij);
+    });
+  });
+  return uit.sort(function (a, b) { return a.vennootschap < b.vennootschap ? -1 : a.vennootschap > b.vennootschap ? 1 : b.eigen - a.eigen; });
+}
+
+// ------------------------------------------------------------------ fiscale eenheid Vpb
+
+// Een BV of NV (moeder) en een BV of NV (dochter): moeder houdt zelf of via dochters die al
+// met haar in de mogelijke fiscale eenheid zitten ten minste 95% van het kapitaal en van de
+// stemmen. Geeft per moeder zonder eigen moeder in de eenheid de groep dochters.
+function feVpbSignalen(invoer) {
+  const ent = invoer.entiteiten;
+  const houders = houdersPer(invoer.belangen);
+  const perId = {}; ent.forEach(function (e) { perId[e.id] = e; });
+  const vens = ent.filter(isVennootschap);
+  const groepVan = {};
+  vens.forEach(function (m) {
+    const leden = {};
+    let gewijzigd = true;
+    while (gewijzigd) {
+      gewijzigd = false;
+      vens.forEach(function (d) {
+        if (d.id === m.id || leden[d.id]) return;
+        let k = 0, s = 0;
+        (houders[d.id] || []).forEach(function (h) { if (h.houder === m.id || leden[h.houder]) { k += h.kapitaal; s += h.stemmen; } });
+        if (tenMinste(k, DREMPELS.feVpb) && tenMinste(s, DREMPELS.feVpb)) { leden[d.id] = { kapitaal: rond(k), stemmen: rond(s) }; gewijzigd = true; }
+      });
+    }
+    groepVan[m.id] = leden;
+  });
+  // Alleen de hoogste moeder: een moeder die zelf dochter is in een andere groep valt weg.
+  const isDochter = {};
+  Object.keys(groepVan).forEach(function (m) { Object.keys(groepVan[m]).forEach(function (d) { isDochter[d] = true; }); });
+  return vens.filter(function (m) { return !isDochter[m.id] && Object.keys(groepVan[m.id]).length; }).map(function (m) {
+    return { moeder: m.id, dochters: Object.keys(groepVan[m.id]).map(function (d) { return { entiteit: d, kapitaal: groepVan[m.id][d].kapitaal, stemmen: groepVan[m.id][d].stemmen }; }) };
+  });
+}
+
+// ------------------------------------------------------------------ fiscale eenheid btw
+
+// Financiële verwevenheid: dezelfde persoon of rechtspersoon beheerst (meer dan 50% van de
+// stemmen, zelf of via beheerste rechtspersonen) twee of meer rechtspersonen. Per hoogste
+// beheerser de groep rechtspersonen, met de beheerser zelf erbij als die een rechtspersoon is.
+function feBtwSignalen(invoer) {
+  const ent = invoer.entiteiten;
+  const beheerst = beheersing(ent, invoer.belangen, DREMPELS.feBtw);
+  const perId = {}; ent.forEach(function (e) { perId[e.id] = e; });
+  const isBeheerst = {};
+  Object.keys(beheerst).forEach(function (x) { beheerst[x].forEach(function (y) { isBeheerst[y] = true; }); });
+  return ent.filter(function (x) { return !isBeheerst[x.id] && beheerst[x.id].length; }).map(function (x) {
+    const groep = (isPersoon(x) ? [] : [x.id]).concat(beheerst[x.id]);
+    return { beheerser: x.id, persoon: isPersoon(x), groep: groep };
+  }).filter(function (g) { return g.groep.length >= 2; });
+}
+
+// ------------------------------------------------------------------ alles samen
+
+function rekenAlles(invoer, methode) {
+  const meldingen = controleer(invoer);
+  if (meldingen.some(function (m) { return m.ernst === 'fout'; })) return { meldingen: meldingen };
+  return {
+    meldingen: meldingen,
+    ubo: uboSignalen(invoer, methode),
+    ab: abSignalen(invoer),
+    feVpb: feVpbSignalen(invoer),
+    feBtw: feBtwSignalen(invoer),
+  };
+}
+// FISCALE KERN — EINDE
+
+// INDELING — BEGIN
+// De plaats van elk vak in het organogram. Pure functie zonder DOM; de tekening zelf staat in
+// de presentatie. Houders staan boven wat zij houden: laag = de langste weg vanaf een
+// entiteit zonder houders. Binnen een laag staat een vak zo dicht mogelijk onder het midden
+// van zijn houders (twee rondes zwaartepunt), zodat lijnen zo min mogelijk kruisen.
+
+const VAK = { breedte: 190, hoogte: 58, tussenX: 60, tussenY: 74, rand: 20 };
+
+function deelIn(entiteiten, belangen) {
+  const ids = entiteiten.map(function (e) { return e.id; });
+  const houdersVan = {}, deelnemingenVan = {};
+  ids.forEach(function (id) { houdersVan[id] = []; deelnemingenVan[id] = []; });
+  belangen.forEach(function (b) {
+    if (!houdersVan[b.in] || !deelnemingenVan[b.houder] || b.houder === b.in) return;
+    houdersVan[b.in].push(b.houder); deelnemingenVan[b.houder].push(b.in);
+  });
+  // Langste weg; bij een kring stopt de telling na evenveel stappen als er entiteiten zijn.
+  const laag = {};
+  ids.forEach(function (id) { laag[id] = 0; });
+  for (let ronde = 0; ronde < ids.length; ronde++) {
+    let gewijzigd = false;
+    belangen.forEach(function (b) {
+      if (laag[b.in] === undefined || laag[b.houder] === undefined || b.houder === b.in) return;
+      if (laag[b.in] < laag[b.houder] + 1) { laag[b.in] = laag[b.houder] + 1; gewijzigd = true; }
+    });
+    if (!gewijzigd) break;
+  }
+  const lagen = [];
+  ids.forEach(function (id) { (lagen[laag[id]] = lagen[laag[id]] || []).push(id); });
+  for (let i = 0; i < lagen.length; i++) if (!lagen[i]) lagen[i] = [];
+  const positie = {};
+  const zetPosities = function () { lagen.forEach(function (l) { l.forEach(function (id, i) { positie[id] = i; }); }); };
+  zetPosities();
+  for (let ronde = 0; ronde < 2; ronde++) {
+    for (let i = 1; i < lagen.length; i++) {
+      const zw = {};
+      lagen[i].forEach(function (id) {
+        const h = houdersVan[id].filter(function (x) { return laag[x] < i; });
+        zw[id] = h.length ? h.reduce(function (a, x) { return a + positie[x]; }, 0) / h.length : positie[id];
+      });
+      lagen[i].sort(function (a, b) { return zw[a] - zw[b] || ids.indexOf(a) - ids.indexOf(b); });
+      zetPosities();
+    }
+  }
+  const breedste = lagen.reduce(function (a, l) { return Math.max(a, l.length); }, 1);
+  const totaalBreed = VAK.rand * 2 + breedste * VAK.breedte + (breedste - 1) * VAK.tussenX;
+  const vakken = {};
+  lagen.forEach(function (l, i) {
+    const breed = l.length * VAK.breedte + (l.length - 1) * VAK.tussenX;
+    const start = (totaalBreed - breed) / 2;
+    l.forEach(function (id, j) {
+      vakken[id] = { x: start + j * (VAK.breedte + VAK.tussenX), y: VAK.rand + i * (VAK.hoogte + VAK.tussenY), laag: i };
+    });
+  });
+  return {
+    vakken: vakken,
+    lagen: lagen,
+    breedte: totaalBreed,
+    hoogte: VAK.rand * 2 + lagen.length * VAK.hoogte + Math.max(0, lagen.length - 1) * VAK.tussenY,
+  };
+}
+// INDELING — EINDE
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Pure functies zonder DOM; zij gebruiken de
+// uitkomst van rekenAlles en rekenen zelf niets, zodat scherm, afdruk en export dezelfde
+// signalen tonen.
+
+const TOOL_ID = 'organogram-structuur';
+const TOOLNAAM = 'Organogram en structuursignalen';
+const TOOLVERSIE = '0.1.0';
+const TOOLDATUM = '2026-09-30';
+// Versie van het formaat van het dossierbestand, los van de toolversie.
+const DOSSIERFORMAAT = 1;
+
+const VINDPLAATSEN = [
+  'UBO van een BV of NV: een natuurlijk persoon met meer dan 25% van de aandelen, stemrechten of het eigendomsbelang, direct of indirect, of met zeggenschap via andere middelen, waaronder de voorwaarden voor consolidatie: art. 3 lid 1 onder a, 1°, Uitvoeringsbesluit Wwft 2018 (BWBR0041193, versie 30-04-2026).',
+  'Pseudo-UBO: is na uitputting van alle middelen, en zonder gronden voor verdenking, geen UBO gevonden, of is er twijfel, dan geldt het hoger leidinggevend personeel als UBO: art. 3 lid 1 onder a, 2°. Hoger leidinggevend personeel is elke bestuurder in de zin van art. 2:9 BW: art. 3 lid 6.',
+  'Indirect UBO-belang: een wettelijke rekenregel ontbreekt. De Nota van toelichting bij art. 3 (Stb. 2018, 241) ziet een belang van meer dan 25% via een beheerste rechtspersoon als aanwijzing voor indirect belang; de tool toont daarom het belang via zeggenschap en het vermenigvuldigde belang, en signaleert bij een van beide boven 25%.',
+  'Beheersen van een tussenhouder (UBO via zeggenschap): meer dan de helft van de stemrechten, naar art. 2:24a lid 1 onder a BW (BWBR0003045, versie 01-07-2026), waarnaar art. 3 lid 1 onder a, 1°, Uitvoeringsbesluit Wwft 2018 via de voorwaarden voor consolidatie (art. 2:406 BW) verwijst. Voor een natuurlijk persoon als beheerser past de tool deze grens naar analogie toe.',
+  'Terugmelden van een afwijking tussen de eigen bevindingen en het UBO-register: art. 10c Wwft (BWBR0024282).',
+  'Aanmerkelijk belang: alleen of samen met de partner, direct of indirect, ten minste 5% van het geplaatste kapitaal: art. 4.6 onder a Wet IB 2001 (BWBR0011353, versie 21-02-2026). Een soort aandelen: art. 4.7 lid 1. Partner: art. 1.2.',
+  'Meetrekregeling: wie zelf geen aanmerkelijk belang heeft, heeft er toch een als zijn partner of een bloed- of aanverwant in de rechte lijn van hem of zijn partner in die vennootschap een aanmerkelijk belang heeft: art. 4.10 Wet IB 2001.',
+  'Fiscale eenheid Vpb: de moeder heeft de juridische en economische eigendom van ten minste 95% van de aandelen in het nominaal gestorte kapitaal van de dochter, met ten minste 95% van de stemrechten en recht op ten minste 95% van winst en vermogen: art. 15 lid 1 Wet Vpb 1969 (BWBR0002672, versie 01-01-2026). Middellijk bezit via een lid van de eenheid: lid 3. Verzoek, gelijke boekjaren en vestiging in Nederland: lid 1 en lid 4 onder a en c.',
+  'Fiscale eenheid btw: in Nederland gevestigde ondernemers die financieel, organisatorisch en economisch zo verweven zijn dat zij een eenheid vormen, bij beschikking: art. 7 lid 4 Wet OB 1968 (BWBR0002629, versie 01-01-2026). Financiële verwevenheid: de meerderheid van de aandelen met de zeggenschap, direct of indirect in één en dezelfde handen: Beleidsbesluit belastingplicht en fiscale eenheid omzetbelasting, Stcrt. 2024, 38545, par. 3.3.1.',
+  'Wettekst geraadpleegd in de versie die gold op 30-09-2026; getoetst door de bron-controleur op 30-09-2026.',
+];
+
+const AFBAKENING = [
+  'De tool leidt signalen af uit de structuur die is ingevoerd. Zij ziet geen niet ingevoerde houders, geen certificaten, opties, winstbewijzen of soorten aandelen, en geen afspraken die zeggenschap geven buiten de aandelen om.',
+  'UBO: de tool toetst alleen BV en NV. Zeggenschap via andere middelen dan aandelen en stemmen ziet zij niet. Beheersen van een tussenhouder betekent in de tool: meer dan 50% van de stemmen, zelf of via beheerste rechtspersonen. Benoemings- en ontslagrecht van bestuurders (art. 2:24a lid 1 onder b BW), stemovereenkomsten en stemrecht voor rekening van een ander of bij een pandhouder (lid 3 en 4) ziet de tool niet. De pseudo-UBO is de ingevoerde bestuurder; of alle middelen zijn uitgeput om een echte UBO te vinden, stelt de tool niet vast. Het huwelijksgoederenregime rekent de tool niet.',
+  'Aanmerkelijk belang: de tool rekent alleen aandelen die een natuurlijk persoon rechtstreeks houdt, plus die van de partner. Aandelen die een BV houdt, rekent zij niet toe aan haar aandeelhouder. Indirect houden langs een andere weg, een soort aandelen, koopopties, winstbewijzen en genotsrechten (art. 4.6 onder b en c, art. 4.7) rekent de tool niet.',
+  'Fiscale eenheid Vpb: de tool toetst alleen de 95%-eis voor BV en NV, en gaat ervan uit dat de aandelen naar verhouding recht geven op winst en vermogen. Het verzoek, gelijke boekjaren, gelijke winstbepaling, vestiging in Nederland en de overige eisen van art. 15 lid 4 Wet Vpb 1969 toetst zij niet. Een eenheid via een tussenmaatschappij in de EU of EER, een topmaatschappij of zustervoeging (art. 15 lid 2, 5 en 6) ziet zij niet.',
+  'Fiscale eenheid btw: de tool leidt alleen de financiële verwevenheid af, uit de stemmen. Ondernemerschap, vestiging in Nederland en de organisatorische en economische verwevenheid toetst zij niet. Certificering en soort- of letteraandelen (par. 3.3.1 van het besluit) ziet zij niet. Een natuurlijk persoon zonder ondernemerschap is zelf geen lid; de tool toont hem wel als de gemeenschappelijke houder.',
+  'De tool doet geen Wwft-registratie en bewaart niets. De Wwft-check in de kantooromgeving blijft de plek voor het cliëntenonderzoek.',
+  'De tool doet geen voorstel en geeft geen advies. Elke uitkomst is een signaal dat nader onderzoek vraagt.',
+];
+
+// ------------------------------------------------------------------ opmaak
+
+function procentTekst(fractie) {
+  if (typeof fractie !== 'number' || !isFinite(fractie)) return '';
+  return String(Math.round(fractie * 1e6) / 1e4).replace('.', ',') + '%';
+}
+
+function datumTekst(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
+  const d = iso.split('-');
+  return d[2] + '-' + d[1] + '-' + d[0];
+}
+
+function meldingTeksten(meldingen) {
+  return (meldingen || []).map(function (m) {
+    return (m.ernst === 'fout' ? 'Niet doorgerekend: ' : 'Let op: ') + m.tekst;
+  });
+}
+
+const AB_GROND = {
+  eigen: 'eigen aandelen, ten minste 5%',
+  partner: 'samen met de partner ten minste 5%',
+  meesleep: 'meetrekregeling (art. 4.10)',
+};
+
+// ------------------------------------------------------------------ opbouw van de uitgang
+
+// Eén structuur waaruit het dossierstuk en de export allebei worden gemaakt.
+function bouwUitgang(invoer, reken, kenmerk, datumISO) {
+  const perId = {};
+  invoer.entiteiten.forEach(function (e) { perId[e.id] = e; });
+  const nm = function (id) { return naamVan(perId[id]); };
+  const structuur = {
+    entiteiten: invoer.entiteiten.map(function (e) { return { naam: e.naam, soort: SOORTEN[e.soort] || e.soort }; }),
+    belangen: invoer.belangen.map(function (b) {
+      return { houder: nm(b.houder), in: nm(b.in), kapitaal: b.kapitaal, stemmen: stemVan(b), stemmenApart: b.stemmen !== null && b.stemmen !== undefined };
+    }),
+    relaties: (invoer.relaties || []).map(function (r) { return { a: nm(r.a), b: nm(r.b), soort: RELATIESOORTEN[r.soort] || r.soort }; }),
+    bestuurders: (invoer.bestuurders || []).map(function (r) { return { persoon: nm(r.persoon), entiteit: nm(r.entiteit) }; }),
+    uittreksel: (invoer.uittreksel || []).map(function (r) { return { persoon: nm(r.persoon), entiteit: nm(r.entiteit) }; }),
+  };
+  const berekend = !!reken.ubo;
+  const ubo = !berekend ? [] : reken.ubo.map(function (u) {
+    if (!u.beoordeeld) return { entiteit: nm(u.entiteit), beoordeeld: false, reden: u.reden };
+    let conclusie;
+    if (u.ubos.length) conclusie = 'Mogelijke UBO: ' + u.ubos.map(nm).join(', ') + '.';
+    else if (u.pseudo.length) conclusie = 'Geen persoon boven 25%. Pseudo-UBO (bestuurder): ' + u.pseudo.map(nm).join(', ') + '.';
+    else conclusie = 'Geen persoon boven 25% en geen bestuurder ingevoerd: vul de bestuurders in voor de pseudo-UBO.';
+    let vergelijking = '';
+    if (u.vergelijking) {
+      vergelijking = u.vergelijking.gelijk ? 'Het ingevoerde UBO-uittreksel komt overeen met de afleiding.'
+        : 'Het UBO-uittreksel wijkt af' +
+          (u.vergelijking.alleenAfgeleid.length ? '; niet op het uittreksel: ' + u.vergelijking.alleenAfgeleid.map(nm).join(', ') : '') +
+          (u.vergelijking.alleenUittreksel.length ? '; alleen op het uittreksel: ' + u.vergelijking.alleenUittreksel.map(nm).join(', ') : '') +
+          '. Onderzoek het verschil; blijkt het register onjuist, dan geldt de terugmeldplicht van art. 10c Wwft.';
+    }
+    return {
+      entiteit: nm(u.entiteit), beoordeeld: true, conclusie: conclusie, vergelijking: vergelijking,
+      methodenVerschillen: u.methodenVerschillen,
+      rijen: u.rijen.map(function (r) {
+        return {
+          persoon: nm(r.persoon), direct: r.direct,
+          vermenigvuldigdKapitaal: r.vermenigvuldigd.kapitaal, vermenigvuldigdStemmen: r.vermenigvuldigd.stemmen,
+          zeggenschapKapitaal: r.zeggenschap.kapitaal, zeggenschapStemmen: r.zeggenschap.stemmen,
+          ubo: r.ubo,
+        };
+      }),
+    };
+  });
+  const ab = !berekend ? [] : reken.ab.map(function (r) {
+    return {
+      persoon: nm(r.persoon), vennootschap: nm(r.vennootschap), eigen: r.eigen, samenMetPartner: r.samenMetPartner,
+      ab: r.ab, grond: r.ab ? AB_GROND[r.grond] + (r.via ? ' (via ' + nm(r.via) + (r.relatie ? ', ' + r.relatie : '') + ')' : '') : 'geen aanmerkelijk belang',
+    };
+  });
+  const feVpb = !berekend ? [] : reken.feVpb.map(function (g) {
+    return { moeder: nm(g.moeder), dochters: g.dochters.map(function (d) { return { naam: nm(d.entiteit), kapitaal: d.kapitaal, stemmen: d.stemmen }; }) };
+  });
+  const feBtw = !berekend ? [] : reken.feBtw.map(function (g) {
+    return {
+      beheerser: nm(g.beheerser), persoon: g.persoon, groep: g.groep.map(nm),
+      toelichting: g.persoon ? nm(g.beheerser) + ' houdt de meerderheid in elk van deze rechtspersonen en is zelf alleen lid als hij of zij ondernemer is.' : '',
+    };
+  });
+  return {
+    kop: { tool: TOOLNAAM, versie: TOOLVERSIE + ' (' + datumTekst(TOOLDATUM) + ')', datum: datumTekst(datumISO), kenmerk: kenmerk || '' },
+    methode: UBO_METHODEN[UBO_METHODE],
+    structuur: structuur,
+    berekend: berekend,
+    ubo: ubo, ab: ab, feVpb: feVpb, feBtw: feBtw,
+    meldingen: meldingTeksten(reken.meldingen),
+    vindplaatsen: VINDPLAATSEN.slice(),
+    afbakening: AFBAKENING.slice(),
+  };
+}
+
+// ------------------------------------------------------------------ Excel-export
+
+function exportBladen(u) {
+  const p = function (w) { return typeof w === 'number' && isFinite(w) ? celGetal(w, '0.00%') : null; };
+  const t = function (s, vet) { return celTekst(s, vet); };
+  const kop = [
+    [t(u.kop.tool, true)],
+    [t('Versie'), t(u.kop.versie)],
+    [t('Datum export'), t(u.kop.datum)],
+    [t('Kenmerk'), t(u.kop.kenmerk)],
+    [t('Rekenwijze indirect belang UBO'), t(u.methode)],
+    [],
+  ];
+  const structuur = kop.concat([[t('Entiteiten', true)], [t('Naam', true), t('Soort', true)]]);
+  u.structuur.entiteiten.forEach(function (e) { structuur.push([t(e.naam), t(e.soort)]); });
+  structuur.push([], [t('Belangen', true)], [t('Houder', true), t('In', true), t('Kapitaal', true), t('Stemrecht', true)]);
+  u.structuur.belangen.forEach(function (b) { structuur.push([t(b.houder), t(b.in), p(b.kapitaal), p(b.stemmen)]); });
+  structuur.push([], [t('Relaties', true)]);
+  u.structuur.relaties.forEach(function (r) { structuur.push([t(r.a), t(r.b), t(r.soort)]); });
+  structuur.push([], [t('Bestuurders', true)]);
+  u.structuur.bestuurders.forEach(function (r) { structuur.push([t(r.persoon), t(r.entiteit)]); });
+  structuur.push([], [t('UBO volgens aangeleverd uittreksel', true)]);
+  u.structuur.uittreksel.forEach(function (r) { structuur.push([t(r.persoon), t(r.entiteit)]); });
+
+  const sig = [[t('Signalen', true)]];
+  u.meldingen.forEach(function (m) { sig.push([t(m)]); });
+  if (u.berekend) {
+    sig.push([], [t('UBO', true)]);
+    sig.push([t('Rechtspersoon', true), t('Persoon', true), t('Direct', true), t('Vermenigvuldigd kapitaal', true),
+      t('Vermenigvuldigd stemrecht', true), t('Via zeggenschap kapitaal', true), t('Via zeggenschap stemrecht', true), t('Mogelijke UBO', true)]);
+    u.ubo.forEach(function (x) {
+      if (!x.beoordeeld) { sig.push([t(x.entiteit), t(x.reden)]); return; }
+      x.rijen.forEach(function (r) {
+        sig.push([t(x.entiteit), t(r.persoon), p(r.direct), p(r.vermenigvuldigdKapitaal), p(r.vermenigvuldigdStemmen),
+          p(r.zeggenschapKapitaal), p(r.zeggenschapStemmen), t(r.ubo ? 'ja' : 'nee')]);
+      });
+      sig.push([t(x.entiteit), t(x.conclusie)]);
+      if (x.vergelijking) sig.push([t(x.entiteit), t(x.vergelijking)]);
+    });
+    sig.push([], [t('Aanmerkelijk belang', true)], [t('Persoon', true), t('Vennootschap', true), t('Eigen', true), t('Samen met partner', true), t('Signaal', true)]);
+    u.ab.forEach(function (r) { sig.push([t(r.persoon), t(r.vennootschap), p(r.eigen), p(r.samenMetPartner), t(r.grond)]); });
+    sig.push([], [t('Mogelijke fiscale eenheid Vpb (95%)', true)], [t('Moeder', true), t('Dochter', true), t('Kapitaal', true), t('Stemrecht', true)]);
+    u.feVpb.forEach(function (g) { g.dochters.forEach(function (d) { sig.push([t(g.moeder), t(d.naam), p(d.kapitaal), p(d.stemmen)]); }); });
+    if (!u.feVpb.length) sig.push([t('geen')]);
+    sig.push([], [t('Financiële verwevenheid btw (meer dan 50%)', true)], [t('Beheerst door', true), t('Groep', true)]);
+    u.feBtw.forEach(function (g) { sig.push([t(g.beheerser), t(g.groep.join(', ')), t(g.toelichting)]); });
+    if (!u.feBtw.length) sig.push([t('geen')]);
+  }
+  const toel = [[t('Vindplaatsen', true)]];
+  u.vindplaatsen.forEach(function (v) { toel.push([t(v)]); });
+  toel.push([], [t('Afbakening', true)]);
+  u.afbakening.forEach(function (v) { toel.push([t(v)]); });
+  return [
+    { naam: 'Structuur', rijen: structuur, breedtes: [34, 34, 16, 16] },
+    { naam: 'Signalen', rijen: sig, breedtes: [30, 30, 12, 16, 16, 16, 16, 14] },
+    { naam: 'Toelichting', rijen: toel, breedtes: [140] },
+  ];
+}
+
+function slug(tekst) {
+  const s = String(tekst || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+// ------------------------------------------------------------------ dossierbestand
+//
+// Alleen invoer, geen uitkomsten: bij openen rekent de tool opnieuw. Elk veld van elke regel
+// wordt bij openen gecontroleerd; een ontbrekend veld houdt het openen tegen, zodat een oud
+// dossier niet ongemerkt met een andere standaardwaarde wordt doorgerekend.
+
+const LIJSTVELDEN = {
+  entiteiten: { id: 'tekst', naam: 'tekst', soort: 'soort' },
+  belangen: { houder: 'tekst', in: 'tekst', kapitaal: 'fractie', stemmen: 'fractie-of-leeg' },
+  relaties: { a: 'tekst', b: 'tekst', soort: 'relatie' },
+  bestuurders: { persoon: 'tekst', entiteit: 'tekst' },
+  uittreksel: { persoon: 'tekst', entiteit: 'tekst' },
+};
+
+function schrijfDossier(invoer, datumISO) {
+  const uit = { kenmerk: String(invoer.kenmerk || '') };
+  Object.keys(LIJSTVELDEN).forEach(function (lijst) {
+    uit[lijst] = (invoer[lijst] || []).map(function (r) {
+      const o = {};
+      Object.keys(LIJSTVELDEN[lijst]).forEach(function (v) { o[v] = r[v] === undefined ? null : r[v]; });
+      return o;
+    });
+  });
+  return JSON.stringify({ tool: TOOL_ID, formaat: DOSSIERFORMAAT, toolversie: TOOLVERSIE, opgeslagen: datumISO, invoer: uit }, null, 2);
+}
+
+function geldig(soort, w) {
+  if (soort === 'tekst') return typeof w === 'string';
+  if (soort === 'soort') return typeof w === 'string' && !!SOORTEN[w];
+  if (soort === 'relatie') return typeof w === 'string' && !!RELATIESOORTEN[w];
+  if (soort === 'fractie-of-leeg' && w === null) return true;
+  return typeof w === 'number' && isFinite(w) && w >= 0 && w <= 1;
+}
+
+// Geeft { invoer, meldingen } of { fout }. Bij een fout blijft de huidige casus staan.
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(tekst); } catch (e) { return { fout: 'Het bestand is geen leesbaar dossierbestand.' }; }
+  if (!rauw || rauw.tool !== TOOL_ID) return { fout: 'Dit bestand hoort niet bij de tool ' + TOOLNAAM + '.' };
+  if (rauw.formaat !== DOSSIERFORMAAT) {
+    return { fout: 'Dit dossierbestand heeft formaat ' + rauw.formaat + '; deze versie van de tool leest formaat ' + DOSSIERFORMAAT + '.' };
+  }
+  const bron = rauw.invoer;
+  if (!bron || typeof bron !== 'object') return { fout: 'Het dossierbestand bevat geen invoer.' };
+  const ontbrekend = [], ongeldig = [];
+  if (typeof bron.kenmerk !== 'string') (('kenmerk' in bron) ? ongeldig : ontbrekend).push('kenmerk');
+  const invoer = { kenmerk: typeof bron.kenmerk === 'string' ? bron.kenmerk : '' };
+  Object.keys(LIJSTVELDEN).forEach(function (lijst) {
+    if (!Array.isArray(bron[lijst])) { ((lijst in bron) ? ongeldig : ontbrekend).push(lijst); return; }
+    invoer[lijst] = bron[lijst].map(function (r, i) {
+      const o = {};
+      Object.keys(LIJSTVELDEN[lijst]).forEach(function (v) {
+        const plek = lijst + '[' + (i + 1) + '].' + v;
+        if (!r || typeof r !== 'object' || !(v in r)) { ontbrekend.push(plek); return; }
+        if (!geldig(LIJSTVELDEN[lijst][v], r[v])) { ongeldig.push(plek); return; }
+        o[v] = r[v];
+      });
+      return o;
+    });
+  });
+  if (ontbrekend.length || ongeldig.length) {
+    return { fout: 'Het dossier is niet geopend.' +
+      (ontbrekend.length ? ' Ontbrekende velden: ' + ontbrekend.join(', ') + '.' : '') +
+      (ongeldig.length ? ' Ongeldige waarden: ' + ongeldig.join(', ') + '.' : '') };
+  }
+  const meldingen = [];
+  if (rauw.toolversie !== TOOLVERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met versie ' + rauw.toolversie + ' van de tool en is nu doorgerekend met versie ' +
+      TOOLVERSIE + '. De signalen kunnen afwijken van toen; het dossierstuk of de export van toen is het bewijs daarvan.');
+  }
+  return { invoer: invoer, meldingen: meldingen };
+}
+// UITGANGEN — EINDE
+
+// PRESENTATIE — BEGIN
+// Het scherm: de invoertabellen bijhouden, rekenAlles aanroepen en organogram en signalen
+// tonen. Hier wordt niet gerekend.
+
+const $ = function (id) { return document.getElementById(id); };
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Synthetisch voorbeeld; de namen horen bij geen bestaande klant.
+function voorbeeld() {
+  return {
+    kenmerk: 'Voorbeeld Klajan',
+    entiteiten: [
+      { id: 'p1', naam: 'Piet Klaassen', soort: 'persoon' }, { id: 'p2', naam: 'Marie Klaassen', soort: 'persoon' },
+      { id: 'p3', naam: 'Tim Klaassen', soort: 'persoon' }, { id: 'p4', naam: 'Anna Jansen', soort: 'persoon' },
+      { id: 'e1', naam: 'Klaassen Holding BV', soort: 'bv' }, { id: 'e2', naam: 'Jansen Holding BV', soort: 'bv' },
+      { id: 'e3', naam: 'Klajan BV', soort: 'bv' }, { id: 'e4', naam: 'Klajan Vastgoed BV', soort: 'bv' },
+    ],
+    belangen: [
+      { houder: 'p1', in: 'e1', kapitaal: 0.98, stemmen: null }, { houder: 'p3', in: 'e1', kapitaal: 0.02, stemmen: null },
+      { houder: 'p4', in: 'e2', kapitaal: 1, stemmen: null },
+      { houder: 'e1', in: 'e3', kapitaal: 0.5, stemmen: null }, { houder: 'e2', in: 'e3', kapitaal: 0.5, stemmen: null },
+      { houder: 'e3', in: 'e4', kapitaal: 1, stemmen: null },
+    ],
+    relaties: [{ a: 'p1', b: 'p2', soort: 'partner' }, { a: 'p1', b: 'p3', soort: 'rechte-lijn' }],
+    bestuurders: [{ persoon: 'p1', entiteit: 'e3' }, { persoon: 'p4', entiteit: 'e3' }],
+    uittreksel: [],
+  };
+}
+
+function leeg() { return { kenmerk: '', entiteiten: [], belangen: [], relaties: [], bestuurders: [], uittreksel: [] }; }
+
+let staat = voorbeeld();
+let laatste = null;
+
+function nieuwId(voorvoegsel) {
+  let n = 1;
+  const bestaat = function (id) { return staat.entiteiten.some(function (e) { return e.id === id; }); };
+  while (bestaat(voorvoegsel + n)) n++;
+  return voorvoegsel + n;
+}
+
+// ------------------------------------------------------------------ invoertabellen
+
+function keuzelijst(waarde, opties, attr) {
+  return '<select ' + attr + '><option value="">(kies)</option>' + opties.map(function (o) {
+    return '<option value="' + escapeHtml(o[0]) + '"' + (o[0] === waarde ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>';
+  }).join('') + '</select>';
+}
+
+function opties(filter) {
+  return staat.entiteiten.filter(filter).map(function (e) { return [e.id, e.naam || '(zonder naam)']; });
+}
+const allen = function () { return true; };
+const personen = function (e) { return e.soort === 'persoon'; };
+const rechtspersonen = function (e) { return e.soort !== 'persoon'; };
+
+function procentVeld(w, attr) {
+  const v = w === null || w === undefined ? '' : String(Math.round(w * 1e8) / 1e6);
+  return '<input type="number" step="0.01" min="0" max="100" value="' + v + '" ' + attr + '>';
+}
+
+function wisKnop(lijst, i) {
+  return '<button type="button" class="wis" data-wis="' + lijst + '" data-i="' + i + '" aria-label="Regel verwijderen">×</button>';
+}
+
+function tabel(koppen, regels) {
+  if (!regels.length) return '<p class="toelichting">Nog niets ingevoerd.</p>';
+  return '<table class="invoer"><tr>' + koppen.map(function (k) { return '<th>' + k + '</th>'; }).join('') + '<th></th></tr>' +
+    regels.join('') + '</table>';
+}
+
+function bouwTabellen() {
+  $('kenmerk').value = staat.kenmerk || '';
+  $('tabel-entiteiten').innerHTML = tabel(['Naam', 'Soort'], staat.entiteiten.map(function (e, i) {
+    return '<tr><td><input type="text" value="' + escapeHtml(e.naam) + '" data-lijst="entiteiten" data-i="' + i + '" data-veld="naam" aria-label="Naam"></td>' +
+      '<td>' + keuzelijst(e.soort, Object.keys(SOORTEN).map(function (k) { return [k, SOORTEN[k]]; }),
+        'data-lijst="entiteiten" data-i="' + i + '" data-veld="soort" aria-label="Soort"') + '</td><td>' + wisKnop('entiteiten', i) + '</td></tr>';
+  }));
+  $('tabel-belangen').innerHTML = tabel(['Houder', 'Houdt aandelen in', 'Kapitaal (%)', 'Stemrecht (%)'], staat.belangen.map(function (b, i) {
+    const a = function (v) { return 'data-lijst="belangen" data-i="' + i + '" data-veld="' + v + '"'; };
+    return '<tr><td>' + keuzelijst(b.houder, opties(allen), a('houder') + ' aria-label="Houder"') + '</td>' +
+      '<td>' + keuzelijst(b.in, opties(rechtspersonen), a('in') + ' aria-label="Houdt aandelen in"') + '</td>' +
+      '<td>' + procentVeld(b.kapitaal, a('kapitaal') + ' aria-label="Kapitaal in procenten"') + '</td>' +
+      '<td>' + procentVeld(b.stemmen, a('stemmen') + ' placeholder="gelijk" aria-label="Stemrecht in procenten"') + '</td><td>' + wisKnop('belangen', i) + '</td></tr>';
+  }));
+  $('tabel-relaties').innerHTML = tabel(['Persoon', 'Persoon', 'Relatie'], staat.relaties.map(function (r, i) {
+    const a = function (v) { return 'data-lijst="relaties" data-i="' + i + '" data-veld="' + v + '"'; };
+    return '<tr><td>' + keuzelijst(r.a, opties(personen), a('a') + ' aria-label="Persoon"') + '</td>' +
+      '<td>' + keuzelijst(r.b, opties(personen), a('b') + ' aria-label="Persoon"') + '</td>' +
+      '<td>' + keuzelijst(r.soort, Object.keys(RELATIESOORTEN).map(function (k) { return [k, RELATIESOORTEN[k]]; }), a('soort') + ' aria-label="Relatie"') + '</td><td>' + wisKnop('relaties', i) + '</td></tr>';
+  }));
+  ['bestuurders', 'uittreksel'].forEach(function (lijst) {
+    $('tabel-' + lijst).innerHTML = tabel(['Persoon', 'Rechtspersoon'], staat[lijst].map(function (r, i) {
+      const a = function (v) { return 'data-lijst="' + lijst + '" data-i="' + i + '" data-veld="' + v + '"'; };
+      return '<tr><td>' + keuzelijst(r.persoon, opties(personen), a('persoon') + ' aria-label="Persoon"') + '</td>' +
+        '<td>' + keuzelijst(r.entiteit, opties(rechtspersonen), a('entiteit') + ' aria-label="Rechtspersoon"') + '</td><td>' + wisKnop(lijst, i) + '</td></tr>';
+    }));
+  });
+}
+
+// Eén veld overnemen in de staat. Een leeg percentage is null; een leeg kapitaal geeft in de
+// kern een zichtbare fout.
+function neemOver(el) {
+  const lijst = el.getAttribute('data-lijst'), i = Number(el.getAttribute('data-i')), veld = el.getAttribute('data-veld');
+  const regel = staat[lijst][i];
+  if (!regel) return;
+  if (veld === 'kapitaal' || veld === 'stemmen') {
+    regel[veld] = el.value === '' ? null : Number(el.value) / 100;
+  } else {
+    regel[veld] = el.value;
+  }
+}
+
+function voegToe(soort) {
+  if (soort === 'persoon') staat.entiteiten.push({ id: nieuwId('p'), naam: '', soort: 'persoon' });
+  else if (soort === 'bv') staat.entiteiten.push({ id: nieuwId('e'), naam: '', soort: 'bv' });
+  else if (soort === 'belang') staat.belangen.push({ houder: '', in: '', kapitaal: null, stemmen: null });
+  else if (soort === 'relatie') staat.relaties.push({ a: '', b: '', soort: 'partner' });
+  else if (soort === 'bestuurder') staat.bestuurders.push({ persoon: '', entiteit: '' });
+  else if (soort === 'uittreksel') staat.uittreksel.push({ persoon: '', entiteit: '' });
+}
+
+// Een entiteit weghalen neemt de regels mee die naar haar verwijzen; anders blijven er
+// belangen staan zonder houder.
+function wis(lijst, i) {
+  if (lijst === 'entiteiten') {
+    const id = staat.entiteiten[i].id;
+    staat.entiteiten.splice(i, 1);
+    staat.belangen = staat.belangen.filter(function (b) { return b.houder !== id && b.in !== id; });
+    staat.relaties = staat.relaties.filter(function (r) { return r.a !== id && r.b !== id; });
+    ['bestuurders', 'uittreksel'].forEach(function (l) {
+      staat[l] = staat[l].filter(function (r) { return r.persoon !== id && r.entiteit !== id; });
+    });
+  } else {
+    staat[lijst].splice(i, 1);
+  }
+}
+
+// ------------------------------------------------------------------ organogram
+
+function organogramSvg(invoer, reken) {
+  if (!invoer.entiteiten.length) return '<p class="toelichting">Voer personen en rechtspersonen in om het organogram te zien.</p>';
+  const d = deelIn(invoer.entiteiten, invoer.belangen);
+  const perId = {}; invoer.entiteiten.forEach(function (e) { perId[e.id] = e; });
+  const uboSet = {};
+  (reken.ubo || []).forEach(function (u) { (u.ubos || []).concat(u.pseudo || []).forEach(function (p) { uboSet[p] = true; }); });
+  const feVpb = {};
+  (reken.feVpb || []).forEach(function (g) { feVpb[g.moeder] = true; g.dochters.forEach(function (x) { feVpb[x.entiteit] = true; }); });
+  const w = VAK.breedte, h = VAK.hoogte;
+  const lijnen = invoer.belangen.map(function (b) {
+    const van = d.vakken[b.houder], naar = d.vakken[b.in];
+    if (!van || !naar || b.houder === b.in) return '';
+    const x1 = van.x + w / 2, y1 = van.y + h, x2 = naar.x + w / 2, y2 = naar.y;
+    const my = (y1 + y2) / 2;
+    const tekst = typeof b.kapitaal === 'number' ? pct(b.kapitaal) + (b.stemmen !== null && b.stemmen !== undefined && b.stemmen !== b.kapitaal ? ' (st. ' + pct(b.stemmen) + ')' : '') : '?';
+    const lx = x1 + (x2 - x1) * 0.62, ly = y1 + (y2 - y1) * 0.62;
+    return '<path class="og-lijn" d="M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + my + ' ' + x2 + ' ' + my + ' ' + x2 + ' ' + (y2 - 6) + '" marker-end="url(#og-pijl)"/>' +
+      '<text class="og-pct" x="' + lx + '" y="' + (ly + 4) + '" text-anchor="middle">' + escapeHtml(tekst) + '</text>';
+  }).join('');
+  const relaties = (invoer.relaties || []).map(function (r) {
+    const a = d.vakken[r.a], b = d.vakken[r.b];
+    if (!a || !b) return '';
+    const links = a.x < b.x ? a : b, rechts = a.x < b.x ? b : a;
+    const y = Math.min(a.y, b.y) + h / 2;
+    const x1 = links.x + w, x2 = rechts.x;
+    const mx = (x1 + x2) / 2;
+    const boog = a.y === b.y && Math.abs(rechts.x - links.x) <= w + VAK.tussenX + 1 ? '' : ' Q' + mx + ' ' + (Math.min(a.y, b.y) - 18) + ' ';
+    const pad = boog ? 'M' + (links.x + w / 2) + ' ' + links.y + boog + (rechts.x + w / 2) + ' ' + rechts.y
+      : 'M' + x1 + ' ' + y + ' L' + x2 + ' ' + y;
+    return '<path class="og-relatie" d="' + pad + '"/>' +
+      (boog ? '' : '<text class="og-rel-tekst" x="' + mx + '" y="' + (y - 5) + '" text-anchor="middle">' + (r.soort === 'partner' ? 'partner' : 'rechte lijn') + '</text>');
+  }).join('');
+  const vakken = invoer.entiteiten.map(function (e) {
+    const v = d.vakken[e.id];
+    const klasse = 'og-vak ' + (e.soort === 'persoon' ? 'og-persoon' : 'og-rp') + (feVpb[e.id] ? ' og-fe' : '');
+    const naam = String(e.naam || '(zonder naam)');
+    const kort = naam.length > 26 ? naam.slice(0, 25) + '…' : naam;
+    const etiket = e.soort === 'persoon' ? (uboSet[e.id] ? 'mogelijke UBO' : 'persoon') : (SOORTEN[e.soort] || '').replace(/ \(.*\)/, '') + (feVpb[e.id] ? ' · FE Vpb?' : '');
+    return '<g><title>' + escapeHtml(naam) + '</title><rect class="' + klasse + '" x="' + v.x + '" y="' + v.y + '" width="' + w + '" height="' + h + '" rx="' + (e.soort === 'persoon' ? 29 : 8) + '"/>' +
+      '<text class="og-naam" x="' + (v.x + w / 2) + '" y="' + (v.y + 25) + '" text-anchor="middle">' + escapeHtml(kort) + '</text>' +
+      '<text class="og-etiket' + (uboSet[e.id] ? ' og-ubo' : '') + '" x="' + (v.x + w / 2) + '" y="' + (v.y + 43) + '" text-anchor="middle">' + escapeHtml(etiket) + '</text></g>';
+  }).join('');
+  return '<svg class="og" viewBox="0 0 ' + d.breedte + ' ' + d.hoogte + '" width="' + d.breedte + '" role="img" aria-label="Organogram van de ingevoerde structuur">' +
+    '<defs><marker id="og-pijl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="og-pijlpunt"/></marker></defs>' +
+    lijnen + relaties + vakken + '</svg>';
+}
+
+// ------------------------------------------------------------------ signalen
+
+function meldingenHtml(meldingen) {
+  return (meldingen || []).map(function (m) {
+    return '<div class="melding ' + (m.ernst === 'fout' ? 'fout' : 'let-op') + '">' + (m.ernst === 'fout' ? 'Niet doorgerekend: ' : 'Let op: ') + escapeHtml(m.tekst) + '</div>';
+  }).join('');
+}
+
+function signalenHtml(u) {
+  if (!u.berekend) return '<p class="toelichting">Herstel eerst de invoer; zie de meldingen bij het organogram.</p>';
+  let s = '<h3>UBO</h3><p class="toelichting">Rekenwijze indirect belang: ' + escapeHtml(u.methode) + '.</p>';
+  s += u.ubo.map(function (x) {
+    if (!x.beoordeeld) return '<p><strong>' + escapeHtml(x.entiteit) + '</strong>: ' + escapeHtml(x.reden) + '</p>';
+    return '<div class="signaal"><strong>' + escapeHtml(x.entiteit) + '</strong>: ' + escapeHtml(x.conclusie) +
+      (x.methodenVerschillen ? '<div class="melding let-op">De twee rekenwijzen geven hier een verschillende uitkomst; kijk welke persoon via welke weg boven 25% komt.</div>' : '') +
+      (x.vergelijking ? '<div class="melding ' + (x.vergelijking.indexOf('wijkt af') >= 0 ? 'let-op' : 'info') + '">' + escapeHtml(x.vergelijking) + '</div>' : '') +
+      (x.rijen.length ? '<table><tr><th>Persoon</th><th class="getal">Direct</th><th class="getal">Vermenigvuldigd kapitaal</th><th class="getal">Vermenigvuldigd stemrecht</th><th class="getal">Via zeggenschap kapitaal</th><th class="getal">Via zeggenschap stemrecht</th><th>UBO</th></tr>' +
+        x.rijen.map(function (r) {
+          return '<tr><td>' + escapeHtml(r.persoon) + '</td><td class="getal">' + procentTekst(r.direct) + '</td><td class="getal">' + procentTekst(r.vermenigvuldigdKapitaal) +
+            '</td><td class="getal">' + procentTekst(r.vermenigvuldigdStemmen) + '</td><td class="getal">' + procentTekst(r.zeggenschapKapitaal) +
+            '</td><td class="getal">' + procentTekst(r.zeggenschapStemmen) + '</td><td>' + (r.ubo ? '<strong>ja</strong>' : 'nee') + '</td></tr>';
+        }).join('') + '</table>' : '') + '</div>';
+  }).join('');
+  s += '<h3>Aanmerkelijk belang</h3>' + (u.ab.length ? '<table><tr><th>Persoon</th><th>Vennootschap</th><th class="getal">Eigen</th><th class="getal">Samen met partner</th><th>Signaal</th></tr>' +
+    u.ab.map(function (r) {
+      return '<tr><td>' + escapeHtml(r.persoon) + '</td><td>' + escapeHtml(r.vennootschap) + '</td><td class="getal">' + procentTekst(r.eigen) +
+        '</td><td class="getal">' + procentTekst(r.samenMetPartner) + '</td><td>' + (r.ab ? '<strong>' + escapeHtml(r.grond) + '</strong>' : escapeHtml(r.grond)) + '</td></tr>';
+    }).join('') + '</table>' : '<p class="toelichting">Geen natuurlijk persoon houdt rechtstreeks aandelen.</p>');
+  s += '<h3>Mogelijke fiscale eenheid Vpb</h3>' + (u.feVpb.length ? u.feVpb.map(function (g) {
+    return '<p><strong>' + escapeHtml(g.moeder) + '</strong> met ' + g.dochters.map(function (d) {
+      return escapeHtml(d.naam) + ' (' + procentTekst(d.kapitaal) + ' kapitaal, ' + procentTekst(d.stemmen) + ' stemrecht)';
+    }).join(', ') + '.</p>';
+  }).join('') + '<p class="toelichting">Alleen de 95%-eis is getoetst. Verzoek: formulier "Verzoek om een fiscale eenheid vennootschapsbelasting" van de Belastingdienst, deel A voor de moeder en deel B per dochter (deel C alleen als een dochter al moeder is van een fiscale eenheid).</p>'
+    : '<p class="toelichting">Geen BV of NV houdt ten minste 95% van een andere.</p>');
+  s += '<h3>Financiële verwevenheid btw</h3>' + (u.feBtw.length ? u.feBtw.map(function (g) {
+    return '<p>In handen van <strong>' + escapeHtml(g.beheerser) + '</strong>: ' + g.groep.map(escapeHtml).join(', ') + '.' +
+      (g.toelichting ? ' <span class="toelichting">' + escapeHtml(g.toelichting) + '</span>' : '') + '</p>';
+  }).join('') + '<p class="toelichting">Alleen de financiële verwevenheid is afgeleid. Voor een fiscale eenheid btw bestaat geen formulier: het is een schriftelijk verzoek aan het belastingkantoor.</p>'
+    : '<p class="toelichting">Geen persoon of rechtspersoon houdt de meerderheid in twee of meer rechtspersonen.</p>');
+  return s;
+}
+
+function toonDossierstuk(u, svg) {
+  const lijst = function (items) { return items.map(function (v) { return '<li>' + escapeHtml(v) + '</li>'; }).join(''); };
+  const st = u.structuur;
+  const rijen = function (koppen, data) {
+    return data.length ? '<table><tr>' + koppen.map(function (k) { return '<th>' + k + '</th>'; }).join('') + '</tr>' + data.join('') + '</table>' : '<p class="toelichting">Niet ingevoerd.</p>';
+  };
+  $('dossierstuk').innerHTML = '<h2>Dossierstuk ' + escapeHtml(u.kop.tool) + '</h2>' +
+    '<div class="kenmerkregel"><span>Kenmerk: ' + escapeHtml(u.kop.kenmerk || '(niet ingevuld)') + '</span>' +
+    '<span>Datum: ' + escapeHtml(u.kop.datum) + '</span></div>' +
+    '<h3>Organogram</h3><div class="organogram">' + svg + '</div>' +
+    '<h3>Personen en rechtspersonen</h3>' + rijen(['Naam', 'Soort'], st.entiteiten.map(function (e) { return '<tr><td>' + escapeHtml(e.naam) + '</td><td>' + escapeHtml(e.soort) + '</td></tr>'; })) +
+    '<h3>Belangen</h3>' + rijen(['Houder', 'In', 'Kapitaal', 'Stemrecht'], st.belangen.map(function (b) {
+      return '<tr><td>' + escapeHtml(b.houder) + '</td><td>' + escapeHtml(b.in) + '</td><td class="getal">' + procentTekst(b.kapitaal) + '</td><td class="getal">' + procentTekst(b.stemmen) + (b.stemmenApart ? '' : ' (gelijk)') + '</td></tr>';
+    })) +
+    '<h3>Relaties</h3>' + rijen(['Persoon', 'Persoon', 'Relatie'], st.relaties.map(function (r) { return '<tr><td>' + escapeHtml(r.a) + '</td><td>' + escapeHtml(r.b) + '</td><td>' + escapeHtml(r.soort) + '</td></tr>'; })) +
+    '<h3>Bestuurders</h3>' + rijen(['Persoon', 'Rechtspersoon'], st.bestuurders.map(function (r) { return '<tr><td>' + escapeHtml(r.persoon) + '</td><td>' + escapeHtml(r.entiteit) + '</td></tr>'; })) +
+    '<h3>UBO volgens aangeleverd uittreksel</h3>' + rijen(['Persoon', 'Rechtspersoon'], st.uittreksel.map(function (r) { return '<tr><td>' + escapeHtml(r.persoon) + '</td><td>' + escapeHtml(r.entiteit) + '</td></tr>'; })) +
+    (u.meldingen.length ? '<h3>Meldingen</h3>' + u.meldingen.map(function (m) { return '<p class="toelichting">' + escapeHtml(m) + '</p>'; }).join('') : '') +
+    '<h3>Signalen</h3>' + signalenHtml(u) +
+    '<h3>Vindplaatsen</h3><ul class="vindplaatsen">' + lijst(u.vindplaatsen) + '</ul>' +
+    '<h3>Afbakening</h3><ul class="afbakening">' + lijst(u.afbakening) + '</ul>' +
+    '<div class="stempel">' + escapeHtml(u.kop.tool) + ', versie ' + escapeHtml(u.kop.versie) + '</div>';
+}
+
+// ------------------------------------------------------------------ bijwerken
+
+function kopie(o) { return JSON.parse(JSON.stringify(o)); }
+
+function toon() {
+  staat.kenmerk = $('kenmerk').value;
+  const invoer = kopie(staat);
+  const reken = rekenAlles(invoer);
+  const uitgang = bouwUitgang(invoer, reken, invoer.kenmerk, vandaagISO());
+  laatste = { invoer: invoer, reken: reken, uitgang: uitgang };
+  const svg = organogramSvg(invoer, reken);
+  $('uit-meldingen').innerHTML = meldingenHtml(reken.meldingen);
+  $('uit-organogram').innerHTML = svg;
+  $('uit-signalen').innerHTML = signalenHtml(uitgang);
+  toonDossierstuk(uitgang, svg.replace(/\bog-pijl\b/g, 'og-pijl-afdruk'));
+}
+
+function vandaagISO() {
+  const d = new Date();
+  const tw = function (x) { return (x < 10 ? '0' : '') + x; };
+  return d.getFullYear() + '-' + tw(d.getMonth() + 1) + '-' + tw(d.getDate());
+}
+
+function download(naam, inhoud, type) {
+  const url = URL.createObjectURL(new Blob([inhoud], { type: type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function dossierMelding(tekst, soort) {
+  $('dossiermelding').innerHTML = tekst ? '<div class="melding ' + soort + '">' + escapeHtml(tekst) + '</div>' : '';
+}
+
+function start() {
+  const hoofd = document.querySelector('main');
+  hoofd.addEventListener('input', function (e) {
+    if (e.target.hasAttribute('data-lijst')) neemOver(e.target);
+    toon();
+  });
+  // Een naam of keuze bepaalt wat de keuzelijsten tonen; dan de tabellen opnieuw opbouwen.
+  hoofd.addEventListener('change', function (e) {
+    if (e.target.hasAttribute('data-lijst')) { neemOver(e.target); bouwTabellen(); }
+    toon();
+  });
+  hoofd.addEventListener('click', function (e) {
+    const t = e.target;
+    if (t.hasAttribute('data-voegtoe')) { voegToe(t.getAttribute('data-voegtoe')); bouwTabellen(); toon(); }
+    if (t.hasAttribute('data-wis')) { wis(t.getAttribute('data-wis'), Number(t.getAttribute('data-i'))); bouwTabellen(); toon(); }
+  });
+  $('knop-voorbeeld').addEventListener('click', function () { staat = voorbeeld(); bouwTabellen(); toon(); dossierMelding('Het synthetische voorbeeld Klajan is geladen.', 'info'); });
+  $('knop-leeg').addEventListener('click', function () { staat = leeg(); bouwTabellen(); toon(); dossierMelding('', ''); });
+  $('knop-afdrukken').addEventListener('click', function () { toon(); window.print(); });
+  $('knop-export').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'xlsx'), xlsxBytes(exportBladen(laatste.uitgang)),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+  $('knop-opslaan').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'json'), schrijfDossier(laatste.invoer, vandaagISO()), 'application/json');
+    dossierMelding('Het dossierbestand is opgeslagen in de map die uw browser voor downloads gebruikt.', 'info');
+  });
+  $('knop-openen').addEventListener('click', function () { $('bestand-openen').click(); });
+  $('bestand-openen').addEventListener('change', function (e) {
+    const bestand = e.target.files && e.target.files[0];
+    if (!bestand) return;
+    const lezer = new FileReader();
+    lezer.onload = function () {
+      const r = leesDossier(String(lezer.result));
+      if (r.fout) { dossierMelding(r.fout, 'fout'); }
+      else {
+        staat = r.invoer; bouwTabellen(); toon();
+        dossierMelding(r.meldingen.length ? r.meldingen.join(' ') : 'Het dossier is geopend en opnieuw doorgerekend.', r.meldingen.length ? 'let-op' : 'info');
+      }
+      e.target.value = '';
+    };
+    lezer.onerror = function () { dossierMelding('Het bestand kon niet worden gelezen.', 'fout'); e.target.value = ''; };
+    lezer.onabort = function () { dossierMelding('Het lezen van het bestand is afgebroken.', 'fout'); e.target.value = ''; };
+    lezer.readAsText(bestand);
+  });
+  bouwTabellen();
+  toon();
+}
+
+document.addEventListener('DOMContentLoaded', start);
+// PRESENTATIE — EINDE
+</script>
+</body>
+</html>
