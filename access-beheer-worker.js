@@ -114,6 +114,7 @@ const APP_IDS = {
   'pensioen-odv.html': '54576b7e-6708-473c-8022-b0ef6b9f3efe',
   'fiscale-vastgoedtool.html': '64083169-f03d-44a4-9153-714ddc40de18',
   'verrekenbeding.html': 'a9913279-b179-41be-82ef-27b511dd4196',
+  'vermogen-bv.html': 'a1ed8c44-03d4-4e3a-b3a1-a503799f6bd7',
 };
 
 export default {
