@@ -130,7 +130,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-23 |
-| 🔵 concept | BOR bij schenken | `/bor-schenken.html` | bouwman-tools/bor-schenken | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | BOR bij schenken | `/bor-schenken.html` | bouwman-tools/bor-schenken | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Bruto-netto 2026 | `/bruto-netto-2026.html` | Sylvainbouwman/bruto-netto-2026 | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-24 |
 | 🟢 live | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
