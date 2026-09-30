@@ -242,7 +242,7 @@ table input[type="number"] { width: 100%; min-width: 7em; text-align: right; }
       <div>
         <div class="bt-kopbalk-titel">Vermogen van box 3 naar de BV</div>
         <div class="bt-kopbalk-sub">Box 3, inbreng in een BV of een lening aan de BV</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 30 sep 2026, 07:46</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 30 sep 2026, 11:00</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -332,9 +332,9 @@ table input[type="number"] { width: 100%; min-width: 7em; text-align: right; }
         Het vermogen gaat eind van het beginjaar een BV in, of wordt aan de BV uitgeleend, en
         komt begin van het jaar na het volgende weer in box 3. Op de peildatum daartussen
         staat het in de BV, zodat box 3 dat jaar niet heft. De tool zet dat af tegen box 3,
-        een blijvende inbreng en een blijvende lening. Of de constructie in uw geval
-        houdbaar is, beoordeelt de tool niet: zie de toelichting over art. 2.14 lid 3 Wet IB
-        2001.
+        een blijvende inbreng en een blijvende lening. Geen wetsbepaling houdt de jojo tegen,
+        maar een beroep op fraus legis is een reëel risico; de uitkomst meldt het, met de
+        bronnen in de toelichting.
       </p>
       <div class="rij" id="velden-jojo"></div>
     </div>
@@ -405,6 +405,8 @@ const STANDAARD_START_WERKELIJK = 2028;
 // de BV in en komt begin van het jaar na het volgende terug, zodat één peildatum voor box 3
 // in de BV valt. Zie BRONNEN.md over art. 2.14 lid 3 Wet IB 2001.
 const JOJO_STARTJAREN = [2025];
+
+const JOJO_FRAUS_LEGIS = 'De jojo valt niet onder art. 2.14 lid 3 Wet IB 2001, maar de inspecteur kan fraus legis inroepen. Bij de invoering van die bepaling zei het kabinet dat overhevelingen buiten de termijn met bijzondere rechtsmiddelen kunnen worden bestreden, en volgens de Hoge Raad sluit een specifieke antimisbruikbepaling fraus legis niet uit. Daartegenover schreef het kabinet in 2016 dat sparen in een BV, die vennootschapsbelasting betaalt, in principe geen misbruik is, en beperkte het de termijn van achttien maanden tot vrijgestelde beleggingsinstellingen en buitenlandse beleggingslichamen. Rechtspraak over deze constructie is niet gevonden: verdedigbaar, niet zeker. Ligt de terugbetaling vooraf vast en parkeert de BV alleen het vermogen, dan is het risico groter.';
 
 function tarievenVoor(jaar, vastJaar) {
   if (typeof vastJaar === 'number') {
@@ -811,6 +813,10 @@ function rekenJojo(invoer) {
   const laatste = function (rijen) { return rijen[rijen.length - 1].vermogen; };
   const eind = { box3: laatste(box3), bv: laatste(bv), jojoBV: laatste(jojoBV), tbs: laatste(tbs), jojoTbs: laatste(jojoTbs) };
   const meldingen = reeks.meldingen.slice();
+  // Geen wetsbepaling raakt de jojo, maar fraus legis blijft mogelijk; zie BRONNEN.md, "Jojo en
+  // fraus legis" (Kamerstukken II 1999/2000, 26 727, nr. 7; HR 16 juli 2021,
+  // ECLI:NL:HR:2021:1152; Kamerstukken II 2016/17, 34 552, nr. 14). Daarom altijd deze melding.
+  meldingen.push({ ernst: 'let-op', tekst: JOJO_FRAUS_LEGIS });
   if (box3.some(function (r) { return r.tegenbewijs; })) {
     meldingen.push({ ernst: 'let-op', tekst: 'In box 3 is het lagere werkelijke rendement genomen (tegenbewijsregeling). De tool doet dat alsof dit het hele box 3-vermogen is.' });
   }
@@ -1068,8 +1074,8 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'vermogen-bv';
 const TOOLNAAM = 'Vermogen van box 3 naar de BV';
-const TOOLVERSIE = '0.1.0';
-const TOOLDATUM = '2026-09-29';
+const TOOLVERSIE = '0.1.1';
+const TOOLDATUM = '2026-09-30';
 // Versie van het formaat van het dossierbestand, los van de toolversie.
 const DOSSIERFORMAAT = 1;
 
@@ -1130,6 +1136,8 @@ const VINDPLAATSEN = [
   'Opnames uit de BV: eerst terugbetaling tot de verkrijgingsprijs, onbelast na een besluit van de algemene vergadering en een statutaire verlaging van de nominale waarde (art. 4.13 lid 1 onder b Wet IB 2001); daarna dividend, belast in box 2 als het is ontvangen of ter beschikking gesteld (art. 4.43 lid 1).',
   'Lening aan de eigen BV: de rente is resultaat uit terbeschikkingstelling in box 1 (art. 3.92 lid 1 onder a jo. lid 2 onder a, 1° Wet IB 2001). Daarop geldt de terbeschikkingstellingsvrijstelling van 12% (art. 3.99b lid 2), waarvan het voordeel is beperkt tot 37,56% in 2026 (art. 2.10 lid 2 en 3 Wet IB 2001). Hoogste tarief box 1 2026: 49,50% (art. 2.10 lid 1).',
   'Jojo: art. 2.14 lid 3 Wet IB 2001 neemt een bezitting die rond de peildatum tijdelijk in box 1 of box 2 zit ook in box 3 in aanmerking, bij drie maanden of korter (onder b) en bij drie tot zes maanden tenzij er zakelijke overwegingen zijn (onder c). Onder d gaat het om zes tot achttien maanden, maar alleen via een vrijgestelde beleggingsinstelling of een buitenlandse beleggingsvennootschap. Een gewone eigen BV waarin het vermogen meer dan twaalf maanden zit, valt niet onder de tekst.',
+  'Jojo en fraus legis: bij de invoering van art. 2.14 lid 3 (toen met alleen de termijn van drie maanden) zei het kabinet dat overhevelingen buiten de termijn met bijzondere rechtsmiddelen kunnen worden bestreden (Kamerstukken II 1999/2000, 26 727, nr. 7, par. 2.7). Een specifieke antimisbruikbepaling sluit fraus legis niet uit (HR 16 juli 2021, ECLI:NL:HR:2021:1152, over art. 10a Wet Vpb 1969). Daartegenover: in 2016 beperkte de wetgever de termijn van achttien maanden tot vrijgestelde beleggingsinstellingen en buitenlandse beleggingslichamen (Kamerstukken II 2016/17, 34 552, nr. 3, par. 5.1) en schreef het kabinet dat bij sparen in een BV in principe geen sprake is van misbruik, omdat de BV vennootschapsbelasting betaalt (34 552, nr. 14); het tijdelijk inbrengen in een vbi noemde het wel ongewenst. Rechtspraak over deze constructie is niet gevonden.',
+  'Agio: een terugbetaling van agio zonder verlaging van de nominale waarde bij statutenwijziging is volledig belast in box 2, ook zonder winst in de BV (HR 12 september 2008, ECLI:NL:HR:2008:BA6417, over de gelijkluidende voorganger van art. 4.13 lid 1 onder b). Onbelast kan het door het agio eerst om te zetten in nominaal kapitaal en dat bij statutenwijziging te verminderen (oordeel van het hof, in stand gelaten door de Hoge Raad).',
   'Wettekst: Wet IB 2001 (BWBR0011353, versie 21-02-2026) en Wet Vpb 1969 (BWBR0002672, versie 01-01-2026), gelezen in de officiële XML op 29-09-2026. Zie BRONNEN.md in de repository voor de volledige lijst.',
 ];
 
@@ -1139,10 +1147,10 @@ const AFBAKENING = [
   'De tool belast het rendement in de BV elk jaar, alsof het wordt gerealiseerd. Waardeert de BV haar beleggingen op kostprijs, dan wordt een koerswinst pas bij verkoop belast en valt de BV gunstiger uit.',
   'De reserves in de BV tellen mee na aftrek van de box 2-heffing die zou volgen als ze in dat jaar worden uitgekeerd. Kies voor een vast percentage als de uitdeling over jaren of over twee partners wordt gespreid.',
   'Rente op de lening aan de BV moet zakelijk zijn. De tool toetst dat niet, en evenmin renteaftrekbeperkingen in de BV (zoals art. 10a en art. 15b Wet Vpb 1969). Voor art. 15b geldt een drempel van € 1.000.000 aan saldo renten.',
-  'Het jojo-onderdeel rekent alleen een inbreng eind 2025 met terugbetaling begin 2027. Een begin eind 2026 zou terugkomen in 2028, als box 3 volgens het wetsvoorstel geen peildatum meer kent; dat rekent de tool niet. Of een jojo in uw geval standhoudt (bijvoorbeeld tegen fraus legis), beoordeelt de tool niet.',
+  'Het jojo-onderdeel rekent alleen een inbreng eind 2025 met terugbetaling begin 2027. Een begin eind 2026 zou terugkomen in 2028, als box 3 volgens het wetsvoorstel geen peildatum meer kent; dat rekent de tool niet. Of een jojo in uw geval standhoudt tegen een beroep op fraus legis, beoordeelt de tool niet; zij meldt het risico.',
   'Kosten van inbreng, terugbetaling en oprichting vult u zelf in als jaarlijkse kosten. De tool rekent geen overdrachtsbelasting, geen notariskosten apart en geen box 2-heffing bij de inbreng zelf.',
   'Een verlies uit aanmerkelijk belang (art. 4.49 Wet IB 2001) en een verlies op de lening aan de BV in box 1 verrekent de tool niet; de box 2-heffing over een negatief bedrag is nihil.',
-  'De tool neemt aan dat het gestorte kapitaal tot de verkrijgingsprijs onbelast kan worden terugbetaald. Of dat bij agio zonder statutaire verlaging van de nominale waarde kan, beoordeelt zij niet.',
+  'De tool neemt aan dat een opname tot de verkrijgingsprijs onbelast wordt terugbetaald, dus met een besluit van de algemene vergadering en een statutaire verlaging van de nominale waarde; is ingebracht als agio, dan moet dat eerst worden omgezet in nominaal kapitaal. Wordt die weg niet gevolgd, dan is de terugbetaling belast in box 2 en rekent de tool te gunstig.',
   'De tool doet geen voorstel en geeft geen advies. Zij rekent de ingevulde situatie door.',
 ];
 
