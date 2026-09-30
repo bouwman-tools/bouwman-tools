@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-29
+Bijgewerkt: 2026-09-30
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -201,9 +201,11 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Fiscale vastgoedtool | `/fiscale-vastgoedtool.html` | bouwman-tools/fiscale-vastgoedtool | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | 2026-09-29 |
+| 🔵 concept | Kopen of huren bedrijfspand | `/kopen-huren.html` | bouwman-tools/kopen-huren | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Rendementsstructuur vastgoed | `/vastgoedrendement.html` | bouwman-tools/vastgoedrendement | ja | 2026-09-04 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 
 - **Fiscale vastgoedtool**: Vergelijkt wat een verhuurd pand de DGA na belasting oplevert in box 3, onder de terbeschikkingstellingsregeling en in de eigen BV: bij aankoop, bij een pand in box 3 en bij een pand onder de tbs, per jaar doorgerekend met de latente belasting bij verkoop
+- **Kopen of huren bedrijfspand**: Vergelijkt voor een IB-ondernemer kopen en huren van een bedrijfspand over dertig jaar als opgeofferd eigen vermogen na belasting, met het oordeel na 10, 20 en 30 jaar en het jaar vanaf waar kopen blijvend voordeliger is
 - **Rendementsstructuur vastgoed**: Rekent het rendement op een vastgoedbelegging door en laat zien wat de financiering met vreemd vermogen met dat rendement doet: direct en indirect rendement, leegstand en de kosten van verkrijging
 
 ### Wettelijke verwijzingen: Fiscale vastgoedtool
@@ -213,6 +215,14 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Wet inkomstenbelasting 2001, Artikel 5.2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet op de vennootschapsbelasting 1969, Artikel 22 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002672/2026-01-01)
 - [Wet op belastingen van rechtsverkeer 1970, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
+
+### Wettelijke verwijzingen: Kopen of huren bedrijfspand
+
+- [Wet inkomstenbelasting 2001, Artikel 2.10 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.30 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.30a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.79a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet op belastingen van rechtsverkeer, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
 
 ## Workers
 
