@@ -115,6 +115,7 @@ const APP_IDS = {
   'fiscale-vastgoedtool.html': '64083169-f03d-44a4-9153-714ddc40de18',
   'verrekenbeding.html': 'a9913279-b179-41be-82ef-27b511dd4196',
   'vermogen-bv.html': 'a1ed8c44-03d4-4e3a-b3a1-a503799f6bd7',
+  'kopen-huren.html': '74f9eb6a-14f6-40cb-9dd0-de7ad3b0be1a',
 };
 
 export default {
