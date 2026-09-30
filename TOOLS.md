@@ -81,6 +81,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
+| 🔵 concept | Vermogen van box 3 naar de BV | `/vermogen-bv.html` | bouwman-tools/vermogen-bv | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **BV Ja/Nee**: Rekent door of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
 - **Belastinglatentie**: Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of doorschuiving: het gemis aan afschrijvingsbasis en de uitgestelde heffing, met het verloop per jaar
@@ -94,11 +95,25 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Rekeningcourant + Dividend**: Berekent de optimale aflossingsroute van een rekening-courantschuld van een DGA
 - **Rente rekening-courant**: Berekent de rente op een rekening-courantverhouding
 - **Sjablonen DGA**: Genereert de juridische documenten voor de inrichting van een holdingstructuur voor een DGA
+- **Vermogen van box 3 naar de BV**: Vergelijkt wat er overblijft van beleggingen of andere bezittingen in box 3, na inbreng in een eigen BV of na overdracht tegen een lening aan de BV (tbs): twintig jaar vooruit met de overgang naar werkelijk rendement, en twee jaar rond de peildatum met de jojo via de BV of de lening
 
 ### Wettelijke verwijzingen: Pensioen in eigen beheer en oudedagsverplichting
 
 - [Wet inkomstenbelasting 2001, Artikel 3.29 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet op de loonbelasting 1964, Artikel 38p, lid 2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0002471/2026-02-21)
+
+### Wettelijke verwijzingen: Vermogen van box 3 naar de BV
+
+- [Wet op de vennootschapsbelasting 1969, Artikel 20 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002672/2026-01-01)
+- [Wet op de vennootschapsbelasting 1969, Artikel 22 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002672/2026-01-01)
+- [Wet inkomstenbelasting 2001, Artikel 2.10 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 2.12 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 2.13 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 2.14 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.92 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 3.99b \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 5.2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 5.25 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 
 ## Belastingdienst
 
