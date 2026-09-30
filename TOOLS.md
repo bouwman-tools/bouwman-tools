@@ -130,6 +130,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | AOW-datum | `/aow-datum.html` | bouwman-tools/aow-datum | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-23 |
+| 🔵 concept | BOR bij schenken | `/bor-schenken.html` | bouwman-tools/bor-schenken | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Bruto-netto 2026 | `/bruto-netto-2026.html` | Sylvainbouwman/bruto-netto-2026 | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Eigen woning | `/eigen-woning.html` | bouwman-tools/eigen-woning | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-24 |
 | 🟢 live | Familiebank | `/familiebank.html` | bouwman-tools/familiebank | ja | 2026-09-23 | Sylvain Bouwman | belastingplan | 2026-09-21 |
@@ -141,6 +142,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
 - **AOW-datum**: Leidt uit een geboortedatum de pensioengerechtigde leeftijd en de AOW-datum af: de leeftijd die voor dat geboortejaar is vastgesteld en de dag waarop het ouderdomspensioen ingaat. Rekent alleen met vastgestelde leeftijden en geeft voor latere geboortedata een melding in plaats van een raming
+- **BOR bij schenken**: Rekent de schenking van een IB-onderneming of aanmerkelijk-belangaandelen door met de bedrijfsopvolgingsregeling: doorschuiving van de inkomstenbelasting, de latentie in aftrek, de BOR-vrijstelling, de schenkbelasting met conserverende aanslag en uitstel, en wat er gebeurt als een voorwaarde niet is vervuld
 - **Bruto-netto 2026**: Bruto-netto berekening voor 2026: box 1/2/3, heffingskortingen, bijdrage Zvw en de posten voor een DGA of IB-ondernemer
 - **Eigen woning**: Volgt de eigen woning en de eigenwoningschuld per jaar: marktwaarde en waardeontwikkeling, eigenwoningforfait volgens de staffel met de eigenwoningperiode naar tijdsgelang, tot drie leningen die elk apart worden getoetst, de schuld en de overwaarde, de verdeling over box 1 en box 3, en tot welk jaar de rente aftrekbaar is. Ook de aankoop met de kosten gesplitst naar aftrekbaar en niet aftrekbaar, de verkoop, een verbouwing tot ten hoogste de kosten, de eigenwoningreserve die de leenruimte verlaagt en bij verkoop het vervreemdingssaldo, het overgangsrecht van art. 10bis met de aflossingsstand, en de aflossing uit een kapitaalverzekering, spaarrekening of beleggingsrecht eigen woning met de vrijstelling en het belaste deel
 - **Familiebank**: Rekent een annuïtaire lening van een ouder aan een kind voor de eigen woning door: het aflosschema, de toets aan de aflossingseis van artikel 3.119c Wet IB 2001, het belastingeffect van de renteaftrek bij het kind en de jaarlijkse schenking getoetst aan de vrijstelling
@@ -150,6 +152,18 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Periodiek verrekenbeding**: Rekent een periodiek verrekenbeding in huwelijkse voorwaarden door: per jaar het overgespaarde inkomen en het bedrag dat de een de ander betaalt, een tekort naar verhouding van de vermogens en de achterstallige verrekening over een periode met de vermogensgroei per partner
 - **Tijdplan**: Zet leeftijden en mutatiemomenten van een gezin op een tijdlijn en rekent uit in welk jaar een leeftijd valt
 - **WW-uitkering**: Berekent de duur en de hoogte van een WW-uitkering op de eerste werkloosheidsdag: de opbouw uit fictief en feitelijk arbeidsverleden binnen de wettelijke ondergrens van drie en bovengrens van 24 maanden, en de uitkering per kalendermaand tegen 75 procent over de eerste twee maanden en 70 procent daarna, met het dagloon gemaximeerd op het maximumdagloon
+
+### Wettelijke verwijzingen: BOR bij schenken
+
+- [Successiewet 1956, Artikel 20 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Successiewet 1956, Artikel 24 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Successiewet 1956, Artikel 33 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Successiewet 1956, Artikel 35b \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Successiewet 1956, Artikel 35c \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Successiewet 1956, Artikel 35d \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Wet inkomstenbelasting 2001, Artikel 3.63 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 4.17c \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Invorderingswet 1990, Artikel 25 \(versie 1 juli 2026\)](https://wetten.overheid.nl/BWBR0004770/2026-07-01)
 
 ### Wettelijke verwijzingen: Periodiek verrekenbeding
 
