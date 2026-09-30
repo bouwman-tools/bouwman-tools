@@ -242,7 +242,7 @@ details summary { cursor: pointer; color: var(--dim); margin-bottom: 8px; }
       <div>
         <div class="bt-kopbalk-titel">Kopen of huren van een bedrijfspand</div>
         <div class="bt-kopbalk-sub">Opgeofferd eigen vermogen over dertig jaar, na belasting</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 30 sep 2026, 07:43</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 30 sep 2026, 10:45</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -377,7 +377,7 @@ details summary { cursor: pointer; color: var(--dim); margin-bottom: 8px; }
       <div id="blok-ovb-bedrag" class="verborgen"><label for="k-ovbBedrag">Overdrachtsbelasting, eigen bedrag</label><input type="number" id="k-ovbBedrag" step="0.01" value="0"></div>
       <div><label for="k-notaris">Notariskosten</label><input type="number" id="k-notaris" step="0.01"></div>
       <div><label for="k-grond">Waarvan grond
-        <span class="bron">grond wordt niet afgeschreven (Belastingdienst, Afschrijving bedrijfspand)</span></label><input type="number" id="k-grond" step="0.01"></div>
+        <span class="bron">grond wordt niet afgeschreven (HR 10-08-2007, ECLI:NL:HR:2007:AU3996)</span></label><input type="number" id="k-grond" step="0.01"></div>
       <div><label for="k-woz">WOZ-waarde eerste jaar
         <span class="bron">leeg: gelijk aan de koopsom</span></label><input type="number" id="k-woz" step="0.01"></div>
       <div><label for="k-waardestijging">Waardeontwikkeling pand per jaar (%)</label><input type="number" id="k-waardestijging" step="0.01" value="2"></div>
@@ -435,9 +435,11 @@ const JAREN = {
   2025: {
     // Tarief per schijf voor wie de AOW-leeftijd nog niet heeft bereikt. Belasting volgens
     // art. 2.10 lid 1 Wet IB 2001 (BWBR0011353, versie 01-01-2025): 8,17% / 37,48% / 49,50%.
-    // De eerste schijf draagt daarnaast de premie volksverzekeringen, 27,65% (AOW 17,90%,
-    // Anw 0,10%, Wlz 9,65%; per ministeriële regeling op grond van art. 11 Wfsv; Belastingdienst,
-    // premie volksverzekeringen 2025); samen 35,82%.
+    // De eerste schijf draagt daarnaast de premie volksverzekeringen, 27,65%, samen 35,82%.
+    // AOW 17,90% en Anw 0,10%: art. I en II van de regeling premiepercentages 2025 van SZW
+    // (Stcrt. 2024, 38722), op grond van art. 11 lid 1 en 2 Wfsv. Wlz 9,65%: art. 1 van de
+    // Regeling vaststelling premiepercentage Wlz van VWS (Stcrt. 2018, 70642; BWBR0041685,
+    // geldend sinds 18-12-2018, per 01-01-2019), op grond van art. 11 lid 3 Wfsv.
     // Gecontroleerd op 29-09-2026, zie BRONNEN.md.
     schijven: { eerste: 0.3582, tweede: 0.3748, hoogste: 0.495 },
     // Tariefsaanpassing: aftrekposten in de hoogste schijf, waaronder de mkb-winstvrijstelling
@@ -453,8 +455,9 @@ const JAREN = {
   2026: {
     // Art. 2.10 lid 1 Wet IB 2001 (versie 21-02-2026; Stb. 2025, 444 met de tabel uit de
     // Bijstellingsregeling directe belastingen 2026, Stcrt. 2025, 40487): 8,10% / 37,56% /
-    // 49,50%. Eerste schijf met premie volksverzekeringen 27,65% (AOW en Anw: Stcrt. 2025,
-    // 42324; Wlz 9,65%: Belastingdienst, premie volksverzekeringen 2026), samen 35,75%.
+    // 49,50%. Eerste schijf met premie volksverzekeringen 27,65% (AOW 17,90% en Anw 0,10%:
+    // art. I en II, Stcrt. 2025, 42324; Wlz 9,65%: Regeling vaststelling premiepercentage Wlz,
+    // Stcrt. 2018, 70642, ongewijzigd geldend), samen 35,75%.
     // Tariefsaanpassing 11,94% (art. 2.10 lid 2, vastgesteld in Stcrt. 2025, 40487), dus
     // aftrekposten tegen 49,50% - 11,94% = 37,56%. Mkb-winstvrijstelling 12,7% (art. 3.79a).
     // Overdrachtsbelasting niet-woning 10,4% (art. 14 lid 1 WBR, versie 01-01-2026); het
@@ -641,11 +644,15 @@ function berekenKopen(invoer, tarief) {
   const t = tarief.effectief, tm = tarief.meerwaarde, rn = tarief.nettoRente;
   const ovb = ovbBedrag(k, invoer.jaar);
   // Overdrachtsbelasting en notariskosten van de levering tellen als bijkomende kosten mee in
-  // de aanschaffingskosten. Dat volgt uit goed koopmansgebruik; de wet noemt het niet (zie
-  // OPENSTAAND.md).
+  // de aanschaffingskosten. Dat volgt uit goed koopmansgebruik; de wet noemt het niet.
+  // Belastingdienst, "Bedrijfspand in eigendom: privé- of ondernemingsvermogen?": notariskosten
+  // en overdrachtsbelasting zijn aankoopkosten, waarover wordt afgeschreven. HR 10-08-2007,
+  // ECLI:NL:HR:2007:AU3996, r.o. 3.3.2: afschrijvingsbasis is de kosten van aanschaf min restwaarde.
   const aanschaf = n(k.koopsom) + ovb + n(k.notaris);
   if (n(k.grond) > aanschaf) return { meldingen: [fout('De grondwaarde is hoger dan de aanschaffingskosten van het pand.')] };
-  // Over grond wordt niet afgeschreven (Belastingdienst, Afschrijving bedrijfspand); de
+  // Over grond wordt niet afgeschreven (Belastingdienst, Afschrijving bedrijfspand). De Hoge
+  // Raad bereikt dat via de restwaarde: de waarde van de grond aan het einde van de gebruiksduur
+  // telt mee in de restwaarde (HR 10-08-2007, ECLI:NL:HR:2007:AU3996, r.o. 3.3.4). De
   // afschrijving loopt over de rest. In de toets tegen de bodemwaarde telt de grond wel mee:
   // gebouw, ondergrond en aanhorigheden zijn één bedrijfsmiddel (art. 3.30a lid 2 Wet IB 2001).
   // De tool rekent geen restwaarde; wie die wil verwerken, kiest een lager percentage.
@@ -990,11 +997,11 @@ const TOOLDATUM = '2026-09-29';
 const DOSSIERFORMAAT = 1;
 
 const VINDPLAATSEN = [
-  'Tarief box 1 per schijf: art. 2.10 lid 1 Wet IB 2001 (2025: 8,17%, 37,48%, 49,50%; 2026: 8,10%, 37,56%, 49,50%). In de eerste schijf komt de premie volksverzekeringen van 27,65% erbij, vastgesteld op grond van art. 11 Wet financiering sociale verzekeringen (samen 35,82% in 2025 en 35,75% in 2026).',
+  'Tarief box 1 per schijf: art. 2.10 lid 1 Wet IB 2001 (2025: 8,17%, 37,48%, 49,50%; 2026: 8,10%, 37,56%, 49,50%). In de eerste schijf komt de premie volksverzekeringen van 27,65% erbij, vastgesteld op grond van art. 11 Wet financiering sociale verzekeringen (AOW en Anw: Stcrt. 2024, 38722 en Stcrt. 2025, 42324; Wlz: Stcrt. 2018, 70642) (samen 35,82% in 2025 en 35,75% in 2026).',
   'Tariefsaanpassing: in de hoogste schijf leveren aftrekposten, waaronder de mkb-winstvrijstelling, 12,02% (2025) of 11,94% (2026) minder op (art. 2.10 lid 2 en lid 3 onderdeel b Wet IB 2001).',
   'Mkb-winstvrijstelling 12,7% van de winst na ondernemersaftrek: art. 3.79a Wet IB 2001.',
   'Afschrijving op een gebouw kan alleen zolang de boekwaarde hoger is dan de bodemwaarde, en ten hoogste tot het verschil (art. 3.30a lid 1 Wet IB 2001). De bodemwaarde is de WOZ-waarde (lid 3), die van het kalenderjaar van de afschrijving (lid 4). Gebouw en ondergrond zijn één bedrijfsmiddel (lid 2).',
-  'Afschrijving ten hoogste 20% van de aanschaffingskosten per jaar (art. 3.30 lid 2 Wet IB 2001). Over grond wordt niet afgeschreven (Belastingdienst, Afschrijving bedrijfspand).',
+  'Afschrijving ten hoogste 20% van de aanschaffingskosten per jaar (art. 3.30 lid 2 Wet IB 2001). Over grond wordt niet afgeschreven (HR 10 augustus 2007, ECLI:NL:HR:2007:AU3996, r.o. 3.3.4; Belastingdienst, Afschrijving bedrijfspand). Overdrachtsbelasting en notariskosten horen bij de aanschaffingskosten (Belastingdienst, Bedrijfspand in eigendom).',
   'Afsluitprovisie: ineens aftrekbaar, of naar keuze verdeeld over de looptijd, tenzij zij in wezen vooruitbetaalde rente is (HR 22 maart 2024, ECLI:NL:HR:2024:469, r.o. 4.10.2 tot en met 4.10.4).',
   'Overdrachtsbelasting op een niet-woning: 10,4% (art. 14 lid 1 Wet op belastingen van rechtsverkeer). Bij een levering die met btw is belast kan de samenloopvrijstelling gelden (art. 15 lid 1 onder a WBR); kies dan een eigen bedrag.',
   'Wettekst: Wet IB 2001 (BWBR0011353) versies 01-01-2025 en 21-02-2026, WBR (BWBR0002740) versies 01-01-2025 en 01-01-2026, gecontroleerd op 29-09-2026.',
