@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-29
+Bijgewerkt: 2026-09-30
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -81,7 +81,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Rekeningcourant + Dividend | `/rc-schuld-dga.html` | bouwman-tools/Rekeningcourant-met-dividend | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Rente rekening-courant | `/rc-rente.html` | bouwman-tools/rc-rente-rekenmodel | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🟢 live | Sjablonen DGA | `/join-bv-documenten.html` | bouwman-tools/Sjablonen-DGA | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | n.v.t. |
-| 🔵 concept | Vermogen van box 3 naar de BV | `/vermogen-bv.html` | bouwman-tools/vermogen-bv | **nee** | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Vermogen van box 3 naar de BV | `/vermogen-bv.html` | bouwman-tools/vermogen-bv | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | **nooit** |
 
 - **BV Ja/Nee**: Rekent door of een klant belastingtechnisch beter af is met een BV dan als eenmanszaak
 - **Belastinglatentie**: Bepaalt de contante waarde van de belastinglatentie bij een aandelentransactie of doorschuiving: het gemis aan afschrijvingsbasis en de uitgestelde heffing, met het verloop per jaar
