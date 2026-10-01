@@ -119,6 +119,7 @@ const APP_IDS = {
   'ouderlijke-woning.html': 'c69c4c01-2b64-42f5-8ada-a92054a78c4c',
   'bor-schenken.html': '8ddd3d53-297f-4bcc-9ce1-25e6192fd8bb',
   'organogram-structuur.html': '3ddbb84d-a508-480a-9172-27bc6224f4a5',
+  'staken-onderneming.html': 'c9bb6acd-20d6-4cf5-8621-7770de6d7de9',
 };
 
 export default {
