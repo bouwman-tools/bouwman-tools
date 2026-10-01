@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staken of verkopen van de onderneming</title>
+<style>
+/* HUISSTIJL — BEGIN */
+/* Gedeelde opmaak, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+   bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Dit is de samenvoeging van de vier varianten die de tools eerder elk apart droegen. Waar
+   zij van elkaar verschilden in maatvoering is gekozen voor de waarde van de dichtstbezette
+   tool, want een maat die overloopt is een gebrek en een iets kleinere maat een voorkeur:
+   tabellen op 13 px met 7 px celruimte, de grote waarde in een blok op 24 px en de afdruk
+   op 10,5 pt. Selectors die maar in één tool voorkwamen zijn alle behouden, zodat geen enkele
+   tool opmaak verliest: input[type="date"] voor ww-uitkering en aow-datum, .keuze voor de
+   radiorijen van ww-uitkering, en select voor familiebank en eigen-woning. */
+:root {
+  --navy: #24304A; --navy-light: #434D63; --navy-card: #1E273D;
+  --groen: #6BE0A1; --groen-h: #5EC58E; --geel: #FFCF00; --rood: #FF6B6B;
+  --wit: #FFFFFF;
+  --dim: rgba(255,255,255,0.60);
+  --gedempt: rgba(255,255,255,0.35);
+  --rand: rgba(255,255,255,0.09);
+  --vlak: rgba(255,255,255,0.05);
+  --invoer: rgba(255,255,255,0.07);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--navy); color: var(--wit);
+  font-family: system-ui, 'Nunito Sans', -apple-system, sans-serif;
+  font-size: 15px; line-height: 1.55;
+}
+header {
+  height: 70px; position: sticky; top: 0; z-index: 10;
+  background: var(--navy); border-bottom: 1px solid var(--rand);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-mark { display: flex; align-items: center; position: relative;
+             width: 44px; height: 30px; flex-shrink: 0; }
+.lc { width: 26px; height: 26px; border-radius: 50%; border: 3px solid; position: absolute; }
+.lc:first-child { border-color: var(--wit); left: 0; }
+.lc:last-child { border-color: var(--groen); left: 14px; }
+.logo-name { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: var(--wit); }
+.logo-sub { font-size: 9.5px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gedempt); }
+.koptitel { font-size: 14px; font-weight: 600; color: var(--dim); text-align: right; }
+main { max-width: 1060px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 24px; margin: 8px 0 4px; }
+.inleiding { color: var(--dim); max-width: 70ch; margin-bottom: 24px; }
+.kaart {
+  background: var(--navy-card); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+}
+.kaart h2 { font-size: 16px; margin: 0 0 4px; }
+.kaart .toelichting { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+.rij { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+label .bron { font-weight: 400; color: var(--gedempt); font-size: 11.5px; display: block; }
+input[type="date"], input[type="number"], input[type="text"], select {
+  width: 100%; padding: 9px 11px; background: var(--invoer); color: var(--wit);
+  border: 1px solid var(--rand); border-radius: 8px; font: inherit; font-size: 14px;
+}
+select option { background: var(--navy-card); color: var(--wit); }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--groen); outline-offset: 1px; }
+.keuze { display: flex; gap: 18px; align-items: center; margin-top: 6px; }
+.keuze label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 400; }
+.knoppenbalk { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+button {
+  padding: 11px 22px; border-radius: 8px; border: none; font: inherit;
+  font-weight: 700; cursor: pointer; background: var(--groen); color: var(--navy);
+}
+button:hover { background: var(--groen-h); }
+button:focus-visible { outline: 2px solid var(--wit); outline-offset: 2px; }
+button.tweede { background: transparent; color: var(--wit); border: 1px solid var(--rand); }
+button.tweede:hover { background: var(--vlak); }
+.melding {
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+  border-left: 4px solid;
+}
+.melding.fout { background: rgba(255,107,107,0.12); border-color: var(--rood); }
+.melding.let-op { background: rgba(255,207,0,0.12); border-color: var(--geel); }
+.melding.info { background: var(--vlak); border-color: var(--navy-light); }
+.uitkomst { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.blok { background: var(--vlak); border: 1px solid var(--rand); border-radius: 10px; padding: 16px; }
+.blok .etiket { font-size: 12.5px; color: var(--dim); text-transform: uppercase;
+                letter-spacing: 0.6px; margin-bottom: 6px; }
+.blok .waarde { font-size: 24px; font-weight: 800; color: var(--groen); }
+.blok .onder { font-size: 12.5px; color: var(--gedempt); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--rand); }
+th { color: var(--dim); font-weight: 600; }
+td.getal, th.getal { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.bronlijst, .voorbehoud { font-size: 13px; color: var(--dim); }
+.bronlijst li { margin-bottom: 6px; }
+#dossierstuk h3 { font-size: 15px; margin: 18px 0 6px; }
+#dossierstuk .kenmerkregel { display: flex; gap: 24px; flex-wrap: wrap;
+                             font-size: 13.5px; color: var(--dim); margin-bottom: 4px; }
+#dossierstuk .vindplaatsen, #dossierstuk .afbakening { font-size: 12.5px; color: var(--dim); }
+#dossierstuk .vindplaatsen li, #dossierstuk .afbakening li { margin-bottom: 4px; }
+.stempel { font-size: 11.5px; color: var(--gedempt); margin-top: 14px; }
+.verborgen { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  .noprint { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .kaart { border: none; background: #fff; padding: 0; margin: 0; }
+  #dossierstuk h3 { color: #000; page-break-after: avoid; }
+  #dossierstuk .kenmerkregel, #dossierstuk .vindplaatsen,
+  #dossierstuk .afbakening, .stempel { color: #333; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  th, td { border-bottom: 1px solid #bbb; }
+  th { color: #000; }
+}
+/* HUISSTIJL — EINDE */
+
+/* KOPBALK — BEGIN */
+/* De kopbalk van bouwman.tools: logo, titel, ondertitel, de regel "Laatste update" en rechts
+   de knoppen van de tool. Gedeelde opmaak, niet tooleigen. De bron staat in de repository
+   gedeelde-kern (opmaak/kopbalk.css, met het sjabloon in opmaak/kopbalk.html); dit blok is
+   daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+
+   Alles hangt onder de klasse .bt-kopbalk en het element is een div met role="banner", geen
+   <header>. De tools dragen elk hun eigen regels voor header, h1 en .logo; die zouden anders
+   in de kopbalk doorlekken. Kleuren en lettertype staan hier vast in plaats van via de
+   variabelen van de tool, want die heten in elke tool anders. Een tool kan alleen de
+   breedte van de binnenkant zetten, met --bt-kopbalk-breedte, zodat de kopbalk even breed
+   is als de inhoud eronder.
+
+   De tijdstempel in .bt-kopbalk-bijgewerkt vult de globale pre-commit hook in, achter de
+   markering LAST_UPDATED in de HTML. De vorm staat in opmaak/kopbalk.html en blijft zo.
+   Noem die markering hier niet letterlijk: de hook zou dan ook in dit commentaar stempelen. */
+.bt-kopbalk {
+  background: #1E2D4E;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  min-height: 64px;
+  display: flex;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin: 0;
+  padding: 0;
+  color: #fff;
+  text-align: left;
+  line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+.bt-kopbalk *, .bt-kopbalk *::before, .bt-kopbalk *::after { box-sizing: border-box; }
+.bt-kopbalk-binnen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--bt-kopbalk-breedte, 960px);
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+.bt-kopbalk-merk { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.bt-kopbalk-logo {
+  width: 36px; height: 36px;
+  background: #3DD9A0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.bt-kopbalk-logo svg { display: block; }
+.bt-kopbalk .bt-kopbalk-titel {
+  font-family: inherit; font-size: 16px; font-weight: 800; line-height: 1.3; color: #fff;
+  margin: 0; padding: 0; border: 0; background: none;
+  letter-spacing: normal; text-transform: none; text-align: left;
+}
+.bt-kopbalk .bt-kopbalk-sub {
+  font-size: 12px; font-weight: 400; color: rgba(255,255,255,.55);
+  margin: 1px 0 0; padding: 0;
+}
+.bt-kopbalk .bt-kopbalk-bijgewerkt {
+  font-size: 11px; font-weight: 600; color: #3DD9A0;
+  margin: 3px 0 0; padding: 0;
+}
+/* Rechts: privacymelding, de knoppen van de tool en uitloggen, in één rij. */
+.bt-kopbalk-acties { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.bt-kopbalk-acties .bt-privacy-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.85); font-size: 11px; font-weight: 500;
+  padding: 5px 10px; border-radius: 20px; white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-privacy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #3DD9A0; flex-shrink: 0; }
+.bt-kopbalk-acties .bt-kopbalk-knop {
+  padding: 6px 12px; font-size: 11px; background: #e6faf3; border: 1px solid #3DD9A0;
+  border-radius: 6px; color: #1E2D4E; font-weight: 600; cursor: pointer;
+  font-family: inherit; line-height: 1.3; white-space: nowrap; text-decoration: none;
+}
+.bt-kopbalk-acties .bt-kopbalk-knop:hover { background: #d3f5e8; }
+.bt-kopbalk-acties .bt-logout-btn {
+  font-size: 11px; color: rgba(255,255,255,.7); text-decoration: none;
+  border: 1px solid rgba(255,255,255,.25); padding: 5px 10px; border-radius: 20px;
+  white-space: nowrap;
+}
+.bt-kopbalk-acties .bt-logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+@media (max-width: 700px) {
+  .bt-kopbalk-binnen { flex-wrap: wrap; padding: 12px 16px; }
+  .bt-kopbalk-acties .bt-privacy-pill span { display: none; }
+}
+/* Op papier geen kopbalk: de achtergrond valt bij afdrukken weg en dan staat er witte tekst
+   op wit. Een tool die een kop op het dossierstuk wil, heeft daar een eigen afdrukkop voor. */
+@media print {
+  .bt-kopbalk { display: none !important; }
+}
+/* KOPBALK — EINDE */
+
+/* De kopbalk even breed als de inhoud eronder (main). */
+:root { --bt-kopbalk-breedte: 1060px; }
+/* Tooleigen: de drie scenario's naast elkaar. */
+.kaart td.getal, .kaart th.getal { white-space: nowrap; }
+tr.totaal td { font-weight: 700; border-top: 1px solid var(--rand); }
+/* Tooleigen: een tabel breed laten scrollen op een smal scherm. */
+.kaart table { display: block; overflow-x: auto; }
+details summary { cursor: pointer; color: var(--dim); margin-bottom: 8px; }
+@media print { details > *:not(summary) { display: block; } }
+@media print { .kaart table { display: table; overflow: visible; } }
+</style>
+</head>
+<body>
+
+<div class="bt-kopbalk" role="banner">
+  <div class="bt-kopbalk-binnen">
+    <div class="bt-kopbalk-merk">
+      <div class="bt-kopbalk-logo">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M3 17h14M5 17V8l5-4 5 4v9" stroke="#1E2D4E" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+          <path d="M8 17v-4h4v4" stroke="#1E2D4E" stroke-width="1.5" fill="none"/>
+        </svg>
+      </div>
+      <div>
+        <div class="bt-kopbalk-titel">Staken of verkopen van de onderneming</div>
+        <div class="bt-kopbalk-sub">Afrekenen, stakingslijfrente of geruisloos doorschuiven</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 15:10</div>
+      </div>
+    </div>
+    <div class="bt-kopbalk-acties noprint">
+      <div class="bt-privacy-pill"><div class="dot"></div><span>Invoer wordt niet verstuurd</span></div>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+    </div>
+  </div>
+</div>
+
+<main>
+  <h1 class="noprint">Staken of verkopen van de onderneming</h1>
+  <p class="inleiding noprint">
+    Reken de netto opbrengst van een IB-onderneming door bij staken of verkopen, in drie
+    scenario's: afrekenen over de stakingswinst en de oudedagsreserve, afrekenen met
+    stakingslijfrente en lijfrente voor de oudedagsreserve, en geruisloos doorschuiven of
+    omzetten in een BV. De tool berekent ook de ruimte voor de stakingslijfrente
+    (art. 3.129 Wet IB 2001).
+  </p>
+
+  <div class="knoppenbalk noprint">
+    <button type="button" id="knop-afdrukken">Afdrukken voor het dossier</button>
+    <button type="button" id="knop-export" class="tweede">Exporteren naar Excel</button>
+    <button type="button" id="knop-opslaan" class="tweede">Opslaan als bestand</button>
+    <button type="button" id="knop-openen" class="tweede">Bestand openen</button>
+    <input type="file" id="bestand-openen" accept=".json,application/json" class="verborgen">
+  </div>
+  <div id="dossiermelding" class="noprint"></div>
+
+  <div class="kaart noprint">
+    <h2>De ondernemer en de staking</h2>
+    <p class="toelichting">
+      Vul bedragen in als positief getal en percentages als percentage (49,5 voor 49,5%). Opslaan
+      als bestand bewaart de invoer op een plek die u zelf kiest; de tool bewaart zelf niets en
+      verstuurt niets.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="kenmerk">Kenmerk of klantnaam
+          <span class="bron">komt op het dossierstuk en in de export</span></label>
+        <input type="text" id="kenmerk" value="" placeholder="bijvoorbeeld dossiernummer">
+      </div>
+      <div>
+        <label for="geboortedatum">Geboortedatum ondernemer
+          <span class="bron">voor de leeftijdstoets van art. 3.129 lid 2</span></label>
+        <input type="date" id="geboortedatum" value="1965-07-15">
+      </div>
+      <div>
+        <label for="stakingsdatum">Datum van staking
+          <span class="bron">de tool rekent stakingen in 2025 en 2026</span></label>
+        <input type="date" id="stakingsdatum" value="2026-06-30">
+      </div>
+      <div>
+        <label for="ingang">Lijfrentetermijnen gaan in
+          <span class="bron">art. 3.129 lid 2 onder a 2° en onder b 2°; dadelijk is direct na het sluiten van de lijfrenteovereenkomst (besluit lijfrenten in de winstsfeer, onderdeel 6.5)</span></label>
+        <select id="ingang">
+          <option value="later" selected>later dan zes maanden na het staken, niet dadelijk</option>
+          <option value="binnenZesMaanden">binnen zes maanden na het staken, niet dadelijk</option>
+          <option value="dadelijkBinnenZes">dadelijk, en binnen zes maanden na het staken</option>
+          <option value="dadelijkLater">dadelijk, maar later dan zes maanden na het staken</option>
+        </select>
+      </div>
+      <div>
+        <label for="arbeidsongeschikt">Ten minste 45% arbeidsongeschikt
+          <span class="bron">art. 3.129 lid 2 onder a 2° en lid 5; telt alleen met termijnen binnen zes maanden</span></label>
+        <select id="arbeidsongeschikt">
+          <option value="false" selected>nee</option>
+          <option value="true">ja</option>
+        </select>
+      </div>
+      <div>
+        <label for="overlijden">Staking door overlijden
+          <span class="bron">art. 3.129 lid 2 onder a 3°</span></label>
+        <select id="overlijden">
+          <option value="false" selected>nee</option>
+          <option value="true">ja</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>De onderneming</h2>
+    <p class="toelichting">
+      De stakingswinst is de waarde min de fiscale boekwaarde, plus de desinvesteringsbijtelling.
+      De oudedagsreserve valt bij staken vrij en wordt apart getoond.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="waarde">Waarde onderneming
+          <span class="bron">waarde in het economisch verkeer, met goodwill en stille reserves</span></label>
+        <input type="number" id="waarde" step="1" min="0" value="1000000">
+      </div>
+      <div>
+        <label for="boekwaarde">Fiscale boekwaarde
+          <span class="bron">boekwaarde van de activa min die van de passiva</span></label>
+        <input type="number" id="boekwaarde" step="1" value="100000">
+      </div>
+      <div>
+        <label for="desinvestering">Desinvesteringsbijtelling
+          <span class="bron">art. 3.47 Wet IB 2001</span></label>
+        <input type="number" id="desinvestering" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="oudedagsreserve">Oudedagsreserve bij de aanvang van het jaar
+          <span class="bron">art. 10a.29 Wet IB 2001; sinds 2023 geen toevoegingen meer</span></label>
+        <input type="number" id="oudedagsreserve" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="eerderStakingsaftrek">Eerder genoten stakingsaftrek
+          <span class="bron">gaat af van het levenslange maximum van € 3.630 (art. 3.79 lid 4)</span></label>
+        <input type="number" id="eerderStakingsaftrek" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="tarief">Tarief over de afgerekende winst (%)
+          <span class="bron">hoogste schijf 2025 en 2026: 49,5% (art. 2.10 lid 1)</span></label>
+        <input type="number" id="tarief" step="0.01" min="0" max="100" value="49.5">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Lijfrenten</h2>
+    <p class="toelichting">
+      Laat een benutting leeg om de volle ruimte te gebruiken. Een hoger bedrag dan de ruimte
+      begrenst de tool, met een melding.
+    </p>
+    <div class="rij">
+      <div>
+        <label for="overigeVoorzieningen">Reeds opgebouwde voorzieningen
+          <span class="bron">naast de oudedagsreserve: pensioenaanspraken, eerdere jaarruimte, reserveringsruimte en stakingslijfrente, en eerdere omzettingen van de oudedagsreserve (art. 3.129 lid 3, art. 10a.29 lid 13)</span></label>
+        <input type="number" id="overigeVoorzieningen" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="jaarruimte">Beschikbare jaarruimte
+          <span class="bron">art. 3.127 lid 1, in het jaar van staking zo nodig met lid 5</span></label>
+        <input type="number" id="jaarruimte" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="reserveringsruimte">Beschikbare reserveringsruimte
+          <span class="bron">art. 3.127 lid 2</span></label>
+        <input type="number" id="reserveringsruimte" step="1" min="0" value="0">
+      </div>
+      <div>
+        <label for="bijOvernemer">Lijfrenten bij de overnemer bedongen
+          <span class="bron">dan samen ten hoogste de stakingswinst plus de oudedagsreserve (art. 3.126 lid 1 onder a 2°, art. 10a.29 lid 9)</span></label>
+        <select id="bijOvernemer">
+          <option value="true" selected>ja</option>
+          <option value="false">nee, bij een verzekeraar of bank</option>
+        </select>
+      </div>
+      <div>
+        <label for="benutStaking">Benutte stakingslijfrente
+          <span class="bron">leeg = maximaal</span></label>
+        <input type="number" id="benutStaking" step="1" min="0" placeholder="maximaal">
+      </div>
+      <div>
+        <label for="benutOudedag">Benutte lijfrente voor de oudedagsreserve
+          <span class="bron">leeg = maximaal (art. 10a.29 lid 12)</span></label>
+        <input type="number" id="benutOudedag" step="1" min="0" placeholder="maximaal">
+      </div>
+      <div>
+        <label for="benutJaarruimte">Benutte jaarruimte
+          <span class="bron">leeg = maximaal</span></label>
+        <input type="number" id="benutJaarruimte" step="1" min="0" placeholder="maximaal">
+      </div>
+      <div>
+        <label for="benutReservering">Benutte reserveringsruimte
+          <span class="bron">leeg = maximaal</span></label>
+        <input type="number" id="benutReservering" step="1" min="0" placeholder="maximaal">
+      </div>
+      <div>
+        <label for="tariefUitkering">Latere belasting over de uitkeringen (%)
+          <span class="bron">eigen inschatting van inkomstenbelasting en Zvw-bijdrage; verlaag het percentage voor de contante waarde</span></label>
+        <input type="number" id="tariefUitkering" step="0.01" min="0" max="100" value="40">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Geruisloos doorschuiven</h2>
+    <p class="toelichting">
+      Bij een geruisloze doorschuiving (art. 3.63) of omzetting in een BV (art. 3.65) neemt de
+      verkrijger de belastingclaim over de goodwill en stille reserves over. Die claim drukt op de
+      prijs; vul zelf in hoeveel. De oudedagsreserve valt ook dan vrij (art. 10a.29 lid 6).
+    </p>
+    <div class="rij">
+      <div>
+        <label for="latentie">Korting voor de belastinglatentie (%)
+          <span class="bron">als percentage van de goodwill en stille reserves</span></label>
+        <input type="number" id="latentie" step="0.01" min="0" max="100" value="30">
+      </div>
+      <div>
+        <label for="benutOudedagGeruisloos">Benutte lijfrente voor de oudedagsreserve
+          <span class="bron">leeg = maximaal (art. 10a.29 lid 12)</span></label>
+        <input type="number" id="benutOudedagGeruisloos" step="1" min="0" placeholder="maximaal">
+      </div>
+    </div>
+  </div>
+
+  <div class="kaart noprint">
+    <h2>Uitkomst</h2>
+    <div id="uit-conclusie"></div>
+    <div id="uit-basis" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="kaart" id="dossierstuk"></div>
+</main>
+
+<script>
+// AOW-LEEFTIJD — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit bestand
+// is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet.
+//
+// De pensioengerechtigde leeftijd en de AOW-datum. Twee tools hebben ze nodig: aow-datum
+// rekent ze uit als eigen uitkomst, en ww-uitkering gebruikt de AOW-datum om te bepalen
+// wanneer het recht op uitkering eindigt (art. 19 lid 1 onder i jo. art. 20 lid 1 onder a
+// WW). De tabel met zes Staatscourant-vindplaatsen hoort daarom op één plek te staan.
+
+// De pensioengerechtigde leeftijd per kalenderjaar waarin zij wordt bereikt.
+//
+// Tot en met 2025 staat de leeftijd in de wettekst zelf, in art. 7a lid 1 AOW. Vanaf 2026
+// verwijst onderdeel o naar een jaarlijkse vaststelling volgens de formule van lid 2, die
+// de minister op grond van diezelfde bepaling in de Staatscourant bekendmaakt; lid 3 bepaalt
+// dat zo'n vaststelling pas vijf jaar later in werking treedt. Voor die jaren staat hier
+// daarom de mededeling als vindplaats en niet de wet.
+//
+// Bron van de wetsartikelen: geconsolideerde Algemene Ouderdomswet, BWBR0002221, versie
+// 2026-07-01, opgehaald uit de KOOP-repository en gecontroleerd tegen de hashcode in het
+// manifest op 18-09-2026.
+const AOW_LEEFTIJD_PER_JAAR = {
+  2013: { jaren: 65, maanden: 1, vindplaats: 'art. 7a lid 1 onder b AOW' },
+  2014: { jaren: 65, maanden: 2, vindplaats: 'art. 7a lid 1 onder c AOW' },
+  2015: { jaren: 65, maanden: 3, vindplaats: 'art. 7a lid 1 onder d AOW' },
+  2016: { jaren: 65, maanden: 6, vindplaats: 'art. 7a lid 1 onder e AOW' },
+  2017: { jaren: 65, maanden: 9, vindplaats: 'art. 7a lid 1 onder f AOW' },
+  2018: { jaren: 66, maanden: 0, vindplaats: 'art. 7a lid 1 onder g AOW' },
+  2019: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder h AOW' },
+  2020: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder i AOW' },
+  2021: { jaren: 66, maanden: 4, vindplaats: 'art. 7a lid 1 onder j AOW' },
+  2022: { jaren: 66, maanden: 7, vindplaats: 'art. 7a lid 1 onder k AOW' },
+  2023: { jaren: 66, maanden: 10, vindplaats: 'art. 7a lid 1 onder l AOW' },
+  2024: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder m AOW' },
+  2025: { jaren: 67, maanden: 0, vindplaats: 'art. 7a lid 1 onder n AOW' },
+  // Vanaf hier komt de leeftijd uit de mededeling van de minister op grond van art. 7a
+  // lid 2 AOW. Elk van deze vijf is op 18-09-2026 op de Staatscourantpagina zelf
+  // gecontroleerd, op leeftijd, aanvangsleeftijd, kalenderjaar, dagtekening en kenmerk.
+  //
+  // Stcrt. 2020, 65110 — mededeling van 04-12-2020, nr. 2020-0000162440.
+  2026: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2020, 65110 (mededeling van 04-12-2020)' },
+  // Stcrt. 2021, 46409 — mededeling van 05-11-2021, nr. 2021-0000168058.
+  2027: { jaren: 67, maanden: 0, vindplaats: 'Stcrt. 2021, 46409 (mededeling van 05-11-2021)' },
+  // Stcrt. 2022, 30748 — mededeling van 09-11-2022, nr. 2022-0000224155.
+  2028: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2022, 30748 (mededeling van 09-11-2022)' },
+  // Stcrt. 2023, 31782 — mededeling van 13-11-2023, nr. 2023-0000545753.
+  2029: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2023, 31782 (mededeling van 13-11-2023)' },
+  // Stcrt. 2024, 37287 — mededeling van 08-11-2024, nr. 2024-0000903093.
+  2030: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2024, 37287 (mededeling van 08-11-2024)' },
+  // Stcrt. 2025, 38647 — mededeling van 07-11-2025, nr. 2025-0000251283.
+  2031: { jaren: 67, maanden: 3, vindplaats: 'Stcrt. 2025, 38647 (mededeling van 07-11-2025)' },
+};
+
+// Art. 7a lid 1 onder a AOW: vóór 1 januari 2013 was de pensioengerechtigde leeftijd
+// 65 jaar. Dat geldt voor ieder kalenderjaar vóór 2013 en vraagt dus geen eigen regel
+// per jaar.
+const LEEFTIJD_VOOR_2013 = { jaren: 65, maanden: 0, vindplaats: 'art. 7a lid 1 onder a AOW' };
+const EERSTE_JAAR_IN_DE_TABEL = 2013;
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  const lengtes = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (maand === 2 && isSchrikkeljaar(jaar)) return 29;
+  return lengtes[maand - 1];
+}
+
+function ontleedDatum(tekst) {
+  if (typeof tekst !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(tekst)) return null;
+  const jaar = Number(tekst.slice(0, 4));
+  const maand = Number(tekst.slice(5, 7));
+  const dag = Number(tekst.slice(8, 10));
+  if (maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+function alsTekst(datum) {
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return datum.jaar + '-' + tweeCijfers(datum.maand) + '-' + tweeCijfers(datum.dag);
+}
+
+// Telt een leeftijd in jaren en maanden bij een datum op. Valt de uitkomst op een dag die
+// in de doelmaand niet bestaat, bijvoorbeeld 31 mei plus drie maanden, dan wordt het de
+// laatste dag van die maand en wordt dat apart gemeld; de tool verzwijgt zo'n aanpassing
+// niet.
+function datumPlusLeeftijd(datum, leeftijd) {
+  const totaalMaanden = (datum.jaar + leeftijd.jaren) * 12 + (datum.maand - 1) + leeftijd.maanden;
+  const jaar = Math.floor(totaalMaanden / 12);
+  const maand = (totaalMaanden % 12) + 1;
+  const laatsteDag = dagenInMaand(jaar, maand);
+  return {
+    jaar,
+    maand,
+    dag: Math.min(datum.dag, laatsteDag),
+    dagAangepast: datum.dag > laatsteDag,
+  };
+}
+
+function leeftijdInJaar(jaar) {
+  if (jaar < EERSTE_JAAR_IN_DE_TABEL) return LEEFTIJD_VOOR_2013;
+  return AOW_LEEFTIJD_PER_JAAR[jaar] || null;
+}
+
+function laatstBekendeJaar() {
+  return Math.max(...Object.keys(AOW_LEEFTIJD_PER_JAAR).map(Number));
+}
+
+function leeftijdAlsTekst(leeftijd) {
+  const jaarDeel = leeftijd.jaren + (leeftijd.jaren === 1 ? ' jaar' : ' jaar');
+  if (leeftijd.maanden === 0) return jaarDeel;
+  return jaarDeel + ' en ' + leeftijd.maanden
+    + (leeftijd.maanden === 1 ? ' maand' : ' maanden');
+}
+
+// Art. 7a lid 1 AOW koppelt de leeftijd aan het kalenderjaar waarin zij wordt bereikt, maar
+// om te weten in welk jaar dat is moet je de leeftijd al kennen. De slotzin van lid 1 maakt
+// die rondgang eenduidig: wie in een kalenderjaar de pensioengerechtigde leeftijd heeft
+// bereikt, krijgt niet meer met de verhogingen van latere jaren te maken. Daarom telt het
+// vroegste kalenderjaar waarin de geboortedatum plus de dan geldende leeftijd binnen dat
+// jaar valt.
+function berekenAowDatum(geboortedatumTekst) {
+  const geboortedatum = ontleedDatum(geboortedatumTekst);
+  if (!geboortedatum) {
+    return {
+      heeftUitkomst: false,
+      meldingen: [{ soort: 'fout', tekst: 'Vul een geldige geboortedatum in.' }],
+    };
+  }
+
+  const meldingen = [];
+  const laatsteJaar = laatstBekendeJaar();
+
+  for (let jaar = geboortedatum.jaar + LEEFTIJD_VOOR_2013.jaren; jaar <= laatsteJaar; jaar++) {
+    const leeftijd = leeftijdInJaar(jaar);
+    if (!leeftijd) break;
+    const datum = datumPlusLeeftijd(geboortedatum, leeftijd);
+    if (datum.jaar !== jaar) continue;
+
+    if (datum.dagAangepast) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: 'De geboortedag bestaat niet in de maand waarin de AOW-leeftijd valt. De datum '
+             + 'is daarom op de laatste dag van die maand gezet. Laat dit geval bevestigen '
+             + 'door de Sociale Verzekeringsbank voordat u de datum in een dossier gebruikt.',
+      });
+    }
+    if (jaar < EERSTE_JAAR_IN_DE_TABEL) {
+      meldingen.push({
+        soort: 'info',
+        tekst: 'De AOW-leeftijd is bereikt vóór 2013, toen zij nog 65 jaar was '
+             + '(art. 7a lid 1 onder a AOW).',
+      });
+    }
+
+    return {
+      heeftUitkomst: true,
+      meldingen,
+      geboortedatum: alsTekst(geboortedatum),
+      aowJaar: jaar,
+      leeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+      leeftijdTekst: leeftijdAlsTekst(leeftijd),
+      vindplaats: leeftijd.vindplaats,
+      aowDatum: alsTekst(datum),
+      dagAangepast: datum.dagAangepast,
+    };
+  }
+
+  return {
+    heeftUitkomst: false,
+    meldingen: [{
+      soort: 'fout',
+      tekst: 'Voor deze geboortedatum valt de AOW-leeftijd na ' + laatsteJaar + ', en voor dat '
+           + 'jaar is de pensioengerechtigde leeftijd nog niet vastgesteld. De tool rekent niet '
+           + 'door met de leeftijd van een ander jaar. Elke vaststelling wordt vijf jaar vooraf '
+           + 'in de Staatscourant bekendgemaakt (art. 7a lid 2 en 3 AOW). '
+           + 'De Sociale Verzekeringsbank publiceert voor geboortedata van 1 oktober 1964 tot en '
+           + 'met 31 december 2000 wel een verwachte AOW-leeftijd, op '
+           + 'svb.nl/nl/aow/aow-leeftijd/uw-aow-leeftijd. Dat is een raming op basis van de '
+           + 'levensverwachting die het CBS elk jaar in december bijstelt, en geen vastgestelde '
+           + 'leeftijd; zij hoort daarom niet als datum in een dossier.',
+    }],
+  };
+}
+// AOW-LEEFTIJD — EINDE
+
+// FISCALE KERN — BEGIN
+// Alleen pure functies en constanten. Geen document, window, fetch of DOM.
+//
+// Staken of verkopen van een IB-onderneming: de netto opbrengst voor de ondernemer in drie
+// scenario's.
+//
+//   1. afrekenen over de stakingswinst en de vrijval van de oudedagsreserve;
+//   2. idem, maar met lijfrenten: de stakingslijfrente (art. 3.129 Wet IB 2001), de
+//      omzetting van de oudedagsreserve (art. 10a.29 lid 12) en zo nodig jaarruimte en
+//      reserveringsruimte (art. 3.127);
+//   3. geruisloos doorschuiven of omzetten (art. 3.63 of 3.65), waarbij de
+//      oudedagsreserve toch vrijvalt (art. 10a.29 lid 6) en de verkrijger een latente
+//      belastingclaim overneemt.
+//
+// Het gedeelde blok AOW-LEEFTIJD (uit gedeelde-kern) levert de pensioengerechtigde leeftijd
+// per kalenderjaar en de datumhulp. De vindplaats van elke waarde staat hieronder bij de
+// waarde en in BRONNEN.md.
+
+// Waarden per kalenderjaar van staking. Een jaar dat hier niet staat rekent niet door.
+// Bron: Wet IB 2001 (BWBR0011353) uit de KOOP-repository, versies 2025-01-01_4,
+// 2025-08-25_2, 2026-01-01_1 en 2026-02-21_0, elk gecontroleerd tegen de hashcode in het
+// manifest op 01-10-2026.
+const JAREN = {
+  2025: {
+    // Art. 2.10 lid 1: tarief van de hoogste schijf 49,50%. Alleen de standaardwaarde van
+    // het invoerveld; de gebruiker vult het tarief in waartegen de winst wordt belast.
+    toptarief: 0.495,
+    // Art. 2.10 lid 2: de belasting wordt verhoogd met 12,02% van de grondslagverminderende
+    // posten (lid 3: ondernemersaftrek en MKB-winstvrijstelling) voor zover die in de
+    // hoogste schijf vallen. Zij zijn daar dus 49,50% - 12,02% = 37,48% waard.
+    aftrekbeperking: 0.1202,
+    // Art. 3.79a: MKB-winstvrijstelling 12,7% van de winst na ondernemersaftrek.
+    mkbVrijstelling: 0.127,
+    // Art. 3.79 lid 2 en 4: stakingsaftrek ten hoogste € 3.630, levenslang.
+    stakingsaftrek: 3630,
+    // Art. 3.127 lid 2: reserveringsruimte ten hoogste € 42.108.
+    reserveringsruimteMax: 42108,
+    // Art. 3.129 lid 2 onder a, b en c.
+    stakingslijfrente: { a: 566197, b: 283110, c: 141564 },
+  },
+  2026: {
+    toptarief: 0.495,         // art. 2.10 lid 1
+    aftrekbeperking: 0.1194,  // art. 2.10 lid 2: 49,50% - 11,94% = 37,56%
+    mkbVrijstelling: 0.127,   // art. 3.79a
+    stakingsaftrek: 3630,     // art. 3.79 lid 2 en 4
+    reserveringsruimteMax: 42753, // art. 3.127 lid 2
+    stakingslijfrente: { a: 574867, b: 287445, c: 143732 }, // art. 3.129 lid 2
+  },
+};
+
+// Wanneer de lijfrentetermijnen ingaan. Art. 3.129 lid 2 kent twee verschillende
+// voorwaarden: onder a 2° termijnen die ingaan binnen zes maanden na het staken, onder b 2°
+// termijnen die dadelijk ingaan. "Dadelijk" is onmiddellijk na het sluiten van de
+// lijfrenteovereenkomst, niet na het staken (besluit lijfrenten in de winstsfeer,
+// Stcrt. 2022, 690, onderdeel 6.5), en die overeenkomst kan later worden gesloten. Dadelijk
+// ingaande termijnen zijn dus niet vanzelf binnen zes maanden na het staken; daarom vier keuzes.
+const INGANG = {
+  later: 'later dan zes maanden na het staken, niet dadelijk',
+  binnenZesMaanden: 'binnen zes maanden na het staken, niet dadelijk',
+  dadelijkBinnenZes: 'dadelijk, en binnen zes maanden na het staken',
+  dadelijkLater: 'dadelijk, maar later dan zes maanden na het staken',
+};
+
+const SCENARIOS = [
+  { id: 'afrekenen', naam: 'Afrekenen' },
+  { id: 'lijfrente', naam: 'Afrekenen met lijfrente' },
+  { id: 'geruisloos', naam: 'Geruisloos doorschuiven' },
+];
+
+function isGetal(w) { return typeof w === 'number' && isFinite(w); }
+
+// Het tarief waartegen een grondslagverminderende post (stakingsaftrek, MKB-winstvrijstelling)
+// bespaart. In de hoogste schijf beperkt art. 2.10 lid 2 dat tot toptarief min opslag, en dat
+// is het tarief van de tweede schijf. Ligt het ingevulde tarief lager, dan geldt dat tarief.
+function tariefGrondslagverminderend(tarief, w) {
+  return Math.min(tarief, w.toptarief - w.aftrekbeperking);
+}
+
+// Welk maximum van art. 3.129 lid 2 geldt. De leeftijd wordt getoetst aan de pensioen-
+// gerechtigde leeftijd die ten tijde van het staken geldt (art. 7a lid 1 AOW), dus de leeftijd
+// van het kalenderjaar van staking en niet die van het jaar waarin de ondernemer haar later
+// zelf bereikt. "Een leeftijd bereikt die ten hoogste vijf jaar lager is": de geboortedatum
+// plus (AOW-leeftijd min vijf jaar) valt op of vóór de stakingsdatum.
+function stakingslijfrenteOnderdeel(invoer, jaar) {
+  const geb = ontleedDatum(invoer.geboortedatum);
+  const leeftijd = leeftijdInJaar(jaar);
+  if (!geb || !leeftijd) return null;
+  const grens = function (jarenLager) {
+    return alsTekst(datumPlusLeeftijd(geb, { jaren: leeftijd.jaren - jarenLager, maanden: leeftijd.maanden }));
+  };
+  const grens5 = grens(5), grens15 = grens(15);
+  const binnen5 = grens5 <= invoer.stakingsdatum;
+  const binnen15 = grens15 <= invoer.stakingsdatum;
+  const binnenZesMaanden = invoer.ingang === 'binnenZesMaanden' || invoer.ingang === 'dadelijkBinnenZes';
+  const dadelijk = invoer.ingang === 'dadelijkBinnenZes' || invoer.ingang === 'dadelijkLater';
+  let onderdeel, grond;
+  if (binnen5) { onderdeel = 'a'; grond = 'ten hoogste vijf jaar jonger dan de AOW-leeftijd (lid 2 onder a 1°)'; }
+  else if (invoer.overlijden) { onderdeel = 'a'; grond = 'staking door overlijden (lid 2 onder a 3°)'; }
+  else if (invoer.arbeidsongeschikt && binnenZesMaanden) { onderdeel = 'a'; grond = 'arbeidsongeschikt en termijnen binnen zes maanden (lid 2 onder a 2°)'; }
+  else if (binnen15) { onderdeel = 'b'; grond = 'ten hoogste vijftien jaar jonger dan de AOW-leeftijd (lid 2 onder b 1°)'; }
+  else if (dadelijk) { onderdeel = 'b'; grond = 'termijnen gaan dadelijk in (lid 2 onder b 2°)'; }
+  else { onderdeel = 'c'; grond = 'overige gevallen (lid 2 onder c)'; }
+  return {
+    onderdeel: onderdeel, grond: grond,
+    aowLeeftijd: { jaren: leeftijd.jaren, maanden: leeftijd.maanden },
+    aowLeeftijdTekst: leeftijdAlsTekst(leeftijd),
+    aowVindplaats: leeftijd.vindplaats,
+    aowDatum: grens(0), grens5: grens5, grens15: grens15,
+    binnen5: binnen5, binnen15: binnen15,
+  };
+}
+
+// Een benutting: leeg is het maximum, een groter bedrag wordt begrensd en gemeld.
+function benut(gevraagd, maximum, naam, meldingen) {
+  if (gevraagd === null || gevraagd === undefined) return maximum;
+  if (gevraagd > maximum) {
+    meldingen.push({ ernst: 'let-op', tekst: 'De ingevulde ' + naam + ' is hoger dan wat mag; de tool rekent met het maximum.' });
+    return maximum;
+  }
+  return gevraagd;
+}
+
+const BEDRAGVELDEN = ['waarde', 'boekwaarde', 'desinvestering', 'oudedagsreserve', 'eerderStakingsaftrek',
+  'overigeVoorzieningen', 'jaarruimte', 'reserveringsruimte'];
+const NIET_NEGATIEF = ['waarde', 'desinvestering', 'oudedagsreserve', 'eerderStakingsaftrek',
+  'overigeVoorzieningen', 'jaarruimte', 'reserveringsruimte'];
+const BENUTVELDEN = ['benutStaking', 'benutOudedag', 'benutJaarruimte', 'benutReservering', 'benutOudedagGeruisloos'];
+const FRACTIEVELDEN = ['tarief', 'tariefUitkering', 'latentie'];
+
+function controleer(invoer) {
+  const fouten = [];
+  const ged = ontleedDatum(invoer.geboortedatum), std = ontleedDatum(invoer.stakingsdatum);
+  if (!ged) fouten.push('Vul een geldige geboortedatum in.');
+  if (!std) fouten.push('Vul een geldige datum van staking in.');
+  if (ged && std && invoer.geboortedatum >= invoer.stakingsdatum) fouten.push('De datum van staking ligt niet na de geboortedatum.');
+  if (std && !JAREN[std.jaar]) {
+    fouten.push('De staking valt in ' + std.jaar + '. De tool kent de bedragen van ' +
+      Object.keys(JAREN).join(' en ') + ' en rekent een ander jaar niet door.');
+  }
+  if (!Object.prototype.hasOwnProperty.call(INGANG, invoer.ingang)) fouten.push('Kies wanneer de lijfrentetermijnen ingaan.');
+  BEDRAGVELDEN.forEach(function (s) {
+    if (!isGetal(invoer[s])) fouten.push('Vul een bedrag in bij ' + s + '.');
+    else if (NIET_NEGATIEF.indexOf(s) >= 0 && invoer[s] < 0) fouten.push('Het bedrag bij ' + s + ' kan niet negatief zijn.');
+  });
+  BENUTVELDEN.forEach(function (s) {
+    const w = invoer[s];
+    if (w !== null && w !== undefined && (!isGetal(w) || w < 0)) fouten.push('De benutting bij ' + s + ' is leeg of een bedrag van nul of meer.');
+  });
+  FRACTIEVELDEN.forEach(function (s) {
+    if (!isGetal(invoer[s]) || invoer[s] < 0 || invoer[s] > 1) fouten.push('Vul bij ' + s + ' een percentage tussen 0 en 100 in.');
+  });
+  if (isGetal(invoer.waarde) && isGetal(invoer.boekwaarde) && invoer.waarde < invoer.boekwaarde) {
+    fouten.push('De waarde van de onderneming ligt onder de boekwaarde. Een stakingsverlies valt buiten deze tool.');
+  }
+  return fouten;
+}
+
+function rekenAlles(invoer) {
+  const fouten = controleer(invoer);
+  if (fouten.length) {
+    return { meldingen: fouten.map(function (t) { return { ernst: 'fout', tekst: t }; }) };
+  }
+  const meldingen = [];
+  const jaar = Number(invoer.stakingsdatum.slice(0, 4));
+  const w = JAREN[jaar];
+  const t = invoer.tarief, tu = invoer.tariefUitkering;
+  const tg = tariefGrondslagverminderend(t, w);
+  const leeftijd = stakingslijfrenteOnderdeel(invoer, jaar);
+
+  // Stakingswinst: goodwill en stille reserves plus de desinvesteringsbijtelling (art. 3.47).
+  // De vrijval van de oudedagsreserve hoort er ook toe (verzamelbesluit lijfrenten in de
+  // winstsfeer, onderdeel 6.7), maar wordt hier apart gehouden omdat zij voor art. 3.129 lid 1
+  // niet meetelt wanneer zij zelf in een lijfrente wordt omgezet. Aanname: alles gaat over
+  // tegen de waarde in het economisch verkeer, zonder stakingskosten.
+  const stilleReserves = invoer.waarde - invoer.boekwaarde;
+  const stakingswinst = stilleReserves + invoer.desinvestering;
+  const oudedag = invoer.oudedagsreserve;
+  const winst = stakingswinst + oudedag;
+  const stakingsaftrekRuimte = Math.max(0, w.stakingsaftrek - invoer.eerderStakingsaftrek);
+
+  // Afrekening over een bedrag aan winst: belasting, stakingsaftrek en MKB-winstvrijstelling.
+  // De MKB-winstvrijstelling rekent over de winst na ondernemersaftrek (art. 3.79a); beide
+  // zijn grondslagverminderende posten (art. 2.10 lid 3) en besparen tegen tg.
+  function afrekening(bedrag) {
+    const sa = Math.min(bedrag, stakingsaftrekRuimte);
+    const mkb = w.mkbVrijstelling * (bedrag - sa);
+    return {
+      afgerekend: bedrag, stakingsaftrek: sa, mkb: mkb,
+      belasting: bedrag * t,
+      besparingGrondslag: (sa + mkb) * tg,
+      belastbaar: bedrag - sa - mkb,
+    };
+  }
+
+  // ---- Scenario 1: afrekenen.
+  const a1 = afrekening(winst);
+  const s1 = Object.assign({}, a1, { lijfrente: 0, besparingLijfrente: 0, claimLijfrente: 0, latentie: 0 });
+
+  // ---- Scenario 2: afrekenen met lijfrente.
+  // Art. 3.129 lid 1: ten hoogste de stakingswinst, en niet meer dan het maximum van lid 2
+  // min de reeds opgebouwde voorzieningen van lid 3, waartoe ook de oudedagsreserve bij de
+  // aanvang van het kalenderjaar behoort (art. 10a.29 lid 13). De vrijval van de
+  // oudedagsreserve telt hier niet als stakingswinst, omdat zij apart wordt omgezet. Dat is
+  // de voorwaarde van verzamelbesluit onderdeel 6.7, dat is geschreven voor het vervallen
+  // art. 3.128; de tool past haar toe op de omzetting van art. 10a.29 lid 12 (uitleg, zie
+  // OPENSTAAND.md punt 3). Dat is voor de ondernemer nooit ongunstiger dan haar
+  // meetellen: oudedag + min(stakingswinst, ruimte) >= min(stakingswinst + oudedag, ruimte).
+  const maximumLid2 = w.stakingslijfrente[leeftijd.onderdeel];
+  const voorzieningen = oudedag + invoer.overigeVoorzieningen;
+  const ruimteNaVoorzieningen = Math.max(0, maximumLid2 - voorzieningen);
+  const maxStaking = Math.max(0, Math.min(stakingswinst, ruimteNaVoorzieningen));
+  const bStaking = benut(invoer.benutStaking, maxStaking, 'stakingslijfrente', meldingen);
+  // Art. 10a.29 lid 12: omzetting van de oudedagsreserve, ten hoogste de afneming.
+  const maxOudedag = oudedag;
+  const bOudedag = benut(invoer.benutOudedag, maxOudedag, 'lijfrente voor de oudedagsreserve', meldingen);
+  // Jaarruimte en reserveringsruimte (art. 3.127). Bedingt de ondernemer de lijfrenten bij
+  // de overnemer, dan geldt voor alle premies samen ten hoogste de met de overdracht behaalde
+  // winst (art. 3.126 lid 1 onder a 2°) vermeerderd met de afneming van de oudedagsreserve
+  // (art. 10a.29 lid 9).
+  const rest = function (gebruikt) { return invoer.bijOvernemer ? Math.max(0, winst - gebruikt) : Infinity; };
+  const maxJaarruimte = Math.min(invoer.jaarruimte, rest(bStaking + bOudedag));
+  const bJaarruimte = benut(invoer.benutJaarruimte, maxJaarruimte, 'jaarruimte', meldingen);
+  const rr = Math.min(invoer.reserveringsruimte, w.reserveringsruimteMax);
+  if (invoer.reserveringsruimte > w.reserveringsruimteMax) {
+    meldingen.push({ ernst: 'let-op', tekst: 'De reserveringsruimte is begrensd op het maximum van art. 3.127 lid 2.' });
+  }
+  const maxReservering = Math.min(rr, rest(bStaking + bOudedag + bJaarruimte));
+  const bReservering = benut(invoer.benutReservering, maxReservering, 'reserveringsruimte', meldingen);
+  const lijfrente = bStaking + bOudedag + bJaarruimte + bReservering;
+  const s2 = Object.assign({}, a1, {
+    lijfrente: lijfrente, besparingLijfrente: lijfrente * t, claimLijfrente: lijfrente * tu, latentie: 0,
+  });
+  if (lijfrente > a1.belastbaar + 0.005) {
+    meldingen.push({ ernst: 'let-op', tekst: 'De lijfrentepremies zijn hoger dan de belastbare stakingswinst. De tool gaat ervan uit dat het verschil tegen ander inkomen van het jaar wegvalt, tegen hetzelfde tarief.' });
+  }
+
+  // ---- Scenario 3: geruisloos doorschuiven.
+  // Alleen de oudedagsreserve valt vrij (art. 10a.29 lid 6 bij een omzetting; bij een
+  // doorschuiving gaat zij alleen mee naar een partner, lid 5). Over die vrijval geldt de
+  // stakingsaftrek (lid 7) en de MKB-winstvrijstelling, en kan zij in een lijfrente worden
+  // omgezet (lid 12). De verkrijger neemt de claim over de stille reserves over; de korting
+  // daarvoor is een eigen inschatting.
+  const a3 = afrekening(oudedag);
+  const bOudedag3 = benut(invoer.benutOudedagGeruisloos, oudedag, 'lijfrente voor de oudedagsreserve bij geruisloos doorschuiven', meldingen);
+  const s3 = Object.assign({}, a3, {
+    lijfrente: bOudedag3, besparingLijfrente: bOudedag3 * t, claimLijfrente: bOudedag3 * tu,
+    latentie: stilleReserves * invoer.latentie,
+  });
+
+  const scenarios = { afrekenen: s1, lijfrente: s2, geruisloos: s3 };
+  SCENARIOS.forEach(function (s) {
+    const x = scenarios[s.id];
+    x.waarde = invoer.waarde;
+    x.netto = invoer.waarde - x.belasting + x.besparingGrondslag + x.besparingLijfrente - x.claimLijfrente - x.latentie;
+  });
+  let beste = SCENARIOS[0].id;
+  SCENARIOS.forEach(function (s) { if (scenarios[s.id].netto > scenarios[beste].netto + 0.005) beste = s.id; });
+
+  return {
+    meldingen: meldingen,
+    jaar: jaar,
+    waarden: w,
+    tariefGrondslag: tg,
+    leeftijd: leeftijd,
+    winst: {
+      stilleReserves: stilleReserves, stakingswinst: stakingswinst, oudedagsreserve: oudedag,
+      totaal: winst, stakingsaftrekRuimte: stakingsaftrekRuimte,
+    },
+    ruimte: {
+      maximumLid2: maximumLid2, voorzieningen: voorzieningen, ruimteNaVoorzieningen: ruimteNaVoorzieningen,
+      maxStaking: maxStaking, bStaking: bStaking,
+      maxOudedag: maxOudedag, bOudedag: bOudedag,
+      maxJaarruimte: maxJaarruimte, bJaarruimte: bJaarruimte,
+      maxReservering: maxReservering, bReservering: bReservering,
+      totaal: lijfrente,
+    },
+    scenarios: scenarios,
+    beste: beste,
+  };
+}
+// FISCALE KERN — EINDE
+
+// XLSX-SCHRIJVER — BEGIN
+//
+// Gedeelde code, niet tooleigen. De bron staat in de repository gedeelde-kern; dit
+// bestand is daar een kopie van, neergezet door verspreid.mjs. Wijzig hem hier niet:
+// een wijziging hoort in gedeelde-kern thuis en wordt van daaruit verspreid. Een test
+// bewaakt dat de kopie en de bron gelijk zijn.
+//
+// Herkomst: overgenomen uit Berekeningen via hypotheek-annuitair.
+//
+// Een xlsx is een zip met XML erin. De leden gaan er ongecomprimeerd in
+// ("stored"), want dan is er geen deflate nodig.
+// ==========================================================================
+
+const CRC_TABEL = (function () {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABEL[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zipBytes(leden) {
+  const enc = new TextEncoder();
+  const nu = new Date();
+  const zTijd = ((nu.getHours() << 11) | (nu.getMinutes() << 5) | (nu.getSeconds() >> 1)) & 0xFFFF;
+  const zDatum = (((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate()) & 0xFFFF;
+
+  const stukken = [], centraal = [];
+  let offset = 0;
+
+  for (const lid of leden) {
+    const naam = enc.encode(lid.naam);
+    const inhoud = enc.encode(lid.tekst);
+    const som = crc32(inhoud);
+
+    const kop = new Uint8Array(30 + naam.length);
+    const kv = new DataView(kop.buffer);
+    kv.setUint32(0, 0x04034b50, true);
+    kv.setUint16(4, 20, true);
+    kv.setUint16(6, 0x0800, true);
+    kv.setUint16(8, 0, true);
+    kv.setUint16(10, zTijd, true);
+    kv.setUint16(12, zDatum, true);
+    kv.setUint32(14, som, true);
+    kv.setUint32(18, inhoud.length, true);
+    kv.setUint32(22, inhoud.length, true);
+    kv.setUint16(26, naam.length, true);
+    kop.set(naam, 30);
+    stukken.push(kop, inhoud);
+
+    const cd = new Uint8Array(46 + naam.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, zTijd, true);
+    cv.setUint16(14, zDatum, true);
+    cv.setUint32(16, som, true);
+    cv.setUint32(20, inhoud.length, true);
+    cv.setUint32(24, inhoud.length, true);
+    cv.setUint16(28, naam.length, true);
+    cv.setUint32(42, offset, true);
+    cd.set(naam, 46);
+    centraal.push(cd);
+
+    offset += kop.length + inhoud.length;
+  }
+
+  const cdGrootte = centraal.reduce(function (s, c) { return s + c.length; }, 0);
+  const slot = new Uint8Array(22);
+  const sv = new DataView(slot.buffer);
+  sv.setUint32(0, 0x06054b50, true);
+  sv.setUint16(8, leden.length, true);
+  sv.setUint16(10, leden.length, true);
+  sv.setUint32(12, cdGrootte, true);
+  sv.setUint32(16, offset, true);
+
+  const alles = stukken.concat(centraal, [slot]);
+  const uit = new Uint8Array(alles.reduce(function (s, d) { return s + d.length; }, 0));
+  let p = 0;
+  for (const d of alles) { uit.set(d, p); p += d.length; }
+  return uit;
+}
+
+const xmlTekst = function (s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+const celTekst = function (tekst, vet) { return { tekst: tekst == null ? '' : tekst, vet: !!vet }; };
+const celGetal = function (waarde, formaat, vet) {
+  return { getal: waarde, formaat: formaat || '0', vet: !!vet };
+};
+
+function stijlenRegister() {
+  const formaten = new Map();
+  const index = new Map([['|0', 0], ['|1', 1]]);
+  const xfs = [{ fmt: 0, vet: false }, { fmt: 0, vet: true }];
+  return {
+    voor: function (formaat, vet) {
+      const code = formaat || '';
+      const sleutel = code + '|' + (vet ? 1 : 0);
+      if (index.has(sleutel)) return index.get(sleutel);
+      if (code && !formaten.has(code)) formaten.set(code, 164 + formaten.size);
+      const i = xfs.length;
+      xfs.push({ fmt: code ? formaten.get(code) : 0, vet: !!vet });
+      index.set(sleutel, i);
+      return i;
+    },
+    xml: function () {
+      const nf = Array.from(formaten.entries()).map(function (e) {
+        return '<numFmt numFmtId="' + e[1] + '" formatCode="' + xmlTekst(e[0]) + '"/>';
+      }).join('');
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        (formaten.size ? '<numFmts count="' + formaten.size + '">' + nf + '</numFmts>' : '') +
+        '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border/></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="' + xfs.length + '">' +
+        xfs.map(function (x) {
+          return '<xf numFmtId="' + x.fmt + '" fontId="' + (x.vet ? 1 : 0) + '"' +
+            ' fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>';
+        }).join('') +
+        '</cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Standaard" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>';
+    }
+  };
+}
+
+function kolomLetter(n) {
+  let s = '', k = n + 1;
+  while (k > 0) { const r = (k - 1) % 26; s = String.fromCharCode(65 + r) + s; k = (k - 1 - r) / 26; }
+  return s;
+}
+
+function bladXml(blad, stijlen) {
+  const d = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+  if (blad.breedtes && blad.breedtes.length) {
+    d.push('<cols>');
+    blad.breedtes.forEach(function (b, i) {
+      d.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + b + '" customWidth="1"/>');
+    });
+    d.push('</cols>');
+  }
+  d.push('<sheetData>');
+  blad.rijen.forEach(function (rij, ri) {
+    d.push('<row r="' + (ri + 1) + '">');
+    rij.forEach(function (cel, ki) {
+      if (!cel) return;
+      const ref = kolomLetter(ki) + (ri + 1);
+      if (typeof cel.getal === 'number' && isFinite(cel.getal)) {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor(cel.formaat, cel.vet) + '">' +
+          '<v>' + cel.getal + '</v></c>');
+      } else if (cel.tekst !== undefined && cel.tekst !== '') {
+        d.push('<c r="' + ref + '" s="' + stijlen.voor('', cel.vet) + '" t="inlineStr">' +
+          '<is><t xml:space="preserve">' + xmlTekst(cel.tekst) + '</t></is></c>');
+      }
+    });
+    d.push('</row>');
+  });
+  d.push('</sheetData></worksheet>');
+  return d.join('');
+}
+
+function xlsxBytes(bladen) {
+  const stijlen = stijlenRegister();
+  const bladXmls = bladen.map(function (b) { return bladXml(b, stijlen); });
+  const rid = function (i) { return 'rId' + (i + 1); };
+  const OFF = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const SS = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+
+  const leden = [
+    { naam: '[Content_Types].xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="' + SS + '.sheet.main+xml"/>' +
+        bladen.map(function (b, i) {
+          return '<Override PartName="/xl/worksheets/sheet' + (i + 1) +
+            '.xml" ContentType="' + SS + '.worksheet+xml"/>';
+        }).join('') +
+        '<Override PartName="/xl/styles.xml" ContentType="' + SS + '.styles+xml"/>' +
+        '</Types>' },
+    { naam: '_rels/.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="' + OFF + '/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+    { naam: 'xl/workbook.xml',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
+        ' xmlns:r="' + OFF + '"><sheets>' +
+        bladen.map(function (b, i) {
+          return '<sheet name="' + xmlTekst(b.naam) + '" sheetId="' + (i + 1) +
+            '" r:id="' + rid(i) + '"/>';
+        }).join('') +
+        '</sheets></workbook>' },
+    { naam: 'xl/_rels/workbook.xml.rels',
+      tekst: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        bladen.map(function (b, i) {
+          return '<Relationship Id="' + rid(i) + '" Type="' + OFF +
+            '/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+        }).join('') +
+        '<Relationship Id="' + rid(bladen.length) + '" Type="' + OFF +
+        '/styles" Target="styles.xml"/></Relationships>' }
+  ];
+  bladXmls.forEach(function (x, i) {
+    leden.push({ naam: 'xl/worksheets/sheet' + (i + 1) + '.xml', tekst: x });
+  });
+  leden.push({ naam: 'xl/styles.xml', tekst: stijlen.xml() });
+  return zipBytes(leden);
+}
+
+// ==========================================================================
+// XLSX-SCHRIJVER — EINDE
+
+// UITGANGEN — BEGIN
+// Dossierstuk, Excel-export en dossierbestand. Pure functies zonder DOM; zij gebruiken de
+// uitkomst van rekenAlles en rekenen zelf niets, zodat scherm, afdruk en export dezelfde
+// getallen tonen.
+
+const TOOL_ID = 'staken-onderneming';
+const TOOLNAAM = 'Staken of verkopen van de onderneming';
+const TOOLVERSIE = '0.1.0';
+const TOOLDATUM = '2026-10-01';
+// Versie van het formaat van het dossierbestand, los van de toolversie.
+const DOSSIERFORMAAT = 1;
+
+const VINDPLAATSEN = [
+  'Tarief box 1: hoogste schijf 49,50% in 2025 en 2026 (art. 2.10 lid 1 Wet IB 2001). Grondslagverminderende posten (ondernemersaftrek, waaronder de stakingsaftrek, en de MKB-winstvrijstelling, art. 2.10 lid 3) zijn in de hoogste schijf beperkt aftrekbaar: opslag 12,02% in 2025 en 11,94% in 2026 (art. 2.10 lid 2), dus waard 37,48% respectievelijk 37,56%.',
+  'MKB-winstvrijstelling: 12,7% van de winst na ondernemersaftrek (art. 3.79a Wet IB 2001), in 2025 en 2026.',
+  'Stakingsaftrek: gelijk aan de winst behaald met of bij het staken, ten hoogste € 3.630, verminderd met eerder genoten stakingsaftrek (art. 3.79 lid 1, 2 en 4 Wet IB 2001). Ook over de vrijval van de oudedagsreserve na een geruisloze doorschuiving of omzetting (art. 10a.29 lid 7).',
+  'Stakingslijfrente: ten hoogste de winst behaald met of bij de staking, en niet meer dan het maximum min de reeds opgebouwde voorzieningen (art. 3.129 lid 1 en 3 Wet IB 2001). Maximum 2025: € 566.197, € 283.110 of € 141.564; 2026: € 574.867, € 287.445 of € 143.732 (art. 3.129 lid 2 onder a, b en c). Termijnen die dadelijk ingaan, gaan in direct na het sluiten van de lijfrenteovereenkomst en niet vanzelf binnen zes maanden na het staken (besluit lijfrenten in de winstsfeer, onderdeel 6.5). De oudedagsreserve bij de aanvang van het jaar telt als opgebouwde voorziening (art. 10a.29 lid 13).',
+  'AOW-leeftijd: de pensioengerechtigde leeftijd die ten tijde van het staken geldt (art. 3.129 lid 2 jo. art. 7a lid 1 AOW); 67 jaar in 2025 (art. 7a lid 1 onder n AOW) en in 2026 (Stcrt. 2020, 65110).',
+  'Oudedagsreserve: omzetting in een lijfrente tot ten hoogste de afneming (art. 10a.29 lid 12 Wet IB 2001). In het jaar van staking telt de afneming dan niet ook als stakingswinst voor art. 3.129: dat is de voorwaarde van het besluit lijfrenten in de winstsfeer van 17-12-2021, nr. 2021-236684, Stcrt. 2022, 690, onderdeel 6.7. Dat besluit noemt het vervallen art. 3.128; de tool past de voorwaarde toe op art. 10a.29 lid 12. Bij een geruisloze omzetting in een BV valt de oudedagsreserve vrij (art. 10a.29 lid 6).',
+  'Jaarruimte en reserveringsruimte: art. 3.127 lid 1, 2 en 5 Wet IB 2001; reserveringsruimte ten hoogste € 42.108 in 2025 en € 42.753 in 2026. Lijfrente bij de overnemer: ten hoogste de met de overdracht behaalde winst (art. 3.126 lid 1 onder a 2°) plus de afneming van de oudedagsreserve (art. 10a.29 lid 9).',
+  'Geruisloze doorschuiving naar een medeondernemer of werknemer: art. 3.63 Wet IB 2001. Geruisloze omzetting in een BV: art. 3.65 Wet IB 2001.',
+  'Wettekst: Wet IB 2001 (BWBR0011353), versies 2025-01-01_4, 2025-08-25_2, 2026-01-01_1 en 2026-02-21_0, gecontroleerd op 01-10-2026 tegen de hashcode van KOOP.',
+];
+
+const AFBAKENING = [
+  'De tool berekent de netto opbrengst van de onderneming voor de ondernemer in drie scenario\'s: afrekenen, afrekenen met lijfrenten, en geruisloos doorschuiven of omzetten. De netto opbrengst is de waarde van de onderneming min de belasting nu, plus de besparing door aftrekposten, min de latere belasting over lijfrente-uitkeringen en, bij geruisloos, min een korting voor de overgenomen belastingclaim.',
+  'De tool rekent met één tarief voor de hele afrekening. Valt de stakingswinst deels in een lagere schijf, vul dan een gemiddeld tarief in. De stakingsaftrek en de MKB-winstvrijstelling besparen tegen het ingevulde tarief, maar niet meer dan het tarief van de tweede schijf (art. 2.10 lid 2). De zelfstandigenaftrek, de heffingskortingen, de Zvw-bijdrage en de gewone winst van het jaar rekent de tool niet.',
+  'De latere belasting over de lijfrente-uitkeringen is een eigen inschatting, als percentage van de premie. Wie de contante waarde wil meenemen, verlaagt dat percentage. Het rendement op de lijfrente rekent de tool niet.',
+  'De korting voor de belastinglatentie bij geruisloos doorschuiven is een eigen inschatting, als percentage van de goodwill en stille reserves. De tool rekent die claim niet zelf uit.',
+  'De stakingswinst is de waarde in het economisch verkeer min de fiscale boekwaarde, plus de desinvesteringsbijtelling. De tool gaat ervan uit dat alles tegen die waarde overgaat en rekent geen stakingskosten. De stakingsaftrek rekent zij zonder de eis van art. 3.79 lid 3 (drie jaar voor eigen rekening gedreven na een eerdere doorschuiving); vul in dat geval de eerder genoten stakingsaftrek op € 3.630.',
+  'Bij geruisloos laat de tool de oudedagsreserve helemaal vrijvallen. Bij een doorschuiving naar een partner kan zij meegaan (art. 10a.29 lid 5); dat rekent de tool niet.',
+  'De oudedagsreserve is het bedrag bij de aanvang van het jaar van staking; de tool gaat ervan uit dat zij in dat jaar tot de staking niet is afgenomen. Jaarruimte en reserveringsruimte rekent de tool niet uit: vul de beschikbare ruimte zelf in. De reeds opgebouwde voorzieningen (art. 3.129 lid 3) naast de oudedagsreserve vult u als één bedrag in.',
+  'Of een geruisloze doorschuiving of omzetting mogelijk is (art. 3.63 lid 4 en 5, art. 3.65 en de voorwaarden daarbij), toetst de tool niet. Een stakingsverlies, de overdrachtsbelasting en de financiering van een lijfrente vallen buiten de tool.',
+  'De tool doet geen voorstel en geeft geen advies. Zij rekent de ingevulde situatie door.',
+];
+
+// De invoervelden, met label zoals op het scherm. Soort 'bedrag', 'procent' (fractie in de
+// kern), 'datum' of 'benut' (bedrag of leeg voor het maximum).
+const INVOERVELDEN = [
+  { pad: ['geboortedatum'], label: 'Geboortedatum ondernemer', soort: 'datum' },
+  { pad: ['stakingsdatum'], label: 'Datum van staking', soort: 'datum' },
+  { pad: ['waarde'], label: 'Waarde onderneming, met goodwill en stille reserves', soort: 'bedrag' },
+  { pad: ['boekwaarde'], label: 'Fiscale boekwaarde van het ondernemingsvermogen', soort: 'bedrag' },
+  { pad: ['desinvestering'], label: 'Desinvesteringsbijtelling', soort: 'bedrag' },
+  { pad: ['oudedagsreserve'], label: 'Oudedagsreserve bij de aanvang van het jaar', soort: 'bedrag' },
+  { pad: ['eerderStakingsaftrek'], label: 'Eerder genoten stakingsaftrek', soort: 'bedrag' },
+  { pad: ['overigeVoorzieningen'], label: 'Reeds opgebouwde voorzieningen naast de oudedagsreserve', soort: 'bedrag' },
+  { pad: ['jaarruimte'], label: 'Beschikbare jaarruimte', soort: 'bedrag' },
+  { pad: ['reserveringsruimte'], label: 'Beschikbare reserveringsruimte', soort: 'bedrag' },
+  { pad: ['benutStaking'], label: 'Benutte stakingslijfrente', soort: 'benut' },
+  { pad: ['benutOudedag'], label: 'Benutte lijfrente voor de oudedagsreserve', soort: 'benut' },
+  { pad: ['benutJaarruimte'], label: 'Benutte jaarruimte', soort: 'benut' },
+  { pad: ['benutReservering'], label: 'Benutte reserveringsruimte', soort: 'benut' },
+  { pad: ['benutOudedagGeruisloos'], label: 'Benutte lijfrente voor de oudedagsreserve bij geruisloos', soort: 'benut' },
+  { pad: ['tarief'], label: 'Tarief over de afgerekende winst', soort: 'procent' },
+  { pad: ['tariefUitkering'], label: 'Latere belasting over de lijfrente-uitkeringen', soort: 'procent' },
+  { pad: ['latentie'], label: 'Korting belastinglatentie bij geruisloos', soort: 'procent' },
+];
+
+const KEUZEVELDEN = [
+  { pad: ['ingang'], label: 'Lijfrentetermijnen gaan in', opties: INGANG },
+  { pad: ['arbeidsongeschikt'], label: 'Ten minste 45% arbeidsongeschikt', opties: { 'true': 'ja', 'false': 'nee' }, soort: 'janee' },
+  { pad: ['overlijden'], label: 'Staking door overlijden', opties: { 'true': 'ja', 'false': 'nee' }, soort: 'janee' },
+  { pad: ['bijOvernemer'], label: 'Lijfrenten bij de overnemer bedongen', opties: { 'true': 'ja', 'false': 'nee' }, soort: 'janee' },
+];
+
+// De regels per scenario, in de volgorde van het scherm.
+const SCENARIOREGELS = [
+  { sleutel: 'waarde', label: 'Waarde onderneming', teken: 1 },
+  { sleutel: 'belasting', label: 'Belasting over de afgerekende winst', teken: -1 },
+  { sleutel: 'besparingGrondslag', label: 'Besparing door stakingsaftrek en MKB-winstvrijstelling', teken: 1 },
+  { sleutel: 'besparingLijfrente', label: 'Besparing door lijfrentepremies', teken: 1 },
+  { sleutel: 'claimLijfrente', label: 'Latere belasting over de lijfrente-uitkeringen', teken: -1 },
+  { sleutel: 'latentie', label: 'Korting voor de belastinglatentie', teken: -1 },
+  { sleutel: 'netto', label: 'Netto opbrengst', teken: 1, totaal: true },
+];
+
+const TUSSENREGELS = [
+  { sleutel: 'afgerekend', label: 'Afgerekende winst' },
+  { sleutel: 'stakingsaftrek', label: 'Stakingsaftrek' },
+  { sleutel: 'mkb', label: 'MKB-winstvrijstelling' },
+  { sleutel: 'lijfrente', label: 'Lijfrentepremies' },
+];
+
+// ------------------------------------------------------------------ opmaak
+
+function opCenten(w) { return Math.round(w * 100) / 100; }
+
+function bedragTekst(waarde) {
+  if (typeof waarde !== 'number' || !isFinite(waarde)) return '';
+  const r = opCenten(waarde);
+  const teken = r < 0 ? '-' : '';
+  const [heel, cent] = Math.abs(r).toFixed(2).split('.');
+  return teken + '€ ' + heel.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + cent;
+}
+
+function procentTekst(fractie) {
+  if (typeof fractie !== 'number' || !isFinite(fractie)) return '';
+  return String(Math.round(fractie * 1e6) / 1e4).replace('.', ',') + '%';
+}
+
+function datumTekst(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
+  const d = iso.split('-');
+  return d[2] + '-' + d[1] + '-' + d[0];
+}
+
+function leesPad(bron, pad) {
+  let o = bron;
+  for (let i = 0; i < pad.length; i++) {
+    if (o === null || typeof o !== 'object' || !(pad[i] in o)) return { ontbreekt: true };
+    o = o[pad[i]];
+  }
+  return { waarde: o };
+}
+
+function zetPad(doel, pad, waarde) {
+  let o = doel;
+  for (let i = 0; i < pad.length - 1; i++) {
+    if (o[pad[i]] === undefined) o[pad[i]] = {};
+    o = o[pad[i]];
+  }
+  o[pad[pad.length - 1]] = waarde;
+}
+
+function veldTekst(veld, w) {
+  if (veld.soort === 'benut' && (w === null || w === undefined)) return 'maximaal';
+  if (w === null || w === undefined) return '';
+  if (veld.soort === 'procent') return procentTekst(w);
+  if (veld.soort === 'bedrag' || veld.soort === 'benut') return bedragTekst(w);
+  if (veld.soort === 'datum') return datumTekst(w);
+  return String(w);
+}
+
+function meldingTeksten(meldingen) {
+  return (meldingen || []).map(function (m) {
+    return (m.ernst === 'fout' ? 'Niet berekend: ' : 'Let op: ') + m.tekst;
+  });
+}
+
+function scenarioNaam(id) {
+  for (let i = 0; i < SCENARIOS.length; i++) if (SCENARIOS[i].id === id) return SCENARIOS[i].naam;
+  return '';
+}
+
+function conclusieTekst(reken) {
+  if (!reken.scenarios) return '';
+  const b = reken.scenarios[reken.beste];
+  return 'De hoogste netto opbrengst geeft ' + scenarioNaam(reken.beste).toLowerCase() + ': ' + bedragTekst(b.netto) + '.';
+}
+
+// ------------------------------------------------------------------ opbouw van de uitgang
+
+// Eén structuur waaruit het dossierstuk en de export allebei worden gemaakt.
+function bouwUitgang(invoer, reken, kenmerk, datumISO) {
+  const keuzes = KEUZEVELDEN.map(function (k) {
+    const w = leesPad(invoer, k.pad).waarde;
+    return { label: k.label, tekst: k.opties[String(w)] || '' };
+  });
+  const invoerRegels = INVOERVELDEN.map(function (v) {
+    const w = leesPad(invoer, v.pad).waarde;
+    return { label: v.label, tekst: veldTekst(v, w), waarde: typeof w === 'number' ? w : null,
+      soort: v.soort === 'benut' ? 'bedrag' : v.soort, tekstCel: v.soort === 'datum' || (v.soort === 'benut' && typeof w !== 'number') };
+  });
+  const regel = function (label, w, soort) {
+    return { label: label, tekst: soort === 'procent' ? procentTekst(w) : soort === 'tekst' ? String(w) : bedragTekst(w),
+      waarde: soort === 'tekst' ? null : w, soort: soort, tekstCel: soort === 'tekst' };
+  };
+  let basis = [];
+  if (reken.scenarios) {
+    const l = reken.leeftijd, z = reken.winst, r = reken.ruimte;
+    basis = [
+      regel('Jaar van staking', String(reken.jaar), 'tekst'),
+      regel('AOW-leeftijd in het jaar van staking', l.aowLeeftijdTekst + ' (' + l.aowVindplaats + ')', 'tekst'),
+      regel('AOW-datum bij die leeftijd', datumTekst(l.aowDatum), 'tekst'),
+      regel('Leeftijd van vijf jaar onder de AOW-leeftijd bereikt op', datumTekst(l.grens5), 'tekst'),
+      regel('Leeftijd van vijftien jaar onder de AOW-leeftijd bereikt op', datumTekst(l.grens15), 'tekst'),
+      regel('Maximum stakingslijfrente, art. 3.129 lid 2 onder ' + l.onderdeel, r.maximumLid2, 'bedrag'),
+      regel('Grond voor dat maximum', l.grond, 'tekst'),
+      regel('Goodwill en stille reserves', z.stilleReserves, 'bedrag'),
+      regel('Stakingswinst, met desinvesteringsbijtelling', z.stakingswinst, 'bedrag'),
+      regel('Vrijval oudedagsreserve', z.oudedagsreserve, 'bedrag'),
+      regel('Af te rekenen winst bij staken', z.totaal, 'bedrag'),
+      regel('Beschikbare stakingsaftrek', z.stakingsaftrekRuimte, 'bedrag'),
+      regel('Tarief waartegen stakingsaftrek en MKB-winstvrijstelling besparen', reken.tariefGrondslag, 'procent'),
+      regel('Reeds opgebouwde voorzieningen, met de oudedagsreserve', r.voorzieningen, 'bedrag'),
+      regel('Maximum min opgebouwde voorzieningen', r.ruimteNaVoorzieningen, 'bedrag'),
+      regel('Stakingslijfrente: ruimte', r.maxStaking, 'bedrag'),
+      regel('Stakingslijfrente: benut', r.bStaking, 'bedrag'),
+      regel('Lijfrente oudedagsreserve: ruimte', r.maxOudedag, 'bedrag'),
+      regel('Lijfrente oudedagsreserve: benut', r.bOudedag, 'bedrag'),
+      regel('Jaarruimte: ruimte', r.maxJaarruimte, 'bedrag'),
+      regel('Jaarruimte: benut', r.bJaarruimte, 'bedrag'),
+      regel('Reserveringsruimte: ruimte', r.maxReservering, 'bedrag'),
+      regel('Reserveringsruimte: benut', r.bReservering, 'bedrag'),
+      regel('Lijfrentepremies samen', r.totaal, 'bedrag'),
+    ];
+  }
+  const scenarioWaarden = function (regels, metTeken) {
+    return regels.map(function (rg) {
+      return {
+        label: rg.label, totaal: !!rg.totaal,
+        waarden: SCENARIOS.map(function (s) {
+          const x = reken.scenarios[s.id][rg.sleutel];
+          return metTeken ? rg.teken * x : x;
+        }),
+      };
+    });
+  };
+  return {
+    kop: { tool: TOOLNAAM, versie: TOOLVERSIE + ' (' + datumTekst(TOOLDATUM) + ')', datum: datumTekst(datumISO), kenmerk: kenmerk || '' },
+    keuzes: keuzes,
+    invoer: invoerRegels,
+    basis: basis,
+    kolommen: SCENARIOS.map(function (s) { return s.naam; }),
+    scenarios: reken.scenarios ? scenarioWaarden(SCENARIOREGELS, true) : [],
+    tussen: reken.scenarios ? scenarioWaarden(TUSSENREGELS, false) : [],
+    conclusie: conclusieTekst(reken),
+    meldingen: meldingTeksten(reken.meldingen),
+    vindplaatsen: VINDPLAATSEN.slice(),
+    afbakening: AFBAKENING.slice(),
+  };
+}
+
+// ------------------------------------------------------------------ Excel-export
+
+function exportBladen(uitgang) {
+  const getal = function (w) { return typeof w === 'number' && isFinite(w) ? celGetal(opCenten(w), '#,##0.00') : null; };
+  const pct = function (w) { return typeof w === 'number' && isFinite(w) ? celGetal(w, '0.000%') : null; };
+  const waardeCel = function (r) {
+    if (r.tekstCel) return celTekst(r.tekst);
+    return r.soort === 'procent' ? pct(r.waarde) : getal(r.waarde);
+  };
+  const rijen = [];
+  rijen.push([celTekst(uitgang.kop.tool, true)]);
+  rijen.push([celTekst('Versie'), celTekst(uitgang.kop.versie)]);
+  rijen.push([celTekst('Datum export'), celTekst(uitgang.kop.datum)]);
+  rijen.push([celTekst('Kenmerk'), celTekst(uitgang.kop.kenmerk)]);
+  rijen.push([]);
+  rijen.push([celTekst('Keuzes', true)]);
+  uitgang.keuzes.forEach(function (k) { rijen.push([celTekst(k.label), celTekst(k.tekst)]); });
+  rijen.push([]);
+  rijen.push([celTekst('Invoer', true)]);
+  uitgang.invoer.forEach(function (r) { rijen.push([celTekst(r.label), waardeCel(r)]); });
+  if (uitgang.basis.length) {
+    rijen.push([]);
+    rijen.push([celTekst('Tussenstappen', true)]);
+    uitgang.basis.forEach(function (r) { rijen.push([celTekst(r.label), waardeCel(r)]); });
+  }
+  if (uitgang.scenarios.length) {
+    rijen.push([]);
+    rijen.push([celTekst('Uitkomst', true)].concat(uitgang.kolommen.map(function (k) { return celTekst(k, true); })));
+    uitgang.scenarios.forEach(function (r) { rijen.push([celTekst(r.label, r.totaal)].concat(r.waarden.map(getal))); });
+    rijen.push([]);
+    rijen.push([celTekst('Grondslagen per scenario', true)]);
+    uitgang.tussen.forEach(function (r) { rijen.push([celTekst(r.label)].concat(r.waarden.map(getal))); });
+    rijen.push([]);
+    rijen.push([celTekst(uitgang.conclusie)]);
+  }
+  uitgang.meldingen.forEach(function (m) { rijen.push([celTekst(m)]); });
+
+  const toelichting = [[celTekst('Vindplaatsen', true)]];
+  uitgang.vindplaatsen.forEach(function (v) { toelichting.push([celTekst(v)]); });
+  toelichting.push([]);
+  toelichting.push([celTekst('Afbakening', true)]);
+  uitgang.afbakening.forEach(function (v) { toelichting.push([celTekst(v)]); });
+  return [
+    { naam: 'Berekening', rijen: rijen, breedtes: [62, 26, 26, 26] },
+    { naam: 'Toelichting', rijen: toelichting, breedtes: [140] },
+  ];
+}
+
+function slug(tekst) {
+  const s = String(tekst || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'dossier';
+}
+
+function bestandsnaam(kenmerk, datumISO, extensie) {
+  return TOOL_ID + '-' + slug(kenmerk) + '-' + datumISO + '.' + extensie;
+}
+
+// ------------------------------------------------------------------ dossierbestand
+//
+// Alleen invoer, geen uitkomsten: bij openen rekent de tool opnieuw. Elk veld wordt bij
+// openen gecontroleerd; een ontbrekend veld houdt het openen tegen, zodat een oud dossier
+// niet ongemerkt met een andere standaardwaarde wordt doorgerekend.
+
+function dossierVelden() {
+  const v = [{ pad: ['kenmerk'], soort: 'tekst' }];
+  KEUZEVELDEN.forEach(function (k) {
+    v.push(k.soort === 'janee' ? { pad: k.pad, soort: 'janee' } : { pad: k.pad, soort: 'keuze', opties: Object.keys(k.opties) });
+  });
+  INVOERVELDEN.forEach(function (f) { v.push({ pad: f.pad, soort: f.soort }); });
+  return v;
+}
+
+function schrijfDossier(invoer, datumISO) {
+  const uit = {};
+  dossierVelden().forEach(function (veld) {
+    const r = leesPad(invoer, veld.pad);
+    zetPad(uit, veld.pad, r.ontbreekt || r.waarde === undefined ? null : r.waarde);
+  });
+  return JSON.stringify({ tool: TOOL_ID, formaat: DOSSIERFORMAAT, toolversie: TOOLVERSIE, opgeslagen: datumISO, invoer: uit }, null, 2);
+}
+
+function geldigeWaarde(veld, w) {
+  if (veld.soort === 'keuze') return veld.opties.indexOf(String(w)) >= 0;
+  if (veld.soort === 'janee') return w === true || w === false;
+  if (w === null) return true;
+  if (veld.soort === 'tekst') return typeof w === 'string';
+  if (veld.soort === 'datum') return typeof w === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w);
+  return typeof w === 'number' && isFinite(w);
+}
+
+// Geeft { invoer, meldingen } of { fout }. Bij een fout blijft de huidige casus staan.
+function leesDossier(tekst) {
+  let rauw;
+  try { rauw = JSON.parse(tekst); } catch (e) { return { fout: 'Het bestand is geen leesbaar dossierbestand.' }; }
+  if (!rauw || rauw.tool !== TOOL_ID) return { fout: 'Dit bestand hoort niet bij de tool ' + TOOLNAAM + '.' };
+  if (rauw.formaat !== DOSSIERFORMAAT) {
+    return { fout: 'Dit dossierbestand heeft formaat ' + rauw.formaat + '; deze versie van de tool leest formaat ' + DOSSIERFORMAAT + '.' };
+  }
+  const bron = rauw.invoer;
+  if (!bron || typeof bron !== 'object') return { fout: 'Het dossierbestand bevat geen invoer.' };
+  const invoer = {};
+  const ontbrekend = [], ongeldig = [];
+  dossierVelden().forEach(function (veld) {
+    const r = leesPad(bron, veld.pad);
+    if (r.ontbreekt) { ontbrekend.push(veld.pad.join('.')); return; }
+    if (!geldigeWaarde(veld, r.waarde)) { ongeldig.push(veld.pad.join('.')); return; }
+    zetPad(invoer, veld.pad, r.waarde);
+  });
+  if (ontbrekend.length || ongeldig.length) {
+    return { fout: 'Het dossier is niet geopend.' +
+      (ontbrekend.length ? ' Ontbrekende velden: ' + ontbrekend.join(', ') + '.' : '') +
+      (ongeldig.length ? ' Ongeldige waarden: ' + ongeldig.join(', ') + '.' : '') };
+  }
+  const meldingen = [];
+  const jaar = typeof invoer.stakingsdatum === 'string' ? Number(invoer.stakingsdatum.slice(0, 4)) : NaN;
+  if (!JAREN[jaar]) {
+    meldingen.push('Dit dossier gaat uit van een staking in ' + (isFinite(jaar) ? jaar : 'een onbekend jaar') + '; deze versie van de tool kent dat jaar niet en rekent het niet door.');
+  }
+  if (rauw.toolversie !== TOOLVERSIE) {
+    meldingen.push('Dit dossier is opgeslagen met versie ' + rauw.toolversie + ' van de tool en is nu doorgerekend met versie ' +
+      TOOLVERSIE + '. De uitkomst kan afwijken van de oorspronkelijke; het dossierstuk of de export van toen is het bewijs daarvan.');
+  }
+  return { invoer: invoer, meldingen: meldingen };
+}
+// UITGANGEN — EINDE
+
+// PRESENTATIE — BEGIN
+// Het scherm: de invoer uitlezen, rekenAlles aanroepen en de uitkomst tonen. Hier wordt
+// niet gerekend.
+
+const $ = function (id) { return document.getElementById(id); };
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Een leeg veld geeft null; de kern meldt dan dat het veld ontbreekt, of rekent bij een
+// benutting met het maximum.
+function getal(id) {
+  const el = $(id);
+  if (!el || el.value === '') return null;
+  const w = Number(el.value);
+  return isFinite(w) ? w : NaN;
+}
+function procent(id) {
+  const w = getal(id);
+  return w === null ? null : w / 100;
+}
+
+const BEDRAGEN = ['waarde', 'boekwaarde', 'desinvestering', 'oudedagsreserve', 'eerderStakingsaftrek',
+  'overigeVoorzieningen', 'jaarruimte', 'reserveringsruimte',
+  'benutStaking', 'benutOudedag', 'benutJaarruimte', 'benutReservering', 'benutOudedagGeruisloos'];
+const PROCENTEN = ['tarief', 'tariefUitkering', 'latentie'];
+const JANEE = ['arbeidsongeschikt', 'overlijden', 'bijOvernemer'];
+
+function leesInvoer() {
+  const invoer = {
+    kenmerk: $('kenmerk').value,
+    geboortedatum: $('geboortedatum').value,
+    stakingsdatum: $('stakingsdatum').value,
+    ingang: $('ingang').value,
+  };
+  JANEE.forEach(function (s) { invoer[s] = $(s).value === 'true'; });
+  BEDRAGEN.forEach(function (s) { invoer[s] = getal(s); });
+  PROCENTEN.forEach(function (s) { invoer[s] = procent(s); });
+  return invoer;
+}
+
+function zetWaarde(id, w, alsProcent) {
+  $(id).value = w === null || w === undefined ? '' : String(alsProcent ? Math.round(w * 1e8) / 1e6 : w);
+}
+
+function zetInvoer(invoer) {
+  $('kenmerk').value = invoer.kenmerk || '';
+  $('geboortedatum').value = invoer.geboortedatum || '';
+  $('stakingsdatum').value = invoer.stakingsdatum || '';
+  $('ingang').value = invoer.ingang;
+  JANEE.forEach(function (s) { $(s).value = invoer[s] ? 'true' : 'false'; });
+  BEDRAGEN.forEach(function (s) { zetWaarde(s, invoer[s], false); });
+  PROCENTEN.forEach(function (s) { zetWaarde(s, invoer[s], true); });
+}
+
+function meldingenHtml(meldingen) {
+  return (meldingen || []).map(function (m) {
+    const klasse = m.ernst === 'fout' ? 'fout' : 'let-op';
+    return '<div class="melding ' + klasse + '">' + escapeHtml(m.tekst) + '</div>';
+  }).join('');
+}
+
+function regelTabel(regels) {
+  return '<table>' + regels.map(function (r) {
+    return '<tr><td>' + escapeHtml(r.label) + '</td><td class="getal">' + escapeHtml(r.tekst) + '</td></tr>';
+  }).join('') + '</table>';
+}
+
+function scenarioTabel(kolommen, regels) {
+  return '<table><tr><th></th>' + kolommen.map(function (k) { return '<th class="getal">' + escapeHtml(k) + '</th>'; }).join('') + '</tr>' +
+    regels.map(function (r) {
+      return '<tr' + (r.totaal ? ' class="totaal"' : '') + '><td>' + escapeHtml(r.label) + '</td>' +
+        r.waarden.map(function (w) { return '<td class="getal">' + bedragTekst(w) + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</table>';
+}
+
+let laatste = null;
+
+function toon() {
+  const invoer = leesInvoer();
+  const reken = rekenAlles(invoer);
+  const uitgang = bouwUitgang(invoer, reken, invoer.kenmerk, vandaagISO());
+  laatste = { invoer: invoer, reken: reken, uitgang: uitgang };
+
+  if (reken.scenarios) {
+    const s = reken.scenarios;
+    $('uit-conclusie').innerHTML = meldingenHtml(reken.meldingen) +
+      '<div class="uitkomst" style="margin-bottom:12px;">' + SCENARIOS.map(function (sc) {
+        return '<div class="blok"><div class="etiket">' + escapeHtml(sc.naam) + '</div><div class="waarde">' +
+          bedragTekst(s[sc.id].netto) + '</div><div class="onder">netto opbrengst' +
+          (sc.id === reken.beste ? ', de hoogste' : '') + '</div></div>';
+      }).join('') + '</div>' +
+      '<p class="toelichting">' + escapeHtml(uitgang.conclusie) + '</p>' +
+      scenarioTabel(uitgang.kolommen, uitgang.scenarios);
+    $('uit-basis').innerHTML = '<details><summary>Tussenstappen en lijfrenteruimte</summary>' + regelTabel(uitgang.basis) +
+      '<h3>Grondslagen per scenario</h3>' + scenarioTabel(uitgang.kolommen, uitgang.tussen) + '</details>';
+  } else {
+    $('uit-conclusie').innerHTML = meldingenHtml(reken.meldingen);
+    $('uit-basis').innerHTML = '';
+  }
+  toonDossierstuk(uitgang);
+}
+
+function toonDossierstuk(u) {
+  const lijst = function (items) { return items.map(function (v) { return '<li>' + escapeHtml(v) + '</li>'; }).join(''); };
+  $('dossierstuk').innerHTML = '<h2>Dossierstuk ' + escapeHtml(u.kop.tool) + '</h2>' +
+    '<div class="kenmerkregel"><span>Kenmerk: ' + escapeHtml(u.kop.kenmerk || '(niet ingevuld)') + '</span>' +
+    '<span>Datum: ' + escapeHtml(u.kop.datum) + '</span></div>' +
+    '<h3>Keuzes</h3>' + regelTabel(u.keuzes) +
+    '<h3>Invoer</h3>' + regelTabel(u.invoer) +
+    (u.basis.length ? '<h3>Tussenstappen</h3>' + regelTabel(u.basis) : '') +
+    (u.scenarios.length ? '<h3>Uitkomst</h3>' + scenarioTabel(u.kolommen, u.scenarios) +
+      '<h3>Grondslagen per scenario</h3>' + scenarioTabel(u.kolommen, u.tussen) +
+      '<p class="toelichting">' + escapeHtml(u.conclusie) + '</p>' : '') +
+    u.meldingen.map(function (m) { return '<p class="toelichting">' + escapeHtml(m) + '</p>'; }).join('') +
+    '<h3>Vindplaatsen</h3><ul class="vindplaatsen">' + lijst(u.vindplaatsen) + '</ul>' +
+    '<h3>Afbakening</h3><ul class="afbakening">' + lijst(u.afbakening) + '</ul>' +
+    '<div class="stempel">' + escapeHtml(u.kop.tool) + ', versie ' + escapeHtml(u.kop.versie) + '</div>';
+}
+
+function vandaagISO() {
+  const d = new Date();
+  const tw = function (x) { return (x < 10 ? '0' : '') + x; };
+  return d.getFullYear() + '-' + tw(d.getMonth() + 1) + '-' + tw(d.getDate());
+}
+
+function download(naam, inhoud, type) {
+  const url = URL.createObjectURL(new Blob([inhoud], { type: type }));
+  const a = document.createElement('a');
+  a.href = url; a.download = naam;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function dossierMelding(tekst, soort) {
+  $('dossiermelding').innerHTML = tekst ? '<div class="melding ' + soort + '">' + escapeHtml(tekst) + '</div>' : '';
+}
+
+function start() {
+  document.querySelector('main').addEventListener('input', toon);
+  document.querySelector('main').addEventListener('change', toon);
+  $('knop-afdrukken').addEventListener('click', function () { toon(); window.print(); });
+  $('knop-export').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'xlsx'), xlsxBytes(exportBladen(laatste.uitgang)),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+  $('knop-opslaan').addEventListener('click', function () {
+    toon();
+    download(bestandsnaam(laatste.invoer.kenmerk, vandaagISO(), 'json'), schrijfDossier(laatste.invoer, vandaagISO()), 'application/json');
+    dossierMelding('Het dossierbestand is opgeslagen in de map die uw browser voor downloads gebruikt.', 'info');
+  });
+  $('knop-openen').addEventListener('click', function () { $('bestand-openen').click(); });
+  $('bestand-openen').addEventListener('change', function (e) {
+    const bestand = e.target.files && e.target.files[0];
+    if (!bestand) return;
+    const lezer = new FileReader();
+    lezer.onload = function () {
+      const r = leesDossier(String(lezer.result));
+      if (r.fout) { dossierMelding(r.fout, 'fout'); }
+      else {
+        zetInvoer(r.invoer); toon();
+        dossierMelding(r.meldingen.length ? r.meldingen.join(' ') : 'Het dossier is geopend en opnieuw doorgerekend.', r.meldingen.length ? 'let-op' : 'info');
+      }
+      e.target.value = '';
+    };
+    lezer.onerror = function () { dossierMelding('Het bestand kon niet worden gelezen.', 'fout'); e.target.value = ''; };
+    lezer.onabort = function () { dossierMelding('Het lezen van het bestand is afgebroken.', 'fout'); e.target.value = ''; };
+    lezer.readAsText(bestand);
+  });
+  toon();
+}
+
+document.addEventListener('DOMContentLoaded', start);
+// PRESENTATIE — EINDE
+</script>
+</body>
+</html>
