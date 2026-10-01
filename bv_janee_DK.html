@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 08:07</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 09:48</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -950,7 +950,7 @@
           <div class="fmsg" id="msg-bal-bedongenLijfrente"></div>
         </div>
         <div class="fld">
-          <label for="bal-terugkeerreserve">Terugkeerreserve (art. 3.54a) <span class="tipw"><span class="tip" title="Bestaat alleen na een eerdere geruisloze terugkeer uit een BV (art. 14c Wet Vpb 1969). Een negatieve terugkeerreserve verhoogt de verkrijgingsprijs met tweemaal haar grootte. Een positieve terugkeerreserve valt bij de omzetting vrij in de winst; die behandeling is nog niet in de tool ingebouwd en het veld wordt daarom geweigerd.">?</span></span></label>
+          <label for="bal-terugkeerreserve">Terugkeerreserve (art. 3.54a) <span class="tipw"><span class="tip" title="Bestaat alleen na een eerdere geruisloze terugkeer uit een BV (art. 14c Wet Vpb 1969). Vul een negatieve terugkeerreserve in als negatief getal: die vervalt zonder winsteffect en verhoogt de verkrijgingsprijs met tweemaal haar grootte (art. 3.65 lid 2, zesde standaardvoorwaarde). Een positieve terugkeerreserve valt bij de omzetting vrij in de winst (art. 3.54a lid 4 jo. art. 3.65 lid 1); de routevergelijking rekent die vrijval in beide routes af.">?</span></span></label>
           <div class="eur"><span class="pre" aria-hidden="true">&#8364;</span><input type="number" id="bal-terugkeerreserve" value="0" step="5000" inputmode="numeric"></div>
           <div class="fmsg" id="msg-bal-terugkeerreserve"></div>
         </div>
@@ -2984,6 +2984,11 @@ const BVJN = (function () {
       stilleReservesOverig: pos(r.stilleReservesOverig),
       desinvestering: pos(r.desinvestering),          // desinvesteringsbijtelling art. 3.47
       oudedagsreserve: pos(r.oudedagsreserve),        // vrijval FOR, art. 10a.29 overgangsrecht
+      // Alleen het POSITIEVE deel: dat valt in beide routes vrij in de winst (art. 3.54a
+      // lid 4 jo. art. 3.65 lid 1). Het veld staat op de balanskaart; de UI geeft het mee.
+      // Een negatieve terugkeerreserve telt in de routevergelijking niet mee, zie
+      // OPENSTAAND.md punt 15.
+      terugkeerreserveVrijval: pos(r.terugkeerreserve),
       eerderStakingsaftrek: pos(r.eerderStakingsaftrek),
       reedsOpgebouwd: pos(r.reedsOpgebouwd),          // art. 3.129 lid 3
       leeftijd: num(r.leeftijd, 45),
@@ -3104,10 +3109,26 @@ const BVJN = (function () {
     const jarenTotUitkering = Math.max(0, Math.round(i.pensioenLeeftijd - i.leeftijd));
     const taTarief = Math.max(0, i.tariefStaking / 100 - T.ta.maxAftrektarief);
 
-    function afrekening(bruto) {
+    // bruto is de winst die vrijvalt; geenStakingsaftrek is het deel daarvan waarover de
+    // stakingsaftrek niet geldt. Dat is bij een geruisloze omzetting de vrijval van een
+    // positieve terugkeerreserve: art. 3.65 lid 1 laat de onderneming "voor het bepalen van
+    // de ... genoten winst" alleen voor art. 3.54a als gestaakt gelden, en de stakingsaftrek
+    // (art. 3.79, onderdeel van de ondernemersaftrek) hoort bij die winstbepaling. Voor de
+    // oudedagsreserve breidt art. 10a.29 lid 7 de stakingsaftrek uitdrukkelijk uit; voor de
+    // terugkeerreserve bestaat zo'n bepaling niet.
+    //
+    // De stakingslijfrente (art. 3.129) en de premiegrondslag van het jaar zelf (art. 3.127
+    // lid 5) gelden wel over de hele vrijval. Die staan in afdeling 3.7, buiten de
+    // winstbepaling waarop de fictie werkt, en het besluit bij art. 3.65 (Stcrt. 2025, 37092,
+    // toelichting 4.1.1) laat art. 3.129 bij een omzetting toe over voordelen uit onttrokken
+    // vermogensbestanddelen. Fiscale keuze Sylvain Bouwman, 01-10-2026: de sterkste lezing,
+    // maar zonder uitdrukkelijke bron voor de terugkeerreserve; zie OPENSTAAND.md punt 16.
+    function afrekening(bruto, geenStakingsaftrek) {
+      const stakingsdeel = Math.max(0, bruto - pos(geenStakingsaftrek));
+
       // Stakingsaftrek, art. 3.79: gelijk aan de stakingswinst maar ten hoogste € 3.630,
       // levenslang, verminderd met wat eerder is genoten.
-      const stakingsaftrek = Math.min(bruto, stakingsaftrekRuimte);
+      const stakingsaftrek = Math.min(stakingsdeel, stakingsaftrekRuimte);
 
       // Stakingslijfrente, art. 3.129 lid 1: ten hoogste de stakingswinst, en niet meer
       // dan het maximum van lid 2 verminderd met de reeds opgebouwde voorzieningen van
@@ -3122,7 +3143,9 @@ const BVJN = (function () {
       const overigeLijfrente = Math.min(Math.max(0, bruto - stakingslijfrente), jr + rr);
       const lijfrenteTotaal = stakingslijfrente + overigeLijfrente;
 
-      // Ondernemersaftrek en MKB-winstvrijstelling over het restant.
+      // Ondernemersaftrek en MKB-winstvrijstelling over het restant. De MKB-winstvrijstelling
+      // geldt over alle winst uit onderneming na de ondernemersaftrek (art. 3.79a), dus ook
+      // over het deel geenStakingsaftrek: zij is niet aan een staking gebonden.
       const naOndernemersaftrek = Math.max(0, bruto - stakingsaftrek);
       const mkb = naOndernemersaftrek * T.onderneming.mkbVrijstelling;
 
@@ -3156,7 +3179,7 @@ const BVJN = (function () {
       const latenteIb = cw(lijfrenteTotaal * (i.tariefUitkering / 100), jarenTotUitkering);
 
       return {
-        bruto, stakingsaftrek, lijfrenteRuimte, stakingslijfrente,
+        bruto, stakingsdeel, stakingsaftrek, lijfrenteRuimte, stakingslijfrente,
         jaarruimte: jr, reserveringsruimte: rr, overigeLijfrente, lijfrenteTotaal,
         mkb, belastbareWinst, tegenOverigeWinst, onbenut, restant,
         ib, ta, zvw, latenteIb,
@@ -3166,9 +3189,13 @@ const BVJN = (function () {
 
     /* ---------- Ruisende inbreng ---------- */
     // De hele stakingswinst wordt afgerekend: goodwill en stille reserves, plus de
-    // desinvesteringsbijtelling en de vrijval van de oudedagsreserve.
-    const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve;
-    const ruisend = afrekening(stakingswinst);
+    // desinvesteringsbijtelling en de vrijval van de oudedagsreserve. Een positieve
+    // terugkeerreserve wordt bij staking in de winst opgenomen (art. 3.54a lid 4). Bij een
+    // ruisende inbreng is er een echte staking, dus die vrijval is winst behaald met of bij
+    // het staken en telt mee voor de stakingsaftrek (art. 3.79 lid 1) en de stakingslijfrente
+    // (art. 3.129 lid 1).
+    const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval;
+    const ruisend = afrekening(stakingswinst, 0);
 
     // Overdrachtsbelasting: de vrijstelling van art. 15 lid 1 onderdeel e WBR geldt
     // onafhankelijk van de keuze ruisend of geruisloos, mits aan de voorwaarden van
@@ -3195,10 +3222,16 @@ const BVJN = (function () {
 
     const ruisendLast = ruisend.last + ob;
 
-    // Bij een geruisloze inbreng valt alleen de oudedagsreserve vrij. Die last is in beide
-    // routes aanwezig en valt in het verschil dus tegen elkaar weg, maar zij hoort wel in
-    // beide totalen zichtbaar te zijn.
-    const geruisloosFor = afrekening(i.oudedagsreserve);
+    // Bij een geruisloze inbreng vallen alleen de oudedagsreserve en een positieve
+    // terugkeerreserve vrij. Die last is in beide routes aanwezig en valt in het verschil
+    // grotendeels tegen elkaar weg, maar zij hoort wel in beide totalen zichtbaar te zijn.
+    // De oudedagsreserve: art. 10a.29 lid 6 sluit art. 3.65 lid 1 uit, lid 7 geeft de
+    // stakingsaftrek. De terugkeerreserve: art. 3.65 lid 1 laat de onderneming "behalve voor
+    // de toepassing van artikel 3.54a" niet gestaakt zijn, dus zij valt vrij (art. 3.54a
+    // lid 4), maar zonder stakingsaftrek. De MKB-winstvrijstelling en de stakingslijfrente
+    // gelden wel (zie bij afrekening, en OPENSTAAND.md punt 16 voor de onzekerheid over de
+    // stakingslijfrente). Het verschil tussen de routes is daarmee de stakingsaftrek.
+    const geruisloosFor = afrekening(i.oudedagsreserve + i.terugkeerreserveVrijval, i.terugkeerreserveVrijval);
 
     /* ---------- Geruisloze inbreng (art. 3.65) ---------- */
     // Geen afrekening bij de ondernemer. Daar staan drie nadelen tegenover, elk uitgedrukt
@@ -3403,10 +3436,19 @@ const BVJN = (function () {
    * op de openingsbalans: de reserves, de lijfrenteverplichting en de creditering staan daar
    * al in en zouden dan dubbel worden geteld.
    *
-   * Let op de tekens: art. 3.54a lid 2 formuleert de negatieve terugkeerreserve als een
-   * grootte, dus hier telt de absolute waarde. Een POSITIEVE terugkeerreserve is niet
-   * uitgezocht (art. 3.54a lid 4 is niet woordelijk gelezen) en wordt door de validatie
-   * geblokkeerd.
+   * Let op de tekens: de invoer volgt het teken van de reserve, dus een negatieve
+   * terugkeerreserve staat er als negatief getal. Art. 3.54a lid 2 formuleert haar als een
+   * grootte, dus de verhoging is tweemaal die grootte, en alleen bij een negatief getal.
+   *
+   * Een POSITIEVE terugkeerreserve verandert de verkrijgingsprijs niet. Zij valt bij de
+   * omzetting vrij in de winst (art. 3.54a lid 4 jo. art. 3.65 lid 1) en wordt dan afgerekend.
+   * Van de reserves trekt de zesde standaardvoorwaarde alleen "de reserves als bedoeld in
+   * artikel 3.53, eerste lid, onderdeel a, b en c" af (egalisatiereserve en de twee
+   * herinvesteringsreserves), naast de bedongen lijfrenten en de creditering; de
+   * terugkeerreserve van art. 3.54a staat daar niet bij,
+   * en zou ook niet passen: zij is afgerekend en gaat niet als claim naar de BV.
+   * Het ondernemingsvermogen in deze functie is activa minus schulden, met de fiscale
+   * reserves erin, dus het vrijgevallen bedrag zit daar al in.
    *
    * Niet uitgezocht en dus niet verwerkt: art. 4.21 lid 2 en 3 kunnen bij inbreng in een
    * BESTAANDE vennootschap met aandelen van dezelfde soort tot een gemiddelde
@@ -3425,7 +3467,7 @@ const BVJN = (function () {
     vp += tel('Voordeel bosbouw- of landbouwvrijstelling', num(b.bosLandbouwVoordeel, 0),
       'zesde standaardvoorwaarde; mag negatief zijn en verlaagt dan');
     vp += tel('Tweemaal de negatieve terugkeerreserve',
-      TARIEVEN.inbreng.terugkeerreserveFactor * Math.abs(num(b.terugkeerreserve, 0)),
+      TARIEVEN.inbreng.terugkeerreserveFactor * Math.max(0, -num(b.terugkeerreserve, 0)),
       'zesde standaardvoorwaarde jo. art. 3.54a lid 2');
     vp += tel('Egalisatiereserve', -pos(b.egalisatiereserve), 'zesde standaardvoorwaarde');
     vp += tel('Herinvesteringsreserve', -pos(b.herinvesteringsreserve), 'zesde standaardvoorwaarde');
@@ -3796,14 +3838,21 @@ const BVJN = (function () {
     // neemt een positieve terugkeerreserve uiterlijk bij staking in de winst op. Dezelfde
     // systematiek als bij de oudedagsreserve (art. 10a.29 lid 6). Lid 2 van art. 3.65 regelt
     // alleen de NEGATIEVE terugkeerreserve; voor de positieve is geen afwijking gemaakt.
-    // Woordelijk nagegaan op 22-09-2026. De vrijval is nog niet in de stakingswinst
-    // ingebouwd, dus het veld blijft voorlopig geweigerd; zie OPENSTAAND.md.
+    // Woordelijk nagegaan op 22-09-2026 en 01-10-2026. Sinds 01-10-2026 verwerkt de
+    // routevergelijking de vrijval (berekenInbreng); hier staat alleen de toelichting.
     if (b.terugkeerreserve > 0) {
-      fout('terugkeerreserve', 'Een positieve terugkeerreserve valt bij de omzetting vrij in de winst: '
-        + 'art. 3.65 lid 1 zondert art. 3.54a uit van de niet-stakingsfictie, en art. 3.54a lid 4 neemt '
-        + 'haar uiterlijk bij staking in de winst op. Die vrijval is nog niet in de berekening van de '
-        + 'stakingswinst verwerkt, dus de tool rekent dit geval niet door. Een negatieve terugkeerreserve '
-        + 'kunt u wel invullen.');
+      waarschuw('terugkeerreserve', 'De positieve terugkeerreserve valt bij de omzetting vrij in de winst, '
+        + 'ook bij een geruisloze inbreng: art. 3.65 lid 1 laat de onderneming "behalve voor de toepassing van '
+        + 'artikel 3.54a" niet gestaakt zijn, en art. 3.54a lid 4 neemt de reserve uiterlijk bij staking in de '
+        + 'winst op. De routevergelijking rekent die vrijval in beide routes af. Bij de geruisloze route geldt '
+        + 'de stakingsaftrek (art. 3.79) niet, want die hoort bij de winstbepaling waarvoor de onderneming als '
+        + 'niet gestaakt geldt; de MKB-winstvrijstelling (art. 3.79a) en de stakingslijfrente (art. 3.129) '
+        + 'gelden wel. Dat de stakingslijfrente ook over deze vrijval mag, staat niet uitdrukkelijk in wet of '
+        + 'besluit: het is de sterkste lezing, omdat het besluit bij art. 3.65 (toelichting 4.1.1) art. 3.129 '
+        + 'bij een omzetting toestaat over voordelen uit onttrokken vermogensbestanddelen. Toets het bij een '
+        + 'dossier waarin het bedrag ertoe doet. Bij de ruisende route gelden alle drie. De verkrijgingsprijs '
+        + 'verandert niet: van de reserves trekt de zesde standaardvoorwaarde alleen die van art. 3.53 lid 1 af '
+        + '(naast de bedongen lijfrente en de creditering), en de terugkeerreserve gaat niet als claim naar de BV.');
     }
 
     // Niet-geactiveerde goodwill: de routevergelijking op dit tabblad telt de gemiste
@@ -4733,7 +4782,8 @@ const BVJN = (function () {
     if (u.terugkeerreserve.positief > 0) {
       waarschuw(null, 'Een positieve terugkeerreserve valt uiterlijk bij staking van de onderneming in de winst '
         + '(art. 3.54a lid 4), en bij een latere omzetting in een BV ook (art. 3.65 lid 1: "behalve voor de '
-        + 'toepassing van artikel 3.54a"). Het tabblad Inbreng in de BV verwerkt die vrijval nog niet.');
+        + 'toepassing van artikel 3.54a"). Het tabblad Inbreng in de BV rekent die vrijval af als u de reserve '
+        + 'daar op de balanskaart invult.');
     }
     if (i.tbsBoekwaarde > 0) {
       waarschuw('tbsBoekwaarde', 'Het tbs-pand gaat alleen tegen boekwaarde over als de aandeelhouder daarom '
@@ -5406,8 +5456,8 @@ const BVJN = (function () {
     }
     if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
     const stilleReserves = i.stilleReservesPand + i.stilleReservesOverig;
-    if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve <= 0) {
-      fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling of oudedagsreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
+    if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval <= 0) {
+      fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling, oudedagsreserve of positieve terugkeerreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
     }
     if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
 
@@ -6763,7 +6813,8 @@ const BVJN = (function () {
   }
 
   function ververseInbrengHints() {
-    const i = BVJN.normaliseerInbreng(leesInbreng());
+    const i = BVJN.normaliseerInbreng(Object.assign(leesInbreng(),
+      { terugkeerreserve: leesBalans().terugkeerreserve }));
     const cat = BVJN.stakingslijfrenteMax(i);
     const uitleg = {
       a: 'ten hoogste vijf jaar jonger dan de AOW-leeftijd, of ten minste 45% arbeidsongeschikt met termijnen die binnen zes maanden na het staken ingaan',
@@ -6775,7 +6826,7 @@ const BVJN = (function () {
     // Dezelfde grondslag als de berekening: art. 3.127 lid 5 laat bij staking toe uit te
     // gaan van het jaar zelf, dus de stakingswinst telt mee in de premiegrondslag.
     const stakingswinst = i.goodwill + i.stilleReservesPand + i.stilleReservesOverig
-      + i.desinvestering + i.oudedagsreserve;
+      + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval;
     const jr = BVJN.jaarruimte(i.winstJaar + stakingswinst, i.pensioenaangroei, i.leeftijd);
     el('hint-ruimte').textContent = 'Art. 3.127 lid 2: ten hoogste € '
       + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
@@ -7519,7 +7570,9 @@ const BVJN = (function () {
   }
 
   function berekenInbrengUI() {
-    const raw = leesInbreng();
+    // De terugkeerreserve staat op de balanskaart, maar haar vrijval hoort in de
+    // routevergelijking; daarom gaat zij hier mee.
+    const raw = Object.assign(leesInbreng(), { terugkeerreserve: leesBalans().terugkeerreserve });
     const v = BVJN.valideerInbreng(raw);
     toonInbrengMeldingen(v);
     if (!v.ok) {
@@ -7548,6 +7601,7 @@ const BVJN = (function () {
       ['Stille reserves in overige bedrijfsmiddelen', u.input.stilleReservesOverig],
       ['Desinvesteringsbijtelling', u.input.desinvestering],
       ['Vrijval oudedagsreserve', u.input.oudedagsreserve],
+      ['Vrijval positieve terugkeerreserve (art. 3.54a lid 4)', u.input.terugkeerreserveVrijval],
       ['Stakingswinst', u.stakingswinst, undefined, 'tot'],
       ['Stakingsaftrek (art. 3.79, ruimte ' + fmt(u.stakingsaftrekRuimte) + ')', -u.stakingsaftrek],
       ['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ')', -u.mkbInbreng],
@@ -7566,7 +7620,9 @@ const BVJN = (function () {
     ]);
 
     vulTabel('in-tb-geruisloos', [
-      ['Vrijval oudedagsreserve: die valt ook hier vrij (art. 10a.29 lid 6)', u.geruisloosFor.last],
+      [u.input.terugkeerreserveVrijval > 0
+        ? 'Vrijval oudedagsreserve (art. 10a.29 lid 6) en positieve terugkeerreserve (art. 3.65 lid 1 jo. 3.54a lid 4), zonder stakingsaftrek over de terugkeerreserve'
+        : 'Vrijval oudedagsreserve: die valt ook hier vrij (art. 10a.29 lid 6)', u.geruisloosFor.last],
       ['Gemiste afschrijving op de goodwill: ' + fmt(u.afschrijvingPerJaar) + ' per jaar, ' + u.input.jarenGoodwill + ' jaar', u.gemisteAfschrijvingGoodwill],
       ['Gemiste afschrijving op de overige bedrijfsmiddelen: ' + fmt(u.afschrijvingOverigPerJaar) + ' per jaar, ' + u.input.jarenOverig + ' jaar', u.gemisteAfschrijvingOverig],
       ['Contante waarde VPB-claim over de meerwaarde in gebouwen (' + u.input.jarenPand + ' jaar)', u.vpbClaimReserves],
@@ -7608,7 +7664,7 @@ const BVJN = (function () {
       + '(voorovereenkomst binnen negen maanden, oprichting en inbreng binnen vijftien maanden), met de '
       + 'sanctie bij vervreemding van de aandelen binnen drie jaar, met de verkrijgingsprijs van het '
       + 'aanmerkelijk belang, met de bosbouw- en landbouwvrijstelling in de stakingswinst, met een '
-      + 'terugkeerreserve, en met de bedrijfsfusie van art. 14 Wet Vpb 1969 wanneer er meerdere '
+      + 'negatieve terugkeerreserve, en met de bedrijfsfusie van art. 14 Wet Vpb 1969 wanneer er meerdere '
       + 'firmanten zijn. De perioden en de toekomstige tarieven zijn aannames; verander ze en kijk of de '
       + 'conclusie standhoudt.';
 
