@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-09-30
+Bijgewerkt: 2026-10-01
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -148,6 +148,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Hypotheek annuïtair | `/hypotheek-annuitair.html` | bouwman-tools/hypotheek-annuitair | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-18 |
 | 🟢 live | Hypotheek in BV | `/hypotheek-in-bv.html` | bouwman-tools/hypotheek-in-bv | ja | 2026-09-06 | Sylvain Bouwman | belastingplan | 2026-09-09 |
 | 🟢 live | Kantoor in de eigen woning | `/kantoor-in-de-woning.html` | bouwman-tools/kantoor-in-de-woning | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | 2026-09-28 |
+| 🔵 concept | Overdracht ouderlijke woning | `/ouderlijke-woning.html` | bouwman-tools/ouderlijke-woning | **nee** | 2026-09-30 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | Periodiek verrekenbeding | `/verrekenbeding.html` | bouwman-tools/verrekenbeding | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟢 live | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
@@ -160,6 +161,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - **Hypotheek annuïtair**: Zet vijf hypotheekvormen naast elkaar over 31 jaar en toont per jaar de netto last, met eigenwoningforfait, renteaftrek en schenking
 - **Hypotheek in BV**: Zet de bankhypotheek doorlopen, oversluiten naar de eigen BV en aflossen over een jaar naast elkaar, met box 1, box 2 en box 3, de toets op excessief lenen en de kwalificatie als eigenwoningschuld
 - **Kantoor in de eigen woning**: Rekent kantoorruimte in de eigen woning door voor de DGA (terbeschikkingstelling, kantoor naar de BV, 100% eigen woning) en de IB-ondernemer (privévermogen, ondernemingsvermogen zelfstandig of niet-zelfstandig, gesplitst, 100% eigen woning)
+- **Overdracht ouderlijke woning**: Rekent door of het loont de woning van de ouders nu aan de kinderen over te dragen: tegen een koopschuld, als schenking of met gedeeltelijke kwijtschelding, met box 3, overdrachts-, schenk- en erfbelasting tegenover niets doen
 - **Periodiek verrekenbeding**: Rekent een periodiek verrekenbeding in huwelijkse voorwaarden door: per jaar het overgespaarde inkomen en het bedrag dat de een de ander betaalt, een tekort naar verhouding van de vermogens en de achterstallige verrekening over een periode met de vermogensgroei per partner
 - **Tijdplan**: Zet leeftijden en mutatiemomenten van een gezin op een tijdlijn en rekent uit in welk jaar een leeftijd valt
 - **WW-uitkering**: Berekent de duur en de hoogte van een WW-uitkering op de eerste werkloosheidsdag: de opbouw uit fictief en feitelijk arbeidsverleden binnen de wettelijke ondergrens van drie en bovengrens van 24 maanden, en de uitkering per kalendermaand tegen 75 procent over de eerste twee maanden en 70 procent daarna, met het dagloon gemaximeerd op het maximumdagloon
@@ -175,6 +177,14 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Wet inkomstenbelasting 2001, Artikel 3.63 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet inkomstenbelasting 2001, Artikel 4.17c \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Invorderingswet 1990, Artikel 25 \(versie 1 juli 2026\)](https://wetten.overheid.nl/BWBR0004770/2026-07-01)
+
+### Wettelijke verwijzingen: Overdracht ouderlijke woning
+
+- [Wet inkomstenbelasting 2001, Artikel 3.112 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-01-01)
+- [Wet inkomstenbelasting 2001, Artikel 3.123a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Wet inkomstenbelasting 2001, Artikel 5.2 \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
+- [Successiewet 1956, Artikel 24 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002226/2026-01-01)
+- [Wet op belastingen van rechtsverkeer, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
 
 ### Wettelijke verwijzingen: Periodiek verrekenbeding
 
