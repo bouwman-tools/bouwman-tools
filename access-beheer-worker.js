@@ -116,6 +116,7 @@ const APP_IDS = {
   'verrekenbeding.html': 'a9913279-b179-41be-82ef-27b511dd4196',
   'vermogen-bv.html': 'a1ed8c44-03d4-4e3a-b3a1-a503799f6bd7',
   'kopen-huren.html': '74f9eb6a-14f6-40cb-9dd0-de7ad3b0be1a',
+  'ouderlijke-woning.html': 'c69c4c01-2b64-42f5-8ada-a92054a78c4c',
   'bor-schenken.html': '8ddd3d53-297f-4bcc-9ce1-25e6192fd8bb',
   'organogram-structuur.html': '3ddbb84d-a508-480a-9172-27bc6224f4a5',
 };
