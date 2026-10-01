@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 09:48</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 10:13</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -2984,11 +2984,14 @@ const BVJN = (function () {
       stilleReservesOverig: pos(r.stilleReservesOverig),
       desinvestering: pos(r.desinvestering),          // desinvesteringsbijtelling art. 3.47
       oudedagsreserve: pos(r.oudedagsreserve),        // vrijval FOR, art. 10a.29 overgangsrecht
-      // Alleen het POSITIEVE deel: dat valt in beide routes vrij in de winst (art. 3.54a
-      // lid 4 jo. art. 3.65 lid 1). Het veld staat op de balanskaart; de UI geeft het mee.
-      // Een negatieve terugkeerreserve telt in de routevergelijking niet mee, zie
-      // OPENSTAAND.md punt 15.
+      // Het veld staat op de balanskaart; de UI geeft het mee. Het POSITIEVE deel valt in
+      // beide routes vrij in de winst (art. 3.54a lid 4 jo. art. 3.65 lid 1). Het NEGATIEVE
+      // deel, als positief bedrag: ruisend komt het in mindering op de winst bij staking
+      // (art. 3.54a lid 2, derde volzin), geruisloos vervalt het zonder winsteffect
+      // (art. 3.65 lid 2) en verhoogt het de verkrijgingsprijs van de aandelen met 200%
+      // (zesde standaardvoorwaarde). Hooguit een van beide is groter dan nul.
       terugkeerreserveVrijval: pos(r.terugkeerreserve),
+      terugkeerreserveNegatief: pos(-num(r.terugkeerreserve, 0)),
       eerderStakingsaftrek: pos(r.eerderStakingsaftrek),
       reedsOpgebouwd: pos(r.reedsOpgebouwd),          // art. 3.129 lid 3
       leeftijd: num(r.leeftijd, 45),
@@ -3123,6 +3126,15 @@ const BVJN = (function () {
     // toelichting 4.1.1) laat art. 3.129 bij een omzetting toe over voordelen uit onttrokken
     // vermogensbestanddelen. Fiscale keuze Sylvain Bouwman, 01-10-2026: de sterkste lezing,
     // maar zonder uitdrukkelijke bron voor de terugkeerreserve; zie OPENSTAAND.md punt 16.
+    //
+    // bruto kan negatief zijn: een negatieve terugkeerreserve komt bij een ruisende inbreng
+    // in mindering op de winst bij staking (art. 3.54a lid 2, derde volzin). Is die winst
+    // daardoor nul of negatief, dan zijn er geen stakingsaftrek en geen stakingslijfrente
+    // (art. 3.79 lid 2 en art. 3.129 lid 1 gaan uit van de bij de staking behaalde winst),
+    // en is het negatieve bedrag een verlies uit onderneming (art. 3.8): het verlaagt de
+    // overige winst van het jaar, en wat daarna overblijft is een verlies uit werk en
+    // woning dat volgens art. 3.150 met de inkomens van de drie voorafgaande en negen
+    // volgende jaren wordt verrekend. Die latere verrekening waardeert de tool niet.
     function afrekening(bruto, geenStakingsaftrek) {
       const stakingsdeel = Math.max(0, bruto - pos(geenStakingsaftrek));
 
@@ -3134,7 +3146,7 @@ const BVJN = (function () {
       // dan het maximum van lid 2 verminderd met de reeds opgebouwde voorzieningen van
       // lid 3. Art. 10a.29 lid 13 rekent de oudedagsreserve tot die voorzieningen.
       const lijfrenteRuimte = Math.max(0, maxCat.bedrag - voorzieningen);
-      const stakingslijfrente = Math.min(bruto, lijfrenteRuimte);
+      const stakingslijfrente = Math.max(0, Math.min(bruto, lijfrenteRuimte));
 
       // Daarnaast kan de gewone jaarruimte en reserveringsruimte van art. 3.127 worden
       // benut. Art. 3.127 lid 5 laat bij staking toe uit te gaan van het jaar zelf.
@@ -3145,18 +3157,32 @@ const BVJN = (function () {
 
       // Ondernemersaftrek en MKB-winstvrijstelling over het restant. De MKB-winstvrijstelling
       // geldt over alle winst uit onderneming na de ondernemersaftrek (art. 3.79a), dus ook
-      // over het deel geenStakingsaftrek: zij is niet aan een staking gebonden.
-      const naOndernemersaftrek = Math.max(0, bruto - stakingsaftrek);
+      // over het deel geenStakingsaftrek: zij is niet aan een staking gebonden. Is de winst
+      // negatief, dan is de vrijstelling dat ook en verkleint zij het verlies (art. 3.79a
+      // rekent over het gezamenlijke bedrag van de winst na ondernemersaftrek).
+      const naOndernemersaftrek = bruto - stakingsaftrek;
       const mkb = naOndernemersaftrek * T.onderneming.mkbVrijstelling;
 
       // De lijfrentepremie is een uitgave voor een inkomensvoorziening (afdeling 3.7) en
       // komt in mindering op het INKOMEN, niet op de winst. Zij mag daarom door de
       // belastbare stakingswinst heen zakken en tegen de overige winst van het jaar
       // worden afgezet; wat daarna nog overblijft is niet in dit jaar te benutten.
+      // Een negatieve belastbare winst wordt tegen de overige winst van het jaar afgezet.
+      // Lijfrente is er dan niet (stakingslijfrente nul, en de overige lijfrente is begrensd
+      // door bruto), dus het onbenutte deel is dan verlies. Winst en verlies vallen in
+      // dezelfde gezamenlijke winst (art. 3.2), dus het verlies verlaagt de BELASTBARE
+      // winst van het jaar: winstJaar na de MKB-winstvrijstelling (art. 3.79a). De
+      // zelfstandigenaftrek over winstJaar en ander box 1-inkomen kent dit tabblad niet;
+      // ander inkomen zou het verlies eerst nog verder opvangen (art. 3.148 lid 1).
       const belastbareWinst = naOndernemersaftrek - mkb;
       const naLijfrente = belastbareWinst - lijfrenteTotaal;
-      const tegenOverigeWinst = Math.min(Math.max(0, -naLijfrente), i.winstJaar);
-      const onbenut = Math.max(0, -naLijfrente - tegenOverigeWinst);
+      const verlies = belastbareWinst < 0;
+      const mkbJaar = i.winstJaar * T.onderneming.mkbVrijstelling;
+      const overigeBelastbaar = verlies ? i.winstJaar - mkbJaar : i.winstJaar;
+      const tegenOverigeWinst = Math.min(Math.max(0, -naLijfrente), overigeBelastbaar);
+      const onbenutTotaal = Math.max(0, -naLijfrente - tegenOverigeWinst);
+      const onbenut = verlies ? 0 : onbenutTotaal;
+      const teVerrekenenVerlies = verlies ? onbenutTotaal : 0;  // art. 3.150, niet gewaardeerd
       const restant = Math.max(0, naLijfrente);
       const ib = restant * (i.tariefStaking / 100) - tegenOverigeWinst * (i.tariefStaking / 100);
 
@@ -3164,16 +3190,26 @@ const BVJN = (function () {
       // en de MKB-winstvrijstelling zijn grondslagverminderende posten. Wordt de winst
       // tegen een hoger tarief belast dan het maximale aftrektarief, dan zijn die posten
       // effectief maar tot dat maximum waard. De lijfrentepremie staat niet in lid 3.
-      const ta = (restant > 0 || tegenOverigeWinst > 0)
-        ? (stakingsaftrek + Math.max(0, mkb)) * taTarief : 0;
+      // Bij een verlies daalt de MKB-vrijstelling van het jaar. Blijft de gezamenlijke winst
+      // na ondernemersaftrek positief, dan met de hele negatieve vrijstelling; wordt zij nul
+      // of negatief, dan is de vrijstelling geen grondslagverminderende post meer (art. 2.10
+      // lid 3 onderdeel b: "mits ... positief is") en vervalt de vrijstelling over winstJaar.
+      const ta = verlies
+        ? -taTarief * Math.min(-mkb, Math.max(0, mkbJaar))
+        : ((restant > 0 || tegenOverigeWinst > 0)
+          ? (stakingsaftrek + Math.max(0, mkb)) * taTarief : 0);
 
       // Bijdrage-inkomen Zvw: de BELASTBARE winst uit onderneming van afdeling 3.2
       // (art. 43 lid 2 onderdeel b Zvw). De lijfrentepremie hoort bij afdeling 3.7 en
       // verlaagt dat inkomen niet. Het maximum van art. 43 lid 3 werkt per jaar over het
-      // hele bijdrage-inkomen, dus de gewone jaarwinst vult het maximum als eerste.
-      const zvwBasis = zvwOverGrondslag(Math.max(0, i.winstJaar), T.zvw.bijdrage);
-      const zvwMet = zvwOverGrondslag(Math.max(0, i.winstJaar + belastbareWinst), T.zvw.bijdrage);
-      const zvw = Math.max(0, zvwMet - zvwBasis);
+      // hele bijdrage-inkomen, dus de gewone jaarwinst vult het maximum als eerste. Een
+      // verlies verlaagt het bijdrage-inkomen van het jaar en kan de bijdrage dus verlagen.
+      // Bij een verlies is de grondslag van het jaar de belastbare winst na MKB-vrijstelling.
+      // Bij een positieve stakingswinst rekent de tool nog met winstJaar als basis, zie
+      // OPENSTAAND.md punt 17.
+      const zvwBasis = zvwOverGrondslag(Math.max(0, overigeBelastbaar), T.zvw.bijdrage);
+      const zvwMet = zvwOverGrondslag(Math.max(0, overigeBelastbaar + belastbareWinst), T.zvw.bijdrage);
+      const zvw = zvwMet - zvwBasis;
 
       // Latente IB over de lijfrentetermijnen: bij uitkering volledig belast in box 1.
       const latenteIb = cw(lijfrenteTotaal * (i.tariefUitkering / 100), jarenTotUitkering);
@@ -3181,7 +3217,7 @@ const BVJN = (function () {
       return {
         bruto, stakingsdeel, stakingsaftrek, lijfrenteRuimte, stakingslijfrente,
         jaarruimte: jr, reserveringsruimte: rr, overigeLijfrente, lijfrenteTotaal,
-        mkb, belastbareWinst, tegenOverigeWinst, onbenut, restant,
+        mkb, belastbareWinst, tegenOverigeWinst, onbenut, teVerrekenenVerlies, restant,
         ib, ta, zvw, latenteIb,
         last: ib + ta + zvw + latenteIb
       };
@@ -3193,8 +3229,11 @@ const BVJN = (function () {
     // terugkeerreserve wordt bij staking in de winst opgenomen (art. 3.54a lid 4). Bij een
     // ruisende inbreng is er een echte staking, dus die vrijval is winst behaald met of bij
     // het staken en telt mee voor de stakingsaftrek (art. 3.79 lid 1) en de stakingslijfrente
-    // (art. 3.129 lid 1).
-    const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval;
+    // (art. 3.129 lid 1). Een negatieve terugkeerreserve "komt in mindering op de winst bij
+    // staking" (art. 3.54a lid 2, derde volzin) en verlaagt dus de stakingswinst, zo nodig
+    // tot onder nul; afrekening vangt dat op.
+    const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval
+      - i.terugkeerreserveNegatief;
     const ruisend = afrekening(stakingswinst, 0);
 
     // Overdrachtsbelasting: de vrijstelling van art. 15 lid 1 onderdeel e WBR geldt
@@ -3265,6 +3304,17 @@ const BVJN = (function () {
     //    en ontstaat over die tranche juist geen aanmerkelijkbelangclaim.
     const naVpb = reserves * (1 - i.vpbTarief / 100);
     const abClaim = cw(naVpb * (i.box2Tarief / 100), i.jarenAb);
+    // 4. Een negatieve terugkeerreserve vervalt bij de omzetting zonder winsteffect
+    //    (art. 3.65 lid 2, eerste volzin). De minister houdt daarmee rekening in de
+    //    verkrijgingsprijs (tweede volzin): de zesde standaardvoorwaarde (Stcrt. 2025, 37092)
+    //    verhoogt die met 200% van de negatieve terugkeerreserve. Het latere
+    //    vervreemdingsvoordeel in box 2 daalt met dat bedrag, dus de box 2-claim met
+    //    tweemaal de reserve maal het box 2-tarief, op dezelfde termijn als abClaim. Bij een
+    //    ruisende inbreng is er geen verhoging: daar werkt de reserve in de stakingswinst.
+    //    De tool neemt aan dat het latere box 2-resultaat positief blijft; anders is het
+    //    voordeel een verlies in box 2 en minder waard.
+    const abVerminderingTerugkeerreserve = cw(T.inbreng.terugkeerreserveFactor
+      * i.terugkeerreserveNegatief * (i.box2Tarief / 100), i.jarenAb);
 
     // Creditering: een plek, zodat het inbrengtabblad en de openingsbalans niet uiteen
     // kunnen lopen.
@@ -3272,8 +3322,8 @@ const BVJN = (function () {
     const afrondingscreditering = cred.afronding;
     const crediteringMax = cred.max;
 
-    const geruislozeLast = gemisteAfschrijving + vpbClaimReserves + abClaim + ob
-      + geruisloosFor.last;
+    const geruislozeLast = gemisteAfschrijving + vpbClaimReserves + abClaim
+      - abVerminderingTerugkeerreserve + ob + geruisloosFor.last;
 
     const voordeelGeruisloos = ruisendLast - geruislozeLast;
 
@@ -3293,7 +3343,8 @@ const BVJN = (function () {
       afschrijvingPerJaar, gemisteAfschrijving, vpbClaimReserves,
       gemisteAfschrijvingGoodwill, gemisteAfschrijvingOverig, afschrijvingOverigPerJaar,
       ob, ruisendLast,
-      naVpb, abClaim, geruislozeLast,
+      naVpb, abClaim, abVerminderingTerugkeerreserve, geruislozeLast,
+      teVerrekenenVerlies: ruisend.teVerrekenenVerlies,
       afrondingscreditering, crediteringMax,
       voordeelGeruisloos,
       route: Math.abs(voordeelGeruisloos) < 250 ? 'gelijk' : (voordeelGeruisloos > 0 ? 'geruisloos' : 'ruisend')
@@ -5456,8 +5507,9 @@ const BVJN = (function () {
     }
     if (i.jarenAb < 0 || i.jarenAb > 60) fout('jarenAb', 'Jaren tot de box 2-heffing: kies een periode van maximaal 60 jaar.');
     const stilleReserves = i.stilleReservesPand + i.stilleReservesOverig;
-    if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval <= 0) {
-      fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling, oudedagsreserve of positieve terugkeerreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
+    if (i.goodwill + stilleReserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval
+      + i.terugkeerreserveNegatief <= 0) {
+      fout('goodwill', 'Zonder goodwill, stille reserves, desinvesteringsbijtelling, oudedagsreserve of terugkeerreserve valt er niets te vergelijken: beide routes geven dan dezelfde uitkomst.');
     }
     if (fouten.length) return { ok: false, fouten, waarschuwingen, veldFouten, veldWaarschuwingen };
 
@@ -5476,6 +5528,29 @@ const BVJN = (function () {
     }
     if (i.reserveringsruimte > 0) waarschuw('reserveringsruimte', 'De reserveringsruimte is alleen beschikbaar voor zover de jaarruimte in de tien voorafgaande jaren niet is benut (art. 3.127 lid 2). De tool controleert dat niet.');
     if (i.onroerendeZaak > 0 && i.obVrijstelling) waarschuw(null, 'De vrijstelling van overdrachtsbelasting is verondersteld. Zij geldt alleen als alle activa en passiva die een functie in de onderneming vervullen tegen aandelen worden ingebracht en aan de overige voorwaarden van art. 5 Uitvoeringsbesluit BRV is voldaan; vervreemding binnen drie jaar kan de vrijstelling alsnog doen vervallen.');
+    // Negatieve terugkeerreserve: ruisend een aftrek op de stakingswinst (art. 3.54a lid 2,
+    // derde volzin), geruisloos een hogere verkrijgingsprijs (art. 3.65 lid 2 jo. zesde
+    // standaardvoorwaarde). Wordt de stakingswinst negatief, dan is dat een verlies uit
+    // onderneming; wat de belastbare winst van het jaar te boven gaat, verlaagt eerst ander
+    // box 1-inkomen en verrekent daarna art. 3.150 met andere jaren. Beide kent de tool
+    // geen waarde toe.
+    if (i.terugkeerreserveNegatief > 0) {
+      waarschuw('terugkeerreserve', 'De negatieve terugkeerreserve werkt in beide routes anders. Ruisend komt '
+        + 'zij in mindering op de winst bij staking (art. 3.54a lid 2 Wet IB 2001), dus de stakingswinst wordt '
+        + 'lager, en daarmee kunnen ook de stakingsaftrek en de stakingslijfrente lager worden. Geruisloos '
+        + 'vervalt zij zonder winsteffect (art. 3.65 lid 2) en wordt de verkrijgingsprijs van de aandelen '
+        + 'verhoogd met 200% van haar bedrag (zesde standaardvoorwaarde); de routevergelijking telt dat als een lagere box 2-claim over '
+        + i.jarenAb + ' jaar, in de veronderstelling dat het latere box 2-resultaat positief blijft.');
+    }
+    if (u.teVerrekenenVerlies > 0) {
+      waarschuw('terugkeerreserve', 'Door de negatieve terugkeerreserve is de ruisende stakingswinst negatief: een '
+        + 'verlies uit onderneming. Dat verlaagt eerst de belastbare winst van het jaar. Het restant van € '
+        + Math.round(u.teVerrekenenVerlies).toLocaleString('nl-NL') + ' verlaagt daarna ander box 1-inkomen '
+        + 'van het jaar, zoals loon, waarmee de tool niet rekent; wat dan nog overblijft is een verlies uit '
+        + 'werk en woning (art. 3.148 lid 1) dat volgens art. 3.150 Wet IB 2001 wordt verrekend met de inkomens van de drie voorafgaande en de negen '
+        + 'volgende jaren. De routevergelijking kent dat restant geen waarde toe, dus zij onderschat dan het '
+        + 'voordeel van de ruisende route.');
+    }
     if (i.oudedagsreserve > 0) waarschuw(null, 'Dotatie aan de oudedagsreserve is sinds 2023 niet meer mogelijk. Een bestaande stand valt bij staking vrij; het overgangsrecht staat in art. 10a.29 Wet IB 2001.');
     waarschuw(null, 'De perioden en de toekomstige tarieven in deze vergelijking zijn aannames. De wet geeft alleen het tarief en het moment van realisatie, niet hoe lang de claim uitstaat.');
 
@@ -5792,7 +5867,8 @@ const BVJN = (function () {
   function vulTabel(id, rijen) {
     const tb = el(id); if (!tb) return;
     tb.innerHTML = '';
-    rijen.forEach(function (r) { rij(tb, r); });
+    // Een rij die alleen in een bepaald geval telt, staat als null in de lijst.
+    rijen.filter(Boolean).forEach(function (r) { rij(tb, r); });
   }
 
   function rijenBelasting(s) {
@@ -6826,7 +6902,7 @@ const BVJN = (function () {
     // Dezelfde grondslag als de berekening: art. 3.127 lid 5 laat bij staking toe uit te
     // gaan van het jaar zelf, dus de stakingswinst telt mee in de premiegrondslag.
     const stakingswinst = i.goodwill + i.stilleReservesPand + i.stilleReservesOverig
-      + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval;
+      + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval - i.terugkeerreserveNegatief;
     const jr = BVJN.jaarruimte(i.winstJaar + stakingswinst, i.pensioenaangroei, i.leeftijd);
     el('hint-ruimte').textContent = 'Art. 3.127 lid 2: ten hoogste € '
       + T.lijfrente.maxReserveringsruimte.toLocaleString('nl-NL')
@@ -7602,6 +7678,7 @@ const BVJN = (function () {
       ['Desinvesteringsbijtelling', u.input.desinvestering],
       ['Vrijval oudedagsreserve', u.input.oudedagsreserve],
       ['Vrijval positieve terugkeerreserve (art. 3.54a lid 4)', u.input.terugkeerreserveVrijval],
+      u.input.terugkeerreserveNegatief > 0 ? ['Negatieve terugkeerreserve, in mindering op de winst bij staking (art. 3.54a lid 2)', -u.input.terugkeerreserveNegatief] : null,
       ['Stakingswinst', u.stakingswinst, undefined, 'tot'],
       ['Stakingsaftrek (art. 3.79, ruimte ' + fmt(u.stakingsaftrekRuimte) + ')', -u.stakingsaftrek],
       ['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ')', -u.mkbInbreng],
@@ -7611,6 +7688,7 @@ const BVJN = (function () {
       ['Belastbaar restant', u.belastbaarRestant, undefined, 'tot'],
       ['Waarvan afgezet tegen de overige winst van het jaar', -u.lijfrenteTegenOverigeWinst, undefined, 'sub'],
       ['Niet in dit jaar te benutten lijfrenteaftrek', u.lijfrenteOnbenut, undefined, 'sub'],
+      u.teVerrekenenVerlies > 0 ? ['Verlies te verrekenen met andere jaren (art. 3.150), niet gewaardeerd', u.teVerrekenenVerlies, undefined, 'sub'] : null,
       ['Inkomstenbelasting over het restant (' + pct(u.input.tariefStaking / 100, 1) + ')', u.ibDirect],
       ['Tariefsaanpassing over stakingsaftrek en MKB-vrijstelling (art. 2.10 lid 2)', u.tariefsaanpassing],
       ['Bijdrage Zvw over de belastbare stakingswinst', u.zvwStaking],
@@ -7628,6 +7706,7 @@ const BVJN = (function () {
       ['Contante waarde VPB-claim over de meerwaarde in gebouwen (' + u.input.jarenPand + ' jaar)', u.vpbClaimReserves],
       ['Reserves na vennootschapsbelasting', u.naVpb, undefined, 'sub'],
       ['Contante waarde box 2-claim daarover (' + u.input.jarenAb + ' jaar, ' + pct(u.input.box2Tarief / 100, 1) + ')', u.abClaim],
+      u.abVerminderingTerugkeerreserve > 0 ? ['Lagere box 2-claim: verkrijgingsprijs plus 200% van de negatieve terugkeerreserve (art. 3.65 lid 2, zesde standaardvoorwaarde), contante waarde', -u.abVerminderingTerugkeerreserve] : null,
       ['Overdrachtsbelasting', u.ob],
       ['Overige directe heffing bij de ondernemer', 0],
       ['Totale last geruisloze inbreng, contante waarde', u.geruislozeLast, undefined, 'tot'],
@@ -7663,9 +7742,10 @@ const BVJN = (function () {
       + 'standaardvoorwaarden. Zij rekent evenmin met het overgangstijdstip en de terugwerkende kracht '
       + '(voorovereenkomst binnen negen maanden, oprichting en inbreng binnen vijftien maanden), met de '
       + 'sanctie bij vervreemding van de aandelen binnen drie jaar, met de verkrijgingsprijs van het '
-      + 'aanmerkelijk belang, met de bosbouw- en landbouwvrijstelling in de stakingswinst, met een '
-      + 'negatieve terugkeerreserve, en met de bedrijfsfusie van art. 14 Wet Vpb 1969 wanneer er meerdere '
-      + 'firmanten zijn. De perioden en de toekomstige tarieven zijn aannames; verander ze en kijk of de '
+      + 'aanmerkelijk belang (behalve de verhoging met 200% van een negatieve terugkeerreserve), met de '
+      + 'bosbouw- en landbouwvrijstelling in de stakingswinst, met de verrekening met andere jaren van een '
+      + 'verlies dat een negatieve terugkeerreserve bij een ruisende inbreng kan opleveren, en met de '
+      + 'bedrijfsfusie van art. 14 Wet Vpb 1969 wanneer er meerdere firmanten zijn. De perioden en de toekomstige tarieven zijn aannames; verander ze en kijk of de '
       + 'conclusie standhoudt.';
 
     el('in-res').classList.add('show');
