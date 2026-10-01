@@ -1,6 +1,10 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPair, exportJWK, SignJWT } from 'jose';
+import { readFileSync } from 'node:fs';
+
+const appIds = [...readFileSync(new URL('../access-beheer-worker.js', import.meta.url), 'utf8')
+  .match(/const APP_IDS = \{([\s\S]*?)\n\};/)[1].matchAll(/'[^']+'\s*:\s*'([^']+)'/g)].map(m => m[1]);
 
 // Alleen ter plaatse gegenereerde testsleutels en synthetische gebruikers.
 const ORIGIN = 'https://bouwman.tools';
@@ -24,6 +28,11 @@ before(async () => {
     calls.external.push(href);
     if (href === ORIGIN + '/tools.json') return Response.json({ tools: [], portaalworkers: [] });
     if (href.endsWith('/workers/scripts')) return Response.json({ result: [] });
+    if (href.includes('/access/apps?')) {
+      const base = href.slice(0, href.indexOf('?'));
+      return Response.json({ success: true, result: appIds.map(id => ({ id,
+        policies: [policies.get(`${base}/${id}/policies`) || { id: 'synthetic-policy', include: [] }] })) });
+    }
     if (href.endsWith('/policies')) return Response.json({ result: [policies.get(href) || { id: 'synthetic-policy', include: [] }] });
     if (href.endsWith('/policies/synthetic-policy')) {
       policies.set(href.replace('/synthetic-policy', ''), JSON.parse(init.body));
