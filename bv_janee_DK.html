@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 13:14</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 14:18</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1820,7 +1820,7 @@ const BVJN = (function () {
 
     // Zorgverzekeringswet. De wet zelf noemt geen bedragen en geen percentages: zij
     // delegeert dat in art. 43 lid 3 en art. 45 lid 2 Zvw naar een ministeriele regeling.
-    // Maximum bijdrage-inkomen: art. 5.2 Regeling zorgverzekering. Lage bijdrage 4,85%:
+    // Maximum bijdrage-inkomen: art. 5.3 jo. 5.2 Regeling zorgverzekering. Lage bijdrage 4,85%:
     // art. 5.4 lid 2. Werkgeversheffing 6,10%: art. 5.4 lid 1. Alle drie in de tekst per
     // 2026-01-01, vastgesteld bij de regeling van 03-11-2025, Stcrt. 2025, 38055.
     // Gecontroleerd 2026-09-21 bij de geconsolideerde tekst (BWBR0018715).
@@ -3136,25 +3136,51 @@ const BVJN = (function () {
     // overige winst van het jaar, en wat daarna overblijft is een verlies uit werk en
     // woning dat volgens art. 3.150 met de inkomens van de drie voorafgaande en negen
     // volgende jaren wordt verrekend. Die latere verrekening waardeert de tool niet.
-    function afrekening(bruto, geenStakingsaftrek) {
+    //
+    // forVrijval is het deel van bruto dat uit de oudedagsreserve komt. De tool gaat ervan
+    // uit dat de ondernemer die reserve afzonderlijk omzet in een lijfrente met toepassing
+    // van art. 10a.29 lid 12 Wet IB 2001 (voorheen art. 3.128). De reserve neemt dan af
+    // volgens art. 3.70 lid 1 onderdeel a zoals dat luidde op 31-12-2022, ook in het jaar
+    // van staking en bij een geruisloze omzetting (Verzamelbesluit lijfrenten in de
+    // winstsfeer, 17-12-2021, nr. 2021-236684, Stcrt. 2022, 690, onderdelen 4.2.1 en 6.7).
+    // De goedkeuring van onderdeel 6.7 noemt nog art. 3.128; dat zij ook voor lid 12 geldt, is
+    // een afleiding: lid 8 en 12 laten art. 3.128 "feitelijk ongewijzigd" gelden voor bestaande
+    // reserves (MvT Belastingplan 2023, Kamerstukken II 2022/23, 36202, nr. 3, bij art. I,
+    // onderdeel P), en lid 15 laat lid 12 uitdrukkelijk naast art. 3.129 lopen.
+    // Zie OPENSTAAND.md punt 18; besluit Sylvain Bouwman, 01-10-2026.
+    function afrekening(bruto, geenStakingsaftrek, forVrijval) {
       const stakingsdeel = Math.max(0, bruto - pos(geenStakingsaftrek));
 
       // Stakingsaftrek, art. 3.79: gelijk aan de stakingswinst maar ten hoogste € 3.630,
       // levenslang, verminderd met wat eerder is genoten.
       const stakingsaftrek = Math.min(stakingsdeel, stakingsaftrekRuimte);
 
+      // Omzetting van de oudedagsreserve, art. 10a.29 lid 12: premieaftrek tot ten hoogste
+      // de afneming volgens oud art. 3.70 lid 1 onderdeel a. Die afneming is ten hoogste de
+      // reserve en kent geen maximum van art. 3.129 lid 2. De tool begrenst haar ook op een
+      // positieve bruto winst: komt de winst door een negatieve terugkeerreserve op nul of
+      // lager, dan rekent de tool, net als bij de stakingslijfrente, geen lijfrente. Die grens
+      // is een keuze van de tool zonder fiscale grond in lid 12; zij werkt naar de voorzichtige
+      // kant (minder lijfrente en minder uitzondering in de Zvw).
+      const forOmzetting = Math.min(pos(forVrijval), Math.max(0, bruto));
+
       // Stakingslijfrente, art. 3.129 lid 1: ten hoogste de stakingswinst, en niet meer
       // dan het maximum van lid 2 verminderd met de reeds opgebouwde voorzieningen van
-      // lid 3. Art. 10a.29 lid 13 rekent de oudedagsreserve tot die voorzieningen.
+      // lid 3. Art. 10a.29 lid 13 rekent de oudedagsreserve bij de aanvang van het jaar tot
+      // die voorzieningen, zodat zij niet dubbel in de lijfrenteruimte wordt betrokken. De
+      // goedkeuring voor de omzetting in het jaar van staking geldt onder de voorwaarde dat
+      // de afneming van de reserve niet ook als stakingswinst voor art. 3.129 geldt
+      // (besluit Stcrt. 2022, 690, onderdeel 6.7): de grens van lid 1 is dus de bruto winst
+      // zonder het omgezette deel.
       const lijfrenteRuimte = Math.max(0, maxCat.bedrag - voorzieningen);
-      const stakingslijfrente = Math.max(0, Math.min(bruto, lijfrenteRuimte));
+      const stakingslijfrente = Math.max(0, Math.min(bruto - forOmzetting, lijfrenteRuimte));
 
       // Daarnaast kan de gewone jaarruimte en reserveringsruimte van art. 3.127 worden
       // benut. Art. 3.127 lid 5 laat bij staking toe uit te gaan van het jaar zelf.
       const jr = i.benutJaarruimte ? jaarruimte(i.winstJaar + bruto, i.pensioenaangroei, i.leeftijd) : 0;
       const rr = i.benutJaarruimte ? Math.min(pos(i.reserveringsruimte), T.lijfrente.maxReserveringsruimte) : 0;
-      const overigeLijfrente = Math.min(Math.max(0, bruto - stakingslijfrente), jr + rr);
-      const lijfrenteTotaal = stakingslijfrente + overigeLijfrente;
+      const overigeLijfrente = Math.min(Math.max(0, bruto - forOmzetting - stakingslijfrente), jr + rr);
+      const lijfrenteTotaal = forOmzetting + stakingslijfrente + overigeLijfrente;
 
       // Ondernemersaftrek en MKB-winstvrijstelling over het restant. De MKB-winstvrijstelling
       // geldt over alle winst uit onderneming na de ondernemersaftrek (art. 3.79a), dus ook
@@ -3210,23 +3236,34 @@ const BVJN = (function () {
       // verlies verlaagt het bijdrage-inkomen van het jaar en kan de bijdrage dus verlagen.
       // De grondslag van het jaar is ook hier de belastbare winst na MKB-vrijstelling,
       // overigeBelastbaar; zie OPENSTAAND.md punt 17.
-      // De vrijval van de oudedagsreserve telt hier volledig mee. Art. 43 lid 2 onderdeel b
-      // sluit alleen de afname uit van art. 3.70 lid 1 onderdeel a (zoals dat luidde op
-      // 31-12-2022), de afname die met lijfrentepremie samenhangt. Of de vrijval bij staking,
-      // waarbij geen ondernemingsvermogen overblijft, onder onderdeel b valt en dus meetelt,
-      // ook naast een stakingslijfrente, is nog niet met een bron vastgesteld: zie
-      // OPENSTAAND.md punt 18 (besluit Sylvain Bouwman, 01-10-2026: niet aanpassen zonder bron).
+      // Art. 43 lid 2 onderdeel b sluit het bedrag uit dat in de winst wordt opgenomen
+      // wegens een afname van de oudedagsreserve volgens oud art. 3.70 lid 1 onderdeel a:
+      // de afname bij omzetting in een lijfrente (forOmzetting). Dat volgt HR 23-11-2018,
+      // ECLI:NL:HR:2018:2175 (staking, reserve omgezet via art. 3.128, bijdrage-inkomen
+      // nihil), gecodificeerd bij de Verzamelwet VWS 2020 (Kamerstukken II 2019/20, 35299,
+      // nr. 3, bij artikel XXVI, onderdeel B). Een stakingslijfrente (art. 3.129) verlaagt het
+      // bijdrage-inkomen niet (HR 04-02-2022, ECLI:NL:HR:2022:43; dat het daar om andere
+      // stakingswinst ging, zegt A-G Wattel, ECLI:NL:PHR:2021:934, onderdeel 6.5), en een vrijval zonder
+      // omzetting valt onder onderdeel b en telt dus mee. De tool bepaalt de belastbare winst
+      // opnieuw volgens afdeling 3.2 zonder het omgezette bedrag, dus ook zonder de
+      // stakingsaftrek en MKB-winstvrijstelling die daarop vielen. Dat is de voorzichtige
+      // lezing: het brutobedrag van de belastbare winst aftrekken zou een lager
+      // bijdrage-inkomen geven.
+      // Zie OPENSTAAND.md punt 18.
+      const zvwDeel = Math.max(0, bruto - forOmzetting - pos(geenStakingsaftrek));
+      const zvwNaAftrek = (bruto - forOmzetting) - Math.min(zvwDeel, stakingsaftrekRuimte);
+      const zvwWinst = zvwNaAftrek - zvwNaAftrek * T.onderneming.mkbVrijstelling;
       const zvwBasis = zvwOverGrondslag(Math.max(0, overigeBelastbaar), T.zvw.bijdrage);
-      const zvwMet = zvwOverGrondslag(Math.max(0, overigeBelastbaar + belastbareWinst), T.zvw.bijdrage);
+      const zvwMet = zvwOverGrondslag(Math.max(0, overigeBelastbaar + zvwWinst), T.zvw.bijdrage);
       const zvw = zvwMet - zvwBasis;
 
       // Latente IB over de lijfrentetermijnen: bij uitkering volledig belast in box 1.
       const latenteIb = cw(lijfrenteTotaal * (i.tariefUitkering / 100), jarenTotUitkering);
 
       return {
-        bruto, stakingsdeel, stakingsaftrek, lijfrenteRuimte, stakingslijfrente,
+        bruto, stakingsdeel, stakingsaftrek, lijfrenteRuimte, forOmzetting, stakingslijfrente,
         jaarruimte: jr, reserveringsruimte: rr, overigeLijfrente, lijfrenteTotaal,
-        mkb, belastbareWinst, tegenOverigeWinst, onbenut, teVerrekenenVerlies, restant,
+        mkb, belastbareWinst, zvwWinst, tegenOverigeWinst, onbenut, teVerrekenenVerlies, restant,
         ib, ta, zvw, latenteIb,
         last: ib + ta + zvw + latenteIb
       };
@@ -3243,7 +3280,7 @@ const BVJN = (function () {
     // tot onder nul; afrekening vangt dat op.
     const stakingswinst = reserves + i.desinvestering + i.oudedagsreserve + i.terugkeerreserveVrijval
       - i.terugkeerreserveNegatief;
-    const ruisend = afrekening(stakingswinst, 0);
+    const ruisend = afrekening(stakingswinst, 0, i.oudedagsreserve);
 
     // Overdrachtsbelasting: de vrijstelling van art. 15 lid 1 onderdeel e WBR geldt
     // onafhankelijk van de keuze ruisend of geruisloos, mits aan de voorwaarden van
@@ -3254,6 +3291,7 @@ const BVJN = (function () {
     const stakingsaftrek = ruisend.stakingsaftrek;
     const stakingslijfrenteRuimte = ruisend.lijfrenteRuimte;
     const stakingslijfrente = ruisend.stakingslijfrente;
+    const forOmzetting = ruisend.forOmzetting;
     const jr = ruisend.jaarruimte;
     const rr = ruisend.reserveringsruimte;
     const overigeLijfrente = ruisend.overigeLijfrente;
@@ -3279,7 +3317,8 @@ const BVJN = (function () {
     // lid 4), maar zonder stakingsaftrek. De MKB-winstvrijstelling en de stakingslijfrente
     // gelden wel (zie bij afrekening, en OPENSTAAND.md punt 16 voor de onzekerheid over de
     // stakingslijfrente). Het verschil tussen de routes is daarmee de stakingsaftrek.
-    const geruisloosFor = afrekening(i.oudedagsreserve + i.terugkeerreserveVrijval, i.terugkeerreserveVrijval);
+    const geruisloosFor = afrekening(i.oudedagsreserve + i.terugkeerreserveVrijval, i.terugkeerreserveVrijval,
+      i.oudedagsreserve);
 
     /* ---------- Geruisloze inbreng (art. 3.65) ---------- */
     // Geen afrekening bij de ondernemer. Daar staan drie nadelen tegenover, elk uitgedrukt
@@ -3341,7 +3380,7 @@ const BVJN = (function () {
       reserves, stakingswinst,
       stakingsaftrek, stakingsaftrekRuimte,
       lijfrenteCategorie: maxCat.onderdeel, lijfrenteMaximum: maxCat.bedrag,
-      voorzieningen, stakingslijfrenteRuimte, stakingslijfrente,
+      voorzieningen, stakingslijfrenteRuimte, forOmzetting, stakingslijfrente,
       ruisend, geruisloosFor,
       jaarruimte: jr, reserveringsruimte: rr, overigeLijfrente, lijfrenteTotaal,
       belastbareStakingswinst, mkbInbreng, belastbaarRestant,
@@ -7691,6 +7730,7 @@ const BVJN = (function () {
       ['Stakingswinst', u.stakingswinst, undefined, 'tot'],
       ['Stakingsaftrek (art. 3.79, ruimte ' + fmt(u.stakingsaftrekRuimte) + ')', -u.stakingsaftrek],
       ['MKB-winstvrijstelling (' + pct(T.onderneming.mkbVrijstelling, 1) + ')', -u.mkbInbreng],
+      u.forOmzetting > 0 ? ['Omzetting oudedagsreserve in lijfrente (art. 10a.29 lid 12)', -u.forOmzetting] : null,
       ['Stakingslijfrente (art. 3.129 lid 2 onderdeel ' + u.lijfrenteCategorie + ', maximaal ' + fmt(u.stakingslijfrenteRuimte) + ')', -u.stakingslijfrente],
       ['Jaarruimte (art. 3.127 lid 1)', -Math.min(u.overigeLijfrente, u.jaarruimte), undefined, 'sub'],
       ['Reserveringsruimte (art. 3.127 lid 2)', -Math.max(0, u.overigeLijfrente - u.jaarruimte), undefined, 'sub'],
@@ -7700,7 +7740,7 @@ const BVJN = (function () {
       u.teVerrekenenVerlies > 0 ? ['Verlies te verrekenen met andere jaren (art. 3.150), niet gewaardeerd', u.teVerrekenenVerlies, undefined, 'sub'] : null,
       ['Inkomstenbelasting over het restant (' + pct(u.input.tariefStaking / 100, 1) + ')', u.ibDirect],
       ['Tariefsaanpassing over stakingsaftrek en MKB-vrijstelling (art. 2.10 lid 2)', u.tariefsaanpassing],
-      ['Bijdrage Zvw over de belastbare stakingswinst', u.zvwStaking],
+      [u.forOmzetting > 0 ? 'Bijdrage Zvw over de belastbare stakingswinst, zonder de omgezette oudedagsreserve (art. 43 lid 2 onderdeel b Zvw)' : 'Bijdrage Zvw over de belastbare stakingswinst', u.zvwStaking],
       ['Contante waarde IB over de lijfrentetermijnen (' + u.jarenTotUitkering + ' jaar, ' + pct(u.input.tariefUitkering / 100, 1) + ')', u.latenteIbLijfrente],
       ['Overdrachtsbelasting', u.ob],
       ['Totale last ruisende inbreng, contante waarde', u.ruisendLast, undefined, 'tot']
