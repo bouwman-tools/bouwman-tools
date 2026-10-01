@@ -20,9 +20,10 @@ afterEach(() => {
 });
 
 function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail, alwaysFail = false,
-    reusable = false, policyDetail, listFail, ontbrekendeApps = [], zonderPolicies = [] } = {}) {
+    reusable = false, policyDetail, listFail, ontbrekendeApps = [], zonderPolicies = [], losAntwoord } = {}) {
   const writes = new Map();
   const listGets = [];
+  const putAttempts = [];
   const reads = [];
   const gets = [];
   const puts = [];
@@ -33,12 +34,16 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
   const policies = new Map();
   const logs = [];
   let injected = false;
+  // Dezelfde app is herbruikbaar in de lijst en in de losse aanroep, met hetzelfde id.
+  const herbruikbaar = href => reusable === true || (reusable === 'first' && href.endsWith(`/${appIds[0]}/policies`));
+  const policyId = href => herbruikbaar(href) ? `synthetic-policy-${href.split('/').at(-2)}` : 'synthetic-policy';
   let fetchCount = 1; // Reserveer ook de JWKS-fetch van een echt beheerverzoek.
   console.error = (...args) => logs.push(args.join(' '));
   console.log = (...args) => logs.push(args.join(' '));
   globalThis.fetch = async (url, options = {}) => {
     if (++fetchCount > 50) throw new Error('Too many subrequests by single Worker invocation');
     const href = String(url);
+    if (options.method === 'PUT') putAttempts.push(href);
     if (href === 'https://bouwman.tools/tools.json') {
       return Response.json({ tools: [], portaalworkers: [] });
     }
@@ -51,8 +56,9 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       return Response.json({ success: true, result_info: { page: 1, total_pages: 1 }, result: appIds
         .filter(id => !ontbrekendeApps.includes(id))
         .map(id => {
-          const { reusable: _, ...policy } = policies.get(`${base}/${id}/policies`) ||
-            { id: 'synthetic-policy', include: [], decision: 'allow' };
+          const href = `${base}/${id}/policies`;
+          const { reusable: _, ...policy } = policies.get(href) ||
+            { id: policyId(href), include: [], decision: 'allow' };
           return { id, policies: zonderPolicies.includes(id) ? undefined : [policy] };
         }) });
     }
@@ -62,8 +68,9 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
         injected = true;
         return fail();
       }
-      const isReusable = reusable === true || (reusable === 'first' && (gets[0] === href));
-      const id = isReusable ? `synthetic-policy-${href.split('/').at(-2)}` : 'synthetic-policy';
+      if (losAntwoord) return Response.json({ success: true, result: losAntwoord(href) });
+      const isReusable = herbruikbaar(href);
+      const id = policyId(href);
       policyApps.set(id, href);
       const policy = policies.get(href) || { id, include: [], decision: 'allow', reusable: isReusable };
       return Response.json({ success: true, result: [policy] });
@@ -94,7 +101,7 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       async get(key) { reads.push(key); return key === 'data' ? raw : null; },
       async put(key, value) { writes.set(key, JSON.parse(value)); },
     } },
-    writes, reads, gets, puts, responses, logs, detailGets, putBodies, listGets,
+    writes, reads, gets, puts, responses, logs, detailGets, putBodies, listGets, putAttempts,
     resetBudget() { fetchCount = 1; },
     get fetchCount() { return fetchCount; },
   };
@@ -323,3 +330,24 @@ test('zwaarste ronde (herbruikbare policies, niets in de lijst) blijft op 45 sub
   } while (result.voortzetten && ++rounds < 20);
   assert.equal(result.synchronisatie.mislukt, 0);
 });
+
+// Publicatiepoort 01-10-2026: de controle toetst de policy uit de lijst, de
+// synchronisatie haalt haar daarna los op. Spreken die twee elkaar tegen, dan mag
+// er niets worden geschreven.
+for (const [name, losAntwoord] of [
+  ['extra regel', () => [{ id: 'synthetic-policy', decision: 'allow', include: [],
+    require: [{ email_domain: { domain: 'example.invalid' } }] }]],
+  ['groepsregel', () => [{ id: 'synthetic-policy', decision: 'allow', include: [{ group: { id: 'synthetic-group' } }] }]],
+  ['tweede policy', () => [{ id: 'synthetic-policy', decision: 'allow', include: [] },
+    { id: 'synthetic-deny', decision: 'deny', include: [{ everyone: {} }] }]],
+  ['ander id', () => [{ id: 'synthetic-other', decision: 'allow', include: [] }]],
+]) {
+  test(`losse policy wijkt af van de lijst (${name}): niets geschreven`, async () => {
+    const f = fixture({ losAntwoord });
+    const result = await beheer.synchroniseerEnControleer(f.env);
+    assert.deepEqual(f.putAttempts, [], 'Geen enkele schrijfpoging');
+    assert.ok(result.synchronisatie.mislukt > 0);
+    assert.equal(result.voortzetten, false);
+    assert.equal(result.ok, false);
+  });
+}

@@ -341,6 +341,12 @@ async function haalAppPolicies(env, appId) {
   return Array.isArray(data.result) ? data.result : [];
 }
 
+// Alleen een policy die uitsluitend uit toegelaten e-mailadressen bestaat, beheert
+// deze worker. Alles daarbuiten wordt gemeld en nooit overschreven.
+const beheerdePolicyvorm = p => Boolean(p) && (!p.decision || p.decision === 'allow') &&
+  Array.isArray(p.include) && p.include.every(r => typeof r?.email?.email === 'string') &&
+  (p.exclude?.length || 0) === 0 && (p.require?.length || 0) === 0;
+
 const bruikbaarUitLijst = lijst => Array.isArray(lijst) && lijst.length > 0 &&
   lijst.every(p => p && Array.isArray(p.include));
 
@@ -355,6 +361,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
   const afwijkingen = [];
   const herstelbaar = new Set();
   const los = new Set();
+  const ids = new Map();
   let gecontroleerd = 0, overgeslagen = 0;
 
   // De synchronisatie laat een policy bewust ongemoeid als niemand recht
@@ -366,7 +373,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
     if (verwacht.length === 0) overgeslagen++;
     else teControleren.push([file, verwacht]);
   }
-  if (teControleren.length === 0) return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
+  if (teControleren.length === 0) return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, ids, reserve };
 
   let apps;
   try {
@@ -377,7 +384,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
       ['Access-apps: ongeldig antwoord', 'Access-apps: meer pagina\'s dan verwacht'].includes(message)
       ? message : 'Netwerkfout of ongeldig antwoord bij het ophalen van de Access-apps';
     for (const [file] of teControleren) afwijkingen.push({ tool: file, reden });
-    return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
+    return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, ids, reserve };
   }
 
   for (const [file, verwacht] of teControleren) {
@@ -408,9 +415,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
       afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
       continue;
     }
-    if (lijst.length !== 1 || (policy.decision && policy.decision !== 'allow') ||
-        !Array.isArray(policy.include) || policy.include.some(r => typeof r?.email?.email !== 'string') ||
-        (policy.exclude?.length || 0) > 0 || (policy.require?.length || 0) > 0) {
+    if (lijst.length !== 1 || !beheerdePolicyvorm(policy)) {
       afwijkingen.push({ tool: file, reden: 'Policyvorm wijkt af van de beheerde e-mailrechten; geen automatische wijziging.' });
       continue;
     }
@@ -421,6 +426,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
 
     if (ontbreekt || teveel) {
       herstelbaar.add(file);
+      ids.set(file, policy.id);
       afwijkingen.push({
         tool: file,
         reden: `${ontbreekt} ontbreekt in de policy, ${teveel} staat er te veel in`,
@@ -430,7 +436,7 @@ async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_
     }
   }
 
-  return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
+  return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, ids, reserve };
 }
 
 // Welke Workers hoort het account te hebben, en waarvoor. tools.json is de bron:
@@ -528,7 +534,11 @@ async function voorElkeApp(actie, bestanden = Object.keys(APP_IDS)) {
   }));
 }
 
-export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP_IDS), policies, bewaren = true) {
+// 'gecontroleerdeIds' noemt per tool het policy-id dat de controle heeft getoetst.
+// Wordt de policy hier opnieuw opgehaald, dan moet zij dezelfde zijn en dezelfde
+// beheerde vorm hebben; anders wordt er niets geschreven.
+export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP_IDS), policies, bewaren = true,
+    gecontroleerdeIds) {
   let gelukt = 0, overgeslagen = 0, mislukt = 0;
   const fouten = [];
   await voorElkeApp(async ([file, appId]) => {
@@ -548,6 +558,12 @@ export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP
         const data = await res.json();
         policy = data.result?.[0];
         if (data.success === false || !policy) throw new Error('Geen bruikbare policy gevonden');
+        if (data.result.length !== 1 || !beheerdePolicyvorm(policy)) {
+          throw new Error('Policyvorm wijkt af van de beheerde e-mailrechten');
+        }
+        if (gecontroleerdeIds?.has(file) && gecontroleerdeIds.get(file) !== policy.id) {
+          throw new Error('Policy wijkt af van de gecontroleerde policy');
+        }
       }
       let updateUrl = `${base}/${policy.id}`;
       if (policy.reusable === true) {
@@ -591,6 +607,7 @@ export async function syncCFAccess(permissions, env, bestanden = Object.keys(APP
       const message = String(e?.message || '');
       const reden = /^(policies ophalen|policy controleren|policy bijwerken) gaf HTTP \d{3}$/.test(message) ||
         ['CF_API_TOKEN ontbreekt op de worker', 'Geen bruikbare policy gevonden',
+          'Policyvorm wijkt af van de beheerde e-mailrechten', 'Policy wijkt af van de gecontroleerde policy',
           'Herbruikbare policy is gedeeld of exclusiviteit is niet bevestigd',
           'Herbruikbare policy heeft geen beheerde e-mailrechten',
           'Cloudflare bevestigt de wijziging niet'].includes(message)
@@ -646,7 +663,8 @@ export async function synchroniseerEnControleer(env, opgeslagenRechten, verwacht
     gekozen.push(afwijking.tool);
     budget -= kosten;
   }
-  const synchronisatie = await syncCFAccess(permissions, env, gekozen, undefined, false);
+  const synchronisatie = await syncCFAccess(permissions, env, gekozen, undefined, false,
+    new Map(gekozen.map(file => [file, voor.ids.get(file)])));
   // De nacontrole krijgt de losse aanroepen die hierboven voor haar zijn
   // ingeboekt, plus wat er verder over is.
   const naReserve = gekozen.filter(file => voor.los.has(file)).length + budget + voor.reserve;
