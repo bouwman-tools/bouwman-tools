@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs';
 import * as beheer from '../access-beheer-worker.js';
 
 const workerSource = readFileSync(new URL('../access-beheer-worker.js', import.meta.url), 'utf8');
-const appCount = [...workerSource.match(/const APP_IDS = \{([\s\S]*?)\n\};/)[1].matchAll(/'[^']+'\s*:/g)].length;
+const appEntries = [...workerSource.match(/const APP_IDS = \{([\s\S]*?)\n\};/)[1]
+  .matchAll(/'([^']+)'\s*:\s*'([^']+)'/g)].map(m => [m[1], m[2]]);
+const appCount = appEntries.length;
+const appIds = appEntries.map(([, id]) => id);
 
 // Alle rechten, API-antwoorden en credentials hieronder zijn synthetisch.
 const realFetch = globalThis.fetch;
@@ -17,8 +20,9 @@ afterEach(() => {
 });
 
 function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }), fail, alwaysFail = false,
-    reusable = false, policyDetail } = {}) {
+    reusable = false, policyDetail, listFail, ontbrekendeApps = [], zonderPolicies = [] } = {}) {
   const writes = new Map();
+  const listGets = [];
   const reads = [];
   const gets = [];
   const puts = [];
@@ -39,6 +43,19 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       return Response.json({ tools: [], portaalworkers: [] });
     }
     if (href.endsWith('/workers/scripts')) return Response.json({ result: [] });
+    if (href.includes('/access/apps?')) {
+      listGets.push(href);
+      if (listFail) return listFail();
+      // Zoals de lijstaanroep: per app de policies, zonder de vlag 'reusable'.
+      const base = href.slice(0, href.indexOf('?'));
+      return Response.json({ success: true, result_info: { page: 1, total_pages: 1 }, result: appIds
+        .filter(id => !ontbrekendeApps.includes(id))
+        .map(id => {
+          const { reusable: _, ...policy } = policies.get(`${base}/${id}/policies`) ||
+            { id: 'synthetic-policy', include: [], decision: 'allow' };
+          return { id, policies: zonderPolicies.includes(id) ? undefined : [policy] };
+        }) });
+    }
     if (href.endsWith('/policies')) {
       gets.push(href);
       if (fail && (!injected || alwaysFail)) {
@@ -77,7 +94,7 @@ function fixture({ raw = JSON.stringify({ 'synthetic@example.invalid': 'all' }),
       async get(key) { reads.push(key); return key === 'data' ? raw : null; },
       async put(key, value) { writes.set(key, JSON.parse(value)); },
     } },
-    writes, reads, gets, puts, responses, logs, detailGets, putBodies,
+    writes, reads, gets, puts, responses, logs, detailGets, putBodies, listGets,
     resetBudget() { fetchCount = 1; },
     get fetchCount() { return fetchCount; },
   };
@@ -131,7 +148,7 @@ test(`begrensde rondes herstellen alle apps en eindigen met leescontrole (reusab
     hash = result.bronHash;
     budgets.push(f.fetchCount);
     assert.ok(f.fetchCount <= 48, `Ronde ${rounds + 1} gebruikte ${f.fetchCount} subrequests`);
-    assert.ok(f.puts.length - before <= 6);
+    assert.ok(f.puts.length - before <= 10);
     if (rounds === 0) {
       assert.ok(f.puts.length > 0);
       assert.equal(result.controle.resterend, appCount - f.puts.length);
@@ -151,7 +168,7 @@ test(`begrensde rondes herstellen alle apps en eindigen met leescontrole (reusab
   assert.equal(sync.ongewijzigd, appCount);
   assert.equal(controle.gecontroleerd, appCount);
   assert.equal(controle.resterend, 0);
-  assert.equal(budgets.at(-1), appCount + 3, 'Alle policies, 2 workercontroles en 1 gereserveerde JWKS');
+  assert.equal(budgets.at(-1), 4, 'Een lijstaanroep voor alle apps, 2 workercontroles en 1 gereserveerde JWKS');
   assert.deepEqual(controle.afwijkingen, []);
   assert.deepEqual(controle.workers.ontbreekt, []);
   assert.ok(Number.isFinite(Date.parse(sync.tijdstip)));
@@ -189,7 +206,7 @@ test('scheduled blijft onder 48 requests en rapporteert resterend herstel', asyn
   const f = fixture();
   await beheer.default.scheduled({}, f.env, { waitUntil() { assert.fail('Geen achtergrondtaak verwacht'); } });
   assert.ok(f.fetchCount <= 48);
-  assert.ok(f.puts.length > 0 && f.puts.length <= 6);
+  assert.ok(f.puts.length > 0 && f.puts.length <= 10);
   const controle = f.writes.get('controle-status');
   assert.equal(controle.gecontroleerd, appCount);
   assert.equal(controle.hersteld, f.puts.length);
@@ -233,3 +250,76 @@ for (const [name, policyDetail] of [
     assert.equal(f.logs.join('\n').includes('synthetic-private-marker'), false);
   });
 }
+
+// 01-10-2026: met 48 apps weigerde de controle te starten (budget 45 min het aantal
+// apps), en bleven controle, sync, upsert en delete weg. Deze tests houden de
+// requestkosten van een leesronde los van het aantal apps.
+test('met meer dan 42 apps loopt de controle en past alles in de requestlimiet', async () => {
+  assert.ok(appCount > 42, `Deze test hoort met meer dan 42 apps te draaien, nu ${appCount}`);
+  const f = fixture();
+  let result, hash, rounds = 0;
+  do {
+    f.resetBudget();
+    result = await beheer.synchroniseerEnControleer(f.env, undefined, hash);
+    hash = result.bronHash;
+    assert.ok(f.fetchCount <= 50, `Ronde ${rounds + 1} gebruikte ${f.fetchCount} subrequests`);
+    rounds++;
+  } while (result.voortzetten);
+  assert.ok(rounds <= 12, `beheer.html doet hoogstens 12 vervolgrondes, nodig waren ${rounds}`);
+  assert.equal(result.ok, true);
+
+  f.resetBudget();
+  const listBefore = f.listGets.length, getsBefore = f.gets.length;
+  await beheer.default.scheduled({}, f.env, { waitUntil() { assert.fail('Geen achtergrondtaak verwacht'); } });
+  const controle = f.writes.get('controle-status');
+  assert.deepEqual(controle.afwijkingen, []);
+  assert.equal(controle.gecontroleerd, appCount);
+  assert.equal(f.listGets.length - listBefore, 1, 'Eén lijstaanroep voor alle apps');
+  assert.equal(f.gets.length - getsBefore, 0, 'Geen losse policy-aanroep per app');
+  assert.equal(f.fetchCount, 4, 'Gereserveerde JWKS, lijst, register en scriptlijst');
+});
+
+test('mislukte lijstaanroep geeft per tool een reden, schrijft niets en stopt', async () => {
+  const f = fixture({ listFail: () => new Response('synthetic-private-marker', { status: 403 }) });
+  await beheer.default.scheduled({}, f.env, { waitUntil() {} });
+  const controle = f.writes.get('controle-status');
+  assert.equal(controle.afwijkingen.length, appCount);
+  assert.ok(controle.afwijkingen.every(a => a.reden === 'Access-apps ophalen gaf HTTP 403'));
+  assert.equal(controle.afwijkingen.some(a => a.tool === '*'), false);
+  assert.equal(f.puts.length, 0);
+  const result = await beheer.synchroniseerEnControleer(f.env);
+  assert.equal(result.voortzetten, false);
+  assert.equal(JSON.stringify(controle).includes('synthetic-private-marker'), false);
+});
+
+test('een app die niet op het account staat wordt gemeld en niet beschreven', async () => {
+  const [file, id] = appEntries[1];
+  const f = fixture({ ontbrekendeApps: [id] });
+  const result = await beheer.synchroniseerEnControleer(f.env);
+  const melding = result.controle.afwijkingen.find(a => a.tool === file);
+  assert.equal(melding?.reden, 'de Access-app staat niet op het account');
+  assert.equal(f.puts.some(href => href.includes(id)), false);
+});
+
+test('ontbreken policies in de lijst, dan hoogstens zes losse aanroepen per ronde', async () => {
+  const zonder = appIds.slice(0, 8);
+  const f = fixture({ zonderPolicies: zonder });
+  const result = await beheer.synchroniseerEnControleer(f.env);
+  assert.ok(f.fetchCount <= 50);
+  const losseControles = f.gets.filter(href => zonder.some(id => href.includes(id)));
+  assert.ok(losseControles.length >= 6);
+  const geenRuimte = result.controle.afwijkingen.filter(a => a.reden.startsWith('policy niet meegeleverd'));
+  assert.equal(geenRuimte.length, 2);
+});
+
+test('zwaarste ronde (herbruikbare policies, niets in de lijst) blijft op 45 subrequests', async () => {
+  const f = fixture({ reusable: true, zonderPolicies: appIds });
+  let result, hash, rounds = 0;
+  do {
+    f.resetBudget();
+    result = await beheer.synchroniseerEnControleer(f.env, undefined, hash);
+    hash = result.bronHash;
+    assert.ok(f.fetchCount <= 45, `Ronde ${rounds + 1} gebruikte ${f.fetchCount} subrequests`);
+  } while (result.voortzetten && ++rounds < 20);
+  assert.equal(result.synchronisatie.mislukt, 0);
+});

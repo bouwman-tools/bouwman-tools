@@ -239,7 +239,7 @@ export default {
   // Vindt hij een afwijking, dan schrijft hij de policies opnieuw en meet daarna
   // wat er nog overblijft. Tot 04-09-2026 meldde hij alleen; een afwijking bleef
   // dan staan tot iemand in beheer.html een gebruiker opsloeg. Een controleronde
-  // herstelt nu maximaal het berekende requestbudget (hoogstens zes apps). Meer
+  // herstelt nu maximaal het berekende requestbudget (hoogstens tien apps). Meer
   // afwijkingen worden expliciet opgeslagen; beheer kan direct vervolgrondes doen.
   //
   // Sinds 04-09-2026 kijkt hij daarnaast of de Workers waar tools van afhangen op het
@@ -255,11 +255,19 @@ export default {
   async scheduled(event, env, ctx) {
     try {
       await synchroniseerEnControleer(env);
-    } catch {
-      console.error('controle: uitvoering mislukt; rechtenopslag of externe dienst onbereikbaar');
+    } catch (e) {
+      // Alleen eigen, vaste foutteksten doorgeven; die bevatten geen adressen of
+      // upstream-antwoorden. Tot 01-10-2026 verdween de reden hier altijd, en stond
+      // in beheer alleen "bekijk de workerlogs".
+      const message = String(e?.message || '');
+      const reden = ['Rechtenopslag ontbreekt', 'Ongeldige rechtenopslag',
+        'Uitvoeringsstatus kon niet worden opgeslagen'].includes(message)
+        ? `Controle kon niet worden voltooid: ${message}.`
+        : 'Controle kon niet worden voltooid; bekijk de workerlogs.';
+      console.error(`controle: uitvoering mislukt: ${reden}`);
       await schrijfStatus(env, STATUS_CONTROLE, {
         tijdstip: new Date().toISOString(), gecontroleerd: 0, overgeslagen: 0,
-        afwijkingen: [{ tool: '*', reden: 'Controle kon niet worden voltooid; bekijk de workerlogs.' }],
+        afwijkingen: [{ tool: '*', reden }],
       });
     }
   }
@@ -282,67 +290,147 @@ function rechthebbenden(permissions, file) {
     .map(([e]) => e);
 }
 
+// Haalt alle Access-apps van het account op, met de policies die Cloudflare per
+// app meelevert. Eén aanroep voor alle apps samen, in plaats van een per app.
+//
+// Waarom: een Worker op het gratis plan mag per uitvoering hoogstens 50
+// subrequests doen. Tot 01-10-2026 haalde de controle de policies per app op, en
+// weigerde zij bij meer dan 42 apps te starten. Toen er 48 waren, viel de
+// dagelijkse controle weg en sloeg ook het opslaan van rechten in beheer.html
+// halverwege af: wel in de opslag, niet op Access. Zie OPENSTAAND.md.
+//
+// Bron: GET /accounts/{account_id}/access/apps geeft per app een array 'policies'
+// met decision, include, exclude en require, en kent per_page tot 1000.
+// https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/
+const ACCESS_APPS_PAGINAS = 3;
+async function haalAccessApps(env) {
+  const apps = new Map();
+  for (let page = 1; page <= ACCESS_APPS_PAGINAS; page++) {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps?per_page=1000&page=${page}`,
+      { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+    );
+    if (!res.ok) {
+      await res.body?.cancel();
+      throw new Error(`Access-apps ophalen gaf HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.success === false || !Array.isArray(data.result)) throw new Error('Access-apps: ongeldig antwoord');
+    for (const app of data.result) {
+      if (app && typeof app.id === 'string') apps.set(app.id, app.policies);
+    }
+    const totaal = data.result_info?.total_pages;
+    if (!Number.isInteger(totaal) || page >= totaal) return apps;
+  }
+  throw new Error('Access-apps: meer pagina\'s dan verwacht');
+}
+
+// Haalt de policies van één app apart op. Alleen nodig als de lijstaanroep voor
+// die app geen bruikbare policy meelevert; telt dan als extra subrequest.
+async function haalAppPolicies(env, appId) {
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
+    { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
+  );
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw new Error(`policies ophalen gaf HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  if (data.success === false) return [];
+  return Array.isArray(data.result) ? data.result : [];
+}
+
+const bruikbaarUitLijst = lijst => Array.isArray(lijst) && lijst.length > 0 &&
+  lijst.every(p => p && Array.isArray(p.include));
+
 // Vergelijkt per Access-app de toegelaten adressen met de rechten in de opslag.
 // Bewaart geen adressen in de uitkomst, alleen aantallen en de naam van de tool:
 // die uitkomst is voor een melding, niet voor een ledenlijst.
-async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_IDS), policies) {
+//
+// 'reserve' is het aantal losse policy-aanroepen dat nog mag als de lijst voor een
+// app niets bruikbaars meelevert. 'herstelbaar' noemt de apps waarvan de vorm klopt
+// en alleen de adressen afwijken: alleen die mag de synchronisatie overschrijven.
+async function controleerPolicies(permissions, env, bestanden = Object.keys(APP_IDS), reserve = 0) {
   const afwijkingen = [];
+  const herstelbaar = new Set();
+  const los = new Set();
   let gecontroleerd = 0, overgeslagen = 0;
 
-  await voorElkeApp(async ([file, appId]) => {
+  // De synchronisatie laat een policy bewust ongemoeid als niemand recht
+  // heeft op die tool, want een lege lijst wordt door de API geweigerd.
+  // De controle moet dat overslaan, anders klaagt zij daar eeuwig over.
+  const teControleren = [];
+  for (const file of bestanden) {
     const verwacht = rechthebbenden(permissions, file);
+    if (verwacht.length === 0) overgeslagen++;
+    else teControleren.push([file, verwacht]);
+  }
+  if (teControleren.length === 0) return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
 
-    // De synchronisatie laat een policy bewust ongemoeid als niemand recht
-    // heeft op die tool, want een lege lijst wordt door de API geweigerd.
-    // De controle moet dat overslaan, anders klaagt zij daar eeuwig over.
-    if (verwacht.length === 0) { overgeslagen++; return; }
+  let apps;
+  try {
+    apps = await haalAccessApps(env);
+  } catch (e) {
+    const message = String(e?.message || '');
+    const reden = /^Access-apps ophalen gaf HTTP \d{3}$/.test(message) ||
+      ['Access-apps: ongeldig antwoord', 'Access-apps: meer pagina\'s dan verwacht'].includes(message)
+      ? message : 'Netwerkfout of ongeldig antwoord bij het ophalen van de Access-apps';
+    for (const [file] of teControleren) afwijkingen.push({ tool: file, reden });
+    return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
+  }
 
-    try {
-      const res = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/apps/${appId}/policies`,
-        { headers: { Authorization: `Bearer ${env.CF_API_TOKEN}` } }
-      );
-      if (!res.ok) {
-        await res.body?.cancel();
-        afwijkingen.push({ tool: file, reden: `policies ophalen gaf HTTP ${res.status}` });
-        return;
+  for (const [file, verwacht] of teControleren) {
+    const appId = APP_IDS[file];
+    if (!apps.has(appId)) {
+      afwijkingen.push({ tool: file, reden: 'de Access-app staat niet op het account' });
+      continue;
+    }
+    let lijst = apps.get(appId);
+    if (!bruikbaarUitLijst(lijst)) {
+      if (reserve <= 0) {
+        afwijkingen.push({ tool: file, reden: 'policy niet meegeleverd en geen ruimte voor een losse aanroep in deze ronde' });
+        continue;
       }
-      const data = await res.json();
-      const policy = data.result?.[0];
-      if (data.success === false || !policy) {
-        afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
-        return;
+      reserve--;
+      los.add(file);
+      try {
+        lijst = await haalAppPolicies(env, appId);
+      } catch (e) {
+        const message = String(e?.message || '');
+        afwijkingen.push({ tool: file, reden: /^policies ophalen gaf HTTP \d{3}$/.test(message)
+          ? message : 'Netwerkfout of ongeldig antwoord tijdens controle' });
+        continue;
       }
+    }
+    const policy = lijst?.[0];
+    if (!policy) {
+      afwijkingen.push({ tool: file, reden: 'de Access-app heeft geen policy' });
+      continue;
+    }
+    if (lijst.length !== 1 || (policy.decision && policy.decision !== 'allow') ||
+        !Array.isArray(policy.include) || policy.include.some(r => typeof r?.email?.email !== 'string') ||
+        (policy.exclude?.length || 0) > 0 || (policy.require?.length || 0) > 0) {
+      afwijkingen.push({ tool: file, reden: 'Policyvorm wijkt af van de beheerde e-mailrechten; geen automatische wijziging.' });
+      continue;
+    }
+    const aanwezig = policy.include.map(r => r.email.email);
+    const ontbreekt = verwacht.filter(e => !aanwezig.includes(e)).length;
+    const teveel = aanwezig.filter(e => !verwacht.includes(e)).length;
+    gecontroleerd++;
 
-      if (data.result.length !== 1 || (policy.decision && policy.decision !== 'allow') ||
-          !Array.isArray(policy.include) || policy.include.some(r => typeof r?.email?.email !== 'string') ||
-          (policy.exclude?.length || 0) > 0 || (policy.require?.length || 0) > 0) {
-        afwijkingen.push({ tool: file, reden: 'Policyvorm wijkt af van de beheerde e-mailrechten; geen automatische wijziging.' });
-        return;
-      }
-      const aanwezig = policy.include.map(r => r.email.email);
-      policies?.set(file, policy);
-      const ontbreekt = verwacht.filter(e => !aanwezig.includes(e)).length;
-      const teveel = aanwezig.filter(e => !verwacht.includes(e)).length;
-      gecontroleerd++;
-
-      if (ontbreekt || teveel) {
-        afwijkingen.push({
-          tool: file,
-          reden: `${ontbreekt} ontbreekt in de policy, ${teveel} staat er te veel in`,
-          verwacht: verwacht.length,
-          aanwezig: aanwezig.length,
-        });
-      }
-    } catch (e) {
+    if (ontbreekt || teveel) {
+      herstelbaar.add(file);
       afwijkingen.push({
         tool: file,
-        reden: 'Netwerkfout of ongeldig antwoord tijdens nacontrole',
+        reden: `${ontbreekt} ontbreekt in de policy, ${teveel} staat er te veel in`,
+        verwacht: verwacht.length,
+        aanwezig: aanwezig.length,
       });
     }
-  }, bestanden);
+  }
 
-  return { gecontroleerd, overgeslagen, afwijkingen };
+  return { gecontroleerd, overgeslagen, afwijkingen, herstelbaar, los, reserve };
 }
 
 // Welke Workers hoort het account te hebben, en waarvoor. tools.json is de bron:
@@ -524,6 +612,13 @@ async function rechtenHash(permissions) {
   return [...new Uint8Array(hash)].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
+// Subrequests per uitvoering. Het gratis plan staat er 50 toe; de rest is marge.
+// https://developers.cloudflare.com/workers/platform/limits/#subrequests
+const SUBREQUEST_BUDGET = 45;
+// Hoeveel apps een ronde hoogstens herstelt. beheer.html doet vervolgrondes tot
+// alles klopt, dus dit begrenst alleen de duur van één ronde.
+const HERSTEL_PER_RONDE = 10;
+
 export async function synchroniseerEnControleer(env, opgeslagenRechten, verwachteHash) {
   // Gebruik na upsert/delete exact de opgeslagen snapshot, niet een oude KV-replica.
   const permissions = opgeslagenRechten ?? await getPermissions(env);
@@ -532,22 +627,31 @@ export async function synchroniseerEnControleer(env, opgeslagenRechten, verwacht
     return { ok: false, error: 'Rechtenopslag is gewijzigd of nog niet overal bijgewerkt. Start de synchronisatie opnieuw.' };
   }
   const bestanden = Object.keys(APP_IDS);
-  // Laat ruimte voor JWKS, register, workerlijst en eventuele redirects.
-  let budget = 45 - bestanden.length;
-  if (budget < 3) throw new Error('Te veel apps voor een veilige controleronde');
-  const policies = new Map();
-  const voor = await controleerPolicies(permissions, env, bestanden, policies);
-  const herstelbaar = voor.afwijkingen.filter(a => policies.has(a.tool));
+  // Vast deel, onafhankelijk van het aantal apps: JWKS van het beheerverzoek,
+  // de Access-lijst (hoogstens drie pagina's) voor en na het herstel, en register
+  // plus scriptlijst van de workercontrole.
+  let budget = SUBREQUEST_BUDGET - 1 - 2 * ACCESS_APPS_PAGINAS - 2;
+  const reserve = 6;
+  budget -= reserve;
+  const voor = await controleerPolicies(permissions, env, bestanden, reserve);
+  const herstelbaar = voor.afwijkingen.filter(a => voor.herstelbaar.has(a.tool));
   const gekozen = [];
   for (const afwijking of herstelbaar) {
-    // PUT + nacontrole; reusable vraagt eerst een actuele exclusiviteitscheck.
-    const kosten = policies.get(afwijking.tool).reusable === true ? 3 : 2;
-    if (gekozen.length === 6 || kosten > budget) continue;
+    // Policy ophalen, eventueel de exclusiviteitscheck van een herbruikbare
+    // policy, en de PUT. De lijst zegt niet of een policy herbruikbaar is, dus
+    // reken met het maximum. Kwam de policy niet mee in de lijst, dan vraagt de
+    // nacontrole straks weer een losse aanroep.
+    const kosten = 3 + (voor.los.has(afwijking.tool) ? 1 : 0);
+    if (gekozen.length === HERSTEL_PER_RONDE || budget < kosten) break;
     gekozen.push(afwijking.tool);
     budget -= kosten;
   }
-  const synchronisatie = await syncCFAccess(permissions, env, gekozen, policies, false);
-  const na = gekozen.length ? await controleerPolicies(permissions, env, gekozen) : { afwijkingen: [] };
+  const synchronisatie = await syncCFAccess(permissions, env, gekozen, undefined, false);
+  // De nacontrole krijgt de losse aanroepen die hierboven voor haar zijn
+  // ingeboekt, plus wat er verder over is.
+  const naReserve = gekozen.filter(file => voor.los.has(file)).length + budget + voor.reserve;
+  const na = gekozen.length
+    ? await controleerPolicies(permissions, env, gekozen, naReserve) : { afwijkingen: [] };
   const afwijkingen = voor.afwijkingen.filter(a => !gekozen.includes(a.tool)).concat(na.afwijkingen);
   const hersteld = gekozen.length - na.afwijkingen.length;
   const resterend = herstelbaar.length - gekozen.length;
