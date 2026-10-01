@@ -5,7 +5,7 @@ en reden; gesloten punten blijven staan.
 
 ## 1. Access-controle liep vast boven 42 apps
 
-- **Status:** open tot de nacontrole na de uitrol (zie onder) is gedaan.
+- **Status:** gesloten op 01-10-2026 12:15 CEST. Reden: uitgerold en in productie nagecontroleerd (zie onder).
 - **Eigenaar:** Sylvain (bouw en onderhoud).
 - **Vindplaats:** `access-beheer-worker.js`, functies `haalAccessApps`,
   `controleerPolicies` en `synchroniseerEnControleer`; tests in
@@ -26,5 +26,10 @@ en reden; gesloten punten blijven staan.
   een vaste reserve. Een ronde blijft in het zwaarste geval op 45 subrequests; de tests
   toetsen dat. `scheduled` bewaart bij een eigen, vaste foutmelding nu die reden in
   plaats van alleen "bekijk de workerlogs".
-- **Nog te doen:** na de uitrol een synchronisatie in beheer laten lopen en vastleggen
-  hoeveel tools na de halve opslagen sinds 30-09-2026 afweken (alleen aantallen).
+- **Nacontrole (01-10-2026):** worker `access-beheer` uitgerold door Sylvain, versie
+  `6eeafbb1-924c-4e7e-b396-bf4ae9d16ef8`, met KV-binding `PERMISSIONS` en cron
+  `0 6 * * *` behouden. Daarna in `beheer.html` **Bestaande rechten synchroniseren**:
+  eindmelding groen, dus geen afwijkingen meer en geen afwijking `*`. Het aantal tools
+  dat door de halve opslagen sinds 30-09-2026 achterliep, is niet vastgelegd. De
+  synchronisatie herstelde het in vervolgrondes, en de status bewaart alleen de laatste
+  ronde. Vast staat dat er na het herstel niets meer afwijkt.
