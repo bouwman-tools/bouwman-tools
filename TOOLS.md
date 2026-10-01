@@ -150,7 +150,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Kantoor in de eigen woning | `/kantoor-in-de-woning.html` | bouwman-tools/kantoor-in-de-woning | ja | 2026-09-28 | Sylvain Bouwman | belastingplan | 2026-09-28 |
 | 🟢 live | Overdracht ouderlijke woning | `/ouderlijke-woning.html` | bouwman-tools/ouderlijke-woning | ja | 2026-09-30 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🔵 concept | Periodiek verrekenbeding | `/verrekenbeding.html` | bouwman-tools/verrekenbeding | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
-| 🔵 concept | Staken of verkopen van de onderneming | `/staken-onderneming.html` | bouwman-tools/staken-onderneming | ja | 2026-10-01 | Sylvain Bouwman | belastingplan | **nooit** |
+| 🟢 live | Staken of verkopen van de onderneming | `/staken-onderneming.html` | bouwman-tools/staken-onderneming | ja | 2026-10-01 | Sylvain Bouwman | belastingplan | **nooit** |
 | 🟢 live | Tijdplan | `/tijdplan.html` | bouwman-tools/tijdplan | ja | 2026-09-08 | Sylvain Bouwman | belastingplan | 2026-09-27 |
 | 🟢 live | WW-uitkering | `/ww-uitkering.html` | bouwman-tools/ww-uitkering | ja | 2026-09-18 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 
