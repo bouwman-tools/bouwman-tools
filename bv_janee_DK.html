@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 10:13</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 13:14</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1931,9 +1931,10 @@ const BVJN = (function () {
     wkr: { grens: 400000, pctLaag: 0.02, pctHoog: 0.0118, eindheffing: 0.80 },
 
     // Tariefsaanpassing aftrekposten (art. 2.10 lid 2 Wet IB 2001)
-    // maxAftrektarief wordt niet in de berekening gebruikt: het volgt uit 49,50% minus
-    // de correctie van 11,94% en staat hier omdat het de uitkomst van de regeling is die
-    // een lezer verwacht terug te zien.
+    // maxAftrektarief volgt uit 49,50% minus de correctie van 11,94%. berekenInbreng
+    // gebruikt het voor de tariefsaanpassing over de stakingswinst (taTarief: het tarief
+    // van de stakingswinst min dit maximum); de overige berekeningen rekenen met grens en
+    // correctie.
     ta: { grens: 78426, correctie: 0.1194, maxAftrektarief: 0.3756 },
 
     // Eigen woning (art. 3.112 / 3.123a Wet IB 2001)
@@ -3165,20 +3166,23 @@ const BVJN = (function () {
 
       // De lijfrentepremie is een uitgave voor een inkomensvoorziening (afdeling 3.7) en
       // komt in mindering op het INKOMEN, niet op de winst. Zij mag daarom door de
-      // belastbare stakingswinst heen zakken en tegen de overige winst van het jaar
-      // worden afgezet; wat daarna nog overblijft is niet in dit jaar te benutten.
-      // Een negatieve belastbare winst wordt tegen de overige winst van het jaar afgezet.
-      // Lijfrente is er dan niet (stakingslijfrente nul, en de overige lijfrente is begrensd
-      // door bruto), dus het onbenutte deel is dan verlies. Winst en verlies vallen in
-      // dezelfde gezamenlijke winst (art. 3.2), dus het verlies verlaagt de BELASTBARE
-      // winst van het jaar: winstJaar na de MKB-winstvrijstelling (art. 3.79a). De
+      // belastbare stakingswinst heen zakken en tegen de overige belastbare winst van het
+      // jaar worden afgezet; wat daarna nog overblijft is niet in dit jaar te benutten.
+      // Een negatieve belastbare winst wordt op dezelfde manier tegen de overige winst van
+      // het jaar afgezet. Lijfrente is er dan niet (stakingslijfrente nul, en de overige
+      // lijfrente is begrensd door bruto), dus het onbenutte deel is dan verlies.
+      // Stakingswinst en jaarwinst vallen in dezelfde gezamenlijke winst (art. 3.2) en de
+      // MKB-winstvrijstelling rekent over dat gezamenlijke bedrag (art. 3.79a), dus de
+      // belastbare winst van het jaar splitst zich zonder rest in winstJaar na zijn deel
+      // van de vrijstelling plus belastbareWinst. De overige belastbare winst is daarom in
+      // elk geval winstJaar min 12,7%, of de stakingswinst nu positief of negatief is. De
       // zelfstandigenaftrek over winstJaar en ander box 1-inkomen kent dit tabblad niet;
-      // ander inkomen zou het verlies eerst nog verder opvangen (art. 3.148 lid 1).
+      // ander inkomen zou een verlies eerst nog verder opvangen (art. 3.148 lid 1).
       const belastbareWinst = naOndernemersaftrek - mkb;
       const naLijfrente = belastbareWinst - lijfrenteTotaal;
       const verlies = belastbareWinst < 0;
       const mkbJaar = i.winstJaar * T.onderneming.mkbVrijstelling;
-      const overigeBelastbaar = verlies ? i.winstJaar - mkbJaar : i.winstJaar;
+      const overigeBelastbaar = i.winstJaar - mkbJaar;
       const tegenOverigeWinst = Math.min(Math.max(0, -naLijfrente), overigeBelastbaar);
       const onbenutTotaal = Math.max(0, -naLijfrente - tegenOverigeWinst);
       const onbenut = verlies ? 0 : onbenutTotaal;
@@ -3204,9 +3208,14 @@ const BVJN = (function () {
       // verlaagt dat inkomen niet. Het maximum van art. 43 lid 3 werkt per jaar over het
       // hele bijdrage-inkomen, dus de gewone jaarwinst vult het maximum als eerste. Een
       // verlies verlaagt het bijdrage-inkomen van het jaar en kan de bijdrage dus verlagen.
-      // Bij een verlies is de grondslag van het jaar de belastbare winst na MKB-vrijstelling.
-      // Bij een positieve stakingswinst rekent de tool nog met winstJaar als basis, zie
-      // OPENSTAAND.md punt 17.
+      // De grondslag van het jaar is ook hier de belastbare winst na MKB-vrijstelling,
+      // overigeBelastbaar; zie OPENSTAAND.md punt 17.
+      // De vrijval van de oudedagsreserve telt hier volledig mee. Art. 43 lid 2 onderdeel b
+      // sluit alleen de afname uit van art. 3.70 lid 1 onderdeel a (zoals dat luidde op
+      // 31-12-2022), de afname die met lijfrentepremie samenhangt. Of de vrijval bij staking,
+      // waarbij geen ondernemingsvermogen overblijft, onder onderdeel b valt en dus meetelt,
+      // ook naast een stakingslijfrente, is nog niet met een bron vastgesteld: zie
+      // OPENSTAAND.md punt 18 (besluit Sylvain Bouwman, 01-10-2026: niet aanpassen zonder bron).
       const zvwBasis = zvwOverGrondslag(Math.max(0, overigeBelastbaar), T.zvw.bijdrage);
       const zvwMet = zvwOverGrondslag(Math.max(0, overigeBelastbaar + belastbareWinst), T.zvw.bijdrage);
       const zvw = zvwMet - zvwBasis;
