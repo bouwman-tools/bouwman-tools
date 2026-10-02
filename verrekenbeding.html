@@ -242,7 +242,7 @@ table input[type="number"] { width: 100%; min-width: 7em; text-align: right; }
       <div>
         <div class="bt-kopbalk-titel">Periodiek verrekenbeding</div>
         <div class="bt-kopbalk-sub">Verrekening van inkomsten tussen partners</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 22:21</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 2 okt 2026, 09:51</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -400,7 +400,9 @@ table input[type="number"] { width: 100%; min-width: 7em; text-align: right; }
       <p class="toelichting">
         Het vermogen van ieder en de verrekenvorderingen uit eerdere jaren die nog niet zijn
         voldaan. Over die vorderingen rekent de tool geen rente. De totalen dienen ook voor de
-        verdeling van een tekort in de periodieke verrekening (art. 1:84 lid 1 BW).
+        verdeling van een tekort in de periodieke verrekening (art. 1:84 lid 1 BW), voor zover
+        de inkomens het tekort niet dekken. De tool telt het vermogen ongeacht de herkomst (eigen keuze); voor
+        geërfd vermogen ging de Hoge Raad van hetzelfde uit (HR 27 januari 2023, ECLI:NL:HR:2023:96).
       </p>
       <div class="rij">
         <div>
@@ -476,7 +478,7 @@ const INKOMENSPOSTEN = [
     // Of het fiscale winstbegrip geldt, hangt af van het beding; een uitleg die bij een
     // beding dat aansluit bij de belastingwetgeving het fiscale begrip volgt, is niet
     // onbegrijpelijk (HR 3 september 2010, ECLI:NL:HR:2010:BM6085).
-    toelichting: 'Sluit het beding niet aan bij het fiscale winstbegrip, laat dan fiscale posten zonder werkelijke inkomsten weg, zoals investeringsaftrek of willekeurige afschrijving.' },
+    toelichting: 'Sluit het beding niet aan bij het fiscale winstbegrip, laat dan fiscale posten zonder werkelijke inkomsten weg, zoals investeringsaftrek of willekeurige afschrijving. Legt het beding het netto-inkomen vast als het fiscaal belastbare inkomen, dan hoort ook toegekende maar niet-uitgekeerde maatschapswinst erbij en komt art. 1:141 lid 4 en 5 BW niet meer aan bod (HR 8 januari 2010, ECLI:NL:HR:2010:BK1618, r.o. 3.4).' },
   { sleutel: 'bvWinst', label: 'Niet-uitgekeerde winst eigen BV, voor zover redelijk', teken: 1,
     // Art. 1:141 lid 4 BW.
     toelichting: 'Art. 1:141 lid 4 BW: alleen als het beding ondernemingswinsten omvat en de partner in overwegende mate bepaalt of de winst hem ten goede komt.' },
@@ -590,6 +592,11 @@ const TEKORTREGELS = ['art-1-84', 'gelijk-delen'];
 const BETAALDE_POSTEN = [
   { sleutel: 'kostenHuishouding', label: 'Betaalde kosten van de huishouding', nietNegatief: true },
   { sleutel: 'voorgeschoten', label: 'Betaalde persoonlijke posten van de andere partner', nietNegatief: true },
+  // Art. 1:84 lid 1 BW noemt "hun eigen inkomens" en beperkt die niet tot wat het beding
+  // verrekent. Inkomsten die het beding uitsluit, zoals vruchten van geërfd vermogen, gaan bij
+  // een tekort dus vóór de vermogens. Dit veld telt uitsluitend mee voor de verdeling van een
+  // tekort; voor het overgespaarde en de verrekening doet het niets.
+  { sleutel: 'inkomstenBuitenBeding', label: 'Netto-inkomsten die het beding niet verrekent (alleen voor een tekort)', nietNegatief: true },
 ];
 
 function berekenPeriodiek(invoer, opties) {
@@ -612,6 +619,7 @@ function berekenPeriodiek(invoer, opties) {
   const netto = partners.map(function (p) { return nettoInkomen(p.posten); });
   const kosten = partners.map(function (p) { return bedrag(p.kostenHuishouding); });
   const voorgeschoten = partners.map(function (p) { return bedrag(p.voorgeschoten); });
+  const buitenBeding = partners.map(function (p) { return bedrag(p.inkomstenBuitenBeding); });
 
   const gezamenlijkInkomen = netto[0].totaal + netto[1].totaal;
   const kostenHuishouding = kosten[0] + kosten[1];
@@ -628,40 +636,56 @@ function berekenPeriodiek(invoer, opties) {
     vordering1 = aandeel - reedsToegekomen[0] + voorschotSaldo;
     if (overschot < 0) {
       meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
-        'Het tekort is hier bij helfte gedeeld, zoals het bronmodel doet. Volgens art. 1:84 lid 1 BW komt een tekort ten laste van de eigen vermogens naar evenredigheid daarvan, tenzij het beding iets anders zegt.' });
+        'Het tekort is hier bij helfte gedeeld, zoals het bronmodel doet. Volgens art. 1:84 lid 1 BW komt een tekort ten laste van de eigen inkomens en daarna van de eigen vermogens naar evenredigheid daarvan, tenzij het beding iets anders zegt.' });
+    }
+    if (buitenBeding[0] + buitenBeding[1] > 0) {
+      meldingen.push({ ernst: 'let op', tekst: 'Netto-inkomsten die het beding niet verrekent zijn ingevuld, maar tellen alleen mee bij een tekort naar art. 1:84 lid 1 BW. Hier hebben zij geen invloed op de uitkomst; dat is een keuze van de tool, want art. 1:84 lid 1 BW kent dit onderscheid niet.' });
     }
   } else {
-    // Art. 1:84 lid 1 BW. De inkomens zijn volledig aan de huishouding opgegaan; het tekort
-    // komt ten laste van de eigen vermogens naar evenredigheid daarvan.
+    // Art. 1:84 lid 1 BW. Er is niets overgespaard: de kosten komen eerst ten laste van de eigen
+    // inkomens naar evenredigheid daarvan, ook de inkomsten die het beding niet verrekent. Reikt
+    // dat niet, dan komt de rest ten laste van de eigen vermogens naar evenredigheid daarvan.
     overgespaard = 0;
     aandeel = 0;
-    const vermogens = (invoer && invoer.vermogens) || [];
-    const v = [vermogens[0], vermogens[1]];
     if (netto[0].totaal < 0 || netto[1].totaal < 0) {
       meldingen.push({ ernst: 'fout', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen en een van de partners heeft een negatief netto-inkomen. ' +
         'Hoe het tekort dan wordt gedragen volgt uit het beding en art. 1:84 lid 1 BW, maar niet eenduidig uit een rekenregel. De tool rekent dit niet uit.' });
       return { meldingen: meldingen };
     }
-    if (!isGetal(v[0]) || !isGetal(v[1]) || v[0] < 0 || v[1] < 0 || v[0] + v[1] <= 0) {
-      meldingen.push({ ernst: 'fout', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
-        'Er is dan niets overgespaard en het tekort komt ten laste van de eigen vermogens naar evenredigheid daarvan (art. 1:84 lid 1 BW). ' +
-        'Vul daarvoor op het blad Vermogensoverzicht het vermogen van beide partners in (samen meer dan nul, geen van beide negatief).' });
-      return { meldingen: meldingen };
-    }
     const tekortBedrag = -overschot;
-    if (tekortBedrag > v[0] + v[1]) {
-      meldingen.push({ ernst: 'fout', tekst: 'Het tekort is groter dan de vermogens van beide partners samen. ' +
-        'Art. 1:84 lid 1 BW geeft dan geen verdeling meer. Bij een beding gelijk aan art. 1:84 achtte de Hoge Raad het betoog dat redelijkheid en billijkheid dan tot een draagplicht bij helfte leiden, een stelling waarop moest worden ingegaan (HR 4 oktober 2019, ECLI:NL:HR:2019:1532). ' +
-        'De tool rekent dit niet uit.' });
-      return { meldingen: meldingen };
+    const inkomen = [netto[0].totaal + buitenBeding[0], netto[1].totaal + buitenBeding[1]];
+    const inkomenSamen = inkomen[0] + inkomen[1];
+    const rest = kostenHuishouding - inkomenSamen;
+    let draagplicht;
+    if (rest <= 0) {
+      // De inkomens dekken de kosten; de vermogens zijn niet nodig.
+      draagplicht = [kostenHuishouding * inkomen[0] / inkomenSamen, kostenHuishouding * inkomen[1] / inkomenSamen];
+      tekort = { bedrag: tekortBedrag, buitenBeding: buitenBeding, restant: 0, vermogens: null, deel: null, draagplicht: draagplicht };
+      meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het netto-inkomen dat het beding verrekent. ' +
+        'Er is niets overgespaard; de kosten zijn verdeeld naar verhouding van alle inkomens, ook die het beding niet verrekent (art. 1:84 lid 1 BW). De vermogens zijn niet nodig. Controleer of het beding iets anders zegt.' });
+    } else {
+      const vermogens = (invoer && invoer.vermogens) || [];
+      const v = [vermogens[0], vermogens[1]];
+      if (!isGetal(v[0]) || !isGetal(v[1]) || v[0] < 0 || v[1] < 0 || v[0] + v[1] <= 0) {
+        meldingen.push({ ernst: 'fout', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
+          'Er is dan niets overgespaard en het tekort komt ten laste van de eigen vermogens naar evenredigheid daarvan (art. 1:84 lid 1 BW). ' +
+          'Vul daarvoor op het blad Vermogensoverzicht het vermogen van beide partners in (samen meer dan nul, geen van beide negatief).' });
+        return { meldingen: meldingen };
+      }
+      if (rest > v[0] + v[1]) {
+        meldingen.push({ ernst: 'fout', tekst: 'Het tekort is groter dan de vermogens van beide partners samen. ' +
+          'Art. 1:84 lid 1 BW geeft dan geen verdeling meer. Bij een beding gelijk aan art. 1:84 achtte de Hoge Raad het betoog dat redelijkheid en billijkheid dan tot een draagplicht bij helfte leiden, een stelling waarop moest worden ingegaan (HR 4 oktober 2019, ECLI:NL:HR:2019:1532). ' +
+          'De tool rekent dit niet uit.' });
+        return { meldingen: meldingen };
+      }
+      const deel = [v[0] / (v[0] + v[1]), v[1] / (v[0] + v[1])];
+      draagplicht = [inkomen[0] + deel[0] * rest, inkomen[1] + deel[1] * rest];
+      tekort = { bedrag: tekortBedrag, buitenBeding: buitenBeding, restant: rest, vermogens: v, deel: deel, draagplicht: draagplicht };
+      meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
+        'Er is niets overgespaard; het tekort is verdeeld naar verhouding van de vermogens (art. 1:84 lid 1 BW). Controleer of het beding iets anders zegt en of bijzondere omstandigheden zich tegen deze verdeling verzetten.' });
     }
-    const deel = [v[0] / (v[0] + v[1]), v[1] / (v[0] + v[1])];
-    const draagplicht = [netto[0].totaal + deel[0] * tekortBedrag, netto[1].totaal + deel[1] * tekortBedrag];
-    tekort = { bedrag: tekortBedrag, vermogens: v, deel: deel, draagplicht: draagplicht };
     // Wat partner 1 meer betaalde dan zijn draagplicht, krijgt hij terug.
     vordering1 = kosten[0] - draagplicht[0] + voorschotSaldo;
-    meldingen.push({ ernst: 'let op', tekst: 'De kosten van de huishouding zijn hoger dan het gezamenlijke netto-inkomen. ' +
-      'Er is niets overgespaard; het tekort is verdeeld naar verhouding van de vermogens (art. 1:84 lid 1 BW). Controleer of het beding iets anders zegt en of bijzondere omstandigheden zich tegen deze verdeling verzetten.' });
   }
 
   const vordering2 = -vordering1;
@@ -726,9 +750,16 @@ function uitkomstVanVordering(vordering1, partners) {
 // ECLI:NL:HR:2020:417): de vermogensgroei is één toelaatbare benadering, niet de enige.
 const VERMOGENSPOSTEN = [
   { sleutel: 'onderneming', label: 'Kapitaalrekening onderneming en reserves BV', teken: 1 },
-  // Eigen keuze van de gebruiker, geen regel van de tool: of en hoe latente belasting van
-  // de waarde afgaat, is niet met een vindplaats vastgesteld (OPENSTAAND.md). Leeg telt als
-  // nul, en dan rekent de tool zonder aftrek.
+  // Keuze van de gebruiker, geen regel van de tool. Voor latente inkomstenbelasting op een
+  // lijfrentepolis rekent de Hoge Raad bij verrekening zelf met de aftrek en neemt hij bij
+  // waardering op de peildatum de belasting nominaal tegen het tarief van die datum (HR 24
+  // februari 2006, ECLI:NL:HR:2006:AU6095, r.o. 3.3.4; HR 23 februari 2018,
+  // ECLI:NL:HR:2018:281, r.o. 3.3.2). Voor een AB-claim onder een periodiek beding past
+  // alleen een lagere rechter dat toe (Rb. Rotterdam 28 februari 2023,
+  // ECLI:NL:RBROT:2023:2055); de aftrek zelf was daar niet in geschil. Bij een doorgeschoven
+  // claim vond de Hoge Raad een oordeel zonder reactie op het betoog over het rentevoordeel
+  // onvoldoende gemotiveerd (HR 22 april 2022, ECLI:NL:HR:2022:583, r.o. 3.3.2; verdeling van
+  // een nalatenschap). Leeg telt als nul, en dan rekent de tool zonder aftrek.
   { sleutel: 'abClaim', label: 'Latente belasting aanmerkelijk belang (AB-claim), als u die aftrekt', teken: -1 },
   { sleutel: 'bank', label: 'Bankrekeningen', teken: 1 },
   { sleutel: 'effecten', label: 'Effecten', teken: 1 },
@@ -746,9 +777,14 @@ const CORRECTIEPOSTEN = [
   // Dit volgt de opbouw van het bronmodel en is een eigen keuze. De achtergrond is art. 13
   // lid 1 Successiewet 1956 (een uitkering bij overlijden geldt als erfrechtelijke
   // verkrijging voor zover zij is toe te rekenen aan een onttrekking aan het vermogen van de
-  // overledene), maar of deze correctie dat fiscale gevolg ook heeft, is niet met een bron
-  // vastgesteld en beoordeelt de tool niet (OPENSTAAND.md). De correctie werkt alleen in de
-  // achterstallige verrekening.
+  // overledene). Of deze correctie dat fiscale gevolg ook heeft, is voor een periodiek
+  // verrekenbeding niet met een bron vast te stellen en beoordeelt de tool niet: HR 19
+  // februari 1997, ECLI:NL:HR:1997:AA3197 (r.o. 3.4 tot en met 3.6) gaat over een overgang
+  // naar algehele gemeenschap zonder verrekenbeding; het besluit premiesplitsing van 14
+  // december 2010, DGB2010/873M, toetst de premieplicht tegenover de verzekeraar (onderdeel
+  // 2.2) en de gevolgen van het huwelijksgoederenregime en van huwelijkse voorwaarden (2.5,
+  // 2.5.2, 2.6). Geen van beide gaat over een correctie bij de afrekening. De
+  // correctie werkt alleen in de achterstallige verrekening.
   { sleutel: 'risicopremies', label: 'Risicopremies op het leven van de andere partner', teken: 1 },
   // Art. 1:133 lid 2 BW: geen verrekening van wat krachtens erfrecht of gift is verkregen,
   // met de vruchten en de zaaksvervanging daarvan.
@@ -1205,8 +1241,8 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'verrekenbeding';
 const TOOLNAAM = 'Periodiek verrekenbeding';
-const TOOLVERSIE = '0.1.0';
-const TOOLDATUM = '2026-09-29';
+const TOOLVERSIE = '0.2.0';
+const TOOLDATUM = '2026-10-02';
 // Versie van het formaat van het dossierbestand, los van de toolversie.
 const DOSSIERFORMAAT = 1;
 
@@ -1227,7 +1263,7 @@ const VINDPLAATSEN = [
   'Art. 1:133 lid 1 BW: de verrekenplicht is wederkerig. Lid 2: erfenissen, schenkingen en de vruchten daarvan vallen buiten de verrekening.',
   'Art. 1:135 lid 1 BW: verrekening bij helfte.',
   'Art. 1:137 lid 1 en lid 2 BW: verrekening in geld; verrekenvorderingen over en weer vallen van rechtswege tegen elkaar weg. Voorschotten en een vordering uit de draagplicht telt de tool bij dat saldo op als samenvatting; art. 1:137 lid 2 BW geldt daarvoor niet.',
-  'Art. 1:84 lid 1 BW: de kosten van de huishouding komen ten laste van het gemene inkomen, dan van de eigen inkomens naar evenredigheid, dan van het gemene vermogen en ten slotte van de eigen vermogens naar evenredigheid, tenzij bijzondere omstandigheden zich daartegen verzetten. Afwijken kan bij schriftelijke overeenkomst (lid 3). Welk vermogen daarbij telt zegt de wet niet; de tool neemt het totaal uit het vermogensoverzicht.',
+  'Art. 1:84 lid 1 BW: de kosten van de huishouding komen ten laste van het gemene inkomen, dan van de eigen inkomens naar evenredigheid, dan van het gemene vermogen en ten slotte van de eigen vermogens naar evenredigheid, tenzij bijzondere omstandigheden zich daartegen verzetten. Afwijken kan bij schriftelijke overeenkomst (lid 3). De wet noemt "hun eigen inkomens" en beperkt die niet tot wat het beding verrekent. Inkomsten die het beding uitsluit, zoals vruchten van geërfd vermogen, gaan bij een tekort dus vóór de vermogens; vul ze in bij "Netto-inkomsten die het beding niet verrekent". Welk vermogen op welk moment telt, zegt de wet niet. De tool neemt als eigen keuze het totaal uit het vermogensoverzicht, ongeacht de herkomst, na aftrek van schulden en met de verrekenposities uit eerdere jaren. Voor geërfd vermogen ging de Hoge Raad van hetzelfde uit (HR 27 januari 2023, ECLI:NL:HR:2023:96, r.o. 3.1.4). Als eigen keuze van de tool: vul het vermogen in zoals het was voordat het tekort werd bestreden.',
   'Is het tekort groter dan de vermogens samen, dan geeft art. 1:84 lid 1 BW geen verdeling meer. Bij een beding gelijk aan art. 1:84 achtte de Hoge Raad het betoog dat redelijkheid en billijkheid dan tot een draagplicht bij helfte leiden, een stelling waarop moest worden ingegaan: HR 4 oktober 2019, ECLI:NL:HR:2019:1532. De tool rekent dat geval niet.',
   'Art. 1:141 lid 1 BW: is over een tijdvak niet verrekend, dan blijft de plicht bestaan en omvat zij ook wat daarmee is belegd en herbelegd, met de vruchten.',
   'Art. 1:141 lid 3 BW: bij het einde van het huwelijk wordt het aanwezige vermogen vermoed te zijn gevormd uit wat verrekend had moeten worden, tenzij uit redelijkheid en billijkheid in het licht van de aard en omvang van de verrekenplicht anders voortvloeit.',
@@ -1235,7 +1271,7 @@ const VINDPLAATSEN = [
   'Art. 1:142 lid 1 BW: peildatum voor samenstelling en omvang van het te verrekenen vermogen bij het einde; voor de gevallen onder b tot en met f kan schriftelijk worden afgeweken (lid 2).',
   'Uitleg van het beding naar de Haviltex-maatstaf; de wet bepaalt niet wat inkomsten zijn: HR 6 oktober 2006, ECLI:NL:HR:2006:AX8847. Bij een beding over zuivere inkomsten is een niet-gerealiseerde waardestijging geen inkomen: HR 2 september 2005, ECLI:NL:HR:2005:AT4537 (uitleg van dat beding).',
   'Het vermoeden van art. 1:141 lid 3 BW gaat alleen over de vraag of het vermogen uit te verrekenen middelen is gefinancierd: HR 8 juni 2012, ECLI:NL:HR:2012:BV9605. Een waardestijging deelt mee via het verrekenbeding en de beleggingsleer (art. 1:141 lid 1 BW; BV9605). Wie verrekening vraagt stelt en bewijst zo nodig omvang en waarde, eventueel met een beschrijving (art. 1:143 BW); wie het vermoeden weerlegt stelt en bewijst dat: HR 19 april 2019, ECLI:NL:HR:2019:637. Er is geen voorgeschreven rekenmethode; de rechter begroot: HR 13 maart 2020, ECLI:NL:HR:2020:417.',
-  'Art. 13 lid 1 Successiewet 1956: een uitkering uit een levensverzekering bij overlijden geldt als erfrechtelijke verkrijging voor zover zij is toe te rekenen aan een onttrekking aan het vermogen van de overledene. De tool telt risicopremies op het leven van de ander bij de betaler; dat is een eigen keuze, en of het dit fiscale gevolg heeft beoordeelt zij niet.',
+  'Art. 13 lid 1 Successiewet 1956: een uitkering uit een levensverzekering bij overlijden geldt als erfrechtelijke verkrijging voor zover zij is toe te rekenen aan een onttrekking aan het vermogen van de overledene. De tool telt risicopremies op het leven van de ander bij de betaler; dat is een eigen keuze. Of de uitkering daardoor buiten art. 13 blijft, hangt af van wie de premie volgens de polis verschuldigd is en van de tekst van uw beding (besluit premiesplitsing van 14 december 2010, DGB2010/873M, onderdelen 2.2 en 2.5), niet van deze correctie. Voor een periodiek verrekenbeding is daarover geen rechtspraak gevonden (het besluit zelf noemt alleen een finaal beding als voorbeeld, onderdeel 2.5.4); die beoordeelt de tool niet.',
   'Wettekst: BW Boek 1, BWBR0002656, versie geldend vanaf 05-07-2025, en Successiewet 1956, BWBR0002226, versie geldend vanaf 01-01-2026, beide gecontroleerd op 29-09-2026.',
 ];
 
@@ -1244,11 +1280,11 @@ const AFBAKENING = [
   'De tool beoordeelt niet welke goederen tot het te verrekenen vermogen horen (art. 1:136 BW) en rekent geen gemengd gefinancierde goederen uit. Vul de bedragen daarvoor zelf in.',
   'De tool rekent geen rente en geen betaling in termijnen (art. 1:140 BW). Wordt de periodieke verrekening niet nagekomen en gold er een termijn, dan kan vanaf de indiening van het echtscheidingsverzoek zonder ingebrekestelling wettelijke rente lopen over de vordering die dan ontstaat (HR 2 december 2011, ECLI:NL:HR:2011:BU6591).',
   'De achterstallige verrekening benadert de verrekenplicht met de vermogensgroei over de periode. Een beginvermogen of een correctie is het tegenbewijs tegen het vermoeden van art. 1:141 lid 3 BW; of dat bewijs slaagt, en of de ingevulde waarden vaststaan, beoordeelt de tool niet. Waardegroei van vermogen van vóór de periode of van een erfenis telt mee zolang u haar niet als correctie aftrekt.',
-  'Of een latente belasting (AB-claim) van de waarde afgaat, is uw keuze; de tool legt daarvoor geen regel op.',
+  'Of een latente belasting (AB-claim) van de waarde afgaat, is uw keuze; de tool legt daarvoor geen regel op. Voor latente belasting op een lijfrentepolis rekent de Hoge Raad bij verrekening wel met die aftrek, nominaal tegen het tarief op de peildatum (HR 24 februari 2006, ECLI:NL:HR:2006:AU6095; HR 23 februari 2018, ECLI:NL:HR:2018:281). Voor een AB-claim onder een periodiek beding is dat alleen door een rechtbank toegepast (Rb. Rotterdam 28 februari 2023, ECLI:NL:RBROT:2023:2055). Bij een doorgeschoven claim vond de Hoge Raad een oordeel zonder reactie op het betoog over het rentevoordeel onvoldoende gemotiveerd (HR 22 april 2022, ECLI:NL:HR:2022:583).',
   'Regelt het beding naast de verrekenplicht een draagplicht voor de kosten van de huishouding, dan kan een te veel of te weinig betaalde bijdrage een eigen vordering geven (HR 8 maart 2024, ECLI:NL:HR:2024:338). De tool rekent die niet apart uit wanneer er iets is overgespaard.',
   'Het vermoeden van art. 1:141 lid 3 BW geldt bij het einde van het huwelijk. Bij inhalen tijdens het huwelijk is de uitkomst een berekening van wat partijen samen vaststellen.',
   'De tool beoordeelt niet welk deel van de winst in een BV of onderneming in het maatschappelijk verkeer als redelijk geldt (art. 1:141 lid 4 en lid 5 BW). Vul het bedrag in dat u redelijk acht.',
-  'De tool verrekent bij helfte (art. 1:135 lid 1 BW). Een beding met ongelijke delen rekent zij niet; wat een echtgenoot dan meer krijgt dan de helft geldt als schenking of, bij overlijden, als erfrechtelijke verkrijging (art. 11 lid 4 Successiewet 1956, voor verrekening tijdens leven nieuw per 1 januari 2026). Het overgangsrecht daarvoor is niet in de tool verwerkt.',
+  'De tool verrekent bij helfte (art. 1:135 lid 1 BW). Een beding met ongelijke delen rekent zij niet; wat een echtgenoot of partner dan meer krijgt dan de helft van de te verrekenen som geldt sinds 1 januari 2026 als schenking of, bij verrekening bij overlijden, als erfrechtelijke verkrijging (art. 11 lid 4 en lid 5 Successiewet 1956). Dat geldt niet voor een beding in huwelijkse voorwaarden of een notarieel samenlevingscontract dat vóór 16 september 2025, 16:00 uur, is aangegaan, zolang het aandeel in de te verrekenen som op of na dat tijdstip niet is gewijzigd (art. XXXIX Wet Belastingplan 2026, Stb. 2025, 444). Of dat overgangsrecht van toepassing is, beoordeelt de tool niet.',
   'Fiscale gevolgen, zoals de erfbelasting over een verrekenvordering of over een verzekeringsuitkering (art. 13 Successiewet 1956), rekent de tool niet uit.',
   'De tool doet geen voorstel en geeft geen advies. Zij rekent de ingevulde situatie door.',
 ];
@@ -1315,10 +1351,14 @@ function bouwUitgang(invoer, reken, kenmerk, datumISO) {
       { label: 'Overgespaarde inkomsten', waarde: per.overgespaard },
       { label: 'Aan ieder komt toe (de helft)', waarde: per.aandeel },
     ].concat(per.tekort ? [
-      { label: 'Tekort, gedragen naar vermogen', waarde: per.tekort.bedrag },
+      { label: 'Tekort op het verrekende netto-inkomen', waarde: per.tekort.bedrag },
+      { label: 'Netto-inkomsten buiten het beding (alleen voor het tekort)', waarden: per.tekort.buitenBeding },
+      { label: 'Rest na de inkomens, gedragen naar vermogen', waarde: per.tekort.restant },
+    ].concat(per.tekort.vermogens ? [
       { label: 'Vermogen voor de verdeling van het tekort', waarden: per.tekort.vermogens },
-      { label: 'Draagplicht kosten van de huishouding', waarden: per.tekort.draagplicht },
     ] : []).concat([
+      { label: 'Draagplicht kosten van de huishouding', waarden: per.tekort.draagplicht },
+    ]) : []).concat([
       { label: 'Per saldo voorgeschoten (plus: te vorderen)', waarden: [per.voorschotSaldo, -per.voorschotSaldo] },
       { label: 'Te vorderen (plus) of verschuldigd (min)', waarden: per.vordering },
       { label: 'Uitkomst', tekst: per.uitkomst.tekst, waarde: per.uitkomst.bedrag, vet: true },
