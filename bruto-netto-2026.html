@@ -148,7 +148,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Bruto-netto 2026</h1>
         <div class="bt-kopbalk-sub">Kern: box 1/2/3 en heffingskortingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 18:57</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 19:18</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -671,6 +671,17 @@ function aftrekVolgensPercentage(voordelenUitEigenWoning, aftrekbareKosten, perc
 
 const BELASTINGJAAR = 2026;
 
+// Afronding. De wet bevat voor 2026 geen afrondingsregel voor de berekende heffing, de
+// heffingskortingen of de bijdrage Zvw (bron-controle 04-10-2026 op wetten.overheid.nl:
+// Wet IB 2001, AWR, Wfsv, Zvw, uitvoeringsregelingen; art. 65 AWR gaat over ambtshalve
+// vermindering en is geen afrondingsregel). Gekozen, op besluit van Sylvain van 04-10-2026
+// en zonder wetsvindplaats, is het gedrag van het bronmodel: heffingen en de bijdrage Zvw
+// naar beneden, heffingskortingen naar boven, telkens op hele euro's. Dat valt steeds
+// in het voordeel van de belastingplichtige uit. De kleine marge vangt drijvende-komma-ruis
+// op bij een bedrag dat precies op een hele euro uitkomt.
+function naBeneden(x) { return Math.floor(x + 1e-9) + 0; } // + 0 voorkomt -0
+function naBoven(x) { return Math.ceil(x - 1e-9) + 0; }
+
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/belastingberekening (2026)
 const BOX1_TARIEF_2026 = {
   schijf1Grens: 38883,          // 2026, Wet IB 2001 art. 2.10
@@ -698,16 +709,17 @@ function berekenIbSchijventarief(inkomenBox1, geborenVoor1946) {
   if (!(inkomenBox1 > 0)) return 0;
   const grens1 = geborenVoor1946 ? BOX1_TARIEF_2026.schijf1GrensVoor1946 : BOX1_TARIEF_2026.schijf1Grens;
   const grens2 = BOX1_TARIEF_2026.schijf2Grens;
+  // Per schijf naar beneden afgerond: zo komt het bronmodel in 27 van 27 casussen uit.
   let ib = 0;
   const deel1 = Math.min(inkomenBox1, grens1);
-  ib += deel1 * BOX1_TARIEF_2026.tariefSchijf1;
+  ib += naBeneden(deel1 * BOX1_TARIEF_2026.tariefSchijf1);
   if (inkomenBox1 > grens1) {
     const deel2 = Math.min(inkomenBox1, grens2) - grens1;
-    ib += deel2 * BOX1_TARIEF_2026.tariefSchijf2;
+    ib += naBeneden(deel2 * BOX1_TARIEF_2026.tariefSchijf2);
   }
   if (inkomenBox1 > grens2) {
     const deel3 = inkomenBox1 - grens2;
-    ib += deel3 * BOX1_TARIEF_2026.tariefSchijf3;
+    ib += naBeneden(deel3 * BOX1_TARIEF_2026.tariefSchijf3);
   }
   return ib;
 }
@@ -774,7 +786,9 @@ function bepaalPremiepercentageBox1(aowStatus, aowDatumIso) {
   }
   if (aowStatus === 'wordt_dit_jaar') {
     const maanden = berekenPremiemaandenAow(aowDatumIso);
-    return aow * (maanden / 12) + anw + wlz;
+    // Het geprorateerde percentage wordt op 0,1%-punt afgerond, zoals het bronmodel doet
+    // (zie ook berekenAowKortingscorrectie).
+    return Math.round((aow * (maanden / 12) + anw + wlz) * 1000) / 1000;
   }
   // 'nog_niet' (of onbekend): volledig premiejaar
   return aow + anw + wlz;
@@ -792,6 +806,8 @@ function bepaalPremiepercentageBox1(aowStatus, aowDatumIso) {
 // toepassing is op de bijdrage Zvw: bij AOW-gerechtigdheid of niet geldt hetzelfde vaste
 // lage Zvw-percentage (4,85%).
 function berekenAowKortingscorrectie(volledigeKorting, aowStatus, aowDatumIso) {
+  // volledigeKorting is hier al naar boven afgerond; de twee delen worden elk naar boven
+  // afgerond, zoals het bronmodel.
   if (!(volledigeKorting > 0)) return volledigeKorting;
   if (aowStatus !== 'voor_1_januari' && aowStatus !== 'wordt_dit_jaar') return volledigeKorting;
   const ibPercentageSchijf1 = BOX1_TARIEF_2026.tariefSchijf1;
@@ -808,8 +824,8 @@ function berekenAowKortingscorrectie(volledigeKorting, aowStatus, aowDatumIso) {
     ? Math.round(premiePercentageGeprorateerdRuw * 1000) / 1000
     : premiePercentageGeprorateerdRuw;
   const noemer = ibPercentageSchijf1 + premiePercentageVolledig;
-  const ibDeel = Math.ceil(volledigeKorting * (ibPercentageSchijf1 / noemer));
-  const premieDeel = Math.ceil(volledigeKorting * (premiePercentageGeprorateerd / noemer));
+  const ibDeel = naBoven(volledigeKorting * (ibPercentageSchijf1 / noemer));
+  const premieDeel = naBoven(volledigeKorting * (premiePercentageGeprorateerd / noemer));
   return Math.min(volledigeKorting, ibDeel + premieDeel);
 }
 
@@ -838,19 +854,22 @@ function berekenBox1Heffing(inkomenBox1, geborenVoor1946, aowStatus, aowDatumIso
   const grens1 = geborenVoor1946 ? BOX1_TARIEF_2026.schijf1GrensVoor1946 : BOX1_TARIEF_2026.schijf1Grens;
   const premiepercentage = bepaalPremiepercentageBox1(aowStatus, aowDatumIso);
   const premieGrondslag = Math.max(0, Math.min(inkomenBox1, grens1));
-  const premieComponent = premieGrondslag * premiepercentage;
+  const premieComponent = naBeneden(premieGrondslag * premiepercentage);
   const correctieHoogsteSchijf = berekenAftrekbeperkingHoogsteSchijf(inkomenBox1, aftrekpostHoogsteSchijf || 0);
   return ibComponent + premieComponent + correctieHoogsteSchijf;
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
+// De korting wordt naar boven afgerond (zie naBoven), ook vóór de AOW-splitsing in
+// berekenAowKortingscorrectie: zo komt het bronmodel in 11 van 12 AOW-uitkomsten van
+// ahk en arbeidskorting uit (het twaalfde is het open punt over de arbeidskortinggrondslag).
 function berekenAlgemeneHeffingskorting(verzamelinkomen) {
   const MAX = 3115;      // 2026
   const DREMPEL = 29736; // 2026
   const AFBOUW_PCT = 0.06398; // 2026
   if (verzamelinkomen <= DREMPEL) return MAX;
   const afbouw = (verzamelinkomen - DREMPEL) * AFBOUW_PCT;
-  return Math.max(0, Math.round(MAX - afbouw));
+  return Math.max(0, naBoven(MAX - afbouw));
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
@@ -870,7 +889,7 @@ function berekenArbeidskorting(grondslag) {
   } else {
     ak = Math.max(0, S123_MAX - (grondslag - S3_GRENS) * AFBOUW_PCT);
   }
-  return Math.round(ak);
+  return naBoven(ak);
 }
 
 // Bron: art. 8.14a lid 1 onder a en lid 2 Wet IB 2001 (versie 01-01-2026, geraadpleegd
@@ -888,7 +907,7 @@ function berekenIack(grondslag, vanToepassing) {
   const PCT = 0.1145;   // 2026
   const MAX = 3032;     // 2026
   if (!(grondslag > DREMPEL)) return 0;
-  return Math.min(Math.ceil((grondslag - DREMPEL) * PCT - 1e-9), MAX);
+  return Math.min(naBoven((grondslag - DREMPEL) * PCT), MAX);
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
@@ -898,7 +917,7 @@ function berekenOuderenkorting(verzamelinkomen, aowGerechtigdEindeJaar) {
   const MAX = 2067;      // 2026
   const AFBOUW_PCT = 0.15; // 2026
   if (verzamelinkomen <= DREMPEL) return MAX;
-  return Math.max(0, Math.round(MAX - (verzamelinkomen - DREMPEL) * AFBOUW_PCT));
+  return Math.max(0, naBoven(MAX - (verzamelinkomen - DREMPEL) * AFBOUW_PCT));
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
@@ -945,7 +964,7 @@ function berekenZvwBijdrage(input, winstNaMkb) {
   const aanslagBelast = Math.min(ruimte, aanslagGrondslag);
 
   const totaleGrondslag = inhoudingBelast + aanslagBelast;
-  return Math.round(totaleGrondslag * PCT);
+  return naBeneden(totaleGrondslag * PCT);
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/winst/inkomstenbelasting/veranderingen-inkomstenbelasting-2026/ondernemersaftrek-2026/zelfstandigenaftrek-2026 (2026)
@@ -981,7 +1000,7 @@ function berekenBox2Heffing(inkomenBox2) {
   if (!(inkomenBox2 > 0)) return 0;
   const deel1 = Math.min(inkomenBox2, GRENS) * PCT_LAAG;
   const deel2 = inkomenBox2 > GRENS ? (inkomenBox2 - GRENS) * PCT_HOOG : 0;
-  return Math.round(deel1 + deel2);
+  return naBeneden(deel1) + naBeneden(deel2);
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2026
@@ -1020,7 +1039,6 @@ function berekenBox3(bank, overig, schulden, alleenstaand) {
   );
 
   const forfaitairInkomenGezamenlijk = Math.max(0, forfaitairRendement * (grondslag - heffingvrijVermogen) / grondslag);
-  const verschuldigdGezamenlijk = Math.ceil(forfaitairInkomenGezamenlijk * TARIEF);
 
   // Bron: art. 2.17 lid 3 Wet IB 2001 (2026): de gezamenlijke grondslag sparen en beleggen
   // wordt geacht bij de belastingplichtige en zijn partner voor de helft tot hun bezit te
@@ -1033,13 +1051,11 @@ function berekenBox3(bank, overig, schulden, alleenstaand) {
   // belastingplichtige. Machinaal geverifieerd tegen het bronmodel (28-09-2026): een
   // partnercasus met € 200.000 bank gaf in het bronmodel forfaitair inkomen € 520 en
   // aanslag € 187 — exact de helft van het gezamenlijke, hier berekende bedrag.
-  if (alleenstaand) {
-    return { forfaitairInkomen: forfaitairInkomenGezamenlijk, verschuldigd: verschuldigdGezamenlijk };
-  }
-  // Bronmodel deelt het gezamenlijke, al afgeronde bedrag (naar boven op hele euro's
-  // afgerond bij de aanslag) door twee en rondt daarbij naar beneden af.
-  const forfaitairInkomen = Math.floor(forfaitairInkomenGezamenlijk / 2);
-  const verschuldigd = Math.floor(verschuldigdGezamenlijk / 2);
+  // Afronding (zie naBeneden): eerst het inkomen per persoon naar beneden op hele euro's,
+  // daarna de heffing over dat afgeronde inkomen, ook naar beneden. Het bronmodel komt zo
+  // uit op € 126 aanslag bij € 351 inkomen (partnercasus) en € 416 bij € 1.157 (alleenstaand).
+  const forfaitairInkomen = naBeneden(alleenstaand ? forfaitairInkomenGezamenlijk : forfaitairInkomenGezamenlijk / 2);
+  const verschuldigd = naBeneden(forfaitairInkomen * TARIEF);
   return { forfaitairInkomen, verschuldigd };
 }
 
@@ -1450,7 +1466,7 @@ function leesInvoer() {
 
 const TOOL_ID = 'bruto-netto-2026';
 const TOOL_NAAM = 'Bruto-netto 2026 — kern (box 1/2/3 en heffingskortingen)';
-const TOOL_VERSIE = '0.1.1';
+const TOOL_VERSIE = '0.1.2';
 const DOSSIER_FORMAATVERSIE = 1;
 
 const AOW_STATUS_NAMEN = {
