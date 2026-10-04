@@ -148,7 +148,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Bruto-netto 2026</h1>
         <div class="bt-kopbalk-sub">Kern: box 1/2/3 en heffingskortingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 19:28</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 19:39</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1032,13 +1032,17 @@ function berekenBox3(bank, overig, schulden, alleenstaand) {
   // Bron: art. 5.2 Wet IB 2001 en de Belastingdienst-pagina "Berekening box 3-inkomen
   // 2026": het forfaitaire rendement over schulden (boven de drempel) wordt van het
   // rendement over bank- en overige bezittingen AFGETROKKEN, niet erbij opgeteld.
-  const forfaitairRendement = Math.max(0,
+  // Afronding volgens het bronmodel (zie naBeneden): het totale rendement naar beneden op
+  // hele euro's, het aandeel boven het heffingvrije vermogen rekenkundig op 4 decimalen
+  // (een percentage met 2 decimalen). Gemeten op 28 meetpunten (04-10-2026), allemaal gelijk.
+  const forfaitairRendement = naBeneden(Math.max(0,
     bankPositief * RENDEMENT_BANK +
     overigPositief * RENDEMENT_OVERIG -
     schuldenBovenDrempel * RENDEMENT_SCHULDEN
-  );
+  ));
+  const aandeelBovenHeffingvrij = Math.round((grondslag - heffingvrijVermogen) / grondslag * 10000) / 10000;
 
-  const forfaitairInkomenGezamenlijk = Math.max(0, forfaitairRendement * (grondslag - heffingvrijVermogen) / grondslag);
+  const forfaitairInkomenGezamenlijk = Math.max(0, forfaitairRendement * aandeelBovenHeffingvrij);
 
   // Bron: art. 2.17 lid 3 Wet IB 2001 (2026): de gezamenlijke grondslag sparen en beleggen
   // wordt geacht bij de belastingplichtige en zijn partner voor de helft tot hun bezit te
@@ -1471,7 +1475,7 @@ function leesInvoer() {
 
 const TOOL_ID = 'bruto-netto-2026';
 const TOOL_NAAM = 'Bruto-netto 2026 — kern (box 1/2/3 en heffingskortingen)';
-const TOOL_VERSIE = '0.1.2';
+const TOOL_VERSIE = '0.1.3';
 const DOSSIER_FORMAATVERSIE = 1;
 
 const AOW_STATUS_NAMEN = {
