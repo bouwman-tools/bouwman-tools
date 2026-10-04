@@ -148,7 +148,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Bruto-netto 2026</h1>
         <div class="bt-kopbalk-sub">Kern: box 1/2/3 en heffingskortingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:39</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 18:57</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -242,8 +242,11 @@
       <label>Andere uitkeringen (ANW/IOAW/IOW/WAO/WIA/WW)
         <input type="number" id="andereUitkeringen" value="0" step="1">
       </label>
-      <label>Overige belaste inkomsten box 1
+      <label>Overige belaste inkomsten box 1 (ook ontvangen partneralimentatie)
         <input type="number" id="overigeBelasteInkomstenBox1" value="0" step="1">
+      </label>
+      <label>Resultaat uit overige werkzaamheden (niet tbs)
+        <input type="number" id="resultaatOverigeWerkzaamheden" value="0" step="1">
       </label>
     </div>
   </fieldset>
@@ -870,18 +873,22 @@ function berekenArbeidskorting(grondslag) {
   return Math.round(ak);
 }
 
-// Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
-// Aanname: het gepubliceerde percentage van 11,45% rondt af; hier wordt de exacte
-// breuk gebruikt (max / (top - drempel)) zodat het opbouwtraject het gepubliceerde
-// maximum precies bereikt bij de gepubliceerde grondslag (€ 32.710). Zie OPENSTAAND.md.
+// Bron: art. 8.14a lid 1 onder a en lid 2 Wet IB 2001 (versie 01-01-2026, geraadpleegd
+// 04-10-2026): 11,45% van het arbeidsinkomen boven € 6.239, doch niet meer dan € 3.032.
+// Het percentage is het wettelijke percentage zelf; de eerdere exacte breuk
+// max / (top - drempel) had geen wettelijke basis. Het ongeafgeronde maximum wordt dan
+// bereikt bij € 32.719,35; de € 32.710 van de Belastingdienst-pagina staat niet in de wet.
+// Afronding: de wet bevat geen afrondingsregel voor een heffingskorting. Hier wordt, als
+// modelgedrag en niet als wetsregel, naar boven afgerond op hele euro's: het bronmodel
+// komt zo in 17 van 17 meetpunten (grondslag 6.239 t/m 60.000, 04-10-2026) exact uit.
+// Zie OPENSTAAND.md.
 function berekenIack(grondslag, vanToepassing) {
   if (!vanToepassing) return 0;
   const DREMPEL = 6239; // 2026
-  const TOP = 32710;    // 2026
+  const PCT = 0.1145;   // 2026
   const MAX = 3032;     // 2026
   if (!(grondslag > DREMPEL)) return 0;
-  const pct = MAX / (TOP - DREMPEL);
-  return Math.round(Math.min((grondslag - DREMPEL) * pct, MAX));
+  return Math.min(Math.ceil((grondslag - DREMPEL) * PCT - 1e-9), MAX);
 }
 
 // Bron: https://www.belastingdienst.nl/wps/wcm/connect/nl/voorlopige-aanslag/content/voorlopige-aanslag-tarieven-en-heffingskortingen (2026)
@@ -912,6 +919,9 @@ function berekenJonggehandicaptenkorting(jgkVanToepassing, ouderenkorting) {
 // de werkgever/uitkeringsinstantie. Wat overblijft wordt eerst gevuld met de
 // "inhouding"-grondslag (pensioen/AOW/lijfrente/DGA-salaris) en pas daarna met de
 // "aanslag"-grondslag.
+// Het resultaat uit overige werkzaamheden (niet tbs) telt mee in de aanslaggrondslag
+// (art. 43 Zvw, zie de vindplaatsenlijst van de afdruk); gemeten tegen het bronmodel op
+// 04-10-2026: € 10.000 resultaat geeft € 485 bijdrage (4,85%).
 // winstNaMkb: winst uit onderneming ná investeringsaftrek, bijtelling auto ondernemer,
 // zelfstandigenaftrek én MKB-winstvrijstelling. De Zvw-aanslaggrondslag voor winst uit
 // onderneming is de winst ná deze aftrekposten, niet de brutowinst; bijtelling zit dus al
@@ -926,7 +936,7 @@ function berekenZvwBijdrage(input, winstNaMkb) {
     (input.lijfrenteUitkering || 0) + (input.salarisDga || 0)
   );
   const aanslagGrondslag = Math.max(0,
-    (input.overigeBelasteInkomstenBox1 || 0) + (winstNaMkb || 0)
+    (input.overigeBelasteInkomstenBox1 || 0) + (input.resultaatOverigeWerkzaamheden || 0) + (winstNaMkb || 0)
   );
 
   let ruimte = Math.max(0, MAX_GRONDSLAG - werknemersgroep);
@@ -1033,13 +1043,16 @@ function berekenBox3(bank, overig, schulden, alleenstaand) {
   return { forfaitairInkomen, verschuldigd };
 }
 
-// Grondslag arbeidskorting/iack (art. 8.11 lid 1 Wet IB 2001, "arbeidsinkomen"): loon uit
-// dienstbetrekking (inclusief het loon van een DGA, dat fiscaal ook loon uit
-// dienstbetrekking is) + resultaat overige werkzaamheden (niet als los invoerveld
-// opgenomen in deze kern-scope, dus 0) + winst uit onderneming na ondernemersaftrek, niet
-// lager dan 0.
-function berekenArbeidskortingGrondslag(loonSvw, salarisDga, winstNaOndernemersaftrek) {
-  return Math.max(0, (loonSvw || 0) + (salarisDga || 0) + (winstNaOndernemersaftrek || 0));
+// Grondslag arbeidskorting/iack: "arbeidsinkomen" volgens art. 8.1 lid 1 onder e Wet IB
+// 2001 (met lid 2); art. 8.11 lid 1 bepaalt alleen dat de arbeidskorting daarover geldt
+// (vindplaats gecontroleerd 04-10-2026). Loon uit dienstbetrekking (inclusief het loon van
+// een DGA, dat fiscaal ook loon uit dienstbetrekking is) + resultaat uit overige
+// werkzaamheden (niet tbs) + winst uit onderneming na ondernemersaftrek, niet lager dan 0.
+// Gemeten tegen het bronmodel (04-10-2026): € 10.000 resultaat overige werkzaamheden
+// verhoogt daar arbeidskorting en iack, ontvangen partneralimentatie niet.
+function berekenArbeidskortingGrondslag(loonSvw, salarisDga, winstNaOndernemersaftrek, resultaatOverigeWerkzaamheden) {
+  return Math.max(0, (loonSvw || 0) + (salarisDga || 0) + (winstNaOndernemersaftrek || 0) +
+    (resultaatOverigeWerkzaamheden || 0));
 }
 
 function berekenCompleet(input) {
@@ -1071,6 +1084,7 @@ function berekenCompleet(input) {
     (input.lijfrenteUitkering || 0) +
     (input.andereUitkeringen || 0) +
     (input.overigeBelasteInkomstenBox1 || 0) +
+    (input.resultaatOverigeWerkzaamheden || 0) +
     eigenwoningforfait -
     (input.renteEigenWoning || 0) -
     aftrekGeenOfGeringeEigenwoningschuld +
@@ -1104,10 +1118,17 @@ function berekenCompleet(input) {
   const box3 = berekenBox3(input.box3Bank, input.box3Overig, input.box3Schulden, input.alleenstaand);
 
   // Verzamelinkomen vóór verliesverrekening box 1, voor de afbouw van ahk en ouderenkorting.
+  // Bron: art. 8.10 lid 2 en art. 8.17 lid 2 Wet IB 2001 ("verzamelinkomen") met art. 2.18
+  // (inkomen uit werk en woning, aanmerkelijk belang en het belastbare inkomen uit sparen en
+  // beleggen) en art. 3.1 lid 1 en 2 (verliesverrekening werkt pas op het belastbare
+  // inkomen); geraadpleegd 04-10-2026. Bevestigd tegen het bronmodel: een box 1-verlies
+  // verlaagt het box 1-inkomen maar laat de ahk gelijk; box 2 en box 3 tellen mee.
+  // inkomenBox2 moet dus het inkomen uit aanmerkelijk belang vóór verliesverrekening zijn.
   const verzamelinkomenVoorVerliesverrekening =
     box1Inkomen + (input.verrekeningVerliesBox1 || 0) + box2Inkomen + box3.forfaitairInkomen;
 
-  const akGrondslag = berekenArbeidskortingGrondslag(input.loonSvw, input.salarisDga, winstNaOndernemersaftrek);
+  const akGrondslag = berekenArbeidskortingGrondslag(
+    input.loonSvw, input.salarisDga, winstNaOndernemersaftrek, input.resultaatOverigeWerkzaamheden);
 
   const ahkVolledig = berekenAlgemeneHeffingskorting(verzamelinkomenVoorVerliesverrekening);
   const akVolledig = berekenArbeidskorting(akGrondslag);
@@ -1129,7 +1150,8 @@ function berekenCompleet(input) {
   const brutoTotaal =
     (input.loonSvw || 0) + (input.aowUitkering || 0) + (input.pensioenUitkering || 0) +
     (input.lijfrenteUitkering || 0) + (input.andereUitkeringen || 0) +
-    (input.overigeBelasteInkomstenBox1 || 0) + (input.winstOnderneming || 0) +
+    (input.overigeBelasteInkomstenBox1 || 0) + (input.resultaatOverigeWerkzaamheden || 0) +
+    (input.winstOnderneming || 0) +
     (input.salarisDga || 0) + (input.inkomenBox2 || 0);
 
   const netto = brutoTotaal - ibTotaalNaKortingen - zvw;
@@ -1400,6 +1422,7 @@ function leesInvoer() {
     lijfrenteUitkering: num('lijfrenteUitkering'),
     andereUitkeringen: num('andereUitkeringen'),
     overigeBelasteInkomstenBox1: num('overigeBelasteInkomstenBox1'),
+    resultaatOverigeWerkzaamheden: num('resultaatOverigeWerkzaamheden'),
     woz: num('woz'),
     renteEigenWoning: num('renteEigenWoning'),
     winstOnderneming: num('winstOnderneming'),
@@ -1427,7 +1450,7 @@ function leesInvoer() {
 
 const TOOL_ID = 'bruto-netto-2026';
 const TOOL_NAAM = 'Bruto-netto 2026 — kern (box 1/2/3 en heffingskortingen)';
-const TOOL_VERSIE = '0.1.0';
+const TOOL_VERSIE = '0.1.1';
 const DOSSIER_FORMAATVERSIE = 1;
 
 const AOW_STATUS_NAMEN = {
@@ -1455,7 +1478,10 @@ const INVOERVELDEN = [
   { sleutel: 'pensioenUitkering', label: 'Pensioenuitkering', soort: 'bedrag', domSoort: 'getal' },
   { sleutel: 'lijfrenteUitkering', label: 'Lijfrente-uitkering (belast)', soort: 'bedrag', domSoort: 'getal' },
   { sleutel: 'andereUitkeringen', label: 'Andere uitkeringen (ANW/IOAW/IOW/WAO/WIA/WW)', soort: 'bedrag', domSoort: 'getal' },
-  { sleutel: 'overigeBelasteInkomstenBox1', label: 'Overige belaste inkomsten box 1', soort: 'bedrag', domSoort: 'getal' },
+  { sleutel: 'overigeBelasteInkomstenBox1', label: 'Overige belaste inkomsten box 1 (ook ontvangen partneralimentatie)', soort: 'bedrag', domSoort: 'getal' },
+  // Later toegevoegd (04-10-2026): optioneel, zodat een dossierbestand van vóór dit veld
+  // (zonder het veld) blijft openen en het veld dan 0 krijgt, wat het toen ook was.
+  { sleutel: 'resultaatOverigeWerkzaamheden', label: 'Resultaat uit overige werkzaamheden (niet tbs)', soort: 'bedrag', domSoort: 'getal', optioneel: true, standaard: 0 },
   { sleutel: 'woz', label: 'WOZ-waarde eigen woning', soort: 'bedrag', domSoort: 'getal' },
   { sleutel: 'renteEigenWoning', label: 'Aftrekbare rente eigenwoning', soort: 'bedrag', domSoort: 'getal' },
   { sleutel: 'winstOnderneming', label: 'Winst uit onderneming (vóór ondernemersaftrek, investeringsaftrek en autobijtelling)', soort: 'bedrag', domSoort: 'getal' },
@@ -1754,6 +1780,10 @@ function leesDossier(tekst) {
   const ruweInvoer = {};
   INVOERVELDEN.forEach(function (veld) {
     const waarde = rauw.invoer[veld.sleutel];
+    if (waarde === undefined && veld.optioneel) {
+      ruweInvoer[veld.sleutel] = veld.standaard;
+      return;
+    }
     if (veldGeldig(veld, waarde, gebreken)) ruweInvoer[veld.sleutel] = waarde;
   });
 
