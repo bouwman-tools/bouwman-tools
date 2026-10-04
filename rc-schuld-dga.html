@@ -1151,7 +1151,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-schuld DGA</h1>
         <div class="bt-kopbalk-sub">Aflossingsroutes rekening-courantschuld via privéstorting en dividend</div>
-        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 21:14</div>
+        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 21:35</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -2790,6 +2790,14 @@ function simulateRoute(inp, policy) {
     var netto = rows[i].box2Total - rows[i].lossRefundReceived;
     pvTax += netto / disc;
     pvAll += (netto + rows[i].interestTotal) / disc;
+  }
+  // Een teruggaaf van na het laatste getoonde jaar komt in het jaar ná de route
+  // binnen (index rows.length) en verlaagt de heffing zoals `taxCost` al doet.
+  // Zonder deze aftrek miste de contante waarde die teruggaaf, en liep de rangschikking via `taxCostPV` achter op `taxCost`.
+  if (refundAfterHorizon > 0) {
+    var pvNa = refundAfterHorizon / Math.pow(1 + inp.discountRate, rows.length);
+    pvTax -= pvNa;
+    pvAll -= pvNa;
   }
 
   var route = {
