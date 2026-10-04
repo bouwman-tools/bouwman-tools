@@ -1151,7 +1151,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-schuld DGA</h1>
         <div class="bt-kopbalk-sub">Aflossingsroutes rekening-courantschuld via privéstorting en dividend</div>
-        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 20:36</div>
+        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 21:14</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1356,7 +1356,7 @@
         <div class="input-group-title">Wet excessief lenen bij de eigen vennootschap</div>
         <div class="input-grid">
           <div>
-            <label for="excessiveMax">Basisdrempel excessief lenen</label>
+            <label for="excessiveMax">Maximumbedrag excessief lenen</label>
             <input id="excessiveMax" type="number" value="500000" step="0.01" min="0" />
             <div class="field-hint">€ 500.000 vanaf 2024, niet geïndexeerd. Geldt voor de DGA en de fiscale partner <strong>gezamenlijk</strong> — anders dan de eerste box 2-schijf, die per persoon geldt.</div>
           </div>
@@ -1368,7 +1368,7 @@
           <div>
             <label for="priorFictief">Eerder in aanmerking genomen fictief regulier voordeel</label>
             <input id="priorFictief" type="number" value="0" step="0.01" min="0" />
-            <div class="field-hint">Verhoogt de basisdrempel; maakt een negatief fictief voordeel bij aflossing mogelijk.</div>
+            <div class="field-hint">Verhoogt het maximumbedrag; maakt een negatief fictief voordeel bij aflossing mogelijk.</div>
           </div>
           <div>
             <label for="excessiveOn">Regeling meenemen in de berekening</label>
@@ -1902,7 +1902,7 @@ var TAX_CONFIG = {
     vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 67.000 per persoon tegen 24,5%, daarboven 33% (art. 2.12 Wet IB 2001, tekst 1-1-2024). ' +
-          'Basisdrempel Wet excessief lenen verlaagd van € 700.000 naar € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2024).'
+          'Maximumbedrag Wet excessief lenen verlaagd van € 700.000 naar € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2024).'
   },
   2025: {
     label: '2025',
@@ -1915,7 +1915,7 @@ var TAX_CONFIG = {
     vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 67.804 per persoon tegen 24,5%, daarboven 31%; het hoge tarief is verlaagd van 33% naar 31% ' +
-          '(art. 2.12 Wet IB 2001, tekst 1-1-2025). Basisdrempel Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2025).'
+          '(art. 2.12 Wet IB 2001, tekst 1-1-2025). Maximumbedrag Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2025).'
   },
   2026: {
     label: '2026',
@@ -1928,7 +1928,7 @@ var TAX_CONFIG = {
     vpbHighRate: 0.258,
     excessiveLoanMaxAmount: 500000,
     note: 'Eerste schijf € 68.843 per persoon tegen 24,5%, daarboven 31% (art. 2.12 Wet IB 2001, tekst 1-1-2026). ' +
-          'Basisdrempel Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2026).'
+          'Maximumbedrag Wet excessief lenen € 500.000 (art. 4.14a lid 2 Wet IB 2001, tekst 1-1-2026).'
   },
   2027: {
     label: '2027 · scenariojaar',
@@ -1962,7 +1962,9 @@ function getTaxConfig(year) {
   if (!cfg) {
     var gevraagd = (year === '' || year === null || year === undefined) ? '(leeg)' : String(year);
     throw new Error('Belastingjaar ' + gevraagd + ' zit niet in de tarieventabel; ' +
-                    'kies een jaar uit de lijst (' + Object.keys(TAX_CONFIG).sort().join(', ') + ').');
+                    'kies een jaar uit de lijst (' + Object.keys(TAX_CONFIG).sort().filter(function (k) {
+                      return TAX_CONFIG[k].status !== 'historisch';
+                    }).join(', ') + ').');
   }
   return cfg;
 }
@@ -2032,11 +2034,11 @@ function taxForYear(gross, fictiefVoordeel, lossCarryIn, lowBracketAvail, lowRat
 }
 
 /* ─────────── 3. WET EXCESSIEF LENEN BIJ DE EIGEN VENNOOTSCHAP ──────────────
-   Peildatum 31 december (art. 4.14a lid 4 Wet IB 2001). De basisdrempel
+   Peildatum 31 december (art. 4.14a lid 4 Wet IB 2001). Het maximumbedrag
    wordt verhoogd met het eerder in de heffing betrokken bedrag (lid 2); bij
    aflossing ontstaat een negatief fictief regulier voordeel (lid 1 onderdeel b),
    maar nooit meer dan wat eerder in aanmerking is genomen.
-   De basisdrempel geldt voor de belastingplichtige en zijn partner
+   Het maximumbedrag geldt voor de belastingplichtige en zijn partner
    gezamenlijk (lid 3) — anders dan de eerste box 2-schijf, die per persoon geldt.
    ─────────────────────────────────────────────────────────────────────────── */
 function excessiveLoanStep(cumulativePrior, relevantDebtAtYearEnd, baseMaxAmount) {
@@ -4425,9 +4427,9 @@ function renderGates(res) {
   var ex = res.excessive;
   html += '<div class="gate ' + (ex.exceeds ? 'gate-fail' : 'gate-ok') + '">' +
           '<span class="gate-icon">' + (ex.exceeds ? '!' : '✓') + '</span><span>' +
-          'Wet excessief lenen: relevante schulden ' + euro(ex.relevantDebt) + ' tegenover een basisdrempel van ' + euro(ex.maxAmount) +
+          'Wet excessief lenen: relevante schulden ' + euro(ex.relevantDebt) + ' tegenover een maximumbedrag van ' + euro(ex.maxAmount) +
           (ex.exceeds
-            ? ' — <strong>overschrijding van ' + euro(ex.excess) + '. Blijft de schuld op 31 december boven de basisdrempel, dan wordt het meerdere als fictief regulier voordeel in box 2 belast.</strong>'
+            ? ' — <strong>overschrijding van ' + euro(ex.excess) + '. Blijft de schuld op 31 december boven het maximumbedrag, dan wordt het meerdere als fictief regulier voordeel in box 2 belast.</strong>'
             : '.') +
           '</span></div>';
   return html;
@@ -4500,7 +4502,9 @@ function renderRouteCard(route, inp, opts) {
       '<em>Het moment van ontvangst is een aanname van deze tool en geen wettelijke betaaltermijn:</em> de teruggaaf ' +
       'staat in het jaar ná het verliesjaar, omdat de aangifte over het verliesjaar dan de deur uit gaat en daarop ' +
       'de verliesverrekeningsbeschikking en de vermindering van de eerdere aanslag volgen. Loopt dat in werkelijkheid ' +
-      'anders, dan verschuift alleen het tijdstip en niet het bedrag.' +
+      'anders, dan verschuift alleen het tijdstip en niet het bedrag. ' +
+      '<em>Ook is aangenomen dat de DGA de teruggaaf opnieuw inzet voor aflossing:</em> zij komt in de privékas en is daar beschikbaar, ' +
+      'waardoor het benodigde dividend iets lager uitvalt.' +
       (route.lossRefundAfterHorizon > 1
         ? ' Van de teruggaaf valt ' + euro(route.lossRefundAfterHorizon) + ' na het laatste getoonde jaar; die is in de heffing verwerkt maar staat in geen enkel jaar hierboven.'
         : ''));
@@ -5230,14 +5234,14 @@ function renderAdvies(res) {
   }
   if (res.excessive.exceeds) {
     html += signal('warn', '<strong>Wet excessief lenen: de grens wordt overschreden.</strong> De relevante schulden aan de eigen vennootschap bedragen ' +
-      euro(res.excessive.relevantDebt) + ' tegenover een basisdrempel van ' + euro(res.excessive.maxAmount) + '. ' +
+      euro(res.excessive.relevantDebt) + ' tegenover een maximumbedrag van ' + euro(res.excessive.maxAmount) + '. ' +
       (res.excessive.modelled
-        ? 'De tool rekent het fictieve reguliere voordeel per 31 december mee in de routes hieronder. Let op: de basisdrempel geldt voor de DGA en de fiscale partner <em>gezamenlijk</em> — anders dan de eerste box 2-schijf, die per persoon geldt.'
+        ? 'De tool rekent het fictieve reguliere voordeel per 31 december mee in de routes hieronder. Let op: het maximumbedrag geldt voor de DGA en de fiscale partner <em>gezamenlijk</em> — anders dan de eerste box 2-schijf, die per persoon geldt.'
         : 'Het fictieve reguliere voordeel wordt <strong>niet</strong> meegerekend omdat dat in de geavanceerde instellingen is uitgeschakeld. De uitkomsten hieronder zijn daarmee te gunstig.') +
       ' Beoordeel ook de eigenwoningschuld-uitzondering en schulden van verbonden personen; die rekent de tool niet zelfstandig uit.');
   } else if (res.excessive.exceedsDuringRoute) {
     html += signal('warn', '<strong>Wet excessief lenen: de grens wordt tijdens de route overschreden.</strong> De relevante schulden bedragen nu ' +
-      euro(res.excessive.relevantDebt) + ' tegenover een basisdrempel van ' + euro(res.excessive.maxAmount) +
+      euro(res.excessive.relevantDebt) + ' tegenover een maximumbedrag van ' + euro(res.excessive.maxAmount) +
       ' en blijven daarmee vandaag onder het maximumbedrag. Op een latere peildatum van 31 december niet: de aanbevolen route kent een fictief regulier voordeel van maximaal ' +
       euro(res.excessive.peakFictief) + ' in één jaar. De regeling meet elk jaar opnieuw per 31 december (art. 4.14a lid 4 Wet IB 2001); rente en nieuwe onttrekkingen tellen daarin mee. ' +
       'Beoordeel ook de eigenwoningschuld-uitzondering en schulden van verbonden personen; die rekent de tool niet zelfstandig uit.');
@@ -5322,9 +5326,9 @@ function renderAannames(res) {
     ['RC-rente', pctRaw(inp.rcInterestRate) + ' per jaar'],
     ['Moment van aflossing', inp.timingMonths + ' maanden na jaarbegin'],
     ['Verwachte onttrekking per jaar', inp.withdrawalAnnual > 0
-      ? euro(inp.withdrawalAnnual) + ' — geboekt bij jaarbegin, vóór aflossing en peildatum'
+      ? euro(inp.withdrawalAnnual) + ' — geboekt bij jaarbegin, vóór aflossing en peildatum; consumptief: komt niet terug als privégeld'
       : 'geen — de DGA neemt tijdens de route niets nieuws op'],
-    ['Basisdrempel excessief lenen', euro(inp.excessiveMax) + (inp.excessiveLoanOn ? ' — doorgerekend' : ' — alleen gesignaleerd')],
+    ['Maximumbedrag excessief lenen', euro(inp.excessiveMax) + (inp.excessiveLoanOn ? ' — doorgerekend' : ' — alleen gesignaleerd')],
     ['Vrij uitkeerbaar vermogen', isFinite(inp.distributable) ? euro(inp.distributable) : 'niet als beperking opgegeven'],
     ['Maximale looptijd', inp.maxYears + ' jaar'],
     ['Discontovoet', inp.discountRate > 0 ? pctRaw(inp.discountRate) : 'geen — bedragen nominaal opgeteld'],
@@ -5360,7 +5364,7 @@ function renderAannames(res) {
   html += '<p class="blok-intro">' +
     'Art. 2.12 Wet IB 2001 (tarief en eerste schijf box 2) · art. 2.17 Wet IB 2001 (gemeenschappelijk inkomensbestanddeel en vrije toerekening tussen fiscale partners) · ' +
     'art. 9.2 en 9.4 Wet IB 2001 (dividendbelasting als voorheffing en verrekening) · art. 5 en 7 Wet DB 1965 (tarief 15%, inhoudingsplicht en afdracht op aangifte) · ' +
-    'art. 19 AWR (afdracht binnen één maand na terbeschikkingstelling) · art. 4.13 lid 1 onderdeel f en art. 4.14a t/m 4.14d Wet IB 2001 (Wet excessief lenen; basisdrempel € 500.000 vanaf 2024, gezamenlijk met de fiscale partner, peildatum 31 december) · ' +
+    'art. 19 AWR (afdracht binnen één maand na terbeschikkingstelling) · art. 4.13 lid 1 onderdeel f en art. 4.14a t/m 4.14d Wet IB 2001 (Wet excessief lenen; maximumbedrag € 500.000 vanaf 2024, gezamenlijk met de fiscale partner, peildatum 31 december) · ' +
     'art. 4.49 Wet IB 2001 (verrekening van verlies uit aanmerkelijk belang met het voorafgaande en de zes volgende jaren) · ' +
     'art. 10.1 Wet IB 2001 (jaarlijkse indexering van de eerste schijf) · art. 22 Wet Vpb 1969 (Vpb-tarieven 19% en 25,8%, alleen gebruikt in de kaart Economische vergelijking) · ' +
     'art. 2:216 BW (balanstest, goedkeuring bestuur, uitkeringstest en aansprakelijkheid) · art. 6:127 BW (verrekening). ' +
@@ -5482,7 +5486,7 @@ function setMode(mode) {
 
    TOOL_VERSIE verhoog je bij elke wijziging die een uitkomst of de afdruk verandert; de
    vrijgavenotitie van die dag noemt het nummer. */
-var TOOL_VERSIE = '2026.09.27';
+var TOOL_VERSIE = '2026.10.04';
 var LAST_INVOER = null;
 
 function veldLabel(veld) {
@@ -5554,7 +5558,7 @@ function afwijkendeTarieven(res) {
     ['Hoog box 2-tarief', inp.highRate, cfg.box2HighRate, pctRaw],
     ['Eerste schijf per persoon', inp.bracketPerPerson, cfg.box2LowBracket, euro],
     ['Dividendbelasting', inp.dividendTaxRate, cfg.dividendTaxRate, pctRaw],
-    ['Basisdrempel excessief lenen', inp.excessiveMax, cfg.excessiveLoanMaxAmount, euro]
+    ['Maximumbedrag excessief lenen', inp.excessiveMax, cfg.excessiveLoanMaxAmount, euro]
   ];
   for (var i = 0; i < paren.length; i++) {
     if (Math.abs(paren[i][1] - paren[i][2]) > 1e-9) {
