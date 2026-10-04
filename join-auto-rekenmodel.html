@@ -405,7 +405,7 @@
       <div>
         <div class="bt-kopbalk-titel">Auto van de zaak of privé</div>
         <div class="bt-kopbalk-sub">Rekenmodel 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 14:40</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 15:04</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -861,7 +861,7 @@
         <li>Voor de werknemer is een eigen bijdrage voor privégebruik niet meegenomen.</li>
         <li>Er is geen schijvenlogica in box 1 of box 2: de tarieven zijn invoer.</li>
         <li>De tool rekent in hele maanden, behalve de ene maand waarin een auto de youngtimergrens passeert: die is pro rata op dagen gerekend, elk deel tegen het eigen tarief. De verjaardag van de grens telt als laatste dag van het oude regime. Voor de inkomstenbelasting is die dagverdeling niet apart bevestigd, en bij een toelating op 29 februari valt de verjaardag in een jaar zonder schrikkeldag op 1 maart (een gemotiveerde keuze, geen vastgestelde regel).</li>
-        <li>De nulemissiekorting wordt bij een auto in het youngtimerregime niet toegepast; of dat klopt is niet vastgesteld.</li>
+        <li>Bij een volledig elektrische of waterstofauto in het youngtimerregime geldt de nulemissiekorting over de waarde in het economische verkeer, met ankerjaar en 60-maandentermijn naar de datum eerste tenaamstelling. De korting volgt uit art. 3.20 lid 2 Wet IB 2001; het anker uit het Handboek Loonheffingen 2026. De wet noemt sinds 2026 alleen de eerste toelating als anker (lid 11), dus dat onderdeel steunt op het Handboek.</li>
         <li>Een boekwinst bij verkoop wordt niet berekend.</li>
         <li>Een herziening van de vermogensetikettering per 2027 (KG:213:2026:1) is niet verwerkt; de tool signaleert alleen verplichte etikettering.</li>
         <li>De pseudo-eindheffing voor de werkgever wordt gesignaleerd, niet berekend.</li>
@@ -2480,7 +2480,12 @@ function regulierBijtellingPct(datumToelating) {
 
 // Ankerdatum voor het 60-maandenregime:
 //   · datum eerste toelating vanaf 01-01-2017   — art. 3.20 lid 11 Wet IB 2001
-//   · eerste tenaamstelling bij toelating t/m 31-12-2016 — art. 10a.4 lid 2
+//   · eerste tenaamstelling bij toelating t/m 31-12-2016 — Handboek Loonheffingen
+//     2026, par. 23.3.4. Let op: art. 10a.4 lid 2 Wet IB 2001 (en art. 36c lid 2 Wet
+//     LB 1964), die dit t/m 2025 regelden, zijn per 01-01-2026 vervallen (Stb. 2025,
+//     445). Art. 3.20 lid 11 noemt nu alleen de eerste toelating en een regeling onder
+//     lid 12 is niet gevonden. De tool volgt het Handboek; besluit van Sylvain,
+//     04-10-2026 (OPENSTAAND.md, punt 20).
 function evAnkerdatum(datumToelating, datumTenaamstelling) {
   const det = parseDatum(datumToelating);
   if (!det) return null;
@@ -2593,15 +2598,25 @@ function bijtellingMaandOpbouw(maandIdx, auto, grensVoorJaar) {
 
   // Youngtimer: 35% van de waarde in het economische verkeer in plaats van een
   // percentage van de cataloguswaarde (art. 3.20 lid 1 onderdeel b en lid 5b).
-  // De nulemissieverlaging van lid 2 blijft hier buiten beschouwing: die tabel
-  // begint in 2017 en een auto die de youngtimergrens haalt is ouder dan dat.
-  // BETWIST door de bron-controle van 04-10-2026: lid 2 verlaagt de onttrekking
-  // van lid 1 eerste zin, dus ook onderdeel b, en het Handboek Loonheffingen 2026
-  // (par. 23.3.20 en 23.3.4) past de korting toe op een youngtimer naar datum
-  // eerste tenaamstelling. Niet aangepast in deze wijziging; OPENSTAAND.md punt 19.
+  // De nulemissieverlaging van lid 2 geldt ook hier. Lid 2 verlaagt "de onttrekking,
+  // bedoeld in het eerste lid, eerste zin", dus ook die van onderdeel b, en de
+  // verlaging is een percentage van "de waarde van de auto" (lid 5 onderdeel b):
+  // bij een auto ouder dan 15 jaar is dat de waarde in het economische verkeer.
+  // Wetten.overheid.nl, art. 3.20 lid 1, 2 en 5, gelezen 04-10-2026. Het Handboek
+  // Loonheffingen 2026 (versie maart 2026) zegt hetzelfde in par. 23.3.20, "Let op 1",
+  // en geeft in par. 23.3.4 een tabel naar datum eerste tenaamstelling (2026: 31% over
+  // de eerste 30.000, 35% erboven = 35% min 4 procentpunt met plafond € 1.200). Dat
+  // is dezelfde rekenregel als hieronder: 35% van de waarde in het economische
+  // verkeer minus min(verlagingspercentage x die waarde; plafond). Het ankerjaar en de
+  // 60-maandentermijn volgen uit evAnkerdatum: bij een auto van vóór 2017, en dat is
+  // elke youngtimer, de datum eerste tenaamstelling (OPENSTAAND.md, punt 19).
   const youngtimerBedrag = () => {
     const wev = Number(auto.waardeEconomischVerkeer);
-    return wev > 0 ? wev * BIJTELLING_YOUNGTIMER : null;
+    if (!(wev > 0)) return null;
+    if (!auto.isNulemissie) return wev * BIJTELLING_YOUNGTIMER;
+    const regime = evRegimeVoorMaand(maandIdx, auto);
+    if (!regime) return null;
+    return bijtellingMetVerlaging(wev, BIJTELLING_YOUNGTIMER, regime);
   };
   if (waarderingsRegimeVoorMaand(maandIdx, auto, grensVoorJaar) === 'youngtimer') {
     const splits = overgangsmaandSplitsing(maandIdx, auto, grensVoorJaar);
@@ -2622,17 +2637,22 @@ function bijtellingMaandOpbouw(maandIdx, auto, grensVoorJaar) {
 function bijtellingJaarbedragOudRegime(maandIdx, auto, waarde, basisPct) {
   // Fossiel en (plug-in) hybride kennen geen nulemissiekorting.
   if (!auto.isNulemissie) return waarde * basisPct;
-
-  const anker = evAnkerdatum(auto.datumToelating, auto.datumTenaamstelling);
-  if (!anker) return null;
-
-  // Binnen de termijn geldt het regime van het ankerjaar, daarna dat van het
-  // lopende kalenderjaar. De termijn eindigt midden in een jaar, vandaar per maand.
-  const binnenTermijn = maandIdx <= termijnEindeMaandIndex(anker);
-  const regimeJaar = binnenTermijn ? parseDatum(anker).getFullYear() : Math.floor(maandIdx / 12);
-  const regime = evRegime(regimeJaar, auto);
+  const regime = evRegimeVoorMaand(maandIdx, auto);
   if (!regime) return null;
   return bijtellingMetVerlaging(waarde, basisPct, regime);
+}
+
+// Het verlagingsregime dat in één kalendermaand geldt voor een nulemissie-auto,
+// of null als de ankerdatum ontbreekt of het jaar onbekend is. Binnen de termijn
+// geldt het regime van het ankerjaar, daarna dat van het lopende kalenderjaar. De
+// termijn eindigt midden in een jaar, vandaar per maand. Gedeeld door het gewone
+// en het youngtimerregime, zodat beide dezelfde verlaging toepassen.
+function evRegimeVoorMaand(maandIdx, auto) {
+  const anker = evAnkerdatum(auto.datumToelating, auto.datumTenaamstelling);
+  if (!anker) return null;
+  const binnenTermijn = maandIdx <= termijnEindeMaandIndex(anker);
+  const regimeJaar = binnenTermijn ? parseDatum(anker).getFullYear() : Math.floor(maandIdx / 12);
+  return evRegime(regimeJaar, auto);
 }
 
 // Parser voor MM-JJJJ, voor de startmaand van de gebruiksduur.
