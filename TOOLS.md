@@ -75,7 +75,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Dividend & Uitkeringstoets | `/dividend-uitkeringstoets.html` | bouwman-tools/dividend-uitkeringstoets | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-20 |
 | 🟢 live | Dividendscenario's | `/dividend-scenarios.html` | bouwman-tools/dividend-scenarios | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | Earningsstripping | `/earningsstripping.html` | bouwman-tools/earningsstripping | ja | 2026-08-29 | Sylvain Bouwman | belastingplan | 2026-09-26 |
-| 🟢 live | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-08-28 | Sylvain Bouwman | belastingplan | 2026-09-21 |
+| 🟢 live | Gebruikelijk loon | `/gebruikelijk-loon.html` | bouwman-tools/gebruikelijk-loon | ja | 2026-09-21 | Sylvain Bouwman | belastingplan | 2026-09-21 |
 | 🔵 concept | Herstructurering | `/herstructurering-assistent-v3.html` | bouwman-tools/Herstructurering | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🔵 concept | Organogram en structuursignalen | `/organogram-structuur.html` | bouwman-tools/organogram-structuur | ja | n.v.t. | Sylvain Bouwman | jaarlijks | **nooit** |
 | 🟢 live | Pensioen in eigen beheer en oudedagsverplichting | `/pensioen-odv.html` | bouwman-tools/pensioen-odv | ja | 2026-09-29 | Sylvain Bouwman | belastingplan | 2026-09-29 |
