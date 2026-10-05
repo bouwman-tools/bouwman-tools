@@ -234,7 +234,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | 🟢 live | Berekeningen | `/berekeningen.html` | bouwman-tools/berekeningen | ja | 2026-09-02 | Sylvain Bouwman | belastingplan | 2026-09-20 |
 | 🟢 live | KvK Nummers Zoeken | `/kvk-zoeker.html` | bouwman-tools/kvk-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
-- **Berekeningen**: Rekent zeventien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente
+- **Berekeningen**: Rekent achttien onderwerpen door: annuïteiten, contante en toekomstige waarde, rendement, waardering box 3, boeterente, doorverkoop overdrachtsbelasting en revisierente bij afkoop van een lijfrente of een pensioenaanspraak
 - **KvK Nummers Zoeken**: Vult KvK-nummers automatisch aan in een ingelezen Excel-bestand, voor Payroll
 
 ### Wettelijke verwijzingen: Berekeningen
