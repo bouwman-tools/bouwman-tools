@@ -148,7 +148,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Bruto-netto 2026</h1>
         <div class="bt-kopbalk-sub">Kern: box 1/2/3 en heffingskortingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 19:39</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 20:47</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -692,7 +692,11 @@ const BOX1_TARIEF_2026 = {
   tariefSchijf3: 0.4950,        // 2026
 };
 
-// Bron: https://www.belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/belastingberekening (2026)
+// Bron: Belastingdienst, Bijlage Nieuwsbrief Loonheffingen 2026, tabel 1 "Het tarief van de
+// schijven is als volgt samengesteld" (AOW 17,90%, Anw 0,10%, Wlz 9,65%, IB 8,10%;
+// download.belastingdienst.nl, geraadpleegd 05-10-2026). De pagina
+// belastingdienst.nl/wps/wcm/connect/fisin/fisin2026/belastingberekening noemt alleen de
+// totalen 35,75% en 17,85%.
 const PREMIE_VOLKSVERZEKERINGEN_2026 = {
   aow: 0.1790, // 2026 — vervalt vanaf AOW-leeftijd
   anw: 0.0010, // 2026 — blijft het hele jaar verschuldigd
@@ -786,9 +790,17 @@ function bepaalPremiepercentageBox1(aowStatus, aowDatumIso) {
   }
   if (aowStatus === 'wordt_dit_jaar') {
     const maanden = berekenPremiemaandenAow(aowDatumIso);
-    // Het geprorateerde percentage wordt op 0,1%-punt afgerond, zoals het bronmodel doet
-    // (zie ook berekenAowKortingscorrectie).
-    return Math.round((aow * (maanden / 12) + anw + wlz) * 1000) / 1000;
+    // Het geprorateerde percentage is samengesteld uit tijdsevenredige delen van de
+    // premiepercentages en wordt "afgerond op honderdsten naar beneden" (art. 2.6 Regeling
+    // Wfsv, wetten.overheid.nl, versie 01-01-2026, geraadpleegd 05-10-2026; art. 2.7: jaar
+    // van 360 dagen, dus voor hele maanden maanden/12). Dus AOW-maand december: 26,1583%
+    // wordt 26,15%. Bevestigd in de tabel "Tarieven box 1, schijf 1 als u in 2026 de
+    // AOW-leeftijd bereikt" (belastingdienst.nl, fisin2026, "Hoe wordt de belasting
+    // berekend?", geraadpleegd 05-10-2026): december 34,25% (26,15% + 8,10% IB), oktober
+    // 31,27%. De consumentenpagina "Box 1: uitleg en tarieven" toont voor 2026 afgeronde
+    // waarden (december 34,26%) die met art. 2.6 strijden: niet volgen. De kleine optelling
+    // vangt drijvendekommaruis op exacte grenzen op.
+    return Math.floor((aow * (maanden / 12) + anw + wlz) * 10000 + 1e-9) / 10000;
   }
   // 'nog_niet' (of onbekend): volledig premiejaar
   return aow + anw + wlz;
@@ -813,16 +825,11 @@ function berekenAowKortingscorrectie(volledigeKorting, aowStatus, aowDatumIso) {
   const ibPercentageSchijf1 = BOX1_TARIEF_2026.tariefSchijf1;
   const { aow, anw, wlz } = PREMIE_VOLKSVERZEKERINGEN_2026;
   const premiePercentageVolledig = aow + anw + wlz;
-  // Bij een AOW-jaar met prorata premie (maanden/12) rondt het bronmodel het geprorateerde
-  // premiepercentage af op drie decimalen (0,1%-punt) vóórdat het in deze breuk wordt
-  // gebruikt — machinaal bevestigd (28-09-2026): zonder deze afronding week de
-  // arbeidskorting-uitkomst € 2 af van het bronmodel (4.018 i.p.v. 4.016). Bij AOW-gerechtigd
-  // vóór 1 januari is het percentage (anw+wlz = 9,75%) al exact en hoeft niet te worden
-  // afgerond.
-  const premiePercentageGeprorateerdRuw = bepaalPremiepercentageBox1(aowStatus, aowDatumIso);
-  const premiePercentageGeprorateerd = aowStatus === 'wordt_dit_jaar'
-    ? Math.round(premiePercentageGeprorateerdRuw * 1000) / 1000
-    : premiePercentageGeprorateerdRuw;
+  // Bij een AOW-jaar met prorata premie (maanden/12) is het geprorateerde premiepercentage
+  // al afgekapt op 0,01%-punt in `bepaalPremiepercentageBox1`, zoals het bronmodel en de
+  // gepubliceerde maandtarieven van de Belastingdienst. Dat percentage gaat hier in de breuk.
+  // Bij AOW-gerechtigd vóór 1 januari is het percentage (anw+wlz = 9,75%) al exact.
+  const premiePercentageGeprorateerd = bepaalPremiepercentageBox1(aowStatus, aowDatumIso);
   const noemer = ibPercentageSchijf1 + premiePercentageVolledig;
   const ibDeel = naBoven(volledigeKorting * (ibPercentageSchijf1 / noemer));
   const premieDeel = naBoven(volledigeKorting * (premiePercentageGeprorateerd / noemer));
@@ -1475,7 +1482,7 @@ function leesInvoer() {
 
 const TOOL_ID = 'bruto-netto-2026';
 const TOOL_NAAM = 'Bruto-netto 2026 — kern (box 1/2/3 en heffingskortingen)';
-const TOOL_VERSIE = '0.1.3';
+const TOOL_VERSIE = '0.1.4';
 const DOSSIER_FORMAATVERSIE = 1;
 
 const AOW_STATUS_NAMEN = {
