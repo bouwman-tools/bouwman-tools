@@ -50,6 +50,8 @@
   .veld input[type=number] { text-align: right; font-family: var(--mono); }
   .veld input:focus, .veld select:focus { outline: 2px solid var(--accent);
     outline-offset: -1px; border-color: var(--accent); }
+  .veld input[aria-invalid="true"], table.reeks input[aria-invalid="true"] {
+    border-color: var(--fout); background: var(--fout-zacht); }
   .veld.vinkje { grid-template-columns: 24px 1fr; }
   .veld.vinkje input { width: auto; }
   table.uit { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -259,7 +261,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Berekeningen</h1>
         <div class="bt-kopbalk-sub">Annuïteiten, contante en toekomstige waarde, rendement en fiscale waarderingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 20:53</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 21:11</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1265,19 +1267,19 @@ function ovbDoorverkoopWettelijk({
   if (!(tarief >= 0)) return { fout: 'Geef een tarief op.' };
 
   const grondslagNaLid1 = Math.max(0, waardeVerkrijging2 - grondslagVerkrijging1);
-  const belastingLid1 = tarief * grondslagNaLid1;
+  const belastingLid1 = afrondOmlaagOpEuro(tarief * grondslagNaLid1);
 
   if (!verlaagdTariefBijVerkrijging1) {
     return {
       route: 'Art. 13 lid 1 Wet BRV',
       grondslag: grondslagNaLid1,
       belasting: belastingLid1,
-      belastingZonderVermindering: tarief * waardeVerkrijging2,
-      vermindering: tarief * waardeVerkrijging2 - belastingLid1
+      belastingZonderVermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2),
+      vermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2) - belastingLid1
     };
   }
 
-  const belastingLid4Ruw = tarief * waardeVerkrijging2 - belastingVerkrijging1;
+  const belastingLid4Ruw = afrondOmlaagOpEuro(tarief * waardeVerkrijging2 - belastingVerkrijging1);
   const belastingLid4 = Math.max(0, Math.max(belastingLid1, belastingLid4Ruw));
   return {
     route: 'Art. 13 lid 4 Wet BRV',
@@ -1285,8 +1287,8 @@ function ovbDoorverkoopWettelijk({
     belasting: belastingLid4,
     belastingLid1,
     belastingLid4Ruw,
-    belastingZonderVermindering: tarief * waardeVerkrijging2,
-    vermindering: tarief * waardeVerkrijging2 - belastingLid4,
+    belastingZonderVermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2),
+    vermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2) - belastingLid4,
     ondergrensToegepast: belastingLid1 > belastingLid4Ruw
   };
 }
@@ -1318,13 +1320,13 @@ function ovbVoordeelBeding({ grondslagVerkrijging1, koopsomVerkrijging2, tarief 
   const brutoVoordeel = tarief * grondslagVerkrijging1;
   const nettoGemaakt = brutoVoordeel / (1 + tarief);
   const grondslagKoper = koopsomVerkrijging2 + nettoGemaakt;
-  // Afronding op hele euro's naar beneden, overgenomen uit het bronmodel.
-  // Een wettelijke afrondingsregel is niet teruggevonden; zie open punt 3.
-  const grondslagAfgerond = Math.trunc(grondslagKoper);
-  const ovbAanBelastingdienst = tarief * (grondslagAfgerond - grondslagVerkrijging1);
+  // De verschuldigde belasting wordt naar beneden afgerond op hele euro's, niet de
+  // grondslag: toelichting bij het besluit van 9 januari 2023, nr. 2023-1 (Stcrt. 2023, 1102). Het
+  // bronmodel kapte de grondslag af; zie open punt 3 in BRONNEN.md.
+  const ovbAanBelastingdienst = afrondOmlaagOpEuro(tarief * (grondslagKoper - grondslagVerkrijging1));
   const maximaal = tarief * koopsomVerkrijging2;
   return {
-    brutoVoordeel, nettoGemaakt, grondslagKoper, grondslagAfgerond,
+    brutoVoordeel, nettoGemaakt, grondslagKoper,
     ovbAanBelastingdienst, teVergoedenAanVerkoper: nettoGemaakt,
     maximaalTeBetalen: maximaal,
     afrondingsvoordeel: maximaal - ovbAanBelastingdienst - nettoGemaakt
@@ -2915,15 +2917,22 @@ const ONDERWERPEN = [
       'lid 3 Wet BRV.',
     'In 2025 bestond het tarief van acht procent nog niet; een woning die geen ' +
       'hoofdverblijf werd viel onder het algemene tarief.',
+    'Afronding: de verschuldigde overdrachtsbelasting wordt naar beneden afgerond op hele ' +
+      'euro\'s. Toelichting bij het besluit van 9 januari 2023, nr. 2023-1 (Stcrt. 2023, ' +
+      '1102), ingegaan op 1 maart 2023, dat onderdeel 2 (afronding van de maatstaf) van het ' +
+      'besluit van 22 februari 2017, nr. 2017-36415 (Stcrt. 2017, 12449) liet vervallen. ' +
+      'Een wettelijke bepaling daarvoor bestaat niet: de toelichting noemt het een regel ' +
+      'die al bij de andere belastingmiddelen wordt toegepast. Gecontroleerd op 5 oktober 2026.',
     'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026.'
   ],
   afbakening: 'De tool rekent de vermindering van art. 13 lid 1 en de belastingvermindering van lid ' +
     '4. Hij toetst de termijn van zes maanden niet en beoordeelt niet welk tarief van ' +
     'toepassing is. De tool dekt geen vrijstellingen, geen samenloop met de ' +
     'omzetbelasting en niet de gevallen van art. 13 lid 2 over aandelen en rechten. Voor ' +
-    'de aftrek van notariskosten in de netto-opbrengst van de verkoper en voor het ' +
-    'afkappen van de grondslag op hele euro is geen wettelijke basis teruggevonden; de ' +
-    'tool meldt dat bij de uitkomst.',
+    'de aftrek van notariskosten in de netto-opbrengst van de verkoper is geen wettelijke ' +
+    'basis teruggevonden; de tool meldt dat bij de uitkomst. De verschuldigde belasting ' +
+    'wordt naar beneden afgerond op hele euro\'s; de brutering in de netto-opbrengst van de ' +
+    'verkoper is een commerciële verdeling en geen heffing.',
   id: 'ovb', groep: 'Overdrachtsbelasting', naam: 'Doorverkoopregeling',
   titel: 'Doorverkoopregeling overdrachtsbelasting',
   grondslag: 'Art. 13 Wet BRV. Bij een verkrijging binnen zes maanden na een vorige ' +
@@ -2989,7 +2998,7 @@ const ONDERWERPEN = [
     ['Overdrachtsbelasting ten laste van de verkoper', euro(r.verkoper.ovbTenLasteVanVerkoper)],
     ['Bij een beding: bruto af te staan voordeel', euro(r.beding.brutoVoordeel)],
     ['Bij een beding: netto aan de verkoper te vergoeden', euro(r.beding.teVergoedenAanVerkoper)],
-    ['Bij een beding: grondslag van de koper na afronding', euro(r.beding.grondslagAfgerond)],
+    ['Bij een beding: grondslag van de koper', euro(r.beding.grondslagKoper)],
     ['Bij een beding: aan de Belastingdienst verschuldigd', euro(r.beding.ovbAanBelastingdienst)],
     ['Bij een beding: afrondingsvoordeel voor de koper', euro(r.beding.afrondingsvoordeel)]
   ],
@@ -4088,13 +4097,14 @@ function leesDossier(tekst) {
   const ontbrekend = [];
   const velden = {};
   const nieuweReeksen = {};
+  const ongeldig = [];
   for (const o of ONDERWERPEN) {
-    const post = (bron[o.id] && typeof bron[o.id] === 'object') ? bron[o.id] : null;
+    const post =(bron[o.id] && typeof bron[o.id] === 'object') ? bron[o.id] : null;
     const bronVelden = (post && post.velden && typeof post.velden === 'object') ? post.velden : {};
     velden[o.id] = {};
     for (const v of o.velden) {
       if (numeriekVeld(v) && ongeldigGetal(bronVelden[v.k])) {
-        return { ok: false, fouten: [getalMelding(o.naam + ': ' + v.l)] };
+        ongeldig.push(getalMelding(o.naam + ': ' + v.l)); continue;
       }
       const w = dossierWaarde(v, bronVelden[v.k]);
       if (w === undefined) ontbrekend.push(o.naam + ': ' + v.l);
@@ -4109,7 +4119,7 @@ function leesDossier(tekst) {
         const cel = bronReeks[sleutel];
         if (o.reeks.kolommen.length === 1) {
           if (ongeldigGetal(cel)) {
-            return { ok: false, fouten: [getalMelding(o.naam + ': reeksregel ' + (n + 1))] };
+            ongeldig.push(getalMelding(o.naam + ': reeksregel ' + (n + 1))); continue;
           }
           if (typeof cel === 'number' && isFinite(cel)) nieuweReeksen[o.id][n] = cel;
           continue;
@@ -4117,12 +4127,20 @@ function leesDossier(tekst) {
         if (!cel || typeof cel !== 'object') continue;
         for (const k of o.reeks.kolommen) {
           if (ongeldigGetal(cel[k])) {
-            return { ok: false, fouten: [getalMelding(o.naam + ': reeksregel ' + (n + 1) + ', ' + k)] };
+            ongeldig.push(getalMelding(o.naam + ': reeksregel ' + (n + 1) + ', ' + k)); continue;
           }
           if (typeof cel[k] === 'number' && isFinite(cel[k])) nieuweReeksen[o.id][n][k] = cel[k];
         }
       }
     }
+  }
+
+  if (ongeldig.length) {
+    // Alle ongeldige velden in één keer melden, zodat het dossier niet bij elke
+    // fout opnieuw hoeft te worden geopend. Meer dan tien blijft leesbaar.
+    const getoond = ongeldig.slice(0, 10);
+    if (ongeldig.length > 10) getoond.push('En nog ' + (ongeldig.length - 10) + ' velden.');
+    return { ok: false, fouten: getoond };
   }
 
   const gekozen = ONDERWERPEN.some(o => o.id === rauw.onderwerp) ? rauw.onderwerp : null;
