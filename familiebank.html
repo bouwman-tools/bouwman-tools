@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:46</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:56</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -603,8 +603,10 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         bestaande eigenwoningschulden van vóór 2013, de aflossingsstand van art. 3.119d bij een
         eerdere lening, de toetsmomenten van art. 3.119c lid 7 onder b tot en met d, en de
         routes van art. 3.119e lid 2 en lid 3 bij onvoldoende
-        betalingscapaciteit of een onbedoelde fout. De uitkomst is een berekening en geen
-        beoordeling door de Belastingdienst.
+        betalingscapaciteit of een onbedoelde fout. Een lening van 2013 tot en met het jaar
+        vóór het rekenjaar rekent de tool wel door, vanaf de schuld per 1 januari van het
+        rekenjaar die u opgeeft; de jaren ervoor zijn niet nagespeeld. De uitkomst is een
+        berekening en geen beoordeling door de Belastingdienst.
       </p>
     </details>
   </div>
@@ -624,6 +626,14 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 // van 360 maanden". Dat is een vaste 360 en niet de looptijd van de eigen lening; lid 3
 // onder d bevestigt dat met "de oorspronkelijke maximale looptijd van 360 maanden".
 const MAXIMALE_LOOPTIJD_MAANDEN = 360;
+
+// Art. 10bis.1 lid 1 Wet IB 2001: een bestaande eigenwoningschuld is een eigenwoningschuld die
+// op 31 december 2012 bestond. Een lening van vóór 2013 kan dus een bestaande eigenwoningschuld
+// zijn, waarvoor de aflossingseis niet geldt (art. 10bis.9 lid 1); het overgangsrecht kent de
+// tool niet (zie OPENSTAAND punt 27). Een lening van 2013 of later behandelt de tool als nieuwe
+// schuld met aflossingseis. Dat is een aanname: art. 10bis.1 lid 2 en lid 3 laten ook een schuld
+// van na 2012 bestaand zijn, onder meer bij oversluiten, en dat zit er niet in.
+const LAATSTE_JAAR_BESTAANDE_SCHULD = 2012;
 
 // Het bronmodel kent vier familiebankleningen naast elkaar. Meer is geen fiscale grens maar
 // een keuze: vier past op het scherm en dekt de praktijk.
@@ -971,6 +981,29 @@ function indexfactor(jaar, rekenjaar, indexatieFractie) {
 //      Een aflossingspauze heeft hier geen betekenis en wordt geweigerd.
 const PAUZEVORMEN = ['verlengen', 'herrekenen'];
 
+// Het aantal maandtermijnen dat op 1 januari van het rekenjaar al is verstreken bij een lening
+// die eerder is ingegaan. De eerste termijn valt in de maand van ingang zelf, zoals in het
+// schema hieronder.
+function verstrekenTermijnen(lening, rekenjaar) {
+  return (rekenjaar * 12 + 1) - (lening.startjaar * 12 + lening.startmaand);
+}
+
+// De schuld op 1 januari van het rekenjaar zoals de overeenkomst die voorschrijft, volgens de
+// aflossingsvorm van de lening: na het aantal verstreken termijnen, zonder pauze en zonder
+// kwijtschelding. Annuïtair en lineair lossen elke maand af, aflossingsvrij laat de hoofdsom
+// staan. Alleen voor de vergelijking met de schuld die de gebruiker opgeeft.
+function overeengekomenSchuld(lening, rekenjaar, maandrente) {
+  const e = verstrekenTermijnen(lening, rekenjaar);
+  if (lening.aflossingsvorm === 'aflossingsvrij') return lening.hoofdsom;
+  if (lening.aflossingsvorm === 'lineair') {
+    return Math.max(0, lening.hoofdsom * (1 - e / lening.looptijdMaanden));
+  }
+  const termijn = annuiteitPerMaand(lening.hoofdsom, maandrente, lening.looptijdMaanden);
+  if (maandrente === 0) return Math.max(0, lening.hoofdsom - termijn * e);
+  const groei = Math.pow(1 + maandrente, e);
+  return Math.max(0, lening.hoofdsom * groei - termijn * (groei - 1) / maandrente);
+}
+
 function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) {
   const maandrente = maandrenteUitJaarrente(lening.jaarrenteProcent / 100, renteomrekening);
   const vorm = lening.aflossingsvorm;
@@ -1016,11 +1049,17 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
     return 0;
   };
 
+  // Een lening die vóór het rekenjaar is ingegaan begint hier op 1 januari van het rekenjaar,
+  // met de schuld die de gebruiker opgeeft en het aantal termijnen dat toen al is verstreken.
+  // De termijn blijft die van de overeenkomst: wat er in de jaren ervoor is gebeurd
+  // (renteveranderingen, extra aflossingen, een eerdere pauze of kwijtschelding) zit alleen in
+  // de opgegeven schuld, want de tool kan dat verleden niet naspelen.
+  const loopt = lening.startjaar < rekenjaar && lening.stand1Januari > 0;
   const jaren = [];
-  let schuld = lening.hoofdsom;
-  let jaar = lening.startjaar;
-  let maand = lening.startmaand;
-  let m = 0;
+  let schuld = loopt ? lening.stand1Januari : lening.hoofdsom;
+  let jaar = loopt ? rekenjaar : lening.startjaar;
+  let maand = loopt ? 1 : lening.startmaand;
+  let m = loopt ? verstrekenTermijnen(lening, rekenjaar) : 0;
   const nieuwJaar = (j) => ({
     jaar: j, rente: 0, renteMaanden: new Array(12).fill(0), aflossing: 0, termijnen: 0,
     pauzemaanden: 0, kwijtschelding: 0,
@@ -1309,6 +1348,7 @@ function toetsAflossingseis(lening, schema) {
       status: schema.jaren.map(jaarregel => ({
         jaar: jaarregel.jaar, eigenwoningschuld: false, maandenBox3: 12,
       })),
+      voorafgaand: null,
       voldoetAltijd: false,
       geenAflossingsverplichting: true,
       aantalAchterstanden: 0,
@@ -1331,6 +1371,26 @@ function toetsAflossingseis(lening, schema) {
 
   const toetsen = [];
 
+  // Een lening die vóór het rekenjaar is ingegaan heeft al een toetsmoment gehad op 31
+  // december van het jaar ervoor, en de schuld die de gebruiker opgeeft is precies de schuld
+  // op dat moment. Dat toetsmoment hoort niet in de jaartabel (die begint in het rekenjaar)
+  // maar bepaalt wel of er al een achterstand loopt. Wat daarvóór gebeurde kent de tool niet:
+  // zij gaat ervan uit dat de lening tot dat moment aan de aflossingseis voldeed.
+  let voorafgaand = null;
+  if (lening.stand1Januari > 0 && lening.startjaar < schema.jaren[0].jaar) {
+    const jaar = schema.jaren[0].jaar - 1;
+    const verstreken = (jaar - lening.startjaar) * 12 + (13 - lening.startmaand);
+    const maximaal = afrondenOpCenten(maximaleSchuldVolgensAflossingseis(
+      lening.hoofdsom, schema.maandrente, verstreken, MAXIMALE_LOOPTIJD_MAANDEN));
+    voorafgaand = {
+      jaar,
+      verstrekenMaanden: Math.min(verstreken, MAXIMALE_LOOPTIJD_MAANDEN),
+      maximaleSchuld: maximaal,
+      schuldEind: lening.stand1Januari,
+      achterstand: lening.stand1Januari > maximaal + 0.01,
+    };
+  }
+
   const opgegevenDatum = lening.achterstandIngelopenJaar > 0
     ? lening.achterstandIngelopenJaar * 12
       + (lening.achterstandIngelopenMaand >= 1 ? lening.achterstandIngelopenMaand : 1)
@@ -1346,6 +1406,13 @@ function toetsAflossingseis(lening, schema) {
   let datumGebruikt = false;
   let schemaOnderLijnJaar = null;
   const perioden = [];
+
+  // Een lening van vóór het rekenjaar kan al een achterstand hebben op het toetsmoment van 31
+  // december van het jaar ervoor; die loopt dan door in de eerste jaren van de tabel.
+  if (voorafgaand && voorafgaand.achterstand) {
+    ontstaanJaar = voorafgaand.jaar;
+    aantalAchterstanden = 1;
+  }
 
   for (const jaarregel of schema.jaren) {
     // 1 januari van dit jaar. Is de schuld op het vorige toetsmoment uit de eigenwoningschuld
@@ -1447,7 +1514,8 @@ function toetsAflossingseis(lening, schema) {
   return {
     toetsen,
     status,
-    voldoetAltijd: toetsen.every(t => !t.achterstand),
+    voorafgaand,
+    voldoetAltijd: toetsen.every(t => !t.achterstand) && !(voorafgaand && voorafgaand.achterstand),
     geenAflossingsverplichting: false,
     aantalAchterstanden,
     herstelViaLid1,
@@ -1465,7 +1533,8 @@ function toetsAflossingseis(lening, schema) {
     verschuivingMaanden: verschuiving,
     oorspronkelijkEinde: alsEinde(oorspronkelijkEinde),
     verschovenEinde: alsEinde(verschovenEinde),
-    achterstandsjaren: toetsen.filter(t => t.achterstand).map(t => t.jaar),
+    achterstandsjaren: (voorafgaand && voorafgaand.achterstand ? [voorafgaand.jaar] : [])
+      .concat(toetsen.filter(t => t.achterstand).map(t => t.jaar)),
     jarenZonderAftrek: status.filter(s => !s.eigenwoningschuld).map(s => s.jaar),
   };
 }
@@ -1859,11 +1928,52 @@ function berekenFamiliebank(invoer) {
         + 'tot volledig aflossen in ten hoogste ' + MAXIMALE_LOOPTIJD_MAANDEN + ' maanden; bij '
         + 'een langere looptijd behoort de schuld niet tot de eigenwoningschuld.');
     }
+    if (l.startjaar >= ingangsjaar && l.stand1Januari > 0) {
+      return geenUitkomst('Bij ' + naam + ' is een schuld per 1 januari ' + ingangsjaar
+        + ' ingevuld, maar de lening gaat in ' + l.startjaar + ' in. Die schuld is er alleen '
+        + 'voor een lening die vóór het rekenjaar is ingegaan; laat het veld anders op nul.');
+    }
     if (l.startjaar < ingangsjaar) {
-      return geenUitkomst('De ingangsdatum van ' + naam + ' ligt vóór het rekenjaar '
-        + ingangsjaar + '. De tool rekent een lening niet met terugwerkende kracht door: de '
-        + 'aflossingsstand van art. 3.119d en het overgangsrecht van art. 10bis zitten er niet '
-        + 'in. Zet het rekenjaar op het jaar waarin de eerste lening ingaat.');
+      if (l.startjaar <= LAATSTE_JAAR_BESTAANDE_SCHULD) {
+        return geenUitkomst(naam + ' gaat in ' + l.startjaar + ' in, vóór 1 januari '
+          + (LAATSTE_JAAR_BESTAANDE_SCHULD + 1) + '. Zo\'n schuld kan een bestaande '
+          + 'eigenwoningschuld zijn (art. 10bis.1 Wet IB 2001): daarvoor geldt de aflossingseis '
+          + 'niet (art. 10bis.9 lid 1) en is de rente hoogstens dertig jaar aftrekbaar (art. 10bis.10 lid 1). Of de '
+          + 'schuld op 31 december ' + LAATSTE_JAAR_BESTAANDE_SCHULD + ' bestond en tot de '
+          + 'eigenwoningschuld behoorde, kan de tool niet vaststellen en het overgangsrecht '
+          + 'zit er niet in. Model 03-04 kent het ook niet.');
+      }
+      if (!(l.stand1Januari > 0)) {
+        return geenUitkomst(naam + ' is ingegaan in ' + l.startjaar + ', vóór het '
+          + 'rekenjaar ' + ingangsjaar + '. Vul bij die lening de schuld per 1 januari '
+          + ingangsjaar + ' in, zoals die op het jaaroverzicht staat: de tool kan het verleden '
+          + 'van de lening niet naspelen en rekent vanaf die schuld door.');
+      }
+      if (l.stand1Januari > l.hoofdsom + 0.005) {
+        return geenUitkomst('De schuld per 1 januari ' + ingangsjaar + ' van ' + naam
+          + ' is hoger dan de hoofdsom. Is er bijgeleend, dan is dat een nieuwe schuld met een '
+          + 'eigen startbedrag en een eigen aflossingseis; voer die als aparte lening in.');
+      }
+      if (verstrekenTermijnen(l, ingangsjaar)
+          >= (l.pauzeMaanden > 0 && l.pauzeVorm === 'herrekenen'
+              ? l.looptijdMaanden : l.looptijdMaanden + (l.pauzeMaanden || 0))) {
+        return geenUitkomst('De looptijd van ' + naam + ' is op 1 januari ' + ingangsjaar
+          + ' verstreken, maar er is nog een schuld opgegeven. Volgens de overeenkomst is de '
+          + 'lening dan afgelost; een restschuld daarna is een andere afspraak dan de tool kent.');
+      }
+      if (l.pauzeMaanden > 0 && l.pauzeStartjaar < ingangsjaar) {
+        return geenUitkomst('De aflossingspauze van ' + naam + ' begint in ' + l.pauzeStartjaar
+          + ', vóór het rekenjaar ' + ingangsjaar + '. De tool rekent vanaf de opgegeven schuld '
+          + 'per 1 januari ' + ingangsjaar + ': een pauze die al liep zit daar al in. Zet de '
+          + 'pauze op het rekenjaar met de resterende maanden, of op nul.');
+      }
+      if (l.kwijtscheldingBedrag > 0 && l.kwijtscheldingStartjaar < ingangsjaar) {
+        return geenUitkomst('De kwijtschelding van ' + naam + ' begint in '
+          + l.kwijtscheldingStartjaar + ', vóór het rekenjaar ' + ingangsjaar + '. De tool '
+          + 'rekent vanaf de opgegeven schuld per 1 januari ' + ingangsjaar + ': eerdere '
+          + 'kwijtscheldingen zitten daar al in. Zet het eerste jaar op het rekenjaar of '
+          + 'later.');
+      }
     }
     // De vorm wordt niet aangevuld. Een stille standaard zou een lening die als lineair of
     // aflossingsvrij is bedoeld annuïtair doorrekenen, en dat is aan de uitkomst niet te zien.
@@ -2000,6 +2110,7 @@ function berekenFamiliebank(invoer) {
       restschuld: schema.restschuld,
       jaren: schema.jaren,
       toetsen: toets.toetsen,
+      voorafgaand: toets.voorafgaand,
       perioden: toets.perioden,
       voldoetAltijd: toets.voldoetAltijd,
       achterstandsjaren: toets.achterstandsjaren,
@@ -2137,9 +2248,15 @@ function berekenFamiliebank(invoer) {
     // Een lening die in het rekenjaar zelf ingaat telt dus pas mee op de peildatum van het
     // jaar erna: op 1 januari van het ingangsjaar stond het geld nog op de rekening van de
     // ouder. Bij een lening die in januari ingaat is dat een aanname van de tool.
+    // Een lening van vóór het rekenjaar heeft geen jaarregel voor het jaar ervoor; haar
+    // vordering op 1 januari van het rekenjaar is de schuld die de gebruiker opgeeft.
     const vorderingPer1Januari = (jaar) => perLening.reduce((som, l) => {
       const vorig = l.jaren.find(j => j.jaar === jaar - 1);
-      return som + (vorig ? vorig.schuldEind : 0);
+      if (vorig) return som + vorig.schuldEind;
+      if (jaar === ingangsjaar && l.invoer.startjaar < ingangsjaar) {
+        return som + (l.invoer.stand1Januari > 0 ? l.invoer.stand1Januari : 0);
+      }
+      return som;
     }, 0);
     const hoogsteVordering = Math.max(...jaren.map(j => vorderingPer1Januari(j.jaar)));
     ouderFout = toetsOuderInvoer(ouder, hoogsteVordering);
@@ -2310,6 +2427,61 @@ function berekenFamiliebank(invoer) {
   });
 
   for (const lening of perLening) {
+    if (lening.invoer.startjaar < ingangsjaar) {
+      const inv = lening.invoer;
+      const volgensOvereenkomst = afrondenOpCenten(overeengekomenSchuld(
+        inv, ingangsjaar, maandrenteUitJaarrente(inv.jaarrenteProcent / 100, renteomrekening)));
+      const voor = lening.voorafgaand;
+      if (!voor) {
+        // Aflossingsvrij: de schuld behoort niet tot de eigenwoningschuld en er is geen toets
+        // aan de aflossingseis. Alleen de opgegeven schuld en de vergelijking blijven.
+        meldingen.push({
+          soort: 'let-op',
+          tekst: lening.naam + ' is ingegaan in ' + MAANDNAMEN[inv.startmaand] + ' ' + inv.startjaar
+               + ', vóór het rekenjaar ' + ingangsjaar + ', en is aflossingsvrij: de schuld behoort '
+               + 'niet tot de eigenwoningschuld en er is geen toets aan de aflossingseis. De tool '
+               + 'rekent vanaf 1 januari ' + ingangsjaar + ' met de schuld die u hebt opgegeven, '
+               + bedragInTekst(inv.stand1Januari) + '. Volgens de overeenkomst blijft die '
+               + bedragInTekst(volgensOvereenkomst) + ' tot de laatste maand. Een lening die vóór '
+               + '2013 een bestaande eigenwoningschuld was, wordt geweigerd; het overgangsrecht van '
+               + 'art. 10bis zit er niet in.',
+        });
+      } else {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: lening.naam + ' is ingegaan in ' + MAANDNAMEN[inv.startmaand] + ' ' + inv.startjaar
+             + ', vóór het rekenjaar ' + ingangsjaar + ', en de tool behandelt haar als een schuld van ná 2012: '
+             + 'de aflossingseis van art. 3.119c is erop van toepassing. Is de lening een '
+             + 'oversluiting van een bestaande eigenwoningschuld (art. 10bis.1 lid 3 Wet IB 2001) '
+             + 'of valt zij om een andere reden onder art. 10bis.1 lid 2, dan geldt dat niet en '
+             + 'rekent de tool verkeerd; dat overgangsrecht zit er niet in. De tool rekent vanaf 1 januari ' + ingangsjaar + ' met de schuld die '
+             + 'u hebt opgegeven, ' + bedragInTekst(inv.stand1Januari) + '. Volgens het '
+             + 'overeengekomen aflosschema zou die ' + bedragInTekst(volgensOvereenkomst)
+             + ' zijn. De jaren ervoor zijn niet doorgerekend: een renteverandering, een extra '
+             + 'aflossing, een eerdere pauze of kwijtschelding en een eerdere achterstand zitten '
+             + 'alleen in die opgegeven schuld. De tool gaat ervan uit dat de lening tot 31 '
+             + 'december ' + (voor.jaar - 1) + ' aan de aflossingseis voldeed, en toetst daarna '
+             + 'wel. Een achterstand die al op 31 december ' + (voor.jaar - 1) + ' liep, had de '
+             + 'schuld per 1 januari ' + ingangsjaar + ' al uit de eigenwoningschuld gehaald '
+             + '(art. 3.119e lid 4). Een renteverandering verschuift de maximumlijn (art. 3.119c '
+             + 'lid 2), en bij een oversluiting geldt lid 3; een verhoging van de schuld is een '
+             + 'nieuwe schuld met een eigen lijn (lid 6). De tool legt de lijn vast op de '
+             + 'oorspronkelijke hoofdsom en rente.',
+      });
+      meldingen.push({
+        soort: voor.achterstand ? 'let-op' : 'info',
+        tekst: lening.naam + ': de schuld per 31 december ' + voor.jaar + ' is '
+             + bedragInTekst(voor.schuldEind) + ' tegenover een maximum van '
+             + bedragInTekst(voor.maximaleSchuld) + ' (art. 3.119c lid 1) op dat toetsmoment'
+             + (voor.achterstand
+                 ? '. Dat is een aflossingsachterstand die in ' + voor.jaar + ' is ontstaan; '
+                   + 'art. 3.119e lid 1 en lid 4 werken daarom door in de eerste jaren van de '
+                   + 'tabel.'
+                 : ', dus zij voldeed.'),
+      });
+      }
+    }
+
     if (lening.invoer.pauzeMaanden > 0) {
       const teLang = lening.betaaldeMaanden > MAXIMALE_LOOPTIJD_MAANDEN;
       const herrekend = lening.invoer.pauzeVorm === 'herrekenen';
@@ -2839,6 +3011,7 @@ function berekenFamiliebank(invoer) {
       looptijdMaanden: l.invoer.looptijdMaanden,
       startjaar: l.invoer.startjaar,
       startmaand: l.invoer.startmaand,
+      stand1Januari: l.invoer.startjaar < ingangsjaar ? l.invoer.stand1Januari : 0,
       maandrenteProcent: l.maandrenteProcent,
       aflossingsvorm: l.aflossingsvorm,
       termijnPerMaand: l.termijnPerMaand,
@@ -3137,7 +3310,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'familiebank';
 const TOOL_NAAM = 'Familiebank: lening van ouder aan kind';
-const TOOL_VERSIE = '0.8.1';
+const TOOL_VERSIE = '0.9.0';
 // Versie 2 van 19-09-2026: de invoer kent vier leningen in plaats van één, plus de WOZ-waarde,
 // de indexatie, de kwijtschelding en de aflossingspauze. Versie 3 van 20-09-2026 voegt daar de
 // overige aftrekbare eigenwoningrente aan toe. Een bestand van een oudere versie wordt niet
@@ -3162,6 +3335,10 @@ const TOOL_VERSIE = '0.8.1';
 // afgesproken met de sessies die op dezelfde dag optionele velden toevoegden (postbus
 // familiebank, mededelingen van punt 22, 27 en 33): niemand hoogt de versie op zolang een
 // ontbrekend veld de uitkomst van versie 6 geeft.
+//
+// Zo kwam ook de schuld per 1 januari van het rekenjaar (stand1Januari) erbij, voor een lening
+// van vóór het rekenjaar. Ontbreekt het veld, dan is het bestand bewaard toen zo'n lening nog
+// werd geweigerd, en nul betekent precies dat: de lening gaat in het rekenjaar of later in.
 const DOSSIER_FORMAATVERSIE = 6;
 
 const ALGEMENE_VELDEN = [
@@ -3177,6 +3354,7 @@ const LENINGVELDEN = [
   { sleutel: 'looptijdMaanden', label: 'Looptijd in maanden', soort: 'aantal' },
   { sleutel: 'startjaar', label: 'Jaar van ingang', soort: 'aantal' },
   { sleutel: 'startmaand', label: 'Maand van ingang', soort: 'aantal' },
+  { sleutel: 'stand1Januari', label: 'Schuld per 1 januari van het rekenjaar (lening van vóór het rekenjaar)', soort: 'bedrag' },
   { sleutel: 'schenkingBedrag', label: 'Vaste jaarlijkse schenking', soort: 'bedrag' },
   { sleutel: 'schenkingDeelProcent', label: 'Deel van de ontvangen rente dat wordt geschonken', soort: 'percentage' },
   { sleutel: 'kwijtscheldingBedrag', label: 'Kwijtschelding per jaar', soort: 'bedrag' },
@@ -3394,6 +3572,14 @@ const AFBAKENING = [
   + 'noodzakelijk die welke de aangifte het gunstigst maakt. Dat de partners '
   + 'het hele jaar dezelfde fiscale partner hebben (art. 2.17 lid 5) en dat zij de verhouding '
   + 'zo in de aangifte kiezen, stelt de tool niet vast.',
+  'Een lening van 2013 tot en met het jaar vóór het rekenjaar rekent de tool door vanaf 1 '
+  + 'januari van het rekenjaar met de schuld die de gebruiker opgeeft. De jaren ervoor zijn '
+  + 'niet nagespeeld; de aflossingseis toetst zij wel aan de lijn van art. 3.119c lid 1 vanaf '
+  + 'de oorspronkelijke ingang, en het toetsmoment van 31 december van het jaar vóór het '
+  + 'rekenjaar bepaalt of er al een achterstand loopt. Zij behandelt een zo late lening als een '
+  + 'schuld van na 2012; een oversluiting van een bestaande eigenwoningschuld (art. 10bis.1 lid '
+  + '3) valt daar niet onder en zit er niet in. Een lening van vóór 2013 wordt geweigerd, want '
+  + 'het overgangsrecht van art. 10bis kent de tool niet.',
   'De eenmalig verhoogde schenkingsvrijstellingen zitten er niet in, ook niet als keuze. Het '
   + 'recht daarop hangt af van voorwaarden die de tool niet kan vaststellen.',
   'De uitkomst is een berekening en geen beoordeling door de Belastingdienst.',
@@ -4106,7 +4292,13 @@ function leesDossier(tekst) {
     } else if (!Object.prototype.hasOwnProperty.call(AFLOSSINGSVORM_NAMEN, aflossingsvorm)) {
       gebreken.push(waar + 'de aflossingsvorm is onbekend (' + String(aflossingsvorm) + ')');
     }
-    const uit = leesVelden(lening, LENINGVELDEN, waar, gebreken);
+    // De schuld per 1 januari van het rekenjaar is later toegevoegd. Een dossier zonder dat veld
+    // is gemaakt toen een lening van vóór het rekenjaar nog werd geweigerd, dus het veld
+    // betekent daar nul en de uitkomst blijft dezelfde. Daarom geen aparte melding.
+    const metStand = lening.stand1Januari === undefined
+      ? Object.assign({}, lening, { stand1Januari: 0 }) : lening;
+    const uit = leesVelden(metStand, LENINGVELDEN, waar, gebreken);
+    uit.aflossingsvorm = aflossingsvorm;
     uit.aflossingsvorm = aflossingsvorm;
     uit.actief = lening.actief === true;
     uit.schenkingSoort = lening.schenkingSoort;
@@ -4165,6 +4357,7 @@ function standaardLening(nummer) {
     looptijdMaanden: 360,
     startjaar: 2026,
     startmaand: 1,
+    stand1Januari: 0,
     schenkingSoort: nummer === 1 ? 'rente' : 'geen',
     schenkingBedrag: 0,
     schenkingDeelProcent: 100,
@@ -4219,7 +4412,8 @@ function bouwLeningkaart(nummer) {
         'ten hoogste 360, art. 3.119a lid 1 onder b Wet IB 2001',
         { waarde: s.looptijdMaanden, min: 1, max: 360, stap: 1 })
     + getalveld(nummer, 'startjaar', 'Jaar van ingang',
-        'niet vóór het rekenjaar', { waarde: s.startjaar, min: 2000, max: 2100, stap: 1 })
+        'vanaf 2013; een eerder jaar dan het rekenjaar vraagt hieronder de schuld per 1 januari',
+        { waarde: s.startjaar, min: 2000, max: 2100, stap: 1 })
     + '<div><label for="' + id('startmaand') + '">Maand van ingang'
     + '<span class="bron">bepaalt hoeveel termijnen in het eerste jaar vallen</span></label>'
     + '<select id="' + id('startmaand') + '">' + maandopties + '</select></div>'
@@ -4231,6 +4425,9 @@ function bouwLeningkaart(nummer) {
     + '<option value="lineair"' + (s.aflossingsvorm === 'lineair' ? ' selected' : '') + '>lineair</option>'
     + '<option value="aflossingsvrij"' + (s.aflossingsvorm === 'aflossingsvrij' ? ' selected' : '') + '>aflossingsvrij</option>'
     + '</select></div>'
+    + getalveld(nummer, 'stand1Januari', 'Schuld per 1 januari van het rekenjaar',
+        'alleen bij een lening van vóór het rekenjaar: de schuld volgens het jaaroverzicht',
+        { waarde: s.stand1Januari, min: 0, stap: 1000 })
     + '</div>'
 
     + '<div class="melding let-op" style="margin-top:14px;">'
