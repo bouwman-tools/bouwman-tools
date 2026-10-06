@@ -568,11 +568,11 @@
       <div>
         <h1 class="bt-kopbalk-titel">WKR Agent</h1>
         <div class="bt-kopbalk-sub">Werkkostenregeling-assistent · 2026</div>
-        <div class="bt-kopbalk-bijgewerkt" id="wkrLaatsteUpdate"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:30</div>
+        <div class="bt-kopbalk-bijgewerkt" id="wkrLaatsteUpdate"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 22:25</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
-      <a href="/cdn-cgi/access/logout" class="bt-logout-btn">Uitloggen</a>
+      <a href="/cdn-cgi/access/logout" class="bt-logout-btn" id="logoutBtn">Uitloggen</a>
     </div>
   </div>
 </div>
@@ -631,7 +631,8 @@ const CONFIG = {
 
       <div class="disclaimer">
         <strong>Bronnen:</strong> Wet LB 1964 en Uitvoeringsregeling LB 2011, Handboek Loonheffingen 2026 (versie maart 2026), kennisgroepstandpunten en beleidsbesluiten Belastingdienst, gecontroleerde jurisprudentie (Rechtspraak.nl) en een praktische WKR-lijst.<br><br>
-        Deze tool geeft fiscale informatie op basis van deze vaste bronnen. Het is geen vervanging voor persoonlijk advies.
+        Deze tool geeft fiscale informatie op basis van deze vaste bronnen. Het is geen vervanging voor persoonlijk advies.<br><br>
+        <strong>Privacy:</strong> uw vraag wordt verwerkt door Anthropic (Claude). Voer geen persoonsgegevens in, ook niet van klanten of werknemers.
       </div>
     </div>
 
@@ -725,6 +726,22 @@ function checkAccess() {
     document.getElementById('accessScreen').style.display = 'flex';
   }
 }
+
+// Uitloggen: wis altijd de opgeslagen toegangscode. Op bouwman.tools staat de pagina
+// achter Cloudflare Access en werkt de koppeling naar /cdn-cgi/access/logout; op
+// join-wkr-agent.pages.dev bestaat dat pad niet, daar volstaat opnieuw laden (dan
+// verschijnt het toegangsscherm weer).
+document.addEventListener('DOMContentLoaded', () => {
+  const knop = document.getElementById('logoutBtn');
+  if (!knop) return;
+  knop.addEventListener('click', e => {
+    try { sessionStorage.removeItem('wkr_code'); } catch {}
+    if (/\.pages\.dev$/.test(location.hostname)) {
+      e.preventDefault();
+      location.reload();
+    }
+  });
+});
 
 function checkAccessCode() {
   const code = document.getElementById('accessInput').value.trim();
