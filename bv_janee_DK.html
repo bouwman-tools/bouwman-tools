@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 21:39</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 22:37</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1486,7 +1486,7 @@
 
       <div class="card" style="margin-top:14px">
         <div class="slabel">Uitgifte per inbrenger</div>
-        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Aandelen</th><th scope="col">Nominaal</th><th scope="col">Agio</th><th scope="col">Afrondingscreditering, max</th></tr></thead><tbody id="fus-tb-uitgifte"></tbody></table></div>
+        <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Inbrenger</th><th scope="col">Aandelen</th><th scope="col">Nominaal</th><th scope="col">Agio</th><th scope="col">Afrondingscreditering, aandeel in het gezamenlijke max</th></tr></thead><tbody id="fus-tb-uitgifte"></tbody></table></div>
       </div>
 
       <div class="card" style="margin-top:14px">
@@ -4274,6 +4274,12 @@ const BVJN = (function () {
    * art. 3.65. `gestort` is hier de volle waarde B (de uitgifte gaat uit van het scenario
    * zonder creditering); de vorige formule rekende 1% x B, over de volle grondslag mét wat
    * er zelf als creditering bovenop kwam.
+   *
+   * Bij meerdere inbrengers in een bedrijfsfusie past `berekenFusie` deze functie toe op het
+   * TOTAAL dat op de uitgereikte aandelen is gestort, niet per inbrenger: het maximum van
+   * EUR 4.500 geldt dan een keer voor de hele bedrijfsfusie. Par. 3.5 zegt niets over
+   * meerdere overdragers; het is een voorzichtige keuze van Sylvain Bouwman, 06-10-2026
+   * (OPENSTAAND.md punt 23), met de bronnotitie in `valideerFusie`.
    */
   function afrondingscrediteringFusie(gestort) {
     return Math.min(
@@ -4328,6 +4334,7 @@ const BVJN = (function () {
     const rv = ruilverhouding(i.inbrengers, p, i.overnemerNieuw ? 0 : i.waardeBestaandVermogen);
 
     const uitgifte = [], opgeofferd = [], deelneming = [], verschuiving = [], risico = [], creditering = [];
+    const gestortPerInbrenger = [];
     let afrondingsverschilTotaal = 0;
     for (let n = 0; n < i.inbrengers.length; n++) {
       const x = i.inbrengers[n];
@@ -4336,7 +4343,7 @@ const BVJN = (function () {
       afrondingsverschilTotaal += Math.abs(u.afrondingsverschil);
 
       const gestort = i.gestortBegrip === 'nominaal' ? u.nominaal : u.nominaal + u.agio;
-      creditering.push({ gestort: gestort, max: afrondingscrediteringFusie(gestort) });
+      gestortPerInbrenger.push(gestort);
 
       const ob = opgeofferdBedrag(x.b, x.r);
       opgeofferd.push({ bedrag: ob, boekwaarde: x.b, reserves: x.r });
@@ -4362,6 +4369,18 @@ const BVJN = (function () {
       risico.push({ overdrachtswinst: Math.max(0, x.w - x.b) });
     }
 
+    // De afrondingscreditering is een ruimte voor de hele bedrijfsfusie (gezamenlijk maximum
+    // van EUR 4.500, besluit Sylvain 06-10-2026). Het aandeel per inbrenger is een verdeling
+    // naar rato van het gestorte; de aandelen tellen op tot het gezamenlijke maximum.
+    const gestortTotaal = gestortPerInbrenger.reduce(function (s, g) { return s + g; }, 0);
+    const crediteringTotaal = { gestort: gestortTotaal, max: afrondingscrediteringFusie(gestortTotaal) };
+    for (let n = 0; n < gestortPerInbrenger.length; n++) {
+      creditering.push({
+        gestort: gestortPerInbrenger[n],
+        max: gestortTotaal > 0 ? crediteringTotaal.max * gestortPerInbrenger[n] / gestortTotaal : 0
+      });
+    }
+
     // Vereisten b en c van art. 14 lid 1. Een aangevinkte aanspraak betekent: niet van
     // rechtswege, wel mogelijk via een gezamenlijk verzoek op grond van lid 2.
     const aanspraakLijst = Object.keys(i.aanspraken).filter(function (k) { return i.aanspraken[k]; });
@@ -4383,6 +4402,7 @@ const BVJN = (function () {
       ruilverhouding: rv,
       uitgifte: uitgifte,
       creditering: creditering,
+      crediteringTotaal: crediteringTotaal,
       opgeofferd: opgeofferd,
       deelneming: deelneming,
       verschuiving: verschuiving,
@@ -4585,6 +4605,14 @@ const BVJN = (function () {
       + 'Uitvoeringsbesluit BRV, over het gestorte). Binnen de grens is de creditering meegefacilieerd, '
       + 'terwijl bij een aandelenfusie de bijbetaling altijd belast is. De 5% met maximum \u20ac 30.000 uit '
       + 'de vierde standaardvoorwaarde hoort bij art. 3.65 en werkt niet door naar art. 14.');
+    if (i.inbrengers.length > 1) {
+      waarschuw(null, 'Het Bedrijfsfusiebesluit 2025 bepaalt niet expliciet hoe de absolute grens van € '
+        + TARIEVEN.fusie.crediteringMax.toLocaleString('nl-NL') + ' moet worden toegepast wanneer meerdere '
+        + 'overdragers binnen een bedrijfsfusie aandelen ontvangen. De tool past het maximum voorzichtigheidshalve '
+        + 'een keer toe op de totale afrondingscreditering van de bedrijfsfusie en verdeelt die ruimte naar rato van '
+        + 'het gestorte over de inbrengers. Het model toetst ook gezamenlijk. Een per-inbrenger-uitleg zou meer '
+        + 'toestaan en heeft geen bron; stem dit bij een concreet dossier af.');
+    }
 
     /* ---------- overdrachtsbelasting ---------- */
     if (i.onroerendeZaken) {
@@ -7445,7 +7473,8 @@ const BVJN = (function () {
     vulTabel('fus-tb-uitgifte', u.uitgifte.map(function (x, n) {
       return [namen[n], x.aantal.toLocaleString('nl-NL'),
         '€ ' + x.nominaal.toFixed(2).replace('.', ','), x.agio, u.creditering[n].max];
-    }));
+    }).concat(u.uitgifte.length > 1
+      ? [['Samen (gezamenlijk maximum)', '', '', '', u.crediteringTotaal.max, 'tot']] : []));
 
     vulTabel('fus-tb-opgeofferd', u.opgeofferd.map(function (x, n) {
       return [namen[n], x.boekwaarde, x.reserves, x.bedrag,
