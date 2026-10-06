@@ -14,6 +14,9 @@
   th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: right; }
   th { background: #eee; }
   .fout { color: #b00020; }
+  .melding { background: #fff8e1; border: 1px solid #e0b100; padding: 0.5rem 0.8rem; max-width: 720px; font-size: 0.9rem; }
+  .beperkingen { max-width: 720px; font-size: 0.9rem; color: #444; margin: 1rem 0; }
+  .beperkingen summary { cursor: pointer; font-weight: bold; }
 
   /* De kopbalk even breed als de inhoud eronder. */
   :root { --bt-kopbalk-breedte: none; }
@@ -128,7 +131,7 @@
       <div>
         <div class="bt-kopbalk-titel">Kantoor in de eigen woning</div>
         <div class="bt-kopbalk-sub">Kantoorruimte in de eigen woning voor de DGA en de IB-ondernemer</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:30</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 10:12</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -179,6 +182,17 @@
   <label for="overigeKostenOverdrachtPercentage">Overige kosten overdracht naar de BV (% van de pandwaarde)</label><input id="overigeKostenOverdrachtPercentage" type="number" step="0.001" value="0.01"><br>
 </fieldset>
 
+<details class="beperkingen">
+  <summary>Wat deze tool niet meeneemt</summary>
+  <ul>
+    <li>Het eigenwoningforfait en de bijtelling bij ondernemingsvermogen rekenen met de percentages voor een waarde vanaf € 75.000. De lagere schijven daaronder (art. 3.112 en art. 3.19 Wet IB 2001) zijn niet gemodelleerd; bij een lagere waarde verschijnt een melding.</li>
+    <li>Het marginale IB-tarief is een invoerveld met als standaard het tarief van de hoogste schijf. De afwijkende eerste schijf voor wie de AOW-leeftijd heeft bereikt (art. 2.10a Wet IB 2001) is niet gemodelleerd: wie in die schijf valt, vult het eigen tarief in.</li>
+    <li>De overgangsregeling bij de bodemwaarde (art. XXXVII Stb. 2023, 499) is niet gemodelleerd. Voor een gebouw in eigen gebruik dat vóór 2024 al tot het ondernemingsvermogen behoorde en waarop toen al werd afgeschreven, kan de oude bodemwaarde van 50% van de WOZ-waarde nog gelden, tot er drie volledige jaren op is afgeschreven. De tool rekent altijd met 100%. Valt de casus onder die regeling, dan mag in het jaar meer worden afgeschreven dan hier.</li>
+    <li>Het scenario Privévermogen geeft nooit aftrek voor de werkruimte. Een zelfstandige werkruimte in de eigen woning die aan de inkomenseis van art. 3.16 Wet IB 2001 voldoet en een gebruiksvergoeding (art. 3.17) is niet gemodelleerd. Bij ondernemingsvermogen geldt de bijtelling van art. 3.19 alleen voor een werkruimte die zonder ondernemingsvermogen onder de aftrekuitsluiting van art. 3.16 zou vallen; de tool past haar in beide scenario's toe.</li>
+    <li>Voor box 3 geldt het forfaitaire stelsel van 2026. Het wetsvoorstel voor het werkelijk rendement (voorzien per 2028) is geen geldend recht en is niet gemodelleerd.</li>
+  </ul>
+</details>
+
 <button id="berekenBtn">Bereken</button>
 <div id="uitkomst"></div>
 </div>
@@ -202,11 +216,14 @@ const WAARDEN_PER_JAAR = {
     ewfGewoonPercentage: 0.0035,
     ewfVerhoogdPercentage: 0.0235,
     ewfVillagrens: 1350000,
+    // Onder deze waarde gelden in art. 3.112 lid 1 en art. 3.19 lid 1 lagere schijven die de
+    // tool niet modelleert (zie bepaalBeperkingsmeldingen). Grens volgt uit de tabel hierboven.
+    ewfLagereSchijvenGrens: 75000,
 
     // "Bijtelling privé-gebruik woning" — art. 3.19 Wet IB 2001 (winst uit onderneming,
     // niet de eigenwoningregeling). Van toepassing als de woning (of, via lid 5 onderdeel
     // b, de werkruimte) tot het ondernemingsvermogen behoort. Wettekst zelf gelezen op
-    // wetten.overheid.nl, geraadpleegd 28-09-2026, geldig 01-01-2026: €0–12.500 nihil (niet
+    // wetten.overheid.nl, geraadpleegd 28-09-2026, geldig 01-01-2026: €0–12.500 0,65% (niet
     // gemodelleerd, zie hierboven), €12.500–25.000 0,80%, €25.000–50.000 0,90%,
     // €50.000–75.000 1,00%, €75.000–1.350.000 1,10%, boven €1.350.000: €14.850 + 2,35% van
     // het meerdere. Dit is een ANDERE (hogere) tabel dan het gewone eigenwoningforfait van
@@ -221,7 +238,8 @@ const WAARDEN_PER_JAAR = {
     // Marginale IB-tarieven box 1. Eerste schijf: art. 2.10 lid 1 Wet IB 2001 legt zelf
     // alleen het belastingtarief van 8,10% vast; het gecombineerde tarief van 35,75% is
     // 8,10% belasting + 27,65% premies volksverzekeringen (17,90% AOW + 0,10% Anw + 9,65%
-    // Wlz, via de Wet financiering sociale verzekeringen) voor wie de AOW-leeftijd nog niet
+    // Wlz, via de Wet financiering sociale verzekeringen; AOW en Anw volgens de SZW-regeling in
+    // Stcrt. 2025, 42324, Wlz volgens de Regeling vaststelling premiepercentage Wlz, BWBR0041685) voor wie de AOW-leeftijd nog niet
     // heeft bereikt. Tweede en derde schijf (37,56% / 49,50%) staan al als gecombineerd
     // tarief in art. 2.10 lid 1 zelf. Wettekst zelf gelezen op wetten.overheid.nl,
     // geraadpleegd 28-09-2026, geldig 01-01-2026. Deze tool gaat uit van een
@@ -233,7 +251,7 @@ const WAARDEN_PER_JAAR = {
       { totEnMet: Infinity, tarief: 0.4950 },
     ],
 
-    // Afschrijvingsbeperking — art. 3.30 Wet IB 2001 (IB) / art. 8 Wet Vpb 1969 (Vpb-schakel).
+    // Afschrijvingsbeperking — art. 3.30a Wet IB 2001 (IB, wettekst gelezen 06-10-2026) / art. 8 Wet Vpb 1969 (Vpb-schakel).
     // Geen los percentage hier: bodemwaarde en jaarlijkse afschrijving zijn invoer/berekening.
 
     // Vpb-tarief, art. 22 Wet Vpb 1969.
@@ -284,6 +302,22 @@ function getWaarden(jaar) {
     throw new Error('Geen fiscale waarden bekend voor jaar ' + jaar + '. Vul WAARDEN_PER_JAAR aan voordat dit jaar wordt gebruikt.');
   }
   return waarden;
+}
+
+// Meldingen bij invoer waarvoor de tool een bekende beperking heeft. Pure functie, zodat de
+// regel testbaar is; het scherm toont de meldingen boven de uitkomst. De grondslagen zijn de
+// waarden waarover het forfait of de bijtelling wordt berekend. Bij het gesplitste scenario
+// geeft het scherm geen grondslagen mee: of de schijven daar voor het deel of voor de hele
+// woning gelden is niet met een vindplaats vastgesteld (art. 3.112 lid 2 noemt alleen het
+// aan de woning toe te rekenen deel van het WOZ-object), dus daar blijft de melding achterwege.
+function bepaalBeperkingsmeldingen(forfaitGrondslagen, jaar) {
+  const w = getWaarden(jaar);
+  const meldingen = [];
+  if (forfaitGrondslagen.some((g) => g > 0 && g < w.ewfLagereSchijvenGrens)) {
+    meldingen.push('Een waarde waarover het forfait wordt berekend ligt onder € ' + w.ewfLagereSchijvenGrens.toLocaleString('nl-NL') +
+      '. De lagere schijven van art. 3.112 en art. 3.19 Wet IB 2001 zijn niet gemodelleerd: de tool rekent met het percentage voor de schijf daarboven, dus het forfait is hier iets te hoog.');
+  }
+  return meldingen;
 }
 
 // Afschrijvingsbeperking: bodemwaarde = 100% van de WOZ-waarde van dát jaar (art. 3.30a
@@ -495,7 +529,7 @@ function berekenGedeeldeReeksen(invoer, extraAfschrijvingsgrondslag = 0) {
   const meerwaarden = berekenMeerwaardeReeks(actueleWaarden, boekwaarden);
   const jaren = [];
   for (let i = 0; i <= invoer.aantalJaren; i++) jaren.push(invoer.startjaar + i);
-  return { jaren, boekwaarden, afschrijvingen, actueleWaarden, meerwaarden };
+  return { jaren, boekwaarden, afschrijvingen, actueleWaarden, meerwaarden, wozWaarden: bodemwaardeReeks };
 }
 
 // Combineert een reeks jaarresultaten (exclusief de latente claim) tot inclusief/exclusief-
@@ -571,7 +605,8 @@ function berekenHonderdPercentEigenWoning(invoer) {
   const jaar = invoer.startjaar;
   const reeksen = berekenGedeeldeReeksen(invoer);
   const jaarresultaten = reeksen.jaren.map((_, i) => {
-    const forfait = berekenEigenwoningforfait(invoer.wozWaarde, jaar);
+    // Het forfait volgt de WOZ-waarde van dat jaar (art. 3.112 Wet IB 2001), dus de WOZ-prognose.
+    const forfait = berekenEigenwoningforfait(reeksen.wozWaarden[i], jaar);
     const rente = invoer.financiering * invoer.rentepercentage;
     const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
     const aftrek = renteEffectief.aftrekbareWaarde;
@@ -584,12 +619,14 @@ function berekenHonderdPercentEigenWoning(invoer) {
 
 // ---- IB-ondernemer-scenario's ----
 
-// Scenario 1: privévermogen, geen aftrek voor de werkruimte (art. 3.17 lid 1 onderdeel c sub 1).
+// Scenario 1: privévermogen, geen aftrek voor de werkruimte (art. 3.16 lid 1 Wet IB 2001; een
+// zelfstandige werkruimte die aan de inkomenseis voldoet en een gebruiksvergoeding volgens
+// art. 3.17 lid 1 onderdeel c sub 1 is niet gemodelleerd, zie OPENSTAAND punt 20).
 function berekenPrivevermogen(invoer) {
   const jaar = invoer.startjaar;
   const reeksen = berekenGedeeldeReeksen(invoer);
   const jaarresultaten = reeksen.jaren.map((_, i) => {
-    const forfait = berekenEigenwoningforfait(invoer.wozWaarde, jaar);
+    const forfait = berekenEigenwoningforfait(reeksen.wozWaarden[i], jaar);
     const rente = invoer.financiering * invoer.rentepercentage;
     const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
     const lasten = invoer.lasten * Math.pow(1 + invoer.indexatie, i);
@@ -624,7 +661,7 @@ function berekenOndernemingsvermogenBasis(invoer, zelfstandig) {
     // "zelfstandig" raakt hier niet de forfaitberekening zelf (gecorrigeerd 28-09-2026,
     // zie BRONNEN.md open punt 4, nu gesloten — voorheen werd hier ten onrechte het
     // gewone eigenwoningforfait van art. 3.112 gebruikt).
-    const forfait = berekenBijtellingOndernemingsvermogen(invoer.wozWaarde, jaar);
+    const forfait = berekenBijtellingOndernemingsvermogen(reeksen.wozWaarden[i], jaar);
     void zelfstandig; // bewust ongebruikt in de forfaitberekening zelf, zie toelichting hierboven
     const rente = invoer.financiering * invoer.rentepercentage;
     const renteEffectief = berekenAftrekbareRenteTegenEffectiefTarief(rente, invoer.marginaalTarief, jaar);
@@ -673,14 +710,14 @@ function berekenGesplitst(invoer) {
     dga: [
       { value: 'tbs', label: 'Terbeschikkingstelling', fn: berekenTbs },
       { value: 'kantoorBv', label: 'Kantoor naar de BV', fn: berekenKantoorBv },
-      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning },
+      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning, grondslagen: (i) => [i.wozWaarde] },
     ],
     ib: [
-      { value: 'privevermogen', label: 'Privévermogen', fn: berekenPrivevermogen },
-      { value: 'ovZelfstandig', label: 'Ondernemingsvermogen, zelfstandig', fn: berekenOvZelfstandig },
-      { value: 'ovNietZelfstandig', label: 'Ondernemingsvermogen, niet-zelfstandig', fn: berekenOvNietZelfstandig },
-      { value: 'gesplitst', label: 'Gesplitst box 3 / onderneming', fn: berekenGesplitst },
-      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning },
+      { value: 'privevermogen', label: 'Privévermogen', fn: berekenPrivevermogen, grondslagen: (i) => [i.wozWaarde] },
+      { value: 'ovZelfstandig', label: 'Ondernemingsvermogen, zelfstandig', fn: berekenOvZelfstandig, grondslagen: (i) => [i.wozWaarde] },
+      { value: 'ovNietZelfstandig', label: 'Ondernemingsvermogen, niet-zelfstandig', fn: berekenOvNietZelfstandig, grondslagen: (i) => [i.wozWaarde] },
+      { value: 'gesplitst', label: 'Gesplitst box 3 / onderneming', fn: berekenGesplitst, grondslagen: () => [] },
+      { value: 'volledigEigenWoning', label: '100% eigen woning', fn: berekenHonderdPercentEigenWoning, grondslagen: (i) => [i.wozWaarde] },
     ],
   };
 
@@ -728,7 +765,8 @@ function berekenGesplitst(invoer) {
       const invoer = leesInvoer();
       const scenario = scenariosPerVariant[variantEl.value].find((s) => s.value === scenarioEl.value);
       const resultaat = scenario.fn(invoer);
-      let html = '<table><tr><th>Jaar</th><th>Jaarresultaat</th><th>Meerwaarde</th><th>Cumulatief excl. claim</th><th>Cumulatief incl. claim</th></tr>';
+      const meldingen = scenario.grondslagen ? bepaalBeperkingsmeldingen(scenario.grondslagen(invoer), invoer.startjaar) : [];
+      let html = meldingen.map((m) => '<p class="melding">' + m + '</p>').join('') + '<table><tr><th>Jaar</th><th>Jaarresultaat</th><th>Meerwaarde</th><th>Cumulatief excl. claim</th><th>Cumulatief incl. claim</th></tr>';
       resultaat.jaren.forEach((jaar, i) => {
         html += '<tr><td>' + jaar + '</td><td>' + (resultaat.jaarresultaten[i] !== undefined ? resultaat.jaarresultaten[i].toFixed(0) : '') + '</td><td>' + resultaat.meerwaarden[i].toFixed(0) + '</td><td>' + resultaat.cumulatiefExclusief[i].toFixed(0) + '</td><td>' + resultaat.cumulatiefInclusief[i].toFixed(0) + '</td></tr>';
       });
