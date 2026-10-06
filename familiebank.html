@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 12:30</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 22:50</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -456,7 +456,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         bestaande eigenwoningschulden van vóór 2013, de aflossingsstand van art. 3.119d bij een
         eerdere lening, de toetsmomenten van art. 3.119c lid 7 onder b tot en met d, de
         verdeling tussen partners, en de routes van art. 3.119e lid 2 en lid 3 bij onvoldoende
-        betalingscapaciteit of een onbedoelde fout. De uitkomst is een berekening en geen
+        betalingscapaciteit, een onbedoelde fout of betalingsuitstel. De uitkomst is een berekening en geen
         beoordeling door de Belastingdienst.
       </p>
     </details>
@@ -983,12 +983,18 @@ function bouwAndereSchuldSchema(schuld, rekenjaar, renteomrekening) {
 // - lid 1: is de schuld op 31 december van het dáárop volgende kalenderjaar weer onder de
 //   lijn, dan blijft zij eigenwoningschuld. Die volzin geldt niet als de achterstand vaker
 //   dan incidenteel voorkomt; dat is een open norm die de tool niet invult, maar wel meldt.
-// - lid 2 en lid 3: routes bij onvoldoende betalingscapaciteit of een onbedoelde fout. Beide
-//   vragen feiten die de tool niet kan vaststellen (aannemelijk maken, een nieuw contractueel
-//   schema, instemming van de schuldeiser), dus de tool past ze niet toe en meldt ze.
-// - lid 4: leidt lid 2 of lid 3 er niet toe dat de schuld toch eigenwoningschuld blijft, dan
-//   behoort zij per 1 januari van het tweede kalenderjaar volgend op het jaar waarin de
-//   achterstand is ontstaan niet meer tot de eigenwoningschuld.
+// - lid 2 en lid 3: drie routes. Lid 2 onder a: onvoldoende betalingscapaciteit met een nieuw
+//   contractueel aflosschema. Lid 2 onder b: een onbedoelde fout in de betaling of berekening.
+//   Lid 3: betalingsproblemen waarbij de schuldeiser instemt met betalingsuitstel, met een
+//   nieuw schema uiterlijk op 31 december van het vierde kalenderjaar. Alle drie vragen dat de
+//   belastingplichtige iets aannemelijk maakt; lid 2 onder a en lid 3 vragen bovendien een
+//   afspraak met of instemming van de schuldeiser. Dat zijn feiten die de tool niet kan
+//   vaststellen, dus zij past de routes niet toe en meldt ze.
+// - lid 4: leidt de route niet tot behoud van de eigenwoningschuld, dan behoort zij per
+//   1 januari van het tweede kalenderjaar volgend op het jaar waarin de achterstand is
+//   ontstaan niet meer tot de eigenwoningschuld (bij een mislukte route van lid 3 per
+//   1 januari van het vierde kalenderjaar). De tool past alleen de eerste datum toe, omdat
+//   zij lid 3 niet toepast.
 //
 // Dat de schuld daarna weer kan terugkeren zodra de achterstand is ingehaald, volgt uit
 // kennisgroepstandpunt KG:051:2023:10 van 12-09-2023 van de Belastingdienst. Dat is een
@@ -1508,11 +1514,14 @@ function berekenFamiliebank(invoer) {
       });
       meldingen.push({
         soort: 'info',
-        tekst: lening.naam + ': art. 3.119e lid 2 en lid 3 Wet IB 2001 kennen twee routes '
-             + 'waarlangs de schuld tóch eigenwoningschuld blijft, bij onvoldoende '
-             + 'betalingscapaciteit met een nieuw contractueel aflosschema, of bij een '
-             + 'onbedoelde fout in de betaling of berekening. Beide vragen feiten die de tool '
-             + 'niet kan vaststellen, dus zij past ze niet toe.',
+        tekst: lening.naam + ': art. 3.119e lid 2 en lid 3 Wet IB 2001 kennen drie routes '
+             + 'waarlangs de schuld tóch eigenwoningschuld blijft: bij onvoldoende '
+             + 'betalingscapaciteit met een nieuw contractueel aflosschema (lid 2 onder a), bij '
+             + 'een onbedoelde fout in de betaling of berekening (lid 2 onder b) en bij '
+             + 'betalingsproblemen met instemming van de schuldeiser met betalingsuitstel '
+             + '(lid 3). Zij vragen dat de belastingplichtige iets aannemelijk maakt en, bij '
+             + 'lid 2 onder a en lid 3, een afspraak met de schuldeiser. Dat zijn feiten die de '
+             + 'tool niet kan vaststellen, dus zij past ze niet toe.',
       });
       if (lening.terugkeerNaBox3) {
         meldingen.push({
