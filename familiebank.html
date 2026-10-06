@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 22:50</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:04</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -250,7 +250,8 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 <main>
   <h1 class="noprint">Familiebank: lening van ouder aan kind</h1>
   <p class="inleiding noprint">
-    Reken tot vier annuïtaire leningen voor de eigen woning door: het aflosschema, de toets aan
+    Reken tot vier leningen voor de eigen woning door, annuïtair, lineair of aflossingsvrij: het
+    aflosschema, de toets aan
     de wettelijke aflossingseis, het saldo van eigenwoningforfait en renteaftrek, en wat er
     jaarlijks wordt teruggeschonken of kwijtgescholden. De tool geeft een uitkomst en doet geen
     voorstel.
@@ -423,7 +424,10 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <li><strong>Eigenwoningschuld</strong> — art. 3.119a lid 1 Wet IB 2001. Er moet een
         contractuele verplichting zijn tot ten minste annuïtair en in ten hoogste 360 maanden
         volledig aflossen (onderdeel b), en aan de aflossingseis moet feitelijk worden voldaan
-        (onderdeel c).</li>
+        (onderdeel c). Een lineaire lening lost minstens zo snel af als een annuïtaire en voldoet; een
+        aflossingsvrije lening voldoet niet aan onderdeel b en behoort niet tot de
+        eigenwoningschuld. Het overgangsrecht bij oversluiten (art. 10bis.1 lid 3) toetst de
+        tool niet.</li>
       <li><strong>Aflossingseis</strong> — art. 3.119c Wet IB 2001. De schuld mag per lening op
         geen enkel toetsmoment hoger zijn dan het bedrag uit de wettelijke formule, waarin n de
         maximale looptijd van 360 maanden is. Toetsmoment is 31 december van het kalenderjaar
@@ -456,7 +460,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         bestaande eigenwoningschulden van vóór 2013, de aflossingsstand van art. 3.119d bij een
         eerdere lening, de toetsmomenten van art. 3.119c lid 7 onder b tot en met d, de
         verdeling tussen partners, en de routes van art. 3.119e lid 2 en lid 3 bij onvoldoende
-        betalingscapaciteit, een onbedoelde fout of betalingsuitstel. De uitkomst is een berekening en geen
+        betalingscapaciteit of een onbedoelde fout. De uitkomst is een berekening en geen
         beoordeling door de Belastingdienst.
       </p>
     </details>
@@ -765,11 +769,35 @@ function indexfactor(jaar, rekenjaar, indexatieFractie) {
 //    kwijtschelding is geen van beide.
 // 4. De kwijtschelding valt in elk jaar in dezelfde maand. De tool kent geen jaar-voor-jaar
 //    afwijkende maand; dat zou een invoerveld per jaar vragen.
+// 5. De aflossingsvorm van de familiebanklening zelf (lening.aflossingsvorm, met dezelfde
+//    drie waarden als AFLOSSINGSVORMEN hieronder). Art. 3.119a lid 1 onder b Wet IB 2001 eist
+//    een contractuele verplichting tot "het gedurende de looptijd ten minste annuïtair en in
+//    ten hoogste 360 maanden volledig aflossen":
+//    - 'annuitair': een vaste maandtermijn van rente en aflossing samen;
+//    - 'lineair': elke maand hetzelfde bedrag aan aflossing, de hoofdsom gedeeld door de
+//      looptijd, met de rente daarbovenop. De schuld ligt daardoor op elk moment op of onder
+//      die van een annuïtaire lening over dezelfde looptijd, en dus op of onder de maximumlijn
+//      van art. 3.119c; dat is "ten minste annuïtair". Zo ook het besluit van 24-01-2025,
+//      nr. 2024-34394 (Stcrt. 2025, 3916), onderdeel 2. Na een pauze met 'herrekenen' wordt de
+//      restschuld in gelijke delen over de resterende maanden verdeeld; bij 'verlengen' loopt
+//      hetzelfde maandbedrag door. Een kwijtschelding verlaagt de schuld maar niet het
+//      maandbedrag aan aflossing, net als bij annuïtair.
+//    - 'aflossingsvrij': alleen rente, en de hele restschuld ineens in de laatste maand van de
+//      looptijd. Er is dan geen verplichting tot ten minste annuïtair aflossen, dus de schuld
+//      behoort vanaf de eerste dag niet tot de eigenwoningschuld; zie toetsAflossingseis.
+//      Een aflossingspauze heeft hier geen betekenis en wordt geweigerd.
 const PAUZEVORMEN = ['verlengen', 'herrekenen'];
 
 function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) {
   const maandrente = maandrenteUitJaarrente(lening.jaarrenteProcent / 100, renteomrekening);
-  const termijn = annuiteitPerMaand(lening.hoofdsom, maandrente, lening.looptijdMaanden);
+  const vorm = lening.aflossingsvorm;
+  const annuiteit = annuiteitPerMaand(lening.hoofdsom, maandrente, lening.looptijdMaanden);
+  const lineaireAflossing = lening.hoofdsom / lening.looptijdMaanden;
+  // De termijn van de eerste maand. Alleen bij annuïtair blijft hij gelijk; bij lineair daalt
+  // hij met de rente mee en bij aflossingsvrij is hij alleen rente.
+  const termijn = vorm === 'lineair' ? lineaireAflossing + lening.hoofdsom * maandrente
+    : vorm === 'aflossingsvrij' ? lening.hoofdsom * maandrente
+    : annuiteit;
   const herrekenen = lening.pauzeMaanden > 0 && lening.pauzeVorm === 'herrekenen';
   const maanden = herrekenen
     ? lening.looptijdMaanden
@@ -815,8 +843,12 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
   let volledigAfgelost = false;
   // De maandtermijn zoals die op dit moment geldt. Alleen de vorm 'herrekenen' verandert hem,
   // en dan één keer: in de eerste maand na de pauze.
-  let lopendeTermijn = termijn;
+  let lopendeTermijn = annuiteit;
   let herrekendeTermijn = null;
+  // Bij lineair is het maandbedrag aan aflossing wat er vastligt, niet de termijn. Ook dat
+  // verandert alleen bij 'herrekenen', in de eerste maand na de pauze.
+  let lopendeLineaireAflossing = lineaireAflossing;
+  let herrekendeAflossing = null;
 
   const sluitJaar = () => {
     if (schuld < 0.005) { schuld = 0; volledigAfgelost = true; }
@@ -836,12 +868,23 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
     // De eerste maand ná de pauze: bij 'herrekenen' wordt de restschuld over de maanden die
     // tot de oorspronkelijke einddatum resteren opnieuw annuïtair verdeeld.
     if (herrekenen && absoluut(jaar, maand) === pauzeTot && maanden - m > 0) {
-      lopendeTermijn = annuiteitPerMaand(schuld, maandrente, maanden - m);
-      herrekendeTermijn = lopendeTermijn;
+      if (vorm === 'lineair') {
+        lopendeLineaireAflossing = schuld / (maanden - m);
+        herrekendeAflossing = lopendeLineaireAflossing;
+        herrekendeTermijn = lopendeLineaireAflossing + schuld * maandrente;
+      } else {
+        lopendeTermijn = annuiteitPerMaand(schuld, maandrente, maanden - m);
+        herrekendeTermijn = lopendeTermijn;
+      }
     }
     const inPauze = absoluut(jaar, maand) >= pauzeVan && absoluut(jaar, maand) < pauzeTot;
     const rente = schuld * maandrente;
-    const aflossing = inPauze ? 0 : Math.min(Math.max(0, lopendeTermijn - rente), schuld);
+    let aflossing = 0;
+    if (inPauze) aflossing = 0;
+    else if (vorm === 'lineair') aflossing = Math.min(lopendeLineaireAflossing, schuld);
+    // Aflossingsvrij: de restschuld gaat ineens in de laatste maand van de looptijd.
+    else if (vorm === 'aflossingsvrij') aflossing = m === maanden - 1 ? schuld : 0;
+    else aflossing = Math.min(Math.max(0, lopendeTermijn - rente), schuld);
     schuld -= aflossing;
     huidig.rente += rente;
     huidig.aflossing += aflossing;
@@ -875,8 +918,12 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
     // die, want hij hoeft niet januari van het opgegeven jaar te zijn.
     pauzeEersteJaar: lening.pauzeMaanden > 0 ? Math.floor((pauzeVan - 1) / 12) : null,
     pauzeEersteMaand: lening.pauzeMaanden > 0 ? ((pauzeVan - 1) % 12) + 1 : null,
+    aflossingsvorm: vorm,
     termijnPerMaand: afrondenOpCenten(termijn),
     termijnNaPauze: herrekendeTermijn === null ? null : afrondenOpCenten(herrekendeTermijn),
+    // Alleen bij lineair: het vaste maandbedrag aan aflossing, en dat bedrag na herrekening.
+    aflossingPerMaand: vorm === 'lineair' ? afrondenOpCenten(lineaireAflossing) : null,
+    aflossingNaPauze: herrekendeAflossing === null ? null : afrondenOpCenten(herrekendeAflossing),
     betaaldeMaanden: m,
     volledigAfgelost,
     restschuld: afrondenOpCenten(Math.max(0, schuld)),
@@ -1001,7 +1048,39 @@ function bouwAndereSchuldSchema(schuld, rekenjaar, renteomrekening) {
 // uitvoeringsstandpunt: het bindt de inspecteur, niet de rechter en niet de
 // belastingplichtige. De tool plaatst die terugkeer op het eerstvolgende toetsmoment waarop
 // de schuld weer onder de lijn ligt, en dus met ingang van het jaar daarna.
+//
+// Een aflossingsvrije lening komt aan die toets niet toe. Art. 3.119a lid 1 onder b eist een
+// contractuele verplichting tot ten minste annuïtair aflossen, en die ontbreekt; de schuld
+// behoort dus vanaf de eerste dag niet tot de eigenwoningschuld. Art. 3.119c lid 1 toetst
+// alleen "een tot de eigenwoningschuld behorende schuld", en art. 3.119e regelt alleen het
+// verlies van een status die er was. De tool geeft daarom geen maximum en geen achterstand,
+// en zet elk jaar op "geen eigenwoningschuld". Het overgangsrecht van art. 10bis.1 lid 3
+// (oversluiten van een bestaande eigenwoningschuld van vóór 2013) zit niet in de tool; dat
+// meldt zij apart.
 function toetsAflossingseis(lening, schema) {
+  if (lening.aflossingsvorm === 'aflossingsvrij') {
+    return {
+      toetsen: schema.jaren.map(jaarregel => ({
+        jaar: jaarregel.jaar,
+        verstrekenMaanden: null,
+        maximaleSchuld: null,
+        schuldEind: jaarregel.schuldEind,
+        achterstand: false,
+        geenSchuld: jaarregel.schuldEind === 0,
+        nietVanToepassing: true,
+      })),
+      status: schema.jaren.map(jaarregel => ({ jaar: jaarregel.jaar, eigenwoningschuld: false })),
+      voldoetAltijd: false,
+      geenAflossingsverplichting: true,
+      aantalAchterstanden: 0,
+      herstelViaLid1: false,
+      terugkeerNaBox3: false,
+      eindigtInBox3: true,
+      achterstandsjaren: [],
+      jarenZonderAftrek: schema.jaren.map(jaarregel => jaarregel.jaar),
+    };
+  }
+
   const toetsen = [];
   for (const jaarregel of schema.jaren) {
     const verstreken = (jaarregel.jaar - lening.startjaar) * 12 + (13 - lening.startmaand);
@@ -1066,6 +1145,7 @@ function toetsAflossingseis(lening, schema) {
     toetsen,
     status,
     voldoetAltijd: toetsen.every(t => !t.achterstand),
+    geenAflossingsverplichting: false,
     aantalAchterstanden,
     herstelViaLid1,
     terugkeerNaBox3,
@@ -1216,6 +1296,17 @@ function berekenFamiliebank(invoer) {
         + 'aflossingsstand van art. 3.119d en het overgangsrecht van art. 10bis zitten er niet '
         + 'in. Zet het rekenjaar op het jaar waarin de eerste lening ingaat.');
     }
+    // De vorm wordt niet aangevuld. Een stille standaard zou een lening die als lineair of
+    // aflossingsvrij is bedoeld annuïtair doorrekenen, en dat is aan de uitkomst niet te zien.
+    if (AFLOSSINGSVORMEN.indexOf(l.aflossingsvorm) === -1) {
+      return geenUitkomst('De aflossingsvorm van ' + naam + ' is onbekend ('
+        + String(l.aflossingsvorm) + '). Kies annuïtair, lineair of aflossingsvrij.');
+    }
+    if (l.aflossingsvorm === 'aflossingsvrij' && l.pauzeMaanden > 0) {
+      return geenUitkomst(naam + ' is aflossingsvrij en kent dus geen aflossing om te '
+        + 'pauzeren. Zet de duur van de aflossingspauze op nul of kies een andere '
+        + 'aflossingsvorm.');
+    }
     if (l.pauzeMaanden > 0 && l.pauzeStartjaar < l.startjaar) {
       return geenUitkomst('De aflossingspauze van ' + naam + ' begint in '
         + l.pauzeStartjaar + ', vóór de lening zelf ingaat in ' + l.startjaar + '.');
@@ -1317,8 +1408,12 @@ function berekenFamiliebank(invoer) {
       naam: lening.naam || 'Lening ' + (i + 1),
       invoer: lening,
       maandrenteProcent: afrondenOpCenten(schema.maandrente * 100 * 100) / 100,
+      aflossingsvorm: lening.aflossingsvorm,
       termijnPerMaand: schema.termijnPerMaand,
       termijnNaPauze: schema.termijnNaPauze,
+      aflossingPerMaand: schema.aflossingPerMaand,
+      aflossingNaPauze: schema.aflossingNaPauze,
+      geenAflossingsverplichting: toets.geenAflossingsverplichting,
       pauzeEersteJaar: schema.pauzeEersteJaar,
       pauzeEersteMaand: schema.pauzeEersteMaand,
       betaaldeMaanden: schema.betaaldeMaanden,
@@ -1436,7 +1531,16 @@ function berekenFamiliebank(invoer) {
                    + 'de eerste maand waarin de lening loopt, zodat alle '
                    + lening.invoer.pauzeMaanden + ' maanden meetellen. '
                  : '')
-             + (herrekend
+             + (herrekend && lening.aflossingsvorm === 'lineair'
+                 ? 'De einddatum blijft staan: de restschuld wordt na de pauze in gelijke delen '
+                   + 'over de resterende maanden verdeeld, waardoor de maandelijkse aflossing '
+                   + (lening.aflossingNaPauze > lening.aflossingPerMaand ? 'stijgt'
+                      : lening.aflossingNaPauze < lening.aflossingPerMaand ? 'daalt'
+                      : 'gelijk blijft')
+                   + ' van ' + bedragInTekst(lening.aflossingPerMaand) + ' naar '
+                   + bedragInTekst(lening.aflossingNaPauze) + '. De lening is nog steeds na '
+                   + lening.invoer.looptijdMaanden + ' maanden afgelost. '
+                 : herrekend
                  ? 'De einddatum blijft staan: de restschuld wordt na de pauze over de '
                    + 'resterende maanden opnieuw annuïtair verdeeld, waardoor de maandtermijn '
                    // De richting staat niet vast. Een pauze duwt de termijn omhoog, maar een
@@ -1448,7 +1552,10 @@ function berekenFamiliebank(invoer) {
                    + ' van ' + bedragInTekst(lening.termijnPerMaand) + ' naar '
                    + bedragInTekst(lening.termijnNaPauze) + '. De lening is nog steeds na '
                    + lening.invoer.looptijdMaanden + ' maanden afgelost. '
-                 : 'De maandtermijn blijft daarna gelijk, dus de lening is pas na '
+                 : (lening.aflossingsvorm === 'lineair'
+                     ? 'De maandelijkse aflossing blijft daarna gelijk'
+                     : 'De maandtermijn blijft daarna gelijk')
+                   + ', dus de lening is pas na '
                    + lening.betaaldeMaanden + ' maanden afgelost in plaats van na '
                    + lening.invoer.looptijdMaanden + '. ')
              + (teLang
@@ -1474,7 +1581,52 @@ function berekenFamiliebank(invoer) {
       }
     }
 
-    if (!lening.voldoetAltijd) {
+    if (lening.aflossingsvorm === 'lineair') {
+      meldingen.push({
+        soort: 'info',
+        tekst: lening.naam + ' lost lineair af: elke maand ' + bedragInTekst(lening.aflossingPerMaand)
+             + ' aan aflossing, met de rente daarbovenop, zodat de maandtermijn over de looptijd '
+             + 'daalt; de tool toont de eerste. Volgens de leningsovereenkomst ligt de schuld zo op '
+             + 'elk moment op of onder die van een annuïtaire lening over dezelfde looptijd, en dat '
+             + 'is wat art. 3.119a lid 1 onder b Wet IB 2001 vraagt: een verplichting tot "ten '
+             + 'minste annuïtair" aflossen. De staatssecretaris zegt dat ook met zoveel woorden in '
+             + 'het besluit van 24-01-2025, nr. 2024-34394 (Stcrt. 2025, 3916), onderdeel 2. Wat '
+             + 'er feitelijk wordt afgelost, ook bij een pauze of kwijtschelding, toetst de tool '
+             + 'op elk toetsmoment aan de maximumlijn van art. 3.119c, net als bij een annuïtaire '
+             + 'lening.',
+      });
+    }
+
+    if (lening.geenAflossingsverplichting) {
+      meldingen.push({
+        soort: 'fout',
+        tekst: lening.naam + ' is aflossingsvrij en behoort daarom niet tot de eigenwoningschuld, '
+             + 'behoudens het overgangsrecht hieronder. Art. 3.119a lid 1 onder b Wet IB 2001 eist '
+             + 'een contractuele verplichting om de schuld gedurende de looptijd ten minste '
+             + 'annuïtair en in ten hoogste 360 maanden volledig af te lossen, en die ontbreekt. '
+             + 'De rente is dus geen aftrekbare kosten eigen woning van art. 3.120 lid 1 onder a: '
+             + 'zij verlaagt het inkomen uit werk en woning niet en telt niet mee voor de aftrek '
+             + 'van art. 3.123a, en het effect van deze lening is in de berekening nul. Aan de '
+             + 'aflossingseis van art. 3.119c komt de lening niet toe, want die toetst alleen een '
+             + 'schuld die tot de eigenwoningschuld behoort. Bij het kind telt de schuld mee in '
+             + 'box 3 (art. 2.14 lid 3 onder a jo. art. 5.3 lid 1 en 3, met de drempel van lid 3 '
+             + 'onder f); die kant rekent de tool niet. De schenking '
+             + 'en de kwijtschelding tellen wel mee in de toets aan de schenkvrijstelling. De '
+             + 'restschuld wordt in de laatste maand van de looptijd ineens afgelost.',
+      });
+      meldingen.push({
+        soort: 'let-op',
+        tekst: lening.naam + ': de tool toetst het overgangsrecht niet. Vervangt deze lening een '
+             + 'bestaande eigenwoningschuld van art. 10bis.1 Wet IB 2001 (in hoofdzaak een schuld '
+             + 'van vóór 2013) en bestaat zij uiterlijk in het kalenderjaar na de aflossing daarvan '
+             + '(oversluiten, art. 10bis.1 lid 3), dan kan zij tot ten hoogste het afgeloste '
+             + 'bedrag wel eigenwoningschuld zijn (art. 10bis.9 lid 1, voor zover niet door de '
+             + 'eigenwoningreserve verminderd), met de dertigjaarstermijn van art. 10bis.10. '
+             + 'Moet een deel '
+             + 'van de lening wel worden afgelost, voer dat deel dan als eigen lening in met de '
+             + 'vorm annuïtair of lineair.',
+      });
+    } else if (!lening.voldoetAltijd) {
       meldingen.push({
         soort: 'let-op',
         tekst: lening.naam + ' komt op 31 december van ' + jarenAlsTekst(lening.achterstandsjaren)
@@ -1502,7 +1654,7 @@ function berekenFamiliebank(invoer) {
       }
     }
 
-    if (lening.jarenZonderAftrek.length > 0) {
+    if (!lening.geenAflossingsverplichting && lening.jarenZonderAftrek.length > 0) {
       meldingen.push({
         soort: 'fout',
         tekst: lening.naam + ' behoort in ' + jarenAlsTekst(lening.jarenZonderAftrek) + ' niet tot '
@@ -1739,6 +1891,9 @@ function berekenFamiliebank(invoer) {
     totaleHoofdsom: afrondenOpCenten(totaleHoofdsom),
     termijnPerMaand,
     termijnPerJaar: afrondenOpCenten(termijnPerMaand * 12),
+    // Alleen als alle leningen annuïtair zijn, blijft de termijn per maand gelijk. Anders is
+    // het bedrag de eerste maandtermijn, en dat moet het scherm erbij zeggen.
+    alleenAnnuitair: perLening.every(l => l.aflossingsvorm === 'annuitair'),
     eigenwoningwaarde,
     eigenwoningforfait: forfait,
     andereSchuldSoort: andereSchuld.soort,
@@ -1769,8 +1924,12 @@ function berekenFamiliebank(invoer) {
       startjaar: l.invoer.startjaar,
       startmaand: l.invoer.startmaand,
       maandrenteProcent: l.maandrenteProcent,
+      aflossingsvorm: l.aflossingsvorm,
       termijnPerMaand: l.termijnPerMaand,
       termijnNaPauze: l.termijnNaPauze,
+      aflossingPerMaand: l.aflossingPerMaand,
+      aflossingNaPauze: l.aflossingNaPauze,
+      geenAflossingsverplichting: l.geenAflossingsverplichting,
       betaaldeMaanden: l.betaaldeMaanden,
       volledigAfgelost: l.volledigAfgelost,
       restschuld: l.restschuld,
@@ -2049,7 +2208,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'familiebank';
 const TOOL_NAAM = 'Familiebank: lening van ouder aan kind';
-const TOOL_VERSIE = '0.5.0';
+const TOOL_VERSIE = '0.6.0';
 // Versie 2 van 19-09-2026: de invoer kent vier leningen in plaats van één, plus de WOZ-waarde,
 // de indexatie, de kwijtschelding en de aflossingspauze. Versie 3 van 20-09-2026 voegt daar de
 // overige aftrekbare eigenwoningrente aan toe. Een bestand van een oudere versie wordt niet
@@ -2065,6 +2224,15 @@ const TOOL_VERSIE = '0.5.0';
 // van versie 5 is met de samengestelde vorm doorgerekend, en zou bij het heropenen met de
 // nieuwe standaard een andere maandtermijn en een ander aflosschema geven zonder dat er iets
 // aan de invoer verandert.
+//
+// Op 06-10-2026 kwam per lening de aflossingsvorm erbij: annuïtair, lineair of aflossingsvrij.
+// Dat veld is in het bestand optioneel en verhoogt de formaatversie niet. Ontbreekt het, dan is
+// het bestand bewaard toen een lening alleen annuïtair kon zijn, dus 'annuitair' invullen geeft
+// exact de uitkomst waarmee het is bewaard; er wordt niets verondersteld dat de gebruiker niet
+// zelf had gekozen. Het openen meldt het wel. Een aanwezige maar onbekende vorm blokkeert. Zo
+// afgesproken met de sessies die op dezelfde dag optionele velden toevoegden (postbus
+// familiebank, mededelingen van punt 22, 27 en 33): niemand hoogt de versie op zolang een
+// ontbrekend veld de uitkomst van versie 6 geeft.
 const DOSSIER_FORMAATVERSIE = 6;
 
 const ALGEMENE_VELDEN = [
@@ -2111,6 +2279,14 @@ const AFLOSSINGSVORM_NAMEN = {
   aflossingsvrij: 'aflossingsvrij',
 };
 
+// Het label bij de termijn op het dossierstuk en in de export. Alleen bij annuïtair blijft de
+// termijn gelijk; anders is het de eerste.
+function termijnLabel(aflossingsvorm) {
+  if (aflossingsvorm === 'lineair') return 'Eerste termijn per maand (daalt daarna)';
+  if (aflossingsvorm === 'aflossingsvrij') return 'Termijn per maand, alleen rente';
+  return 'Termijn per maand';
+}
+
 const PAUZEVORM_NAMEN = {
   verlengen: 'dezelfde termijn hervatten, de lening loopt langer door',
   herrekenen: 'de restschuld herrekenen, de einddatum blijft staan',
@@ -2125,7 +2301,12 @@ const SCHENKINGSOORTEN = {
 const VINDPLAATSEN = [
   'Eigenwoningschuld: art. 3.119a lid 1 Wet IB 2001. Onderdeel b eist een contractuele '
   + 'verplichting tot ten minste annuïtair en in ten hoogste 360 maanden volledig aflossen; '
-  + 'onderdeel c eist dat feitelijk aan de aflossingseis wordt voldaan.',
+  + 'onderdeel c eist dat feitelijk aan de aflossingseis wordt voldaan. Een lineaire lening '
+  + 'lost minstens zo snel af als een annuïtaire over dezelfde looptijd en voldoet aan onderdeel b '
+  + '(zo ook het besluit van 24-01-2025, nr. 2024-34394, Stcrt. 2025, 3916, onderdeel 2); een '
+  + 'aflossingsvrije lening niet, en behoort daarom niet tot de eigenwoningschuld. Het '
+  + 'overgangsrecht bij oversluiten van een bestaande eigenwoningschuld (art. 10bis.1 lid 3 en '
+  + 'art. 10bis.9 lid 1) toetst de tool niet.',
   'Aflossingseis: art. 3.119c lid 1 Wet IB 2001. De schuld mag per lening op geen enkel '
   + 'toetsmoment hoger zijn dan het bedrag dat uit de wettelijke formule volgt. Onder n wordt '
   + 'daarin verstaan: de maximale looptijd van 360 maanden, ook wanneer de lening zelf korter '
@@ -2186,6 +2367,12 @@ const AFBAKENING = [
   'Een kwijtschelding is verwerkt in de opgegeven maand, ná de maandtermijn van die maand. '
   + 'Zij valt in elk jaar in dezelfde maand. Zij verlaagt de schuld maar niet de maandtermijn, '
   + 'en verschuift de maximumlijn van art. 3.119c niet.',
+  'Per lening kiest de gebruiker de aflossingsvorm. Een lineaire lening wordt net als een '
+  + 'annuïtaire aan de maximumlijn van art. 3.119c getoetst. Een aflossingsvrije lening behoort '
+  + 'niet tot de eigenwoningschuld (art. 3.119a lid 1 onder b) en lost in de laatste maand van '
+  + 'de looptijd ineens af; haar rente telt niet mee als aftrekbare kosten. Of zij via het '
+  + 'overgangsrecht bij oversluiten toch eigenwoningschuld is, en wat zij in box 3 betekent, '
+  + 'blijft buiten de berekening.',
   'De tool toetst niet of de andere eigenwoningschuld tot de eigenwoningschuld behoort. Is '
   + 'een laatste maand met renteaftrek opgegeven, dan rekent zij de dertigjaarstermijn van '
   + 'art. 10bis.10 lid 1 Wet IB 2001 wel door: de rente van die schuld telt daarna niet meer '
@@ -2274,7 +2461,11 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
       leninginvoer.push({ kop: naam, regels: [{ label: 'In de berekening', tekst: 'nee' }] });
       return;
     }
-    const regels = [{ label: 'In de berekening', tekst: 'ja' }];
+    const regels = [
+      { label: 'In de berekening', tekst: 'ja' },
+      { label: 'Aflossingsvorm',
+        tekst: AFLOSSINGSVORM_NAMEN[lening.aflossingsvorm] || String(lening.aflossingsvorm) },
+    ];
     LENINGVELDEN.forEach(function (veld) {
       const waarde = Number(lening[veld.sleutel]);
       regels.push({
@@ -2304,7 +2495,9 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
         getal: uitkomst.aantalLeningen, formaat: '0' },
       { label: 'Totale hoofdsom', tekst: bedragAlsTekst(uitkomst.totaleHoofdsom),
         getal: uitkomst.totaleHoofdsom, formaat: '#,##0.00' },
-      { label: 'Termijn per maand, alle leningen samen',
+      { label: uitkomst.alleenAnnuitair
+          ? 'Termijn per maand, alle leningen samen'
+          : 'Eerste termijn per maand, alle leningen samen (niet alle leningen annuïtair)',
         tekst: bedragAlsTekst(uitkomst.termijnPerMaand),
         getal: uitkomst.termijnPerMaand, formaat: '#,##0.00' },
       { label: 'Eigenwoningforfait per jaar',
@@ -2341,17 +2534,22 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
       leningtabellen.push({
         kop: lening.naam + ': ' + bedragAlsTekst(lening.hoofdsom) + ' tegen '
           + String(lening.jaarrenteProcent).replace('.', ',') + '% over '
-          + lening.looptijdMaanden + ' maanden vanaf ' + lening.startjaar,
+          + lening.looptijdMaanden + ' maanden vanaf ' + lening.startjaar + ', '
+          + (AFLOSSINGSVORM_NAMEN[lening.aflossingsvorm] || String(lening.aflossingsvorm)),
         maandrenteProcent: lening.maandrenteProcent,
+        termijnLabel: termijnLabel(lening.aflossingsvorm),
         termijnPerMaand: lening.termijnPerMaand,
         rijen: lening.jaren.map(function (j, i) {
           const t = lening.toetsen[i];
+          // Bij een aflossingsvrije lening is er geen maximum en dus ook geen oordeel: de
+          // toets komt niet aan bod. Een lege cel is daar juister dan "ja".
+          const getoetst = t && !t.nietVanToepassing;
           return {
             jaar: j.jaar, termijnen: j.termijnen, pauzemaanden: j.pauzemaanden,
             rente: j.rente, aflossing: j.aflossing, kwijtschelding: j.kwijtschelding,
             schenking: j.schenking, schuldEind: j.schuldEind,
-            maximaleSchuld: t ? t.maximaleSchuld : null,
-            voldoet: t ? !t.achterstand : null,
+            maximaleSchuld: getoetst ? t.maximaleSchuld : null,
+            voldoet: getoetst ? !t.achterstand : null,
             eigenwoningschuld: lening.jarenZonderAftrek.indexOf(j.jaar) === -1,
           };
         }),
@@ -2479,7 +2677,7 @@ function exportBladen(uitgang) {
       lrijen.push([celTekst(tabel.kop, true)]);
       lrijen.push([celTekst('Maandelijkse rentevoet in procenten'),
         celGetal(tabel.maandrenteProcent, '0.0000')]);
-      lrijen.push([celTekst('Termijn per maand'),
+      lrijen.push([celTekst(tabel.termijnLabel),
         celGetal(tabel.termijnPerMaand, '#,##0.00')]);
       lrijen.push([
         celTekst('Jaar', true), celTekst('Termijnen', true), celTekst('Pauzemaanden', true),
@@ -2532,6 +2730,7 @@ function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
   invoer.leningen = (ruweInvoer.leningen || []).map(function (lening) {
     const uit = {
       actief: !!lening.actief,
+      aflossingsvorm: lening.aflossingsvorm,
       schenkingSoort: lening.schenkingSoort,
       pauzeVorm: lening.pauzeVorm,
     };
@@ -2635,6 +2834,7 @@ function leesDossier(tekst) {
     ruweInvoer.andereSchuld.soort = bron.soort;
     ruweInvoer.andereSchuld.aflossingsvorm = bron.aflossingsvorm;
   }
+  let zonderVorm = false;
   ruweInvoer.leningen = rauw.invoer.leningen.map(function (lening, i) {
     const waar = 'bij lening ' + (i + 1) + ': ';
     if (!lening || typeof lening !== 'object' || Array.isArray(lening)) {
@@ -2651,7 +2851,17 @@ function leesDossier(tekst) {
       gebreken.push(waar + 'de vorm van de aflossingspauze is onbekend ('
         + String(lening.pauzeVorm) + ')');
     }
+    // Een bestand van vóór de keuze van de aflossingsvorm kent het veld niet; toen kon een
+    // lening alleen annuïtair zijn. Een aanwezige maar onbekende vorm is bedorven en blokkeert.
+    let aflossingsvorm = lening.aflossingsvorm;
+    if (aflossingsvorm === undefined) {
+      aflossingsvorm = 'annuitair';
+      zonderVorm = true;
+    } else if (!Object.prototype.hasOwnProperty.call(AFLOSSINGSVORM_NAMEN, aflossingsvorm)) {
+      gebreken.push(waar + 'de aflossingsvorm is onbekend (' + String(aflossingsvorm) + ')');
+    }
     const uit = leesVelden(lening, LENINGVELDEN, waar, gebreken);
+    uit.aflossingsvorm = aflossingsvorm;
     uit.actief = lening.actief === true;
     uit.schenkingSoort = lening.schenkingSoort;
     uit.pauzeVorm = lening.pauzeVorm;
@@ -2664,6 +2874,12 @@ function leesDossier(tekst) {
   }
 
   const meldingen = [];
+  if (zonderVorm) {
+    meldingen.push('Dit dossier is bewaard vóór de keuze van de aflossingsvorm. Toen kon een '
+      + 'lening alleen annuïtair zijn, dus elke lening zonder vorm is als annuïtair geopend; de '
+      + 'uitkomst is daardoor gelijk aan die van destijds. Sla het dossier opnieuw op om de vorm '
+      + 'mee te bewaren.');
+  }
   if (rauw.toolVersie !== TOOL_VERSIE) {
     meldingen.push('Dit dossier is opgeslagen met toolversie ' + String(rauw.toolVersie)
       + ' en wordt geopend in versie ' + TOOL_VERSIE + '. De uitkomst wordt opnieuw berekend '
@@ -2691,6 +2907,7 @@ const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
 function standaardLening(nummer) {
   return {
     actief: nummer === 1,
+    aflossingsvorm: 'annuitair',
     hoofdsom: nummer === 1 ? 200000 : 0,
     jaarrenteProcent: 4.5,
     looptijdMaanden: 360,
@@ -2752,6 +2969,14 @@ function bouwLeningkaart(nummer) {
     + '<div><label for="' + id('startmaand') + '">Maand van ingang'
     + '<span class="bron">bepaalt hoeveel termijnen in het eerste jaar vallen</span></label>'
     + '<select id="' + id('startmaand') + '">' + maandopties + '</select></div>'
+    + '<div><label for="' + id('aflossingsvorm') + '">Aflossingsvorm'
+    + '<span class="bron">art. 3.119a lid 1 onder b: ten minste annuïtair; aflossingsvrij is '
+    + 'geen eigenwoningschuld</span></label>'
+    + '<select id="' + id('aflossingsvorm') + '">'
+    + '<option value="annuitair"' + (s.aflossingsvorm === 'annuitair' ? ' selected' : '') + '>annuïtair</option>'
+    + '<option value="lineair"' + (s.aflossingsvorm === 'lineair' ? ' selected' : '') + '>lineair</option>'
+    + '<option value="aflossingsvrij"' + (s.aflossingsvorm === 'aflossingsvrij' ? ' selected' : '') + '>aflossingsvrij</option>'
+    + '</select></div>'
     + '</div>'
 
     + '<div class="melding let-op" style="margin-top:14px;">'
@@ -2857,6 +3082,7 @@ function leesInvoer() {
   for (let n = 1; n <= MAXIMAAL_AANTAL_LENINGEN; n++) {
     const lening = {
       actief: document.getElementById(veldId(n, 'actief')).checked,
+      aflossingsvorm: document.getElementById(veldId(n, 'aflossingsvorm')).value,
       schenkingSoort: document.getElementById(veldId(n, 'schenkingSoort')).value,
       pauzeVorm: document.getElementById(veldId(n, 'pauzeVorm')).value,
     };
@@ -2906,6 +3132,7 @@ function schrijfInvoer(r, kenmerk) {
   for (let n = 1; n <= MAXIMAAL_AANTAL_LENINGEN; n++) {
     const lening = r.leningen[n - 1] || standaardLening(n);
     document.getElementById(veldId(n, 'actief')).checked = !!lening.actief;
+    document.getElementById(veldId(n, 'aflossingsvorm')).value = lening.aflossingsvorm;
     document.getElementById(veldId(n, 'schenkingSoort')).value = lening.schenkingSoort;
     document.getElementById(veldId(n, 'pauzeVorm')).value = lening.pauzeVorm;
     LENINGVELDEN.forEach(function (veld) {
@@ -2982,7 +3209,10 @@ function leningtabelHTML(lening) {
   return '<details><summary>' + e(lening.naam) + ': ' + euro.format(lening.hoofdsom)
     + ' tegen ' + e(String(lening.jaarrenteProcent).replace('.', ',')) + '% over '
     + lening.looptijdMaanden + ' maanden vanaf ' + lening.startjaar
-    + ' &mdash; maandtermijn ' + euro.format(lening.termijnPerMaand)
+    + ', ' + e({ annuitair: 'annuïtair', lineair: 'lineair', aflossingsvrij: 'aflossingsvrij' }[lening.aflossingsvorm])
+    + ' &mdash; ' + (lening.aflossingsvorm === 'lineair' ? 'eerste maandtermijn '
+      : lening.aflossingsvorm === 'aflossingsvrij' ? 'maandtermijn alleen rente '
+      : 'maandtermijn ') + euro.format(lening.termijnPerMaand)
     + ', maandrente ' + e(String(lening.maandrenteProcent).replace('.', ',')) + '%'
     + '</summary><table>'
     + '<tr><th>Jaar</th><th class="getal">Termijnen</th><th class="getal">Pauze</th>'
@@ -2998,7 +3228,8 @@ function leningtabelHTML(lening) {
           + '<td class="getal">' + euro.format(j.aflossing) + '</td>'
           + '<td class="getal">' + euro.format(j.kwijtschelding) + '</td>'
           + '<td class="getal">' + euro.format(j.schuldEind) + '</td>'
-          + '<td class="getal">' + (t ? euro.format(t.maximaleSchuld) : '') + '</td>'
+          + '<td class="getal">' + (t && !t.nietVanToepassing ? euro.format(t.maximaleSchuld)
+            : t ? 'n.v.t.' : '') + '</td>'
           + '<td>' + (ews ? 'ja' : 'nee') + '</td></tr>';
       }).join('')
     + '</table></details>';
@@ -3015,10 +3246,14 @@ function toon(uitkomst) {
     '<div class="kaart">'
     + toonMeldingen(uitkomst.meldingen)
     + '<div class="uitkomst">'
-    + '<div class="blok"><div class="etiket">Termijn per maand</div>'
+    + '<div class="blok"><div class="etiket">'
+    + (uitkomst.alleenAnnuitair ? 'Termijn per maand' : 'Eerste termijn per maand') + '</div>'
     + '<div class="waarde">' + euro.format(uitkomst.termijnPerMaand) + '</div>'
     + '<div class="onder">' + uitkomst.aantalLeningen + ' lening(en) samen, elk op zijn eigen '
-    + 'looptijd; in de tabel staat wat er per jaar werkelijk loopt</div></div>'
+    + 'looptijd'
+    + (uitkomst.alleenAnnuitair ? '' : '; een lineaire termijn daalt daarna, een aflossingsvrije '
+      + 'is alleen rente')
+    + '; in de tabel staat wat er per jaar werkelijk loopt</div></div>'
     + '<div class="blok"><div class="etiket">Belastingeffect familiebank</div>'
     + '<div class="waarde">' + euro.format(uitkomst.belastingeffectEersteVolleJaar) + '</div>'
     + '<div class="onder">in ' + e(String(uitkomst.eersteVolleJaar))
