@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:56</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 7 okt 2026, 00:07</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -273,6 +273,11 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         <label for="inkomen">Belastbaar inkomen uit werk en woning van het kind
           <span class="bron">vóór de eigen woning, art. 2.10 Wet IB 2001</span></label>
         <input type="number" id="inkomen" value="60000" min="0" step="1000">
+      </div>
+      <div>
+        <label for="geboortedatumKind">Geboortedatum van het kind
+          <span class="bron">voor de AOW-leeftijd; leeg is vóór de AOW-leeftijd</span></label>
+        <input type="date" id="geboortedatumKind" value="">
       </div>
       <div>
         <label for="woz">WOZ-waarde van de woning
@@ -348,12 +353,17 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         <input type="number" id="partnerInkomen" value="40000" min="0" step="1000">
       </div>
       <div>
+        <label for="partnerGeboortedatum">Geboortedatum van de partner
+          <span class="bron">voor de AOW-leeftijd; leeg is vóór de AOW-leeftijd</span></label>
+        <input type="date" id="partnerGeboortedatum" value="">
+      </div>
+      <div>
         <label for="partnerVerdeling">Verdeling van de woning
           <span class="bron">vrije keuze per jaar, art. 2.17 lid 2</span></label>
         <select id="partnerVerdeling">
           <option value="gelijk" selected>de helft ieder</option>
           <option value="percentage">een eigen verhouding</option>
-          <option value="gunstigst">de laagste inkomstenbelasting</option>
+          <option value="gunstigst">de laagste belasting en premie</option>
         </select>
       </div>
       <div>
@@ -363,10 +373,11 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       </div>
     </div>
     <div class="melding let-op" style="margin-top:14px;margin-bottom:0;">
-      De tool belast beide partners met het schijventarief en de algemene heffingskorting
-      (art. 8.10 lid 2, afbouw boven € 29.736). De premies volksverzekeringen en de ouderenkorting
-      zitten er niet in, dus de verdeling met de laagste belasting is niet noodzakelijk die
-      welke de aangifte het gunstigst maakt. Een schenking aan de partner zelf valt buiten de
+      De tool belast beide partners met inkomstenbelasting en premies volksverzekeringen en
+      verrekent de algemene heffingskorting en, vanaf de AOW-leeftijd, de ouderenkorting.
+      Andere heffingskortingen en de uitbetaling aan een minstverdienende partner (art. 8.9)
+      kent zij niet, dus de verdeling met de laagste belasting is niet noodzakelijk die welke
+      de aangifte het gunstigst maakt. Een schenking aan de partner zelf valt buiten de
       berekening.
     </div>
   </div>
@@ -579,8 +590,14 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
         voor de aftrek wegens geen of geringe eigenwoningschuld: eerst over beiden samen
         berekend, daarna in dezelfde verhouding verdeeld.</li>
       <li><strong>Renteaftrek</strong> — art. 3.120 lid 1 onder a Wet IB 2001 voor de rente
-        zelf, art. 2.10 lid 1 voor het schijventarief en art. 2.10 lid 2 en 3 onder d voor de
-        tariefsaanpassing die de aftrek in de hoogste schijf beperkt.</li>
+        zelf, art. 2.10 lid 1 voor het schijventarief (art. 2.10a voor wie vóór 1946 is
+        geboren) en art. 2.10 lid 2 en 3 onder d voor de tariefsaanpassing die de aftrek in de
+        hoogste schijf beperkt.</li>
+      <li><strong>Premies en heffingskortingen</strong> — art. 8, 10 en 11 Wfsv en Stcrt. 2025,
+        42324 voor de premies volksverzekeringen (35,75 procent samen met de belasting in de
+        eerste schijf; vanaf de maand van de AOW-leeftijd, art. 7a AOW, zonder AOW-premie),
+        art. 8.10 lid 2 en art. 8.17 Wet IB 2001 voor de algemene heffingskorting en de
+        ouderenkorting, verrekend tot ten hoogste belasting en premie samen (art. 8.8).</li>
       <li><strong>Schenking en kwijtschelding</strong> — art. 33 onder 5° Successiewet 1956 voor
         de jaarlijkse vrijstelling voor een kind van de ouders. Een kwijtschelding is een gift
         en daarmee een schenking (art. 1 lid 7 SW 1956 jo. art. 7:186 lid 2 BW), dus zij telt in
@@ -838,8 +855,8 @@ const FISCAAL_PER_JAAR = {
     // verminderd, doch niet verder dan tot nihil, met 6,398 procent van het gedeelte van het
     // verzamelinkomen boven 29.736 euro. Een lagere aftrek of een hoger saldo uit eigen woning
     // verandert het verzamelinkomen en daarmee deze korting; zonder haar is het voordeel van
-    // een aftrek in de tweede schijf te laag. De andere heffingskortingen hangen niet aan het
-    // inkomen uit woning (arbeidskorting) of aan gegevens die de tool niet kent (leeftijd).
+    // een aftrek in de tweede schijf te laag. De arbeidskorting hangt aan het arbeidsinkomen en
+    // niet aan de woning; de ouderenkorting staat hieronder.
     algemeneHeffingskorting: {
       maximum: 3115,
       afbouwPercentage: 0.06398,
@@ -847,6 +864,38 @@ const FISCAAL_PER_JAAR = {
       vindplaats: 'art. 8.10 lid 2 Wet IB 2001',
     },
     tariefVindplaats: 'art. 2.10 lid 1 en 2 Wet IB 2001',
+    // Art. 2.10a lid 1 Wet IB 2001, tabel geldend per 01-01-2026 (Bijstellingsregeling directe
+    // belastingen 2026, Stcrt. 2025, 40487): de schijven voor wie vóór 1 januari 1946 is geboren.
+    schijvenVoor1946: [
+      { vanaf: 0, vastBedrag: 0, percentage: 0.0810 },
+      { vanaf: 41123, vastBedrag: 3330, percentage: 0.3756 },
+      { vanaf: 78426, vastBedrag: 17341, percentage: 0.4950 },
+    ],
+    // Premies volksverzekeringen 2026. Art. 8 lid 1 en 3 Wet financiering sociale
+    // verzekeringen: het premie-inkomen is het belastbare inkomen uit werk en woning, ten
+    // hoogste het eerste bedrag van kolom II van art. 2.10 lid 1 Wet IB 2001 (38.883), en voor
+    // wie vóór 1946 is geboren dat van art. 2.10a (41.123). De percentages: art. 11 Wfsv en de
+    // regeling premiepercentages werknemers- en volksverzekeringen 2026 (Stcrt. 2025, 42324):
+    // AOW 17,90 en Anw 0,10; Wlz 9,65 volgens art. 1 Regeling vaststelling premiepercentage Wlz
+    // (Stcrt. 2018, 70642), ongewijzigd sinds 01-01-2019. Art. 8.1 lid 1 onder c Wet IB 2001
+    // definieert het gecombineerde heffingspercentage als het tarief van de eerste schijf plus
+    // deze premiepercentages; voor 2026 is dat 8,10 + 17,90 + 0,10 + 9,65 = 35,75. De
+    // AOW-premie vervalt met ingang van de
+    // eerste dag van de maand waarin de AOW-leeftijd wordt bereikt (art. 10 lid 2 Wfsv); in dat
+    // jaar is het percentage samengesteld uit tijdsevenredige delen, naar beneden afgerond op
+    // honderdsten (art. 2.6 Regeling Wfsv).
+    premies: { aow: 0.1790, anw: 0.0010, wlz: 0.0965 },
+    premieVindplaats: 'art. 8, 10 en 11 Wfsv; Stcrt. 2025, 42324; Wlz: Stcrt. 2018, 70642',
+    // Art. 8.17 Wet IB 2001, de ouderenkorting per 01-01-2026: 2.067 euro, verminderd met
+    // 15 procent van het verzamelinkomen boven 46.002 euro, voor wie aan het einde van het
+    // kalenderjaar de AOW-leeftijd heeft bereikt. Het AOW-deel ervan is nihil (art. 8.7), dus
+    // dit bedrag is al het bedrag voor een AOW-gerechtigde.
+    ouderenkorting: {
+      maximum: 2067,
+      afbouwPercentage: 0.15,
+      afbouwVanaf: 46002,
+      vindplaats: 'art. 8.17 Wet IB 2001',
+    },
     // Art. 3.112 lid 1 Wet IB 2001, de staffel van het eigenwoningforfait. De staffel zelf
     // staat in de gedeelde bron hierboven, want eigen-woning gebruikt hem ook.
     eigenwoningforfaitStaffel: EIGENWONINGFORFAIT_PER_JAAR[2026].staffel,
@@ -889,6 +938,83 @@ const FISCAAL_PER_JAAR = {
     },
   },
 };
+
+// Art. 7a Algemene Ouderdomswet: de pensioengerechtigde leeftijd, in maanden, per kalenderjaar
+// waarin iemand hem bereikt. 2026 en 2027: 67 jaar (2026: art. 7a lid 1 AOW met de daar
+// genoemde vaststelling; 2027: Stcrt. 2021, 46409); 2028 tot en met 2031: 67 jaar en 3 maanden
+// (2028: Stcrt. 2022, 30748; 2029: Stcrt. 2023, 31782; 2030: Stcrt. 2024, 37287; 2031: Stcrt.
+// 2025, 38647). Latere
+// jaren zijn nog niet vastgesteld; de tool rekent dan met de laatst vastgestelde leeftijd en
+// meldt dat. Wie vóór 2026 67 werd, had de AOW-leeftijd al bereikt: in eerdere jaren was die
+// niet hoger dan 67.
+const AOW_LEEFTIJD_MAANDEN = { 2026: 804, 2027: 804, 2028: 807, 2029: 807, 2030: 807, 2031: 807 };
+const AOW_LEEFTIJD_VINDPLAATS = 'art. 7a AOW';
+
+// Een geboortedatum als JJJJ-MM-DD (zoals een datumveld haar geeft). Leeg of ongeldig: null.
+function leesGeboortedatum(tekst) {
+  if (typeof tekst !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tekst);
+  if (!m) return null;
+  const jaar = Number(m[1]), maand = Number(m[2]), dag = Number(m[3]);
+  const d = new Date(Date.UTC(jaar, maand - 1, dag));
+  if (d.getUTCFullYear() !== jaar || d.getUTCMonth() !== maand - 1 || d.getUTCDate() !== dag) {
+    return null;
+  }
+  if (jaar < 1900) return null;
+  return { jaar, maand, dag };
+}
+
+// De maand waarin iemand de AOW-leeftijd bereikt, op de dag van de geboortedatum. De AOW-premie
+// vervalt vanaf de eerste dag van die maand (art. 10 lid 2 Wfsv); het AOW-deel van de
+// heffingskorting pas op die dag, want de premieplicht hangt aan de verzekering (art. 6 Wfsv,
+// art. 6 lid 1 AOW); de ouderenkorting kijkt naar het einde van het jaar. `voor2026` betekent dat de leeftijd al vóór 2026 is bereikt; `aangenomen` dat de
+// leeftijd van dat jaar nog niet is vastgesteld.
+function aowMoment(geboorte) {
+  const geboren = geboorte.jaar * 12 + (geboorte.maand - 1);
+  const jaren = Object.keys(AOW_LEEFTIJD_MAANDEN).map(Number).sort((a, b) => a - b);
+  if (geboren + AOW_LEEFTIJD_MAANDEN[jaren[0]] < jaren[0] * 12) {
+    return { voor2026: true, aangenomen: false };
+  }
+  for (const jaar of jaren) {
+    const moment = geboren + AOW_LEEFTIJD_MAANDEN[jaar];
+    if (Math.floor(moment / 12) === jaar) {
+      return { voor2026: false, jaar, maand: moment % 12 + 1, dag: geboorte.dag, aangenomen: false };
+    }
+  }
+  const laatste = AOW_LEEFTIJD_MAANDEN[jaren[jaren.length - 1]];
+  const moment = geboren + laatste;
+  return {
+    voor2026: false, jaar: Math.floor(moment / 12), maand: moment % 12 + 1, dag: geboorte.dag,
+    aangenomen: true,
+  };
+}
+
+// De leeftijdssituatie van één persoon in één kalenderjaar. `aowPremieFractie` is het deel van
+// het jaar waarover AOW-premie verschuldigd is (1 vóór de AOW-leeftijd, 0 erna);
+// `aowKortingFractie` het deel waarover het AOW-deel van de heffingskorting telt, tot de dag van
+// de AOW-leeftijd, gerekend met maanden van 30 en een jaar van 360 dagen, de begindag mee en de
+// einddag niet (art. 2.6a en 2.7 Regeling Wfsv); `ouderenkorting` of de AOW-leeftijd aan het
+// einde van het jaar is bereikt (art. 8.17).
+const VOOR_AOW_LEEFTIJD = {
+  aowPremieFractie: 1, aowKortingFractie: 1, ouderenkorting: false, geborenVoor1946: false,
+};
+
+function leeftijdssituatie(geboorte, jaar) {
+  if (!geboorte) return VOOR_AOW_LEEFTIJD;
+  const geborenVoor1946 = geboorte.jaar < 1946;
+  const aow = aowMoment(geboorte);
+  if (aow.voor2026 || aow.jaar < jaar) {
+    return { aowPremieFractie: 0, aowKortingFractie: 0, ouderenkorting: true, geborenVoor1946 };
+  }
+  if (aow.jaar > jaar) {
+    return { aowPremieFractie: 1, aowKortingFractie: 1, ouderenkorting: false, geborenVoor1946 };
+  }
+  const dagen = 30 * (aow.maand - 1) + (Math.min(aow.dag, 30) - 1);
+  return {
+    aowPremieFractie: (aow.maand - 1) / 12, aowKortingFractie: dagen / 360,
+    ouderenkorting: true, geborenVoor1946,
+  };
+}
 
 function fiscaalJaar(jaar) {
   return FISCAAL_PER_JAAR[jaar] || null;
@@ -1546,10 +1672,16 @@ function toetsAflossingseis(lening, schema) {
 // Art. 2.10 lid 1 Wet IB 2001: het schijventarief, gelezen zoals de wet de tabel geeft.
 // De belasting is het vaste bedrag van de schijf waarin het inkomen valt, vermeerderd met
 // het percentage over het deel dat de ondergrens van die schijf te boven gaat.
-function belastingOverInkomen(inkomen, tarief) {
+// Voor wie vóór 1946 is geboren geldt de tabel van art. 2.10a.
+function schijvenVoor(tarief, situatie) {
+  return situatie && situatie.geborenVoor1946 ? tarief.schijvenVoor1946 : tarief.schijven;
+}
+
+function belastingOverInkomen(inkomen, tarief, situatie) {
   if (inkomen <= 0) return 0;
-  let gekozen = tarief.schijven[0];
-  for (const schijf of tarief.schijven) {
+  const schijven = schijvenVoor(tarief, situatie);
+  let gekozen = schijven[0];
+  for (const schijf of schijven) {
     if (inkomen > schijf.vanaf) gekozen = schijf;
   }
   return gekozen.vastBedrag + (inkomen - gekozen.vanaf) * gekozen.percentage;
@@ -1570,6 +1702,48 @@ function algemeneHeffingskorting(verzamelinkomen, tarief) {
   const k = tarief.algemeneHeffingskorting;
   const afbouw = Math.max(0, verzamelinkomen - k.afbouwVanaf) * k.afbouwPercentage;
   return Math.max(0, k.maximum - afbouw);
+}
+
+// Het premiepercentage volksverzekeringen in een jaar: Anw en Wlz altijd, AOW voor het deel van
+// het jaar vóór de maand waarin de AOW-leeftijd is bereikt. Art. 2.6 Regeling Wfsv rondt het
+// samengestelde percentage naar beneden af op honderdsten van een procent.
+function premiepercentage(tarief, situatie) {
+  const p = tarief.premies;
+  const fractie = situatie ? situatie.aowPremieFractie : 1;
+  const ruw = p.aow * fractie + p.anw + p.wlz;
+  return Math.floor(ruw * 10000 + 1e-7) / 10000;
+}
+
+// Art. 8 lid 1 en 3 Wfsv: de premie volksverzekeringen over het belastbare inkomen uit werk en
+// woning, ten hoogste tot de eerste schijfgrens. De tariefsaanpassing van art. 2.10 lid 2 is
+// alleen belasting en raakt de premie niet.
+function premieVolksverzekeringen(inkomen, tarief, situatie) {
+  if (inkomen <= 0) return 0;
+  const grens = schijvenVoor(tarief, situatie)[1].vanaf;
+  return Math.min(inkomen, grens) * premiepercentage(tarief, situatie);
+}
+
+// De heffingskortingen die de tool kent, bij een verzamelinkomen. De algemene heffingskorting
+// van art. 8.10 lid 2 is één bedrag voor belasting en premies samen; art. 8.3 tot en met 8.6
+// verdelen haar naar de verhouding van de percentages, en het AOW-deel telt alleen voor zover
+// iemand voor de AOW premieplichtig is (art. 12 lid 1 Wfsv; tijdsevenredig tot de dag van de
+// AOW-leeftijd in het jaar waarin die valt, art. 2.6a Regeling Wfsv). De gelezen teksten kennen
+// geen afronding van de delen. Bij 3.115 euro geeft dat voor een AOW-gerechtigde
+// 3.115 x 17,85 / 35,75 = 1.555,32. De ouderenkorting (art. 8.17) komt erbij als de AOW-leeftijd
+// aan het einde van het jaar is bereikt.
+function heffingskortingen(verzamelinkomen, tarief, situatie) {
+  const p = tarief.premies;
+  const fractie = situatie ? situatie.aowKortingFractie : 1;
+  const ib = schijvenVoor(tarief, situatie)[0].percentage;
+  const gecombineerd = ib + p.aow + p.anw + p.wlz;
+  const deel = (ib + p.aow * fractie + p.anw + p.wlz) / gecombineerd;
+  const algemeen = algemeneHeffingskorting(verzamelinkomen, tarief) * deel;
+  let ouderen = 0;
+  if (situatie && situatie.ouderenkorting) {
+    const k = tarief.ouderenkorting;
+    ouderen = Math.max(0, k.maximum - Math.max(0, verzamelinkomen - k.afbouwVanaf) * k.afbouwPercentage);
+  }
+  return { algemeen, ouderen, totaal: algemeen + ouderen };
 }
 
 // Art. 3.123a Wet IB 2001: de aftrek wegens geen of geringe eigenwoningschuld. Het rekenwerk
@@ -1595,8 +1769,9 @@ function aftrekGeenOfGeringeEigenwoningschuld(forfait, aftrekbareKosten, tarief)
 // De tool bepaalt geen marginaal tarief maar berekent de belasting twee keer: zonder en met
 // de eigen woning. Daardoor zijn het schijventarief en de aftopping allebei vanzelf goed
 // verwerkt, ook als een post over een schijfgrens heen loopt of groter is dan het inkomen.
-function belastingeffectEigenWoning(inkomenVoorEigenWoning, forfait, aftrekbareRente, hillen, tarief) {
-  const zonder = belastingOverInkomen(inkomenVoorEigenWoning, tarief);
+function belastingeffectEigenWoning(inkomenVoorEigenWoning, forfait, aftrekbareRente, hillen, tarief,
+  situatie = VOOR_AOW_LEEFTIJD) {
+  const zonder = belastingOverInkomen(inkomenVoorEigenWoning, tarief, situatie);
   const metForfait = inkomenVoorEigenWoning + forfait;
   const belastbaar = Math.max(0, metForfait - aftrekbareRente - hillen);
   // Art. 2.10 lid 2 rekent met "de som van het belastbare inkomen uit werk en woning en de
@@ -1604,20 +1779,30 @@ function belastingeffectEigenWoning(inkomenVoorEigenWoning, forfait, aftrekbareR
   // inkomen is het inkomen ná alle aftrek, inclusief die van art. 3.123a; daar komt alleen
   // de aftrekbare rente bij op.
   const benutteAftrek = Math.min(aftrekbareRente, Math.max(0, metForfait));
-  const met = belastingOverInkomen(belastbaar, tarief)
+  const met = belastingOverInkomen(belastbaar, tarief, situatie)
     + tariefsaanpassing(belastbaar, benutteAftrek, tarief);
-  // De algemene heffingskorting hangt aan het verzamelinkomen en verandert dus mee met de
-  // eigen woning. De korting wordt niet op de belasting begrensd: de tool rekent de premies
-  // volksverzekeringen niet, die de korting bij lage inkomens mee opnemen. Boven ongeveer
-  // 30.000 euro is de korting altijd volledig benut en klopt het verschil.
-  const kortingZonder = algemeneHeffingskorting(inkomenVoorEigenWoning, tarief);
-  const kortingMet = algemeneHeffingskorting(belastbaar, tarief);
+  // De premies volksverzekeringen lopen over hetzelfde inkomen tot de eerste schijfgrens en
+  // bewegen daar met de eigen woning mee.
+  const premieZonder = premieVolksverzekeringen(inkomenVoorEigenWoning, tarief, situatie);
+  const premieMet = premieVolksverzekeringen(belastbaar, tarief, situatie);
+  // De heffingskortingen hangen aan het verzamelinkomen en veranderen dus mee met de eigen
+  // woning. Zij worden verrekend tot ten hoogste de belasting en premie samen (art. 8.8 Wet IB
+  // 2001, met de onderlinge verrekening van art. 2.7 lid 3 Wet IB 2001 en art. 9 lid 2 Wfsv);
+  // het deel daarboven vervalt.
+  const kortingZonder = Math.min(
+    heffingskortingen(inkomenVoorEigenWoning, tarief, situatie).totaal, zonder + premieZonder);
+  const kortingMet = Math.min(
+    heffingskortingen(belastbaar, tarief, situatie).totaal, met + premieMet);
+  const lastZonder = zonder + premieZonder - kortingZonder;
+  const lastMet = met + premieMet - kortingMet;
   return {
     belastingZonderEigenWoning: afrondenOpCenten(zonder),
     belastingMetEigenWoning: afrondenOpCenten(met),
+    premieZonderEigenWoning: afrondenOpCenten(premieZonder),
+    premieMetEigenWoning: afrondenOpCenten(premieMet),
     heffingskortingZonderEigenWoning: afrondenOpCenten(kortingZonder),
     heffingskortingMetEigenWoning: afrondenOpCenten(kortingMet),
-    effect: afrondenOpCenten(zonder - met + (kortingMet - kortingZonder)),
+    effect: afrondenOpCenten(lastZonder - lastMet),
     benutteAftrek: afrondenOpCenten(benutteAftrek),
     aftrekNietBenut: afrondenOpCenten(aftrekbareRente - benutteAftrek),
     belastbaarInkomen: afrondenOpCenten(belastbaar),
@@ -1642,19 +1827,20 @@ function belastingeffectEigenWoning(inkomenVoorEigenWoning, forfait, aftrekbareR
 const PARTNER_VERDELINGEN = {
   gelijk: 'gelijk, de helft ieder (art. 2.17 lid 3)',
   percentage: 'een door de gebruiker gekozen verhouding',
-  gunstigst: 'de verhouding met de laagste inkomstenbelasting (schijventarief en algemene heffingskorting)',
+  gunstigst: 'de verhouding met de laagste inkomstenbelasting en premie volksverzekeringen',
 };
 
 // De belasting op de eigen woning voor kind en partner samen bij een gegeven aandeel van het
 // kind. Het totale forfait, de totale aftrekbare rente en de totale aftrek van art. 3.123a
 // worden verdeeld; elke persoon wordt als alleenstaande belast over zijn eigen inkomen.
-function belastingeffectPartners(inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, aandeelKind, tarief) {
+function belastingeffectPartners(inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, aandeelKind, tarief,
+  situatieKind = VOOR_AOW_LEEFTIJD, situatiePartner = VOOR_AOW_LEEFTIJD) {
   const kind = belastingeffectEigenWoning(
     inkomenKind, forfait * aandeelKind, aftrekbareRente * aandeelKind,
-    hillen * aandeelKind, tarief);
+    hillen * aandeelKind, tarief, situatieKind);
   const partner = belastingeffectEigenWoning(
     inkomenPartner, forfait * (1 - aandeelKind), aftrekbareRente * (1 - aandeelKind),
-    hillen * (1 - aandeelKind), tarief);
+    hillen * (1 - aandeelKind), tarief, situatiePartner);
   return {
     aandeelKind,
     kind,
@@ -1668,9 +1854,11 @@ function belastingeffectPartners(inkomenKind, inkomenPartner, forfait, aftrekbar
 // een raster van een procent en daarna van een honderdste procent rond de beste plek vindt
 // dat tot op de cent nauwkeurig genoeg. Bij gelijke uitkomst wint de verhouding het dichtst
 // bij de helft, zodat een uitkomst zonder voordeel niet willekeurig scheef wordt.
-function gunstigsteVerdeling(inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, tarief) {
+function gunstigsteVerdeling(inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, tarief,
+  situatieKind = VOOR_AOW_LEEFTIJD, situatiePartner = VOOR_AOW_LEEFTIJD) {
   const proef = (aandeel) => belastingeffectPartners(
-    inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, aandeel, tarief);
+    inkomenKind, inkomenPartner, forfait, aftrekbareRente, hillen, aandeel, tarief,
+    situatieKind, situatiePartner);
   const beter = (nieuw, oud) => {
     if (!oud) return true;
     if (nieuw.effect !== oud.effect) return nieuw.effect > oud.effect;
@@ -1690,15 +1878,18 @@ function gunstigsteVerdeling(inkomenKind, inkomenPartner, forfait, aftrekbareRen
 }
 
 // Het belastingeffect van de woning voor kind en partner samen volgens de gekozen verdeling.
-function belastingeffectPerVerdeling(partner, inkomenKind, forfait, aftrekbareRente, hillen, tarief) {
+function belastingeffectPerVerdeling(partner, inkomenKind, forfait, aftrekbareRente, hillen, tarief,
+  situatieKind = VOOR_AOW_LEEFTIJD, situatiePartner = VOOR_AOW_LEEFTIJD) {
   if (partner.verdeling === 'gunstigst') {
     return gunstigsteVerdeling(
-      inkomenKind, partner.inkomen, forfait, aftrekbareRente, hillen, tarief);
+      inkomenKind, partner.inkomen, forfait, aftrekbareRente, hillen, tarief,
+      situatieKind, situatiePartner);
   }
   const aandeel = partner.verdeling === 'percentage'
     ? partner.aandeelKindProcent / 100 : 0.5;
   return belastingeffectPartners(
-    inkomenKind, partner.inkomen, forfait, aftrekbareRente, hillen, aandeel, tarief);
+    inkomenKind, partner.inkomen, forfait, aftrekbareRente, hillen, aandeel, tarief,
+    situatieKind, situatiePartner);
 }
 
 // --------------------------------------------------------------------------
@@ -1852,6 +2043,7 @@ function berekenFamiliebank(invoer) {
     leningen = [],
     ouder = null,
     partner: partnerInvoer,
+    geboortedatumKind = '',
   } = invoer;
   // Zonder partner (of met aanwezig op onwaar) rekent de tool precies als voor één
   // belastingplichtige; het veld is er een uitbreiding op en geen vervanging.
@@ -1896,6 +2088,20 @@ function berekenFamiliebank(invoer) {
       return geenUitkomst('Het aandeel van het kind in de eigen woning moet een percentage van '
         + '0 tot en met 100 zijn (' + String(partner.aandeelKindProcent) + ').');
     }
+  }
+
+  // De geboortedatum is optioneel (punt 37): leeg betekent vóór de AOW-leeftijd. Een ingevulde
+  // maar onleesbare datum geeft een melding, want stil overslaan zou een ander tarief geven.
+  const geboorteKind = leesGeboortedatum(geboortedatumKind);
+  if (geboortedatumKind && !geboorteKind) {
+    return geenUitkomst('De geboortedatum van het kind is geen geldige datum ('
+      + String(geboortedatumKind) + ').');
+  }
+  const geboortedatumPartner = partner ? (partner.geboortedatum || '') : '';
+  const geboortePartner = leesGeboortedatum(geboortedatumPartner);
+  if (geboortedatumPartner && !geboortePartner) {
+    return geenUitkomst('De geboortedatum van de partner is geen geldige datum ('
+      + String(geboortedatumPartner) + ').');
   }
 
   const actief = leningen.filter(l => l && l.actief);
@@ -2169,14 +2375,19 @@ function berekenFamiliebank(invoer) {
     // Met een partner is `effect` het effect voor beiden samen en komt het aandeel van elk
     // erbij; de aftrek van art. 3.123a is dan over het geheel berekend (lid 3) en daarna
     // verdeeld, dus `hillen` blijft hier het totaal.
+    // De leeftijdssituatie van dit jaar: AOW-premie, tarief en ouderenkorting (punt 37).
+    const situatieKind = leeftijdssituatie(geboorteKind, jaar);
+    const situatiePartner = leeftijdssituatie(geboortePartner, jaar);
     const verdeeld = partner
-      ? belastingeffectPerVerdeling(partner, inkomenKind, forfaitJaar, renteTotaal, hillen, tarief)
+      ? belastingeffectPerVerdeling(partner, inkomenKind, forfaitJaar, renteTotaal, hillen, tarief,
+          situatieKind, situatiePartner)
       : null;
     const effect = verdeeld
       ? { effect: verdeeld.effect,
           aftrekNietBenut: afrondenOpCenten(
             verdeeld.kind.aftrekNietBenut + verdeeld.partner.aftrekNietBenut) }
-      : belastingeffectEigenWoning(inkomenKind, forfaitJaar, renteTotaal, hillen, tarief);
+      : belastingeffectEigenWoning(inkomenKind, forfaitJaar, renteTotaal, hillen, tarief,
+          situatieKind);
 
     // Dezelfde woning zónder de familiebankleningen. Het verschil tussen de twee is wat die
     // leningen fiscaal opleveren, en dat is het bedrag dat in de last thuishoort. Het
@@ -2186,12 +2397,13 @@ function berekenFamiliebank(invoer) {
       aftrekGeenOfGeringeEigenwoningschuld(forfaitJaar, overigeEigenwoningrente, tarief));
     const verdeeldZonder = partner
       ? belastingeffectPerVerdeling(
-          partner, inkomenKind, forfaitJaar, overigeEigenwoningrente, hillenZonder, tarief)
+          partner, inkomenKind, forfaitJaar, overigeEigenwoningrente, hillenZonder, tarief,
+          situatieKind, situatiePartner)
       : null;
     const effectZonder = verdeeldZonder
       ? { effect: verdeeldZonder.effect }
       : belastingeffectEigenWoning(
-          inkomenKind, forfaitJaar, overigeEigenwoningrente, hillenZonder, tarief);
+          inkomenKind, forfaitJaar, overigeEigenwoningrente, hillenZonder, tarief, situatieKind);
     const effectFamiliebank = afrondenOpCenten(effect.effect - effectZonder.effect);
 
     const bevoordeling = afrondenOpCenten(schenking + kwijtschelding);
@@ -2912,12 +3124,12 @@ function berekenFamiliebank(invoer) {
            + 'laat hen kiezen om ook bij een deel van het jaar als partner te gelden) en dat '
            + 'zij de verhouding zo kiezen in de aangifte. Die keuze is vrij, kan elk jaar anders '
            + 'zijn en kan tot de aanslag onherroepelijk is worden gewijzigd (art. 2.17 lid 2 en '
-           + 'lid 4). De tool belast beide partners met het schijventarief over hun belastbare '
-           + 'inkomen uit werk en woning en verrekent de algemene heffingskorting '
-           + '(art. 8.10 lid 2), die met het verzamelinkomen meebeweegt. De premies '
-           + 'volksverzekeringen, die in de eerste schijf ook van de aftrek meebewegen, en de '
-           + 'ouderenkorting rekent zij niet. De hier gevonden verdeling is daarom de laagste '
-           + 'inkomstenbelasting over het schijventarief en de algemene heffingskorting, en niet '
+           + 'lid 4). De tool belast beide partners elk met de inkomstenbelasting en de premies '
+           + 'volksverzekeringen over hun belastbare inkomen uit werk en woning en verrekent de '
+           + 'algemene heffingskorting en, vanaf de AOW-leeftijd, de ouderenkorting. Andere '
+           + 'heffingskortingen en de uitbetaling van de algemene heffingskorting aan een '
+           + 'minstverdienende partner (art. 8.9) kent zij niet. De hier gevonden verdeling is '
+           + 'daarom de laagste inkomstenbelasting en premie met die twee kortingen, en niet '
            + 'noodzakelijk de verdeling die de aangifte het gunstigst maakt; bij gelijke uitkomst '
            + 'kiest de tool de verhouding '
            + 'het dichtst bij de helft. Het effect van de familiebank is het verschil tussen '
@@ -2928,6 +3140,42 @@ function berekenFamiliebank(invoer) {
            + 'berekening: de vrijstelling hierboven geldt voor het kind van de ouder.',
     });
   }
+
+  // Punt 37: premies volksverzekeringen, het tarief na de AOW-leeftijd en de ouderenkorting.
+  const aowTekst = (wie, geboorte) => {
+    if (!geboorte) {
+      return 'Voor ' + wie + ' is geen geboortedatum opgegeven; de tool rekent alle jaren als '
+        + 'vóór de AOW-leeftijd, met AOW-premie en zonder ouderenkorting.';
+    }
+    const aow = aowMoment(geboorte);
+    const tabel = geboorte.jaar < 1946 ? ' Wie vóór 1946 is geboren valt onder de tabel van '
+      + 'art. 2.10a Wet IB 2001.' : '';
+    if (aow.voor2026) {
+      return wie.charAt(0).toUpperCase() + wie.slice(1) + ' heeft de AOW-leeftijd al bereikt: '
+        + 'geen AOW-premie, wel de ouderenkorting.' + tabel;
+    }
+    return wie.charAt(0).toUpperCase() + wie.slice(1) + ' bereikt de AOW-leeftijd ('
+      + AOW_LEEFTIJD_VINDPLAATS + ') in maand ' + aow.maand + ' van ' + aow.jaar + '. Vanaf de '
+      + 'eerste van die maand vervalt de AOW-premie (art. 10 lid 2 Wfsv); vanaf de dag zelf telt '
+      + 'het AOW-deel van de algemene heffingskorting niet meer mee (art. 2.6a Regeling Wfsv); '
+      + 'vanaf dat jaar geldt de ouderenkorting (art. 8.17 Wet IB 2001).' + (aow.aangenomen ? ' De AOW-leeftijd voor ' + aow.jaar + ' is nog niet '
+        + 'vastgesteld; de tool neemt de laatst vastgestelde leeftijd van 67 jaar en 3 maanden '
+        + 'aan.' : '') + tabel;
+  };
+  meldingen.push({
+    soort: 'info',
+    tekst: 'Het belastingeffect telt de inkomstenbelasting en de premies volksverzekeringen ('
+         + tarief.premieVindplaats + ') samen, met de algemene heffingskorting ('
+         + tarief.algemeneHeffingskorting.vindplaats + ') en de ouderenkorting ('
+         + tarief.ouderenkorting.vindplaats + '). Die kortingen worden verrekend tot ten hoogste de belasting en premie '
+         + 'samen (art. 8.8 Wet IB 2001); wat erboven uitkomt vervalt, behalve dat art. 8.9 voor '
+         + 'wie vóór 1963 is geboren en meer dan zes maanden een partner heeft een aanvulling '
+         + 'ten laste van de partner kent, die de tool niet berekent. Andere heffingskortingen, '
+         + 'zoals de arbeidskorting, kent de tool niet: zij veranderen niet met de woning, maar '
+         + 'bij een laag inkomen kunnen zij de verrekenruimte al opmaken, en dan rekent de tool '
+         + 'het voordeel te hoog. ' + aowTekst('het kind', geboorteKind)
+         + (partner ? ' ' + aowTekst('de partner', geboortePartner) : ''),
+  });
 
   meldingen.push({
     soort: 'info',
@@ -3310,7 +3558,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'familiebank';
 const TOOL_NAAM = 'Familiebank: lening van ouder aan kind';
-const TOOL_VERSIE = '0.9.0';
+const TOOL_VERSIE = '0.10.0';
 // Versie 2 van 19-09-2026: de invoer kent vier leningen in plaats van één, plus de WOZ-waarde,
 // de indexatie, de kwijtschelding en de aflossingspauze. Versie 3 van 20-09-2026 voegt daar de
 // overige aftrekbare eigenwoningrente aan toe. Een bestand van een oudere versie wordt niet
@@ -3416,7 +3664,7 @@ const PARTNERVELDEN = [
 const PARTNER_VERDELING_NAMEN = {
   gelijk: 'de helft ieder (art. 2.17 lid 3)',
   percentage: 'een door de gebruiker gekozen verhouding (art. 2.17 lid 2)',
-  gunstigst: 'de verhouding met de laagste inkomstenbelasting (schijventarief en algemene heffingskorting)',
+  gunstigst: 'de verhouding met de laagste inkomstenbelasting en premie volksverzekeringen',
 };
 
 const ANDERE_SCHULD_SOORTEN = {
@@ -3476,8 +3724,15 @@ const VINDPLAATSEN = [
   'Eigenwoningforfait: art. 3.112 lid 1 Wet IB 2001. Aftrek wegens geen of geringe '
   + 'eigenwoningschuld: art. 3.123a lid 1 en 2 Wet IB 2001.',
   'Renteaftrek: art. 3.120 lid 1 onder a Wet IB 2001 voor de rente zelf.',
-  'Tarief en tariefsaanpassing: art. 2.10 lid 1 Wet IB 2001 voor het schijventarief, en '
-  + 'art. 2.10 lid 2 en lid 3 onder d voor de beperking van de aftrek in de hoogste schijf.',
+  'Tarief en tariefsaanpassing: art. 2.10 lid 1 Wet IB 2001 voor het schijventarief (art. 2.10a '
+  + 'voor wie vóór 1946 is geboren), en art. 2.10 lid 2 en lid 3 onder d voor de beperking van '
+  + 'de aftrek in de hoogste schijf.',
+  'Premies volksverzekeringen: art. 8, 10 en 11 Wet financiering sociale verzekeringen en '
+  + 'Stcrt. 2025, 42324 (AOW 17,90, Anw 0,10 en Wlz 9,65 procent over het inkomen tot de '
+  + 'eerste schijfgrens); de AOW-premie vervalt vanaf de maand waarin de AOW-leeftijd van '
+  + 'art. 7a AOW wordt bereikt. Heffingskortingen: art. 8.10 lid 2 (algemene heffingskorting) en '
+  + 'art. 8.17 (ouderenkorting) Wet IB 2001, verrekend tot ten hoogste belasting en premie '
+  + 'samen (art. 8.8).',
   'Schenking: art. 33 onder 5° Successiewet 1956, de jaarlijkse vrijstelling voor een kind '
   + 'van de ouders. Een kwijtschelding is een gift en daarmee een schenking, art. 1 lid 7 '
   + 'SW 1956 jo. art. 7:186 lid 2 BW; zij telt in hetzelfde kalenderjaar mee.',
@@ -3566,10 +3821,10 @@ const AFBAKENING = [
   'Zonder opgegeven partner rekent de tool voor één belastingplichtige die de enige eigenaar '
   + 'van de woning is. Met een partner verdeelt zij het forfait, de aftrekbare rente en de '
   + 'aftrek van art. 3.123a in één verhouding (art. 2.17 lid 2, 3 en 5 onder a en art. 3.123a '
-  + 'lid 3 Wet IB 2001) en belast zij beide partners met het schijventarief en de '
-  + 'algemene heffingskorting (art. 8.10 lid 2). De premies volksverzekeringen en de '
-  + 'ouderenkorting zitten er niet in, dus de verdeling met de laagste belasting is niet '
-  + 'noodzakelijk die welke de aangifte het gunstigst maakt. Dat de partners '
+  + 'lid 3 Wet IB 2001) en belast zij beide partners met inkomstenbelasting en premies '
+  + 'volksverzekeringen, de algemene heffingskorting en de ouderenkorting. Andere '
+  + 'heffingskortingen en art. 8.9 kent zij niet, dus de verdeling met de laagste belasting is '
+  + 'niet noodzakelijk die welke de aangifte het gunstigst maakt. Dat de partners '
   + 'het hele jaar dezelfde fiscale partner hebben (art. 2.17 lid 5) en dat zij de verhouding '
   + 'zo in de aangifte kiezen, stelt de tool niet vast.',
   'Een lening van 2013 tot en met het jaar vóór het rekenjaar rekent de tool door vanaf 1 '
@@ -3599,6 +3854,15 @@ function veldFormaat(veld) {
   return veld.soort === 'bedrag' ? '#,##0.00' : veld.soort === 'percentage' ? '0.00' : '0';
 }
 
+// De geboortedatum is optioneel (punt 37). Zonder datum rekent de tool met de premies en
+// heffingskortingen van iemand die de AOW-leeftijd nog niet heeft bereikt, en dat staat er dan.
+function geboortedatumAlsTekst(iso) {
+  const datum = leesGeboortedatum(iso);
+  if (!datum) return 'niet opgegeven, gerekend als vóór de AOW-leeftijd';
+  const tweeCijfers = n => String(n).padStart(2, '0');
+  return tweeCijfers(datum.dag) + '-' + tweeCijfers(datum.maand) + '-' + datum.jaar;
+}
+
 function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
   const invoerregels = ALGEMENE_VELDEN.map(function (veld) {
     const waarde = Number(ruweInvoer[veld.sleutel]);
@@ -3617,6 +3881,10 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
     label: 'Omrekening van de jaarrente naar een maandrente',
     tekst: RENTEOMREKENINGEN[ruweInvoer.renteomrekening]
       || String(ruweInvoer.renteomrekening),
+  });
+  invoerregels.push({
+    label: 'Geboortedatum van het kind',
+    tekst: geboortedatumAlsTekst(ruweInvoer.geboortedatumKind),
   });
 
   const andereSchuld = ruweInvoer.andereSchuld || { soort: 'geen' };
@@ -3695,6 +3963,10 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
     partnerRegels.push({
       label: PARTNERVELDEN[0].label, tekst: veldAlsTekst(PARTNERVELDEN[0], Number(partner.inkomen)),
       getal: Number(partner.inkomen), formaat: veldFormaat(PARTNERVELDEN[0]),
+    });
+    partnerRegels.push({
+      label: 'Geboortedatum van de partner',
+      tekst: geboortedatumAlsTekst(partner.geboortedatum),
     });
     partnerRegels.push({
       label: 'Verdeling van de eigen woning',
@@ -4054,6 +4326,11 @@ function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
   ALGEMENE_VELDEN.forEach(function (veld) { invoer[veld.sleutel] = ruweInvoer[veld.sleutel]; });
   invoer.renteomrekening = ruweInvoer.renteomrekening;
   invoer.wozStijgingProcent = Number(ruweInvoer.wozStijgingProcent) || 0;
+  // Alleen als zij is opgegeven, net als de partner: een dossier zonder geboortedatum blijft
+  // gelijk aan wat de tool vóór punt 37 schreef.
+  if (leesGeboortedatum(ruweInvoer.geboortedatumKind)) {
+    invoer.geboortedatumKind = ruweInvoer.geboortedatumKind;
+  }
   const bron = ruweInvoer.andereSchuld || { soort: 'geen' };
   invoer.andereSchuld = { soort: bron.soort, aflossingsvorm: bron.aflossingsvorm };
   ANDERE_SCHULD_VELDEN.forEach(function (veld) {
@@ -4093,6 +4370,9 @@ function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
       inkomen: ruweInvoer.partner.inkomen,
       aandeelKindProcent: ruweInvoer.partner.aandeelKindProcent,
     };
+    if (leesGeboortedatum(ruweInvoer.partner.geboortedatum)) {
+      invoer.partner.geboortedatum = ruweInvoer.partner.geboortedatum;
+    }
   }
   return {
     tool: TOOL_ID, formaatVersie: DOSSIER_FORMAATVERSIE, toolVersie: TOOL_VERSIE,
@@ -4179,6 +4459,15 @@ function leesDossier(tekst) {
     ruweInvoer.wozStijgingProcent = stijging;
   }
 
+  // De geboortedatum van het kind (punt 37) is optioneel. Ontbreekt zij, dan rekende de tool
+  // als vóór de AOW-leeftijd, en dat doet zij nu ook. Staat zij er, dan moet zij kloppen.
+  const geboren = rauw.invoer.geboortedatumKind;
+  if (geboren !== undefined && !leesGeboortedatum(geboren)) {
+    gebreken.push('"Geboortedatum van het kind" is geen geldige datum (' + String(geboren) + ')');
+  } else if (geboren !== undefined) {
+    ruweInvoer.geboortedatumKind = geboren;
+  }
+
   // De omrekening staat in het bestand en wordt niet aangevuld. Een ontbrekende of onbekende
   // waarde blokkeert het openen: stilzwijgend de standaard invullen zou een dossier dat met de
   // samengestelde vorm is doorgerekend met andere bedragen terugzetten.
@@ -4250,7 +4539,9 @@ function leesDossier(tekst) {
   // dan moet het kloppen; een half gelezen partner zou stil een andere belasting geven.
   const partnerBron = rauw.invoer.partner;
   if (partnerBron === undefined) {
-    ruweInvoer.partner = { aanwezig: false, inkomen: 0, verdeling: 'gelijk', aandeelKindProcent: 50 };
+    ruweInvoer.partner = {
+      aanwezig: false, inkomen: 0, verdeling: 'gelijk', aandeelKindProcent: 50,
+    };
   } else if (!partnerBron || typeof partnerBron !== 'object' || Array.isArray(partnerBron)
       || partnerBron.aanwezig !== true) {
     gebreken.push('de gegevens van de partner zijn onleesbaar');
@@ -4265,6 +4556,12 @@ function leesDossier(tekst) {
     }
     ruweInvoer.partner.aanwezig = true;
     ruweInvoer.partner.verdeling = partnerBron.verdeling;
+    if (partnerBron.geboortedatum !== undefined && !leesGeboortedatum(partnerBron.geboortedatum)) {
+      gebreken.push(waar + 'de geboortedatum is geen geldige datum ('
+        + String(partnerBron.geboortedatum) + ')');
+    } else if (partnerBron.geboortedatum !== undefined) {
+      ruweInvoer.partner.geboortedatum = partnerBron.geboortedatum;
+    }
   }
   let zonderVorm = false;
   ruweInvoer.leningen = rauw.invoer.leningen.map(function (lening, i) {
@@ -4543,7 +4840,7 @@ function toonPartnervelden() {
   const metPartner = document.getElementById('partnerAanwezig').value === 'ja';
   const eigen = document.getElementById('partnerVerdeling').value === 'percentage';
   const zichtbaar = {
-    partnerInkomen: metPartner, partnerVerdeling: metPartner, partnerAandeel: metPartner && eigen,
+    partnerInkomen: metPartner, partnerGeboortedatum: metPartner, partnerVerdeling: metPartner, partnerAandeel: metPartner && eigen,
   };
   for (const id of Object.keys(zichtbaar)) {
     document.getElementById(id).closest('div').style.display = zichtbaar[id] ? '' : 'none';
@@ -4581,6 +4878,7 @@ function leesInvoer() {
   return {
     ingangsjaar: getal('ingangsjaar'),
     inkomenKind: getal('inkomen'),
+    geboortedatumKind: document.getElementById('geboortedatumKind').value,
     eigenwoningwaarde: getal('woz'),
     andereSchuld: {
       soort: document.getElementById('andereSoort').value,
@@ -4611,6 +4909,7 @@ function leesInvoer() {
     partner: {
       aanwezig: document.getElementById('partnerAanwezig').value === 'ja',
       inkomen: getal('partnerInkomen'),
+      geboortedatum: document.getElementById('partnerGeboortedatum').value,
       verdeling: document.getElementById('partnerVerdeling').value,
       aandeelKindProcent: getal('partnerAandeel'),
     },
@@ -4620,6 +4919,7 @@ function leesInvoer() {
 function schrijfInvoer(r, kenmerk) {
   document.getElementById('ingangsjaar').value = r.ingangsjaar;
   document.getElementById('inkomen').value = r.inkomenKind;
+  document.getElementById('geboortedatumKind').value = r.geboortedatumKind || '';
   document.getElementById('woz').value = r.eigenwoningwaarde;
   const andere = r.andereSchuld || { soort: 'geen' };
   document.getElementById('andereSoort').value = andere.soort;
@@ -4653,6 +4953,7 @@ function schrijfInvoer(r, kenmerk) {
   const p = r.partner || { aanwezig: false, inkomen: 40000, verdeling: 'gelijk', aandeelKindProcent: 50 };
   document.getElementById('partnerAanwezig').value = p.aanwezig ? 'ja' : 'nee';
   document.getElementById('partnerInkomen').value = p.inkomen;
+  document.getElementById('partnerGeboortedatum').value = p.geboortedatum || '';
   document.getElementById('partnerVerdeling').value = p.verdeling;
   document.getElementById('partnerAandeel').value = p.aandeelKindProcent;
   toonPartnervelden();
