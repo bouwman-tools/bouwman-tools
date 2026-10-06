@@ -276,8 +276,13 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       </div>
       <div>
         <label for="woz">WOZ-waarde van de woning
-          <span class="bron">de eigenwoningwaarde van art. 3.112 lid 2 Wet IB 2001</span></label>
+          <span class="bron">de eigenwoningwaarde van art. 3.112 lid 2 Wet IB 2001: de waarde uit de WOZ-beschikking voor het rekenjaar</span></label>
         <input type="number" id="woz" value="450000" min="0" step="5000">
+      </div>
+      <div>
+        <label for="wozstijging">Stijging van de WOZ-waarde in procenten per jaar
+          <span class="bron">aanname van de gebruiker, geen wettelijke waarde</span></label>
+        <input type="number" id="wozstijging" value="0" min="-20" max="20" step="0.1">
       </div>
       <div>
         <label for="indexatie">Indexatie in procenten per jaar
@@ -300,9 +305,11 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
     </div>
     <div class="melding info" style="margin-top:14px;margin-bottom:0;">
       De indexatie werkt op de vaste jaarlijkse schenking en op de kwijtschelding. Zij staat
-      standaard op nul: de tool vult zelf geen inflatie in. De WOZ-waarde wordt niet
-      geïndexeerd, want een aanname over de waardeontwikkeling van een woning is iets anders
-      dan de indexatie van bedragen.
+      standaard op nul: de tool vult zelf geen inflatie in. De WOZ-waarde wordt niet door
+      de indexatie geraakt, want een aanname over de waardeontwikkeling van een woning is
+      iets anders dan de indexatie van bedragen. Daarvoor is de stijging van de WOZ-waarde
+      per jaar, ook standaard nul; het eigenwoningforfait volgt dan de WOZ-waarde, met de
+      forfaitstaffel van het rekenjaar.
     </div>
     <div class="melding info" style="margin-top:14px;margin-bottom:0;">
       Art. 3.119c Wet IB 2001 noemt alleen "de maandelijkse rentevoet" en zegt niet hoe die uit
@@ -487,6 +494,11 @@ const MAXIMALE_LOOPTIJD_MAANDEN = 360;
 // Het bronmodel kent vier familiebankleningen naast elkaar. Meer is geen fiscale grens maar
 // een keuze: vier past op het scherm en dekt de praktijk.
 const MAXIMAAL_AANTAL_LENINGEN = 4;
+
+// De stijging van de WOZ-waarde is een aanname van de gebruiker (OPENSTAAND punt 33) en geen
+// wettelijke waarde. De grenzen vangen een typefout op en zijn geen fiscale grens.
+const MIN_WOZ_STIJGING_PROCENT = -20;
+const MAX_WOZ_STIJGING_PROCENT = 20;
 
 // Maandnamen voor de meldingen, met 1 als januari zodat het nummer uit de invoer rechtstreeks
 // als index dient.
@@ -1240,6 +1252,7 @@ function berekenFamiliebank(invoer) {
     eigenwoningwaarde = 0,
     andereSchuld = { soort: 'geen' },
     indexatieProcent = 0,
+    wozStijgingProcent = 0,
     renteomrekening,
     leningen = [],
   } = invoer;
@@ -1250,6 +1263,13 @@ function berekenFamiliebank(invoer) {
       'Voor het jaar ' + ingangsjaar + ' zijn geen tarieven, staffels en vrijstellingen in de '
       + 'tool opgenomen. De tool rekent niet door met de waarden van een ander jaar. '
       + 'Opgenomen jaren: ' + Object.keys(FISCAAL_PER_JAAR).join(', ') + '.');
+  }
+
+  if (!Number.isFinite(wozStijgingProcent) || wozStijgingProcent < MIN_WOZ_STIJGING_PROCENT
+      || wozStijgingProcent > MAX_WOZ_STIJGING_PROCENT) {
+    return geenUitkomst('De stijging van de WOZ-waarde per jaar moet een getal zijn van '
+      + MIN_WOZ_STIJGING_PROCENT + ' tot en met ' + MAX_WOZ_STIJGING_PROCENT + ' procent ('
+      + String(wozStijgingProcent) + ').');
   }
 
   // De omrekening van de jaarrente naar een maandrente is een keuze van de gebruiker, want de
@@ -1439,7 +1459,13 @@ function berekenFamiliebank(invoer) {
   const eersteJaar = Math.min(...perLening.map(l => l.jaren[0].jaar));
   const laatsteJaar = Math.max(...perLening.map(l => l.jaren[l.jaren.length - 1].jaar));
 
-  const forfait = afrondenOpCenten(eigenwoningforfait(eigenwoningwaarde, tarief));
+  // De WOZ-waarde per jaar: de opgegeven waarde in het rekenjaar, daarna met de aanname van de
+  // gebruiker. Het forfait volgt in alle jaren de staffel van het rekenjaar, want die is voor
+  // latere jaren niet vastgesteld. Bij een stijging van nul is elk jaar gelijk aan het eerste.
+  const wozIn = (jaar) => eigenwoningwaarde
+    * Math.pow(1 + wozStijgingProcent / 100, Math.max(0, jaar - ingangsjaar));
+  const forfaitIn = (jaar) => afrondenOpCenten(eigenwoningforfait(wozIn(jaar), tarief));
+  const forfait = forfaitIn(ingangsjaar);
   const vrijstelling = tarief.schenkvrijstellingKind;
 
   const jaren = [];
@@ -1459,22 +1485,24 @@ function berekenFamiliebank(invoer) {
     }
     // De hele eigen woning: het forfait tegenover alle aftrekbare eigenwoningrente, dus ook
     // die van een bankhypotheek naast de familiebank.
+    const eigenwoningwaardeJaar = afrondenOpCenten(wozIn(jaar));
+    const forfaitJaar = forfaitIn(jaar);
     const overigeRenteBetaald = afrondenOpCenten(overigeRenteIn(jaar));
     const overigeEigenwoningrente = afrondenOpCenten(overigeRenteAftrekbaarIn(jaar));
     const renteTotaal = afrondenOpCenten(aftrekbareRente + overigeEigenwoningrente);
     const hillen = afrondenOpCenten(
-      aftrekGeenOfGeringeEigenwoningschuld(forfait, renteTotaal, tarief));
+      aftrekGeenOfGeringeEigenwoningschuld(forfaitJaar, renteTotaal, tarief));
     const effect = belastingeffectEigenWoning(
-      inkomenKind, forfait, renteTotaal, hillen, tarief);
+      inkomenKind, forfaitJaar, renteTotaal, hillen, tarief);
 
     // Dezelfde woning zónder de familiebankleningen. Het verschil tussen de twee is wat die
     // leningen fiscaal opleveren, en dat is het bedrag dat in de last thuishoort. Het
     // volledige saldo-effect mag daar niet in: daar zit het forfait in dat er ook zonder de
     // lening zou zijn, en de aftrek van een bankhypotheek die het kind sowieso al betaalt.
     const hillenZonder = afrondenOpCenten(
-      aftrekGeenOfGeringeEigenwoningschuld(forfait, overigeEigenwoningrente, tarief));
+      aftrekGeenOfGeringeEigenwoningschuld(forfaitJaar, overigeEigenwoningrente, tarief));
     const effectZonder = belastingeffectEigenWoning(
-      inkomenKind, forfait, overigeEigenwoningrente, hillenZonder, tarief);
+      inkomenKind, forfaitJaar, overigeEigenwoningrente, hillenZonder, tarief);
     const effectFamiliebank = afrondenOpCenten(effect.effect - effectZonder.effect);
 
     const bevoordeling = afrondenOpCenten(schenking + kwijtschelding);
@@ -1492,9 +1520,10 @@ function berekenFamiliebank(invoer) {
       aflossing: afrondenOpCenten(aflossing),
       kwijtschelding: afrondenOpCenten(kwijtschelding),
       schuldEind: afrondenOpCenten(schuldEind),
-      eigenwoningforfait: forfait,
+      eigenwoningwaarde: eigenwoningwaardeJaar,
+      eigenwoningforfait: forfaitJaar,
       aftrekGeringeSchuld: hillen,
-      belastbareInkomstenEigenWoning: afrondenOpCenten(forfait - renteTotaal - hillen),
+      belastbareInkomstenEigenWoning: afrondenOpCenten(forfaitJaar - renteTotaal - hillen),
       saldoEffectEigenWoning: effect.effect,
       belastingeffect: effectFamiliebank,
       aftrekNietBenut: effect.aftrekNietBenut,
@@ -1752,11 +1781,20 @@ function berekenFamiliebank(invoer) {
   if (eigenwoningwaarde > 0) {
     meldingen.push({
       soort: 'info',
-      tekst: 'Het eigenwoningforfait is ' + bedragInTekst(forfait) + ' per jaar ('
+      tekst: wozStijgingProcent === 0
+        ? 'Het eigenwoningforfait is ' + bedragInTekst(forfait) + ' per jaar ('
            + tarief.forfaitVindplaats + '), berekend over een gelijkblijvende '
-           + 'eigenwoningwaarde. De tool indexeert de WOZ-waarde niet: een aanname over de '
-           + 'waardeontwikkeling van een woning is iets anders dan de indexatie van bedragen '
-           + 'en hoort niet stil in één percentage mee te liften.',
+           + 'eigenwoningwaarde. De tool indexeert de WOZ-waarde niet vanzelf: een aanname over '
+           + 'de waardeontwikkeling van een woning is iets anders dan de indexatie van bedragen '
+           + 'en hoort niet stil in één percentage mee te liften. Wilt u een stijging of daling '
+           + 'meenemen, vul dan de stijging van de WOZ-waarde per jaar in.'
+        : 'Het eigenwoningforfait is ' + bedragInTekst(forfait) + ' in ' + ingangsjaar
+           + ' (' + tarief.forfaitVindplaats + ') en volgt daarna de WOZ-waarde die u met een '
+           + 'stijging van ' + String(wozStijgingProcent).replace('.', ',') + ' procent per '
+           + 'jaar hebt laten meebewegen, tot ' + bedragInTekst(jaren[jaren.length - 1].eigenwoningforfait)
+           + ' in ' + jaren[jaren.length - 1].jaar + '. Die stijging is uw aanname en geen '
+           + 'wettelijke waarde. De forfaitstaffel blijft die van ' + ingangsjaar + ': de '
+           + 'staffel voor latere jaren is niet vastgesteld en kan andere grenzen hebben.',
     });
     if (jaren.some(j => j.aftrekGeringeSchuld > 0)) {
       meldingen.push({
@@ -1904,6 +1942,7 @@ function berekenFamiliebank(invoer) {
     andereSchuldJaren: andereSchuldSchema ? andereSchuldSchema.jaren : [],
     overigeRenteEersteVolleJaar: eersteVolleJaar.overigeEigenwoningrente,
     indexatieProcent,
+    wozStijgingProcent,
     vrijstelling,
     vrijstellingVindplaats: tarief.schenkvrijstellingVindplaats,
     tariefVindplaats: tarief.tariefVindplaats,
@@ -2361,7 +2400,9 @@ const AFBAKENING = [
   + 'een prognose.',
   'De indexatie is een aanname van de gebruiker en geen wettelijke waarde. Zij werkt op de '
   + 'vaste jaarlijkse schenking en op de kwijtschelding. De WOZ-waarde en het inkomen worden '
-  + 'niet geïndexeerd.',
+  + 'niet door de indexatie geraakt. De WOZ-waarde beweegt alleen mee met de stijging van de '
+  + 'WOZ-waarde per jaar die de gebruiker zelf opgeeft, standaard nul; ook dat is een aanname '
+  + 'en geen wettelijke waarde.',
   'Een aflossingspauze is een periode waarin alleen rente wordt betaald. Wat er daarna '
   + 'gebeurt kiest de gebruiker: dezelfde termijn hervatten, waardoor de aflossing evenveel '
   + 'maanden doorloopt na de overeengekomen einddatum, of de restschuld herrekenen over de '
@@ -2416,6 +2457,12 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
       label: veld.label, tekst: veldAlsTekst(veld, waarde),
       getal: waarde, formaat: veldFormaat(veld),
     };
+  });
+  const wozStijging = Number(ruweInvoer.wozStijgingProcent) || 0;
+  invoerregels.push({
+    label: 'Stijging van de WOZ-waarde in procenten per jaar',
+    tekst: veldAlsTekst({ soort: 'percentage' }, wozStijging),
+    getal: wozStijging, formaat: '0.00',
   });
   invoerregels.push({
     label: 'Omrekening van de jaarrente naar een maandrente',
@@ -2726,6 +2773,7 @@ function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
   const invoer = {};
   ALGEMENE_VELDEN.forEach(function (veld) { invoer[veld.sleutel] = ruweInvoer[veld.sleutel]; });
   invoer.renteomrekening = ruweInvoer.renteomrekening;
+  invoer.wozStijgingProcent = Number(ruweInvoer.wozStijgingProcent) || 0;
   const bron = ruweInvoer.andereSchuld || { soort: 'geen' };
   invoer.andereSchuld = { soort: bron.soort, aflossingsvorm: bron.aflossingsvorm };
   ANDERE_SCHULD_VELDEN.forEach(function (veld) {
@@ -2811,6 +2859,20 @@ function leesDossier(tekst) {
 
   const gebreken = [];
   const ruweInvoer = leesVelden(rauw.invoer, ALGEMENE_VELDEN, '', gebreken);
+
+  // De stijging van de WOZ-waarde (punt 33) is later toegevoegd en komt niet in de verplichte
+  // velden: een dossier zonder dit veld is zonder stijging doorgerekend, en nul is dus precies
+  // wat er toen gold. Staat het er wel, dan moet het een getal binnen de grenzen zijn.
+  const stijging = rauw.invoer.wozStijgingProcent;
+  if (stijging === undefined) {
+    ruweInvoer.wozStijgingProcent = 0;
+  } else if (!isEchtGetal(stijging) || stijging < MIN_WOZ_STIJGING_PROCENT
+             || stijging > MAX_WOZ_STIJGING_PROCENT) {
+    gebreken.push('"Stijging van de WOZ-waarde in procenten per jaar" moet een getal zijn van '
+      + MIN_WOZ_STIJGING_PROCENT + ' tot en met ' + MAX_WOZ_STIJGING_PROCENT);
+  } else {
+    ruweInvoer.wozStijgingProcent = stijging;
+  }
 
   // De omrekening staat in het bestand en wordt niet aangevuld. Een ontbrekende of onbekende
   // waarde blokkeert het openen: stilzwijgend de standaard invullen zou een dossier dat met de
@@ -3111,6 +3173,7 @@ function leesInvoer() {
       aftrekTotMaand: getal('andereAftrekTotMaand'),
     },
     indexatieProcent: getal('indexatie'),
+    wozStijgingProcent: getal('wozstijging'),
     renteomrekening: document.getElementById('renteomrekening').value,
     leningen,
   };
@@ -3131,6 +3194,7 @@ function schrijfInvoer(r, kenmerk) {
   document.getElementById('andereAftrekTotMaand').value = andere.aftrekTotMaand;
   toonAndereSchuldvelden();
   document.getElementById('indexatie').value = r.indexatieProcent;
+  document.getElementById('wozstijging').value = r.wozStijgingProcent || 0;
   document.getElementById('renteomrekening').value = r.renteomrekening;
   document.getElementById('kenmerk').value = kenmerk;
   for (let n = 1; n <= MAXIMAAL_AANTAL_LENINGEN; n++) {
@@ -3164,6 +3228,7 @@ function ontbrekendeInvoer(r) {
     toets('de resterende looptijd van de andere eigenwoningschuld', r.andereSchuld.looptijdMaanden);
   }
   toets('de indexatie', r.indexatieProcent);
+  if (!Number.isFinite(r.wozStijgingProcent)) ontbreekt.push('de stijging van de WOZ-waarde');
   r.leningen.forEach(function (lening, i) {
     if (!lening.actief) return;
     const waar = 'bij lening ' + (i + 1) + ' ';
