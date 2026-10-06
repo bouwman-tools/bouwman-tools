@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 7 okt 2026, 00:07</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 7 okt 2026, 00:22</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1446,6 +1446,18 @@ function maandenInBox3(perioden, jaar) {
 // zelf terugkeren op het moment dat het schema weer onder de lijn ligt: dat is een theoretische
 // achterstand en niet de achterstand die er bij de overgang was. Wel meldt zij dat moment.
 //
+// De dag van ingang (punt 41 van OPENSTAAND). Art. 3.119c lid 1 telt voor x "het aantal
+// verstreken gehele kalendermaanden van de looptijd". Gaat de lening op de 1e van de maand in,
+// dan is de maand van ingang een gehele kalendermaand en telt zij mee: bij ingang op 1 januari
+// 2013 is x op 31-12-2013 gelijk aan 12 en eindigen de 360 maanden op 31-12-2042. Gaat zij later
+// in de maand in, dan telt die maand niet mee. KG:051:2023:10 gaat uit van een lening van
+// 2 januari 2013 waarvan de looptijd in beginsel uiterlijk op 31-01-2043 eindigt (aanleiding),
+// en licht dat in voetnoot 1 toe: de formule gaat uit van volledige maanden en in januari 2013
+// hoeft niet te worden afgelost. Op 31-12-2013 is x dan 11.
+// De gebruiker geeft de dag op (startdag); 0 of een ontbrekend veld betekent niet opgegeven en
+// geldt als de 1e, de strengste lezing. Het schema van de tool betaalt de eerste termijn in de
+// maand van ingang, ook bij een latere dag; dat ligt dan onder de lijn en is dus geen achterstand.
+//
 // De opgegeven datum geldt voor de eerste periode in box 3. Valt de schuld daarna opnieuw uit
 // de eigenwoningschuld, dan blijft zij in box 3 en meldt de tool dat. Een achterstand die in het
 // schema van de tool na de opgegeven datum blijft bestaan, telt niet als nieuwe achterstand
@@ -1496,6 +1508,10 @@ function toetsAflossingseis(lening, schema) {
   }
 
   const toetsen = [];
+  // Gaat de lening na de 1e van de maand in, dan is de maand van ingang geen gehele
+  // kalendermaand van de looptijd (art. 3.119c lid 1; voetnoot 1 van KG:051:2023:10).
+  const ingangNaDeEerste = Number(lening.startdag) > 1;
+  const eersteGeheleMaand = lening.startjaar * 12 + lening.startmaand + (ingangNaDeEerste ? 1 : 0);
 
   // Een lening die vóór het rekenjaar is ingegaan heeft al een toetsmoment gehad op 31
   // december van het jaar ervoor, en de schuld die de gebruiker opgeeft is precies de schuld
@@ -1505,7 +1521,7 @@ function toetsAflossingseis(lening, schema) {
   let voorafgaand = null;
   if (lening.stand1Januari > 0 && lening.startjaar < schema.jaren[0].jaar) {
     const jaar = schema.jaren[0].jaar - 1;
-    const verstreken = (jaar - lening.startjaar) * 12 + (13 - lening.startmaand);
+    const verstreken = Math.max(0, jaar * 12 + 13 - eersteGeheleMaand);
     const maximaal = afrondenOpCenten(maximaleSchuldVolgensAflossingseis(
       lening.hoofdsom, schema.maandrente, verstreken, MAXIMALE_LOOPTIJD_MAANDEN));
     voorafgaand = {
@@ -1565,7 +1581,7 @@ function toetsAflossingseis(lening, schema) {
     // Het toetsmoment van dit jaar. De maanden die de schuld tot en met 31 december in box 3
     // stond, tellen niet mee voor x (aanname van de tool, zie hierboven): de lijn staat in box
     // 3 stil en loopt daarna door.
-    const verstreken = (jaarregel.jaar - lening.startjaar) * 12 + (13 - lening.startmaand);
+    const verstreken = Math.max(0, jaarregel.jaar * 12 + 13 - eersteGeheleMaand);
     const maandenBox3Tot = perioden.reduce(
       (som, p) => som + Math.max(0, Math.min(p.tot, jaarregel.jaar * 12 + 13) - p.van), 0);
     const meegeteld = Math.max(0, verstreken - maandenBox3Tot);
@@ -1624,13 +1640,15 @@ function toetsAflossingseis(lening, schema) {
     return { jaar: t.jaar, eigenwoningschuld: maanden === 0, maandenBox3: maanden };
   });
 
-  // De maximale looptijd van 360 maanden loopt vanaf de maand van ingang; de periode in box 3
-  // telt niet mee, dus het einde schuift op met het aantal maanden dat de schuld daar stond.
-  // Een periode zonder einde verschuift niets: daar is geen terugkeer om vanaf te tellen.
+  // De maximale looptijd van 360 maanden loopt vanaf de eerste gehele kalendermaand; de laatste
+  // maand ervan is die eerste maand plus 359. Bij ingang op 1 januari 2013 is dat december 2042,
+  // bij 2 januari 2013 januari 2043 (voetnoot 1 van KG:051:2023:10). De periode in box 3 telt
+  // niet mee, dus het einde schuift op met het aantal maanden dat de schuld daar stond. Een
+  // periode zonder einde verschuift niets: daar is geen terugkeer om vanaf te tellen.
   const verschuiving = echtePerioden
     .filter(p => p.tot !== Infinity)
     .reduce((s, p) => s + (p.tot - p.van), 0);
-  const oorspronkelijkEinde = lening.startjaar * 12 + lening.startmaand + MAXIMALE_LOOPTIJD_MAANDEN;
+  const oorspronkelijkEinde = eersteGeheleMaand + MAXIMALE_LOOPTIJD_MAANDEN - 1;
   const verschovenEinde = oorspronkelijkEinde + verschuiving;
   const alsEinde = (abs) => ({
     jaar: absoluutJaar(abs), maand: absoluutMaand(abs),
@@ -2212,6 +2230,14 @@ function berekenFamiliebank(invoer) {
           + 'de looptijd. Dan valt er niets te herrekenen: er blijft geen maand over om de '
           + 'restschuld in af te lossen. Kies de vorm waarbij de lening langer doorloopt, of '
           + 'kort de pauze in.');
+      }
+    }
+    // De dag van ingang; 0 of een ontbrekend veld betekent niet opgegeven en geldt als de 1e.
+    if (l.startdag !== undefined && l.startdag !== 0) {
+      const dagenInDeMaand = new Date(Date.UTC(l.startjaar, l.startmaand, 0)).getUTCDate();
+      if (!(Number.isInteger(l.startdag) && l.startdag >= 1 && l.startdag <= dagenInDeMaand)) {
+        return geenUitkomst('De dag van ingang van ' + naam + ' moet een dag van de maand van '
+          + 'ingang zijn, van 1 tot en met ' + dagenInDeMaand + ' (' + String(l.startdag) + ').');
       }
     }
     // De maand waarin de achterstand van de overgang naar box 3 is ingelopen; jaar 0 of een
@@ -3558,7 +3584,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'familiebank';
 const TOOL_NAAM = 'Familiebank: lening van ouder aan kind';
-const TOOL_VERSIE = '0.10.0';
+const TOOL_VERSIE = '0.11.0';
 // Versie 2 van 19-09-2026: de invoer kent vier leningen in plaats van één, plus de WOZ-waarde,
 // de indexatie, de kwijtschelding en de aflossingspauze. Versie 3 van 20-09-2026 voegt daar de
 // overige aftrekbare eigenwoningrente aan toe. Een bestand van een oudere versie wordt niet
@@ -3615,8 +3641,11 @@ const LENINGVELDEN = [
 
 // Optioneel in het dossierbestand: een bestand van vóór punt 35 kent deze velden niet en
 // betekent dan "niet opgegeven" (jaar 0). Zij staan daarom buiten LENINGVELDEN en het
-// formaatversienummer gaat er niet voor omhoog.
+// formaatversienummer gaat er niet voor omhoog. Hetzelfde geldt voor de dag van ingang van
+// punt 41: een bestand van daarvoor kent haar niet, en 0 betekent dan dat de lening op de 1e
+// ingaat, zoals de tool tot dan rekende voor de lijn van art. 3.119c.
 const OPTIONELE_LENINGVELDEN = [
+  { sleutel: 'startdag', label: 'Dag van ingang', soort: 'aantal' },
   { sleutel: 'achterstandIngelopenJaar', label: 'Jaar waarin de achterstand van de overgang naar box 3 is ingelopen', soort: 'aantal' },
   { sleutel: 'achterstandIngelopenMaand', label: 'Maand waarin de achterstand van de overgang naar box 3 is ingelopen', soort: 'aantal' },
 ];
@@ -3999,6 +4028,10 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
         label: veld.label, tekst: veldAlsTekst(veld, waarde),
         getal: waarde, formaat: veldFormaat(veld),
       });
+    });
+    regels.push({
+      label: 'Dag van ingang',
+      tekst: Number(lening.startdag) > 0 ? String(Number(lening.startdag)) : 'niet opgegeven, geldt als de 1e',
     });
     regels.push({
       label: 'Soort schenking',
@@ -4654,6 +4687,7 @@ function standaardLening(nummer) {
     looptijdMaanden: 360,
     startjaar: 2026,
     startmaand: 1,
+    startdag: 1,
     stand1Januari: 0,
     schenkingSoort: nummer === 1 ? 'rente' : 'geen',
     schenkingBedrag: 0,
@@ -4714,6 +4748,9 @@ function bouwLeningkaart(nummer) {
     + '<div><label for="' + id('startmaand') + '">Maand van ingang'
     + '<span class="bron">bepaalt hoeveel termijnen in het eerste jaar vallen</span></label>'
     + '<select id="' + id('startmaand') + '">' + maandopties + '</select></div>'
+    + getalveld(nummer, 'startdag', 'Dag van ingang',
+        'na de 1e telt de maand van ingang niet mee voor de aflossingseis, art. 3.119c lid 1',
+        { waarde: s.startdag, min: 1, max: 31, stap: 1 })
     + '<div><label for="' + id('aflossingsvorm') + '">Aflossingsvorm'
     + '<span class="bron">art. 3.119a lid 1 onder b: ten minste annuïtair; aflossingsvrij is '
     + 'geen eigenwoningschuld</span></label>'
@@ -4967,6 +5004,7 @@ function schrijfInvoer(r, kenmerk) {
     LENINGVELDEN.forEach(function (veld) {
       document.getElementById(veldId(n, veld.sleutel)).value = lening[veld.sleutel];
     });
+    document.getElementById(veldId(n, 'startdag')).value = lening.startdag || 1;
     document.getElementById(veldId(n, 'achterstandIngelopenJaar')).value =
       lening.achterstandIngelopenJaar || 0;
     document.getElementById(veldId(n, 'achterstandIngelopenMaand')).value =
