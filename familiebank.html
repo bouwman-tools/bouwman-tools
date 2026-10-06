@@ -237,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <div>
         <div class="bt-kopbalk-titel">Familiebank</div>
         <div class="bt-kopbalk-sub">Lening van ouder aan kind</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:40</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 6 okt 2026, 23:46</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -568,7 +568,10 @@ summary { cursor: pointer; font-weight: 600; font-size: 14px; }
       <li><strong>Aflossingsachterstand</strong> — art. 3.119e Wet IB 2001. Wordt de achterstand
         op 31 december van het volgende jaar ingelopen, dan blijft de schuld eigenwoningschuld
         (lid 1). Gebeurt dat niet, dan vervalt die status per 1 januari van het tweede jaar na
-        het ontstaan (lid 4).</li>
+        het ontstaan (lid 4). Is de achterstand van de overgang naar box 3 later ingelopen, dan
+        keert de schuld volgens kennisgroepstandpunt KG:051:2023:10 terug naar box 1: de
+        maand geef je zelf op, de periode in box 3 telt volgens het voorbeeld van het standpunt niet mee voor de maximale looptijd en
+        het oorspronkelijke aflossingsschema loopt door.</li>
       <li><strong>Eigenwoningforfait</strong> — art. 3.112 lid 1 Wet IB 2001, en de aftrek
         wegens geen of geringe eigenwoningschuld van art. 3.123a.</li>
       <li><strong>Fiscale partner</strong> — art. 2.17 lid 2, lid 3 en lid 5 onder a Wet IB 2001
@@ -1018,8 +1021,11 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
   let jaar = lening.startjaar;
   let maand = lening.startmaand;
   let m = 0;
-  let leeg = { jaar, rente: 0, aflossing: 0, termijnen: 0, pauzemaanden: 0, kwijtschelding: 0 };
-  let huidig = leeg;
+  const nieuwJaar = (j) => ({
+    jaar: j, rente: 0, renteMaanden: new Array(12).fill(0), aflossing: 0, termijnen: 0,
+    pauzemaanden: 0, kwijtschelding: 0,
+  });
+  let huidig = nieuwJaar(jaar);
   let volledigAfgelost = false;
   // De maandtermijn zoals die op dit moment geldt. Alleen de vorm 'herrekenen' verandert hem,
   // en dan één keer: in de eerste maand na de pauze.
@@ -1037,6 +1043,9 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
       termijnen: huidig.termijnen,
       pauzemaanden: huidig.pauzemaanden,
       rente: afrondenOpCenten(huidig.rente),
+      // De rente per kalendermaand, ongerond: de aftrek bij een terugkeer naar box 1 midden
+      // in een jaar telt alleen de maanden mee waarin de schuld eigenwoningschuld is.
+      renteMaanden: huidig.renteMaanden,
       aflossing: afrondenOpCenten(huidig.aflossing),
       kwijtschelding: afrondenOpCenten(huidig.kwijtschelding),
       schenking: afrondenOpCenten(schenkingIn(huidig.jaar, huidig.rente)),
@@ -1067,6 +1076,7 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
     else aflossing = Math.min(Math.max(0, lopendeTermijn - rente), schuld);
     schuld -= aflossing;
     huidig.rente += rente;
+    huidig.renteMaanden[maand - 1] += rente;
     huidig.aflossing += aflossing;
     huidig.termijnen += 1;
     if (inPauze) huidig.pauzemaanden += 1;
@@ -1083,7 +1093,7 @@ function bouwLeningschema(lening, rekenjaar, indexatieFractie, renteomrekening) 
       sluitJaar();
       jaar += 1;
       maand = 1;
-      huidig = { jaar, rente: 0, aflossing: 0, termijnen: 0, pauzemaanden: 0, kwijtschelding: 0 };
+      huidig = nieuwJaar(jaar);
     } else {
       maand += 1;
     }
@@ -1196,6 +1206,28 @@ function bouwAndereSchuldSchema(schuld, rekenjaar, renteomrekening) {
   };
 }
 
+// Een maandnummer over alle jaren heen (jaar * 12 + maand) terug naar jaar en maand.
+const absoluutJaar = (abs) => Math.floor((abs - 1) / 12);
+const absoluutMaand = (abs) => ((abs - 1) % 12) + 1;
+
+// De laatste dag van een kalendermaand als dd-mm-jjjj, voor de einddatum van de maximale
+// looptijd. Date.UTC met dag 0 geeft de laatste dag van de voorgaande maand.
+function laatsteDagVanMaand(jaar, maand) {
+  const dag = new Date(Date.UTC(jaar, maand, 0)).getUTCDate();
+  return String(dag).padStart(2, '0') + '-' + String(maand).padStart(2, '0') + '-' + jaar;
+}
+
+// De maanden van een kalenderjaar waarin de schuld volgens de perioden in box 3 zit, als twaalf
+// waarden waarvan waar betekent: geen eigenwoningschuld, dus geen aftrek.
+function maandenInBox3(perioden, jaar) {
+  const uit = [];
+  for (let m = 1; m <= 12; m++) {
+    const abs = jaar * 12 + m;
+    uit.push(perioden.some(p => abs >= p.van && abs < p.tot));
+  }
+  return uit;
+}
+
 // --------------------------------------------------------------------------
 // De aflossingseis per lening: het toetsmoment, de achterstand en het gevolg.
 // --------------------------------------------------------------------------
@@ -1223,11 +1255,36 @@ function bouwAndereSchuldSchema(schuld, rekenjaar, renteomrekening) {
 //   1 januari van het vierde kalenderjaar). De tool past alleen de eerste datum toe, omdat
 //   zij lid 3 niet toepast.
 //
-// Dat de schuld daarna weer kan terugkeren zodra de achterstand is ingehaald, volgt uit
-// kennisgroepstandpunt KG:051:2023:10 van 12-09-2023 van de Belastingdienst. Dat is een
-// uitvoeringsstandpunt: het bindt de inspecteur, niet de rechter en niet de
-// belastingplichtige. De tool plaatst die terugkeer op het eerstvolgende toetsmoment waarop
-// de schuld weer onder de lijn ligt, en dus met ingang van het jaar daarna.
+// De terugkeer naar box 1 staat niet in de wet maar in kennisgroepstandpunt KG:051:2023:10
+// van 12-09-2023 van de Belastingdienst: zodra de achterstand die er was op het moment van de
+// overgang naar box 3 is ingelopen, kwalificeert de schuld weer als eigenwoningschuld en gaat
+// zij verplicht terug naar box 1. Het oorspronkelijke aflossingsschema moet worden voortgezet,
+// en volgens het voorbeeld telt de periode in box 3 niet mee voor de maximale looptijd: in het
+// standpunt schuift de laatste dag met renteaftrek van 31-01-2043 naar 30-11-2045, precies de
+// 34 maanden die de schuld in box 3 stond. Een kennisgroepstandpunt is beleid van de
+// Belastingdienst en bindend voor de inspecteurs (Kennisgroepen Belastingdienst, "Over de
+// Kennisgroepen", 06-11-2025); het is geen wet.
+//
+// Wat er met de maximumlijn van art. 3.119c gebeurt, zegt het standpunt niet: het noemt alleen
+// de verschoven einddatum en dat het oorspronkelijke aflossingsschema wordt voortgezet. De algemene rekenregel is een afgeleide aanname van de tool (besluit van Sylvain
+// van 06-10-2026, punt 35, vastgelegd als punt 40): x telt de maanden in box 3 niet mee, dus de
+// lijn staat in box 3 stil en loopt daarna door. Daarmee eindigt de lijn precies op de
+// verschoven einddatum, zoals het voorbeeld van het standpunt dat uitkomt. Zonder die aanname
+// zou de lijn in januari 2043 op nul eindigen en kon de aftrek tot 30-11-2045 niet bestaan.
+// De test tegen het voorbeeld staat in tests/terugkeer-box1.test.mjs.
+//
+// Wanneer de achterstand is ingelopen, kan de tool niet vaststellen: het schema van de tool
+// kent geen inhaalbetaling. De gebruiker geeft daarom de maand op waarin dat gebeurde
+// (achterstandIngelopenJaar en achterstandIngelopenMaand; jaar 0 betekent niet opgegeven). Die
+// maand is de eerste maand waarin de schuld weer eigenwoningschuld is, met renteaftrek vanaf
+// de eerste dag ervan. Zonder die opgave blijft de schuld in box 3. De tool laat haar dus niet
+// zelf terugkeren op het moment dat het schema weer onder de lijn ligt: dat is een theoretische
+// achterstand en niet de achterstand die er bij de overgang was. Wel meldt zij dat moment.
+//
+// De opgegeven datum geldt voor de eerste periode in box 3. Valt de schuld daarna opnieuw uit
+// de eigenwoningschuld, dan blijft zij in box 3 en meldt de tool dat. Een achterstand die in het
+// schema van de tool na de opgegeven datum blijft bestaan, telt niet als nieuwe achterstand
+// zolang zij niet eerst is verdwenen: de gebruiker heeft haar juist ingelopen verklaard.
 //
 // Een aflossingsvrije lening komt aan die toets niet toe. Art. 3.119a lid 1 onder b eist een
 // contractuele verplichting tot ten minste annuïtair aflossen, en die ontbreekt; de schuld
@@ -1249,77 +1306,143 @@ function toetsAflossingseis(lening, schema) {
         geenSchuld: jaarregel.schuldEind === 0,
         nietVanToepassing: true,
       })),
-      status: schema.jaren.map(jaarregel => ({ jaar: jaarregel.jaar, eigenwoningschuld: false })),
+      status: schema.jaren.map(jaarregel => ({
+        jaar: jaarregel.jaar, eigenwoningschuld: false, maandenBox3: 12,
+      })),
       voldoetAltijd: false,
       geenAflossingsverplichting: true,
       aantalAchterstanden: 0,
       herstelViaLid1: false,
+      // Geen eigenwoningschuld vanaf de eerste dag: de hele looptijd telt als periode zonder
+      // aftrek, zodat de rente per maand nergens aftrekbaar is.
+      perioden: [{ van: schema.jaren[0].jaar * 12 + 1, tot: Infinity, opgegeven: false, maanden: null }],
       terugkeerNaBox3: false,
       eindigtInBox3: true,
+      datumGenegeerd: lening.achterstandIngelopenJaar > 0,
+      achterstandNaOpgaveBlijft: false,
+      schemaOnderLijnJaar: null,
+      verschuivingMaanden: 0,
+      oorspronkelijkEinde: null,
+      verschovenEinde: null,
       achterstandsjaren: [],
       jarenZonderAftrek: schema.jaren.map(jaarregel => jaarregel.jaar),
     };
   }
 
   const toetsen = [];
+
+  const opgegevenDatum = lening.achterstandIngelopenJaar > 0
+    ? lening.achterstandIngelopenJaar * 12
+      + (lening.achterstandIngelopenMaand >= 1 ? lening.achterstandIngelopenMaand : 1)
+    : null;
+
+  let inBox3 = false;
+  let open = null;
+  let ontstaanJaar = null;
+  let aantalAchterstanden = 0;
+  let herstelViaLid1 = false;
+  let ingelopenVerklaard = false;
+  let achterstandNaOpgaveBlijft = false;
+  let datumGebruikt = false;
+  let schemaOnderLijnJaar = null;
+  const perioden = [];
+
   for (const jaarregel of schema.jaren) {
+    // 1 januari van dit jaar. Is de schuld op het vorige toetsmoment uit de eigenwoningschuld
+    // gevallen (lid 4), dan begint hier een periode in box 3. Heeft de gebruiker een datum
+    // opgegeven waarop de achterstand is ingelopen, dan staat daarmee ook het einde ervan vast.
+    if (inBox3 && open === null) {
+      open = { van: jaarregel.jaar * 12 + 1, tot: Infinity, opgegeven: false };
+      perioden.push(open);
+      if (perioden.length === 1 && opgegevenDatum !== null && opgegevenDatum >= open.van) {
+        open.tot = opgegevenDatum;
+        open.opgegeven = true;
+        datumGebruikt = true;
+      }
+    }
+    // De terugkeer zelf, in het jaar van de opgegeven maand. De rente van de maanden vanaf die
+    // maand telt weer mee; de maanden daarvoor in dit jaar niet.
+    if (inBox3 && open.tot !== Infinity && absoluutJaar(open.tot) === jaarregel.jaar) {
+      inBox3 = false;
+      open = null;
+      ingelopenVerklaard = true;
+      ontstaanJaar = null;
+    }
+
+    // Het toetsmoment van dit jaar. De maanden die de schuld tot en met 31 december in box 3
+    // stond, tellen niet mee voor x (aanname van de tool, zie hierboven): de lijn staat in box
+    // 3 stil en loopt daarna door.
     const verstreken = (jaarregel.jaar - lening.startjaar) * 12 + (13 - lening.startmaand);
+    const maandenBox3Tot = perioden.reduce(
+      (som, p) => som + Math.max(0, Math.min(p.tot, jaarregel.jaar * 12 + 13) - p.van), 0);
+    const meegeteld = Math.max(0, verstreken - maandenBox3Tot);
     const maximaal = afrondenOpCenten(maximaleSchuldVolgensAflossingseis(
-      lening.hoofdsom, schema.maandrente, verstreken, MAXIMALE_LOOPTIJD_MAANDEN));
-    toetsen.push({
+      lening.hoofdsom, schema.maandrente, meegeteld, MAXIMALE_LOOPTIJD_MAANDEN));
+    const toets = {
       jaar: jaarregel.jaar,
-      verstrekenMaanden: Math.min(verstreken, MAXIMALE_LOOPTIJD_MAANDEN),
+      verstrekenMaanden: Math.min(meegeteld, MAXIMALE_LOOPTIJD_MAANDEN),
+      maandenInBox3: maandenBox3Tot,
       maximaleSchuld: maximaal,
       schuldEind: jaarregel.schuldEind,
       achterstand: jaarregel.schuldEind > maximaal + 0.01,
       // Is de lening afgelost, dan is er op het toetsmoment geen schuld meer om te toetsen.
       // Dat is iets anders dan een achterstand die wordt ingelopen.
       geenSchuld: jaarregel.schuldEind === 0,
-    });
-  }
-
-  let inBox3 = false;
-  let ontstaanJaar = null;
-  let aantalAchterstanden = 0;
-  let herstelViaLid1 = false;
-  let terugkeerNaBox3 = false;
-  const status = [];
-
-  for (const toets of toetsen) {
-    // De rente van dit jaar is aftrekbaar als de schuld aan het begin van dit jaar nog tot
-    // de eigenwoningschuld behoorde. Het toetsmoment van 31 december van dit jaar werkt pas
-    // door in een volgend jaar; dat is precies wat lid 4 zegt.
-    const aftrekbaar = !inBox3;
-    status.push({ jaar: toets.jaar, eigenwoningschuld: aftrekbaar });
+    };
+    toetsen.push(toets);
 
     // Is de schuld op het toetsmoment nul, dan valt er niets te toetsen en verandert er
     // niets aan de stand. Zonder deze regel zou een afgeloste lening in haar laatste jaar
-    // tellen als een ingelopen achterstand, en dan zou de tool een terugkeer naar box 1
-    // melden die er niet is.
+    // tellen als een ingelopen achterstand.
     if (toets.geenSchuld) continue;
 
     if (toets.achterstand) {
-      if (!inBox3) {
-        if (ontstaanJaar === null) {
-          ontstaanJaar = toets.jaar;
-          aantalAchterstanden += 1;
-        } else {
-          // Niet hersteld op 31 december van het jaar ná het ontstaan: art. 3.119e lid 4.
-          inBox3 = true;
-        }
+      if (inBox3) {
+        // Al in box 3: de achterstand die er bij de overgang was, is er nog.
+      } else if (ingelopenVerklaard) {
+        // De gebruiker heeft deze achterstand ingelopen verklaard; het schema van de tool
+        // kent die inhaalbetaling niet en laat haar dus staan. Geen nieuwe achterstand.
+        achterstandNaOpgaveBlijft = true;
+      } else if (ontstaanJaar === null) {
+        ontstaanJaar = toets.jaar;
+        aantalAchterstanden += 1;
+      } else {
+        // Niet hersteld op 31 december van het jaar ná het ontstaan: art. 3.119e lid 4.
+        inBox3 = true;
       }
     } else {
-      // Alleen zolang de schuld nog eigenwoningschuld is, houdt lid 1 haar dat. Is zij onder
-      // lid 4 al uit de eigenwoningschuld gevallen, dan komt de terugkeer niet uit lid 1 maar
-      // uit het kennisgroepstandpunt, en daarvoor staat een eigen melding klaar. Zonder de
-      // toets op inBox3 meldde de tool beide tegelijk, en dus een beroep op lid 1 dat er niet
-      // was.
-      if (ontstaanJaar !== null && !inBox3) herstelViaLid1 = true;
-      if (inBox3) terugkeerNaBox3 = true;
-      ontstaanJaar = null;
-      inBox3 = false;
+      ingelopenVerklaard = false;
+      if (inBox3) {
+        // Het schema ligt weer onder de lijn, maar zonder opgegeven datum keert de schuld niet
+        // terug: dat is aan de gebruiker.
+        if (schemaOnderLijnJaar === null) schemaOnderLijnJaar = toets.jaar;
+      } else {
+        // Alleen zolang de schuld nog eigenwoningschuld is, houdt lid 1 haar dat.
+        if (ontstaanJaar !== null) herstelViaLid1 = true;
+        ontstaanJaar = null;
+      }
     }
   }
+
+  // Een periode van nul maanden (terugkeer in dezelfde maand als de overgang) is geen periode.
+  const echtePerioden = perioden.filter(p => p.tot > p.van);
+  const status = toetsen.map(t => {
+    const maanden = maandenInBox3(echtePerioden, t.jaar).filter(Boolean).length;
+    return { jaar: t.jaar, eigenwoningschuld: maanden === 0, maandenBox3: maanden };
+  });
+
+  // De maximale looptijd van 360 maanden loopt vanaf de maand van ingang; de periode in box 3
+  // telt niet mee, dus het einde schuift op met het aantal maanden dat de schuld daar stond.
+  // Een periode zonder einde verschuift niets: daar is geen terugkeer om vanaf te tellen.
+  const verschuiving = echtePerioden
+    .filter(p => p.tot !== Infinity)
+    .reduce((s, p) => s + (p.tot - p.van), 0);
+  const oorspronkelijkEinde = lening.startjaar * 12 + lening.startmaand + MAXIMALE_LOOPTIJD_MAANDEN;
+  const verschovenEinde = oorspronkelijkEinde + verschuiving;
+  const alsEinde = (abs) => ({
+    jaar: absoluutJaar(abs), maand: absoluutMaand(abs),
+    datum: laatsteDagVanMaand(absoluutJaar(abs), absoluutMaand(abs)),
+  });
 
   return {
     toetsen,
@@ -1328,8 +1451,20 @@ function toetsAflossingseis(lening, schema) {
     geenAflossingsverplichting: false,
     aantalAchterstanden,
     herstelViaLid1,
-    terugkeerNaBox3,
+    perioden: echtePerioden.map(p => ({
+      van: p.van, tot: p.tot, opgegeven: p.opgegeven,
+      maanden: p.tot === Infinity ? null : p.tot - p.van,
+    })),
+    terugkeerNaBox3: echtePerioden.some(p => p.tot !== Infinity),
     eindigtInBox3: inBox3,
+    // De opgegeven datum is niet gebruikt: er was geen periode in box 3 om haar op toe te
+    // passen, of zij lag vóór het begin ervan.
+    datumGenegeerd: opgegevenDatum !== null && !(datumGebruikt && echtePerioden.length > 0),
+    achterstandNaOpgaveBlijft,
+    schemaOnderLijnJaar,
+    verschuivingMaanden: verschuiving,
+    oorspronkelijkEinde: alsEinde(oorspronkelijkEinde),
+    verschovenEinde: alsEinde(verschovenEinde),
     achterstandsjaren: toetsen.filter(t => t.achterstand).map(t => t.jaar),
     jarenZonderAftrek: status.filter(s => !s.eigenwoningschuld).map(s => s.jaar),
   };
@@ -1625,6 +1760,17 @@ function geenUitkomst(tekst) {
   return { heeftUitkomst: false, meldingen: [{ soort: 'fout', tekst }] };
 }
 
+// De rente van een kalenderjaar die aftrekbaar is: alleen de maanden waarin de schuld
+// eigenwoningschuld is. Staat de schuld het hele jaar in box 1, dan is dat de jaarrente zelf,
+// zodat de afronding niet per maand uiteenloopt.
+function aftrekbareRenteInJaar(perioden, jaarregel) {
+  const inBox3 = maandenInBox3(perioden, jaarregel.jaar);
+  if (!inBox3.some(Boolean)) return jaarregel.rente;
+  let som = 0;
+  jaarregel.renteMaanden.forEach(function (rente, i) { if (!inBox3[i]) som += rente; });
+  return afrondenOpCenten(som);
+}
+
 function berekenFamiliebank(invoer) {
   const {
     ingangsjaar,
@@ -1752,6 +1898,17 @@ function berekenFamiliebank(invoer) {
           + 'kort de pauze in.');
       }
     }
+    // De maand waarin de achterstand van de overgang naar box 3 is ingelopen; jaar 0 of een
+    // ontbrekend veld betekent dat de gebruiker niets opgeeft.
+    if (l.achterstandIngelopenJaar > 0
+        && !(l.achterstandIngelopenMaand >= 1 && l.achterstandIngelopenMaand <= 12)) {
+      return geenUitkomst('De maand waarin de achterstand van ' + naam + ' is ingelopen moet een '
+        + 'getal van 1 tot en met 12 zijn (' + String(l.achterstandIngelopenMaand) + ').');
+    }
+    if (l.achterstandIngelopenJaar > 0 && l.achterstandIngelopenJaar < l.startjaar) {
+      return geenUitkomst('De achterstand van ' + naam + ' is ingelopen in '
+        + l.achterstandIngelopenJaar + ', vóór de lening zelf ingaat in ' + l.startjaar + '.');
+    }
     if (l.kwijtscheldingBedrag > 0 && l.kwijtscheldingStartjaar < l.startjaar) {
       return geenUitkomst('De kwijtschelding van ' + naam + ' begint in '
         + l.kwijtscheldingStartjaar + ', vóór de lening zelf ingaat in ' + l.startjaar + '.');
@@ -1825,7 +1982,6 @@ function berekenFamiliebank(invoer) {
   const perLening = actief.map((lening, i) => {
     const schema = bouwLeningschema(lening, ingangsjaar, indexatieFractie, renteomrekening);
     const toets = toetsAflossingseis(lening, schema);
-    const statusPerJaar = new Map(toets.status.map(s => [s.jaar, s.eigenwoningschuld]));
     return {
       nummer: i + 1,
       naam: lening.naam || 'Lening ' + (i + 1),
@@ -1844,7 +2000,7 @@ function berekenFamiliebank(invoer) {
       restschuld: schema.restschuld,
       jaren: schema.jaren,
       toetsen: toets.toetsen,
-      statusPerJaar,
+      perioden: toets.perioden,
       voldoetAltijd: toets.voldoetAltijd,
       achterstandsjaren: toets.achterstandsjaren,
       jarenZonderAftrek: toets.jarenZonderAftrek,
@@ -1852,6 +2008,12 @@ function berekenFamiliebank(invoer) {
       herstelViaLid1: toets.herstelViaLid1,
       terugkeerNaBox3: toets.terugkeerNaBox3,
       eindigtInBox3: toets.eindigtInBox3,
+      datumGenegeerd: toets.datumGenegeerd,
+      achterstandNaOpgaveBlijft: toets.achterstandNaOpgaveBlijft,
+      schemaOnderLijnJaar: toets.schemaOnderLijnJaar,
+      verschuivingMaanden: toets.verschuivingMaanden,
+      oorspronkelijkEinde: toets.oorspronkelijkEinde,
+      verschovenEinde: toets.verschovenEinde,
     };
   });
 
@@ -1882,7 +2044,7 @@ function berekenFamiliebank(invoer) {
       schenking += regel.schenking;
       schuldEind += regel.schuldEind;
       termijnen += regel.termijnen;
-      if (lening.statusPerJaar.get(jaar)) aftrekbareRente += regel.rente;
+      aftrekbareRente += aftrekbareRenteInJaar(lening.perioden, regel);
     }
     // De hele eigen woning: het forfait tegenover alle aftrekbare eigenwoningrente, dus ook
     // die van een bankhypotheek naast de familiebank.
@@ -2285,14 +2447,18 @@ function berekenFamiliebank(invoer) {
     }
 
     if (!lening.geenAflossingsverplichting && lening.jarenZonderAftrek.length > 0) {
+      const periodetekst = lening.perioden.map(p => p.tot === Infinity
+        ? 'vanaf ' + maandJaarTekst(p.van) + ' tot het einde van het schema'
+        : 'van ' + maandJaarTekst(p.van) + ' tot en met ' + maandJaarTekst(p.tot - 1)
+          + ' (' + p.maanden + ' maanden)').join(' en ');
       meldingen.push({
         soort: 'fout',
-        tekst: lening.naam + ' behoort in ' + jarenAlsTekst(lening.jarenZonderAftrek) + ' niet tot '
-             + 'de eigenwoningschuld: de achterstand was op 31 december van het volgende jaar '
-             + 'niet ingelopen, en dan vervalt die status per 1 januari van het tweede jaar '
-             + 'daarna (art. 3.119e lid 4 Wet IB 2001). De rente is in die jaren niet '
-             + 'aftrekbaar; het eigenwoningforfait blijft wel gelden, want dat hangt aan de '
-             + 'eigen woning van art. 3.111 en niet aan de schuld.',
+        tekst: lening.naam + ' behoort ' + periodetekst + ' niet tot de eigenwoningschuld: de '
+             + 'achterstand was op 31 december van het volgende jaar niet ingelopen, en dan '
+             + 'vervalt die status per 1 januari van het tweede jaar daarna (art. 3.119e lid 4 '
+             + 'Wet IB 2001). De rente is in die maanden niet aftrekbaar; het eigenwoningforfait '
+             + 'blijft wel gelden, want dat hangt aan de eigen woning van art. 3.111 en niet aan '
+             + 'de schuld.',
       });
       meldingen.push({
         soort: 'info',
@@ -2303,21 +2469,76 @@ function berekenFamiliebank(invoer) {
              + 'betalingsproblemen met instemming van de schuldeiser met betalingsuitstel '
              + '(lid 3). Zij vragen dat de belastingplichtige iets aannemelijk maakt en, bij '
              + 'lid 2 onder a en lid 3, een afspraak met de schuldeiser. Dat zijn feiten die de '
-             + 'tool niet kan vaststellen, dus zij past ze niet toe.',
+             + 'tool niet kan vaststellen, dus zij past ze niet toe. Bij een mislukte route van '
+             + 'lid 3 vervalt de status pas per 1 januari van het vierde kalenderjaar (lid 4); '
+             + 'omdat de tool lid 3 niet toepast, rekent zij met de eerste datum.',
       });
       if (lening.terugkeerNaBox3) {
+        const gebruikt = lening.perioden.find(p => p.opgegeven);
         meldingen.push({
           soort: 'info',
-          tekst: lening.naam + ' komt later weer onder de maximumlijn en keert dan terug naar '
-               + 'box 1. Dat volgt uit kennisgroepstandpunt KG:051:2023:10 van 12-09-2023: '
-               + 'zodra de achterstand is ingelopen, kwalificeert de schuld weer als '
-               + 'eigenwoningschuld en loopt het oorspronkelijke aflossingsschema door. Dat is '
-               + 'een uitvoeringsstandpunt van de Belastingdienst: het bindt de inspecteur, '
-               + 'niet de rechter en niet de belastingplichtige. De tool laat de terugkeer '
-               + 'ingaan per het jaar na het toetsmoment waarop de schuld weer onder de lijn '
-               + 'ligt.',
+          tekst: lening.naam + ' keert per ' + maandJaarTekst(gebruikt.tot) + ' terug naar box 1. '
+               + 'Dat is de maand die u hebt opgegeven als het moment waarop de achterstand die '
+               + 'bij de overgang naar box 3 bestond is ingelopen. Volgens kennisgroepstandpunt '
+               + 'KG:051:2023:10 van 12-09-2023 kwalificeert de schuld dan weer als '
+               + 'eigenwoningschuld: de rente is vanaf de eerste dag van die maand weer '
+               + 'aftrekbaar en het oorspronkelijke aflossingsschema loopt door. De '
+               + gebruikt.maanden + ' maanden in box 3 tellen volgens het voorbeeld van het standpunt niet mee voor de maximale looptijd, '
+               + 'zodat de laatste dag waarop de schuld eigenwoningschuld kan zijn schuift van '
+               + lening.oorspronkelijkEinde.datum + ' naar ' + lening.verschovenEinde.datum + '. '
+               + 'De tool laat de maximumlijn van art. 3.119c in die maanden stilstaan: de maanden '
+               + 'in box 3 tellen niet mee voor x. Dat is een rekenaanname van de tool, afgeleid '
+               + 'uit het voorbeeld van het standpunt, en geen tekst uit het standpunt of de wet. '
+               + 'De tool toetst niet of de '
+               + 'achterstand op die datum werkelijk is ingelopen, en het schema van de tool '
+               + 'bevat geen inhaalbetaling. Zij rekent per hele maand: valt de datum later in '
+               + 'de maand, dan is de aftrek in die maand te ruim. Het standpunt is beleid van '
+               + 'de Belastingdienst en bindend voor de inspecteurs (Kennisgroepen '
+               + 'Belastingdienst, "Over de Kennisgroepen"); het is geen wet.',
+        });
+        if (lening.achterstandNaOpgaveBlijft) {
+          meldingen.push({
+            soort: 'info',
+            tekst: lening.naam + ': in het schema van de tool ligt de schuld na die datum nog '
+                 + 'boven de maximumlijn, omdat de inhaalbetaling er niet in zit. De tool telt '
+                 + 'dat niet als een nieuwe achterstand: u hebt de achterstand ingelopen verklaard.',
+          });
+        }
+        if (lening.perioden.length > 1) {
+          meldingen.push({
+            soort: 'let-op',
+            tekst: lening.naam + ' valt daarna opnieuw uit de eigenwoningschuld. De opgegeven '
+                 + 'maand geldt voor de eerste periode in box 3; voor een volgende periode kent '
+                 + 'de tool geen terugkeer.',
+          });
+        }
+      } else {
+        meldingen.push({
+          soort: 'let-op',
+          tekst: lening.naam + ' blijft in box 3 tot het einde van het schema. Volgens '
+               + 'kennisgroepstandpunt KG:051:2023:10 van 12-09-2023 keert de schuld terug naar '
+               + 'box 1 zodra de achterstand die bij de overgang naar box 3 bestond is ingelopen. '
+               + 'Geef bij deze lening op in welke maand dat gebeurde, dan rekent de tool de '
+               + 'rente vanaf die maand weer als aftrekbaar.'
+               + (lening.schemaOnderLijnJaar !== null
+                   ? ' In het schema van de tool ligt de schuld per 31 december '
+                     + lening.schemaOnderLijnJaar + ' weer onder de maximumlijn. De tool laat '
+                     + 'haar daar niet zelf terugkeren: dat is een andere achterstand dan die '
+                     + 'er bij de overgang was, en of de inhaalbetaling is gedaan weet alleen '
+                     + 'de gebruiker.'
+                   : ''),
         });
       }
+    }
+    if (lening.datumGenegeerd) {
+      meldingen.push({
+        soort: 'let-op',
+        tekst: lening.naam + ': u hebt opgegeven dat de achterstand is ingelopen in '
+             + maandJaarTekst(lening.invoer.achterstandIngelopenJaar * 12
+                 + lening.invoer.achterstandIngelopenMaand)
+             + ', maar de tool ziet geen periode in box 3 die op of vóór die maand is begonnen. '
+             + 'De opgave is niet gebruikt.',
+      });
     }
 
     if (lening.invoer.kwijtscheldingBedrag > 0) {
@@ -2631,6 +2852,10 @@ function berekenFamiliebank(invoer) {
       voldoetAltijd: l.voldoetAltijd,
       achterstandsjaren: l.achterstandsjaren,
       jarenZonderAftrek: l.jarenZonderAftrek,
+      perioden: l.perioden,
+      verschuivingMaanden: l.verschuivingMaanden,
+      oorspronkelijkEinde: l.oorspronkelijkEinde,
+      verschovenEinde: l.verschovenEinde,
       jaren: l.jaren,
       toetsen: l.toetsen,
     })),
@@ -2640,6 +2865,11 @@ function berekenFamiliebank(invoer) {
     ouder: ouderKant,
     box3Vindplaats: box3.vindplaats,
   };
+}
+
+// Een maandnummer over alle jaren heen (jaar * 12 + maand) als "oktober 2020".
+function maandJaarTekst(abs) {
+  return MAANDNAMEN[absoluutMaand(abs)] + ' ' + absoluutJaar(abs);
 }
 
 // Een reeks jaren als leesbare tekst. Een aflossingsachterstand die niet wordt ingelopen
@@ -2907,7 +3137,7 @@ function xlsxBytes(bladen) {
 
 const TOOL_ID = 'familiebank';
 const TOOL_NAAM = 'Familiebank: lening van ouder aan kind';
-const TOOL_VERSIE = '0.8.0';
+const TOOL_VERSIE = '0.8.1';
 // Versie 2 van 19-09-2026: de invoer kent vier leningen in plaats van één, plus de WOZ-waarde,
 // de indexatie, de kwijtschelding en de aflossingspauze. Versie 3 van 20-09-2026 voegt daar de
 // overige aftrekbare eigenwoningrente aan toe. Een bestand van een oudere versie wordt niet
@@ -2955,6 +3185,14 @@ const LENINGVELDEN = [
   { sleutel: 'kwijtscheldingMaand', label: 'Maand van de kwijtschelding', soort: 'aantal' },
   { sleutel: 'pauzeStartjaar', label: 'Eerste jaar van de aflossingspauze', soort: 'aantal' },
   { sleutel: 'pauzeMaanden', label: 'Duur van de aflossingspauze in maanden', soort: 'aantal' },
+];
+
+// Optioneel in het dossierbestand: een bestand van vóór punt 35 kent deze velden niet en
+// betekent dan "niet opgegeven" (jaar 0). Zij staan daarom buiten LENINGVELDEN en het
+// formaatversienummer gaat er niet voor omhoog.
+const OPTIONELE_LENINGVELDEN = [
+  { sleutel: 'achterstandIngelopenJaar', label: 'Jaar waarin de achterstand van de overgang naar box 3 is ingelopen', soort: 'aantal' },
+  { sleutel: 'achterstandIngelopenMaand', label: 'Maand waarin de achterstand van de overgang naar box 3 is ingelopen', soort: 'aantal' },
 ];
 
 const ANDERE_SCHULD_VELDEN = [
@@ -3052,7 +3290,11 @@ const VINDPLAATSEN = [
   + 'tenzij zij vaker dan incidenteel voorkomt. Lid 4 laat die status anders vervallen per '
   + '1 januari van het tweede kalenderjaar na het ontstaan. Dat de schuld daarna terugkeert '
   + 'zodra de achterstand is ingelopen, volgt uit kennisgroepstandpunt KG:051:2023:10 van '
-  + '12-09-2023; dat is een uitvoeringsstandpunt en bindt alleen de inspecteur.',
+  + '12-09-2023: de schuld gaat dan verplicht terug naar box 1, het oorspronkelijke '
+  + 'aflossingsschema loopt door en de periode in box 3 telt volgens het voorbeeld van het standpunt niet mee voor de maximale '
+  + 'looptijd. Een standpunt als dit is beleid van de Belastingdienst en bindend voor de '
+  + 'inspecteurs (Kennisgroepen Belastingdienst, Over de Kennisgroepen, 06-11-2025); het is '
+  + 'geen wet.',
   'Eigenwoningforfait: art. 3.112 lid 1 Wet IB 2001. Aftrek wegens geen of geringe '
   + 'eigenwoningschuld: art. 3.123a lid 1 en 2 Wet IB 2001.',
   'Renteaftrek: art. 3.120 lid 1 onder a Wet IB 2001 voor de rente zelf.',
@@ -3309,6 +3551,12 @@ function bouwUitgang(ruweInvoer, uitkomst, kenmerk, datumISO) {
       tekst: Number(lening.pauzeMaanden) > 0
         ? (PAUZEVORM_NAMEN[lening.pauzeVorm] || String(lening.pauzeVorm))
         : 'geen pauze',
+    });
+    regels.push({
+      label: 'Achterstand van de overgang naar box 3 ingelopen per',
+      tekst: Number(lening.achterstandIngelopenJaar) > 0
+        ? MAANDNAMEN[Number(lening.achterstandIngelopenMaand)] + ' ' + Number(lening.achterstandIngelopenJaar)
+        : 'niet opgegeven',
     });
     leninginvoer.push({ kop: naam, regels: regels });
   });
@@ -3645,6 +3893,9 @@ function schrijfDossier(ruweInvoer, kenmerk, datumISO) {
       pauzeVorm: lening.pauzeVorm,
     };
     LENINGVELDEN.forEach(function (veld) { uit[veld.sleutel] = lening[veld.sleutel]; });
+    OPTIONELE_LENINGVELDEN.forEach(function (veld) {
+      uit[veld.sleutel] = Number(lening[veld.sleutel]) || 0;
+    });
     return uit;
   });
   // Alleen met een partner. Een dossier zonder partner blijft daardoor gelijk aan wat de tool
@@ -3860,6 +4111,12 @@ function leesDossier(tekst) {
     uit.actief = lening.actief === true;
     uit.schenkingSoort = lening.schenkingSoort;
     uit.pauzeVorm = lening.pauzeVorm;
+    // Ontbreekt een optioneel veld, dan is het niet opgegeven en geldt nul.
+    OPTIONELE_LENINGVELDEN.forEach(function (veld) {
+      if (lening[veld.sleutel] === undefined) { uit[veld.sleutel] = 0; return; }
+      const gelezen = leesVelden(lening, [veld], waar, gebreken);
+      if (gelezen[veld.sleutel] !== undefined) uit[veld.sleutel] = gelezen[veld.sleutel];
+    });
     return uit;
   });
 
@@ -3918,6 +4175,8 @@ function standaardLening(nummer) {
     pauzeStartjaar: 2026,
     pauzeMaanden: 0,
     pauzeVorm: 'verlengen',
+    achterstandIngelopenJaar: 0,
+    achterstandIngelopenMaand: 1,
   };
 }
 
@@ -4031,6 +4290,25 @@ function bouwLeningkaart(nummer) {
     + 'de restschuld herrekenen, de einddatum blijft staan</option>'
     + '</select></div>'
     + '</div>'
+
+    + '<h3 style="font-size:14px;margin:18px 0 8px;">Terugkeer naar box 1 na een achterstand</h3>'
+    + '<p class="toelichting">Valt de schuld door een aflossingsachterstand uit de '
+    + 'eigenwoningschuld (art. 3.119e lid 4 Wet IB 2001), dan keert zij volgens '
+    + 'kennisgroepstandpunt KG:051:2023:10 terug naar box 1 zodra de achterstand die er bij de '
+    + 'overgang was is ingelopen. De tool kan niet zien wanneer dat gebeurde; geef het hier op.</p>'
+    + '<div class="rij">'
+    + getalveld(nummer, 'achterstandIngelopenJaar', 'Jaar waarin de achterstand is ingelopen',
+        'nul betekent niet opgegeven; de schuld blijft dan in box 3',
+        { waarde: s.achterstandIngelopenJaar, min: 0, max: 2100, stap: 1 })
+    + '<div><label for="' + id('achterstandIngelopenMaand') + '">Maand waarin de achterstand is ingelopen'
+    + '<span class="bron">de eerste maand weer in box 1, met renteaftrek vanaf de eerste dag</span></label>'
+    + '<select id="' + id('achterstandIngelopenMaand') + '">'
+    + MAANDEN.map(function (naam, i) {
+        return '<option value="' + (i + 1) + '"'
+          + (i + 1 === s.achterstandIngelopenMaand ? ' selected' : '') + '>' + naam + '</option>';
+      }).join('')
+    + '</select></div>'
+    + '</div>'
     + '</details>';
 }
 
@@ -4095,6 +4373,9 @@ function leesInvoer() {
       pauzeVorm: document.getElementById(veldId(n, 'pauzeVorm')).value,
     };
     LENINGVELDEN.forEach(function (veld) {
+      lening[veld.sleutel] = getal(veldId(n, veld.sleutel));
+    });
+    OPTIONELE_LENINGVELDEN.forEach(function (veld) {
       lening[veld.sleutel] = getal(veldId(n, veld.sleutel));
     });
     lening.naam = 'Lening ' + n;
@@ -4188,6 +4469,10 @@ function schrijfInvoer(r, kenmerk) {
     LENINGVELDEN.forEach(function (veld) {
       document.getElementById(veldId(n, veld.sleutel)).value = lening[veld.sleutel];
     });
+    document.getElementById(veldId(n, 'achterstandIngelopenJaar')).value =
+      lening.achterstandIngelopenJaar || 0;
+    document.getElementById(veldId(n, 'achterstandIngelopenMaand')).value =
+      lening.achterstandIngelopenMaand || 1;
     const kaart = document.getElementById('leningkaart' + n);
     if (lening.actief) kaart.setAttribute('open', 'open');
   }
