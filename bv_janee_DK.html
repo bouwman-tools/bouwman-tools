@@ -302,7 +302,7 @@
       <div>
         <div class="bt-kopbalk-titel">BV ja/nee</div>
         <div class="bt-kopbalk-sub">Indicatief fiscaal rekenmodel · tarieven 2026</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 1 okt 2026, 18:32</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 21:39</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1599,7 +1599,7 @@
     <div id="tk-res" class="res" style="margin-top:16px" aria-live="polite">
       <div class="card">
         <div class="slabel">Stap 1 &#183; De balans schoonmaken</div>
-        <div class="hint">Tegen waarde in het economische verkeer. Is het vermogen negatief, dan wordt eerst de schuld aan de aandeelhouder afgewaardeerd (twaalfde standaardvoorwaarde) en daarna naar rato de pensioen-, ODV- en lijfrenteaanspraken (dertiende standaardvoorwaarde). Die volgorde is een keuze van de tool; het besluit schrijft haar niet voor.</div>
+        <div class="hint">Tegen waarde in het economische verkeer. Is het vermogen negatief, dan wordt eerst de schuld aan de aandeelhouder afgewaardeerd (twaalfde standaardvoorwaarde) en daarna naar rato de pensioen-, ODV- en lijfrenteaanspraken (dertiende standaardvoorwaarde). De twaalfde voorwaarde geldt alleen als de vordering van de aandeelhouder tot zijn ondernemingsvermogen of tot het terbeschikkingstellingsvermogen van art. 3.92 Wet IB 2001 behoort; behoort zij tot box 3 of tot het aanmerkelijk belang, dan geldt zij niet en moet u dat buiten de tool beoordelen. Die volgorde is een keuze van de tool; het besluit schrijft haar niet voor, en voor de vrijval op de schuld aan de aandeelhouder is geen bron gevonden over de heffing in de vennootschapsbelasting.</div>
         <div class="tblwrap"><table class="ctable"><thead><tr><th scope="col">Post</th><th scope="col">Bedrag</th></tr></thead><tbody id="tk-tb-schoon"></tbody></table></div>
       </div>
       <div class="card" style="margin-top:14px">
@@ -1814,7 +1814,9 @@ const BVJN = (function () {
       vast: 20072, grens3: 132746, afbouwPct: 0.0756, grens4: 398236
     },
 
-    // Vennootschapsbelasting
+    // Vennootschapsbelasting. Art. 22 lid 1 Wet Vpb 1969 (BWBR0002672, versie 2026-01-01):
+    // 19% tot en met € 200.000, daarboven € 38.000 vermeerderd met 25,8% over het meerdere.
+    // Gecontroleerd op 05-10-2026.
     vpb: { grens: 200000, laag: 0.19, hoog: 0.258 },
 
     // Box 2, aanmerkelijk belang. Tabel van art. 2.12 Wet IB 2001 per 2026-01-01:
@@ -2639,7 +2641,7 @@ const BVJN = (function () {
     else if (i.salaris < TARIEVEN.dga.gebruikelijkLoonNorm) waarschuw('salaris', 'Het DGA-salaris ligt onder de wettelijke ondergrens van € ' + TARIEVEN.dga.gebruikelijkLoonNorm.toLocaleString('nl-NL') + '. Een lager gebruikelijk loon is alleen verdedigbaar als aannemelijk is dat het loon uit de dienstbetrekking lager behoort te zijn; onderbouw dit in het dossier.');
 
     const bv = berekenBV(i);
-    if (i.disco < 0 && i.disco > -100) waarschuw('disco', 'Een negatieve disconteringsvoet betekent dat de toekomstige box-2-claim zwaarder weegt dan nominaal: bij ' + i.disco + '% over ' + bv.jaren + ' jaar wordt de claim ' + (1 / Math.pow(1 + i.disco / 100, bv.jaren)).toFixed(1) + ' keer het nominale bedrag. Dat is een sterke aanname; onderbouw haar of zet de voet op 0%.');
+    if (i.disco < 0 && i.disco > -100 && bv.claimNominaal > 0) waarschuw('disco', 'Een negatieve disconteringsvoet betekent dat de toekomstige box-2-claim zwaarder weegt dan nominaal: bij ' + i.disco + '% over ' + bv.jaren + ' jaar wordt de claim ' + (1 / Math.pow(1 + i.disco / 100, bv.jaren)).toFixed(1) + ' keer het nominale bedrag. Dat is een sterke aanname; onderbouw haar of zet de voet op 0%.');
     if (bv.vpbGrondslag < 0) waarschuw(null, 'Het DGA-salaris en de kosten samen zijn hoger dan de winst: de VPB-grondslag is negatief (' + Math.round(bv.vpbGrondslag).toLocaleString('nl-NL') + '). Het model rekent met € 0 VPB; verliesverrekening over de jaren is niet gemodelleerd.');
     if (i.dividend > 0 && i.dividend > bv.winstNaVpb + 0.5) waarschuw('dividend', 'Het dividend is hoger dan de winst na VPB van dit jaar (€ ' + Math.round(Math.max(0, bv.winstNaVpb)).toLocaleString('nl-NL') + '). Het model gaat er dan van uit dat het meerdere uit bestaande reserves komt; de latente box-2-claim neemt daardoor af.');
     if (bv.wkrOverschrijding > 0) waarschuw('wkr', 'De aangewezen WKR-vergoeding overschrijdt de vrije ruimte van € ' + Math.round(bv.vrijeRuimte).toLocaleString('nl-NL') + '. Over de overschrijding is 80% eindheffing berekend (€ ' + Math.round(bv.wkrEindheffing).toLocaleString('nl-NL') + ').');
@@ -3130,6 +3132,7 @@ const BVJN = (function () {
     const disco = i.disco / 100;
     const cw = function (bedrag, jaren) {
       const n = Math.max(0, Math.round(jaren));
+      if (disco <= -1) return bedrag;
       const f = Math.pow(1 + disco, n);
       return Number.isFinite(f) && f > 0 ? bedrag / f : bedrag;
     };
@@ -4657,11 +4660,17 @@ const BVJN = (function () {
    *
    * 1. Balans schoonmaken. Is het vermogen van de BV tegen waarde in het economische verkeer
    *    negatief, dan wordt de schuld aan de aandeelhouder eerst gewaardeerd op de waarde van
-   *    de vordering (twaalfde standaardvoorwaarde) en valt het verschil vrij. Is het daarna
+   *    de vordering (twaalfde standaardvoorwaarde, onderdeel 4.12) en valt het verschil vrij.
+   *    Die voorwaarde geldt alleen als de vordering bij de aandeelhouder tot het
+   *    ondernemingsvermogen of tot het terbeschikkingstellingsvermogen van art. 3.92 Wet IB
+   *    2001 behoort; de tool vraagt dat niet uit en laat het aan de gebruiker. Is het daarna
    *    nog negatief, dan worden de pensioen-, ODV- en lijfrenteaanspraken naar rato
    *    prijsgegeven voor zover zij niet voor verwezenlijking vatbaar zijn (dertiende
-   *    standaardvoorwaarde). De volgorde (eerst de schuld aan de aandeelhouder) is een keuze;
-   *    het besluit schrijft haar niet voor.
+   *    standaardvoorwaarde, onderdeel 4.13; de verdeling naar rato en het meenemen van de
+   *    ODV zijn keuzes van de tool). De volgorde (eerst de schuld aan de aandeelhouder) is
+   *    een keuze; het besluit schrijft haar niet voor. De heffing in de
+   *    vennootschapsbelasting over de vrijval op de schuld aan de aandeelhouder is niet uit
+   *    een bron te halen (OPENSTAAND.md punt 39).
    * 2. Verliezen. De vrijval is winst van de BV die tegen de verliezen wegvalt: art. 8 lid 4
    *    Wet Vpb 1969 stelt haar alleen vrij voor zover zij de verliezen overtreft, en de
    *    toelichting bij de dertiende standaardvoorwaarde noemt die imputatie uitdrukkelijk.
@@ -6239,7 +6248,7 @@ const BVJN = (function () {
     s.loonDividend = ld;
     vulTabel('tb-loondiv', [
       ['Als brutoloon aan de DGA', fmt(ld.onttrokkenLoon), fmt(ld.nettoLoon), pct(ld.drukLoon, 1)],
-      ['Als dividend, na ' + pct(ld.vpbMarginaal, 1) + ' vennootschapsbelasting', fmt(ld.onttrokkenDividend), fmt(ld.nettoDividend), pct(ld.drukDividend, 1)],
+      ['Als dividend, na ' + pct(ld.vpbMarginaal, 1) + ' vennootschapsbelasting' + ((ld.basis.vpbGrondslag <= TARIEVEN.vpb.grens && ld.basis.vpbGrondslag + ld.bedrag > TARIEVEN.vpb.grens) ? ' (de schijfgrens ligt binnen dit bedrag, het tarief is bij benadering)' : ''), fmt(ld.onttrokkenDividend), fmt(ld.nettoDividend), pct(ld.drukDividend, 1)],
       ['Loonroute herrekend naar dezelfde onttrekking', fmt(ld.onttrokkenDividend), fmt(ld.nettoLoonGelijk), pct(ld.drukLoon, 1), 'sub'],
       ['Verschil in het voordeel van ' + (ld.keuze === 'gelijk' ? 'geen van beide' : ld.keuze), '', fmt(Math.abs(ld.verschil || 0)), '', 'tot']
     ]);
