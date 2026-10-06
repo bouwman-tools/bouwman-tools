@@ -131,7 +131,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Belastingtool JoinDK | `https://belastingtooljoindk.streamlit.app/` | Sylvainbouwman/belastingtooljoindk | n.v.t. | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-09-20 |
-| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
+| 🟢 live | Kennisgroepen-zoeker | `/kennisgroepen-zoeker.html` | bouwman-tools/kennisgroepen-zoeker | ja | n.v.t. | Sylvain Bouwman | jaarlijks | 2026-10-05 |
 
 - **Belastingtool JoinDK**: Bundelt zes tools in één app: betalingskenmerk decoderen, belastingrente IB en VpB, BTW-correctie en bijtelling auto, VIES en KvK/SBI
 - **Kennisgroepen-zoeker**: Zoekt en analyseert kennisgroepstandpunten van de Belastingdienst met AI
