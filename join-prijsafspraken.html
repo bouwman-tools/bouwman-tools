@@ -400,7 +400,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Prijsafspraken</h1>
         <div class="bt-kopbalk-sub">Prijsafspraken en facturatie van het kantoor</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 8 okt 2026, 00:11</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 8 okt 2026, 00:14</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -661,7 +661,7 @@ function openConceptenVenster() {
 }
 
 // ═══════════════════ DATA ═══════════════════
-let DATA = { klanten: [], prijzen: [], facturen: [], jaarrekening: [], ibvpb: [] };
+let DATA = { klanten: [], prijzen: [], facturen: [], jaarrekening: [], ibvpb: [], adressen: [] };
 let selectedId = null;
 
 // Indexatiepercentages per boekjaar. Sleutel = het boekjaar waarvoor het advies wordt berekend;
@@ -765,6 +765,7 @@ function parseWorkbook(wb) {
   const fName   = wb.SheetNames.find(n => n.toLowerCase() === 'facturen');
   const jrName  = wb.SheetNames.find(n => n.toLowerCase() === 'jaarrekening');
   const ibName  = wb.SheetNames.find(n => n.toLowerCase() === 'ib_vpb');
+  const adName  = wb.SheetNames.find(n => n.toLowerCase() === 'adressen');
   const toRows  = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' }) : [];
 
   DATA.klanten = toRows(ksName).map(r => ({
@@ -858,6 +859,11 @@ function parseWorkbook(wb) {
   })).filter(r => r.klantId && r.jaar);
 
   DATA.klanten = koppelOmzetJaren(DATA.klanten, DATA.facturen);
+  DATA.adressen = toRows(adName).map(r => ({
+    klantId: normId(r['VRCode']),
+    sleutel: adresSleutel(r['Pstcd.'], r['Huisnr.'], r['Toev. aan huisnr.']),
+  }));
+  _relatieIndex = bouwRelatieIndex(DATA.klanten, DATA.adressen);
 
   // Importvalidatie
   const _klantIds = new Set(DATA.klanten.map(k => k.id));
@@ -1028,21 +1034,60 @@ document.getElementById('search').addEventListener('keydown', e => {
 });
 
 // ═══════════════════ GERELATEERDE KLANTEN ═══════════════════
+// "Zie ook": klanten die bij elkaar lijken te horen, zoals een persoon en zijn BV of twee
+// partners. Twee bronnen:
+// - een gedeeld heel woord uit de naam, maar alleen een woord dat bij hooguit
+//   MAX_KLANTEN_PER_WOORD klanten voorkomt; een veelvoorkomende achternaam koppelt anders
+//   iedereen met die naam aan elkaar;
+// - hetzelfde adres (postcode, huisnummer en toevoeging) volgens het tabblad Adressen.
+// De index wordt een keer per ingelezen werkboek opgebouwd.
 const STOP_WORDS = new Set(['de','van','den','der','het','en','bv','nv','vof','cv','holding',
-  'groep','group','beheer','advies','administratie','administraties','management','nederland']);
+  'groep','group','beheer','advies','administratie','administraties','management','nederland',
+  'stichting','vereniging','maatschap','cooperatie','ter','ten','aan','bij','voor','uit','vastgoed',
+  'onderneming','services','consultancy','invest','investments']);
+const MAX_KLANTEN_PER_WOORD = 3;
+let _relatieIndex = null;
 
-function findRelatedClients(klant) {
-  if (!klant.naam) return [];
-  const words = klant.naam.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
-  if (!words.length) return [];
-  return DATA.klanten.filter(c => {
-    if (c.id === klant.id || !c.naam) return false;
-    const naam = c.naam.toLowerCase();
-    return words.some(w => naam.includes(w));
-  });
+function naamWoorden(naam) {
+  return [...new Set(String(naam || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+    .filter(w => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w)))];
+}
+
+function adresSleutel(postcode, huisnr, toevoeging) {
+  const pc = String(postcode || '').replace(/\s+/g, '').toUpperCase();
+  const nr = String(huisnr || '').trim();
+  if (!pc || !nr) return '';
+  return `${pc}|${nr}|${String(toevoeging || '').trim().toUpperCase()}`;
+}
+
+function bouwRelatieIndex(klanten, adressen) {
+  const perWoord = new Map();
+  for (const k of klanten) for (const w of naamWoorden(k.naam)) {
+    if (!perWoord.has(w)) perWoord.set(w, []);
+    perWoord.get(w).push(k.id);
+  }
+  const perAdres = new Map(), adresVan = new Map();
+  for (const a of adressen || []) {
+    if (!a.klantId || !a.sleutel) continue;
+    adresVan.set(a.klantId, a.sleutel);
+    if (!perAdres.has(a.sleutel)) perAdres.set(a.sleutel, new Set());
+    perAdres.get(a.sleutel).add(a.klantId);
+  }
+  return { perWoord, perAdres, adresVan };
+}
+
+function findRelatedClients(klant, index = _relatieIndex, klanten = DATA.klanten) {
+  if (!index || !klant) return [];
+  const reden = new Map();
+  for (const w of naamWoorden(klant.naam)) {
+    const ids = index.perWoord.get(w) || [];
+    if (ids.length > MAX_KLANTEN_PER_WOORD) continue;
+    for (const id of ids) if (id !== klant.id) reden.set(id, 'naam');
+  }
+  const sleutel = index.adresVan.get(klant.id);
+  if (sleutel) for (const id of index.perAdres.get(sleutel)) if (id !== klant.id) reden.set(id, 'adres');
+  return klanten.filter(c => reden.has(c.id)).map(c => ({ id: c.id, naam: c.naam, reden: reden.get(c.id) }));
 }
 
 // ═══════════════════ CLIENT DETAIL ═══════════════════
@@ -1226,7 +1271,7 @@ function selectClient(id) {
   const relatedHtml = related.length ? `
     <div class="related-bar">
       <span class="related-label">Zie ook:</span>
-      ${related.map(r => `<span class="related-chip" onclick="selectClient('${r.id}')">${esc(r.naam)}</span>`).join('')}
+      ${related.map(r => `<span class="related-chip" title="${r.reden === 'adres' ? 'Zelfde adres' : 'Zelfde naamdeel'}" onclick="selectClient('${r.id}')">${esc(r.naam)}${r.reden === 'adres' ? ' · zelfde adres' : ''}</span>`).join('')}
     </div>` : '';
 
   det.innerHTML = `
