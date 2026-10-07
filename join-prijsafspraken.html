@@ -189,6 +189,14 @@
   .pa-afspraak-label { font-weight: 600; color: var(--text-muted); }
   .pa-afspraak-diff  { color: var(--text-muted); }
   .pa-geen { font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+  .vp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .vp-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .vp-table td { padding: 7px 8px; border-bottom: 1px solid var(--surface2); vertical-align: top; }
+  .vp-table .vp-num { text-align: right; white-space: nowrap; }
+  .vp-table .vp-advies { background: var(--surface2); }
+  .vp-afspraak { font-size: 11px; color: var(--text-muted); }
+  .vp-leeg { color: var(--text-muted); }
+  .vp-status { font-size: 11.5px; font-weight: 600; }
   .pa-footer { font-size: 11px; color: var(--text-muted); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
 
   /* MODAL */
@@ -392,7 +400,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Prijsafspraken</h1>
         <div class="bt-kopbalk-sub">Prijsafspraken en facturatie van het kantoor</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:33</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 7 okt 2026, 22:54</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -659,6 +667,8 @@ let selectedId = null;
 // Indexatiepercentages per boekjaar. Sleutel = het boekjaar waarvoor het advies wordt berekend;
 // factuurJaar = het jaar waarin de factuur verstuurd wordt.
 // Voeg volgend jaar simpelweg een nieuwe regel toe.
+// Herkomst: kantoortarief, geen fiscale waarde. Ingevoerd 11-08-2026 (commit fa45eaf) voor de
+// jaarrekening; op 07-10-2026 door Sylvain bevestigd voor jaarrekening, aangifte IB en aangifte Vpb.
 const INDEXATIE_PER_BOEKJAAR = {
   2025: { percentage: 0.033, factuurJaar: 2026, label: 'Indexatie 2026' }
 };
@@ -728,6 +738,25 @@ function koppelOmzetJaren(klanten, facturen, thisYear = new Date().getFullYear()
   });
 }
 
+// Het tabblad Prijzen draagt in VRCode nog het oude klantnummer; het nieuwe staat in
+// "Nieuw klantnr.". Een oud nummer kan gelijk zijn aan het nieuwe nummer van een andere
+// klant, dus VRCode wordt alleen via "Oud klantnummer" van het klantenblad vertaald.
+// Een regel zonder herkenbare klant krijgt een sleutel die nooit op een klant past en
+// telt zo mee in de importmelding "prijsafspraken zonder bekende klant".
+function maakPrijsKoppeling(klanten) {
+  const nieuw = new Set(klanten.map(k => k.id));
+  const viaOud = new Map(klanten.filter(k => k.oudNr).map(k => [k.oudNr, k.id]));
+  return r => {
+    const vr = normId(r['VRCode']);
+    // Werkboek zonder kolom "Nieuw klantnr.": dan staat het nieuwe nummer in VRCode.
+    if (!('Nieuw klantnr.' in r)) return vr && nieuw.has(vr) ? vr : '?' + (vr || 'leeg');
+    const nr = normId(r['Nieuw klantnr.']);
+    if (nr && nieuw.has(nr)) return nr;
+    if (vr && viaOud.has(vr)) return viaOud.get(vr);
+    return '?' + (nr || vr || 'leeg');
+  };
+}
+
 function parseWorkbook(wb) {
   const ksName  = wb.SheetNames.find(n => n.toLowerCase() === 'klanten');
   const pName   = wb.SheetNames.find(n => n.toLowerCase() === 'prijzen');
@@ -746,8 +775,9 @@ function parseWorkbook(wb) {
     loon:       isJaVeld(r['Loon']) || isJaVeld(r['Salaris']),
   })).filter(r => r.id && r.naam);
 
+  const koppelPrijs = maakPrijsKoppeling(DATA.klanten);
   DATA.prijzen = toRows(pName).map(r => ({
-    klantId:  normId(r['VRCode']),
+    klantId:  koppelPrijs(r),
     naam:     String(r['Naam'] || '').trim(),
     begin:    formatDate(r['Begin']),
     beginRaw: parseRawDate(r['Begin']),
@@ -1014,105 +1044,119 @@ function findRelatedClients(klant) {
 }
 
 // ═══════════════════ CLIENT DETAIL ═══════════════════
-// ═══════════════════ PRIJSADVIES ═══════════════════
-function getPrijsAdvies(klantId, targetJaar) {
-  const cfg = INDEXATIE_PER_BOEKJAAR[targetJaar];
-  if (!cfg) return null;
+// ═══════════════════ VASTE PRIJZEN ═══════════════════
+// Onderdelen met een vaste prijs. Loonstroken ontbreken bewust: die prijzen staan in het CRM.
+// Publicatiestukken (code Pub) vallen onder factuurcategorie Jaar maar hebben een eigen
+// prijsafspraak; ze tellen daarom niet mee in het gefactureerde bedrag voor de jaarrekening.
+const VASTE_ONDERDELEN = [
+  { key: 'Jaar', label: 'Jaarrekening', prijsCodes: ['Jaar', 'JaarJoin'], factCat: 'Jaar', uitgesloten: ['Pub'] },
+  { key: 'IB',   label: 'Aangifte IB',  prijsCodes: ['IB'],              factCat: 'IB',   uitgesloten: [] },
+  { key: 'Vpb',  label: 'Aangifte Vpb', prijsCodes: ['Vpb'],             factCat: 'Vpb',  uitgesloten: [] },
+];
 
-  const bronJaar   = targetJaar - 1;
-  const strBron    = String(bronJaar);
-  const strTarget  = String(targetJaar);
-
-  // Bronbedrag: factuurregels categorie 'Jaar' vorig boekjaar
-  const bronRegels = DATA.facturen.filter(f =>
-    f.klantId === klantId &&
-    f.categorie === 'Jaar' &&
-    String(Math.round(parseFloat(f.jaar))) === strBron
-  );
-  if (!bronRegels.length) {
-    return { targetJaar, bronJaar, bronBedrag: null, ...cfg,
-             adviesBedrag: null, werkelijkGefactureerd: null, verschil: null, afspraak: null };
-  }
-
-  const bronBedrag    = bronRegels.reduce((s, f) => s + f.bedrag, 0);
-  const adviesBedrag  = Math.round(bronBedrag * (1 + cfg.percentage) * 100) / 100;
-
-  // Werkelijk gefactureerd voor targetJaar, categorie 'Jaar'
-  const werkelijkRegels = DATA.facturen.filter(f =>
-    f.klantId === klantId &&
-    f.categorie === 'Jaar' &&
-    String(Math.round(parseFloat(f.jaar))) === strTarget
-  );
-  const werkelijkGefactureerd = werkelijkRegels.length
-    ? werkelijkRegels.reduce((s, f) => s + f.bedrag, 0) : null;
-  const verschil = werkelijkGefactureerd !== null ? werkelijkGefactureerd - adviesBedrag : null;
-
-  // Bestaande prijsafspraak: eerst jaar-veld, daarna jaar afgeleid uit beginRaw
-  let afspraak = DATA.prijzen
-    .filter(p => p.klantId === klantId && p.jaar === strTarget)
-    .sort((a, b) => b.beginRaw - a.beginRaw)[0] || null;
-  if (!afspraak) {
-    afspraak = DATA.prijzen
-      .filter(p => p.klantId === klantId && p.beginRaw &&
-                   new Date(p.beginRaw).getFullYear() === targetJaar)
-      .sort((a, b) => b.beginRaw - a.beginRaw)[0] || null;
-  }
-
-  return { targetJaar, bronJaar, bronBedrag, percentage: cfg.percentage,
-           factuurJaar: cfg.factuurJaar, label: cfg.label, adviesBedrag,
-           werkelijkGefactureerd, verschil, afspraak };
+function dienstjaarVan(v) {
+  const n = Math.round(parseFloat(v));
+  return Number.isFinite(n) ? n : null;
 }
 
-function renderPrijsAdvies(klantId) {
+// Per onderdeel: afspraak en gefactureerd per jaar, plus het advies voor targetJaar.
+// Basis van het advies is het gefactureerde bedrag over het jaar ervoor; ontbreekt dat,
+// dan de vastgelegde afspraak van dat jaar. Een onderdeel zonder afspraak, factuur of
+// planningsregel wordt weggelaten.
+function vastePrijzenOverzicht(klantId, data, targetJaar) {
+  const cfg = INDEXATIE_PER_BOEKJAAR[targetJaar] || null;
+  const jaren = [targetJaar - 2, targetJaar - 1, targetJaar];
+  const bronJaar = targetJaar - 1;
+  const facturen = data.facturen.filter(f => f.klantId === klantId);
+  const prijzen = data.prijzen.filter(p => p.klantId === klantId);
+  const planning = {
+    Jaar: (data.jaarrekening || []).some(r => r.klantId === klantId),
+    IB:   (data.ibvpb || []).some(r => r.klantId === klantId && r.type === 'I'),
+    Vpb:  (data.ibvpb || []).some(r => r.klantId === klantId && r.type === 'V'),
+  };
+
+  const afspraakJaar = p => {
+    const j = dienstjaarVan(p.jaar);
+    if (j !== null) return j;
+    return p.beginRaw ? new Date(p.beginRaw).getFullYear() : null;
+  };
+
+  const rijen = [];
+  for (const o of VASTE_ONDERDELEN) {
+    const eigenPrijzen = prijzen.filter(p => o.prijsCodes.includes(p.code));
+    const eigenFacturen = facturen.filter(f => f.categorie === o.factCat && !o.uitgesloten.includes(f.code));
+
+    const perJaar = jaren.map(jaar => {
+      const regels = eigenFacturen.filter(f => dienstjaarVan(f.jaar) === jaar);
+      const afspraak = eigenPrijzen
+        .filter(p => afspraakJaar(p) === jaar)
+        .sort((a, b) => (b.beginRaw || 0) - (a.beginRaw || 0))[0] || null;
+      return {
+        jaar,
+        gefactureerd: regels.length ? Math.round(regels.reduce((s, f) => s + f.bedrag, 0) * 100) / 100 : null,
+        afspraak: afspraak ? afspraak.prijs : null,
+      };
+    });
+
+    const heeftIets = eigenPrijzen.length || perJaar.some(j => j.gefactureerd !== null) || planning[o.key];
+    if (!heeftIets) continue;
+
+    const bron = perJaar.find(j => j.jaar === bronJaar);
+    let basis = null, basisSoort = null;
+    if (bron.gefactureerd !== null) { basis = bron.gefactureerd; basisSoort = 'gefactureerd'; }
+    else if (bron.afspraak !== null) { basis = bron.afspraak; basisSoort = 'afspraak'; }
+    const advies = cfg && basis !== null ? Math.round(basis * (1 + cfg.percentage) * 100) / 100 : null;
+
+    const doel = perJaar.find(j => j.jaar === targetJaar);
+    const verschil = advies !== null && doel.gefactureerd !== null
+      ? Math.round((doel.gefactureerd - advies) * 100) / 100 : null;
+
+    rijen.push({ key: o.key, label: o.label, perJaar, basis, basisSoort, advies, verschil });
+  }
+  return { targetJaar, bronJaar, jaren, indexatie: cfg, rijen };
+}
+
+function renderVastePrijzen(klantId) {
   const targetJaar = new Date().getFullYear() - 1;
-  const adv = getPrijsAdvies(klantId, targetJaar);
-  if (!adv) return '';
+  const ov = vastePrijzenOverzicht(klantId, DATA, targetJaar);
+  if (!ov.rijen.length) return '';
+  const bedrag = v => v === null ? '<span class="vp-leeg">—</span>' : `€ ${fmtNum(v)}`;
 
-  let bodyHtml;
-  if (!adv.bronBedrag) {
-    bodyHtml = `<div class="pa-geen">Geen prijsadvies beschikbaar — geen jaarrekeningbedrag voor ${adv.bronJaar} gevonden.</div>`;
-  } else if (adv.werkelijkGefactureerd !== null) {
-    const v    = adv.verschil;
-    const absV = Math.abs(v);
-    let statusLabel, statusCls;
-    if (absV < 1)   { statusLabel = '✓ Conform advies';                  statusCls = 'pa-status-ok'; }
-    else if (v < 0) { statusLabel = `⚠ € ${fmtNum(absV)} onder advies`; statusCls = 'pa-status-laag'; }
-    else            { statusLabel = `€ ${fmtNum(absV)} boven advies`;    statusCls = 'pa-status-hoog'; }
-    bodyHtml = `
-      <div class="pa-row"><span>Advies op basis van ${adv.bronJaar}</span><span>€ ${fmtNum(adv.adviesBedrag)}</span></div>
-      <div class="pa-row"><span>Werkelijk gefactureerd</span><span>€ ${fmtNum(adv.werkelijkGefactureerd)}</span></div>
-      <div class="pa-row pa-row-diff"><span>Verschil</span><span>${v >= 0 ? '+' : '−'} € ${fmtNum(absV)}</span></div>
-      <div class="pa-status ${statusCls}">${statusLabel}</div>`;
-  } else {
-    bodyHtml = `
-      <div class="pa-row"><span>Vorig boekjaar gefactureerd (${adv.bronJaar})</span><span>€ ${fmtNum(adv.bronBedrag)}</span></div>
-      <div class="pa-row"><span>${adv.label}</span><span>${(adv.percentage * 100).toFixed(1)}%</span></div>
-      <div class="pa-row pa-row-advies"><span>Advies ${adv.targetJaar}</span><span>€ ${fmtNum(adv.adviesBedrag)}</span></div>`;
-  }
+  const kop = `<tr><th>Onderdeel</th>${ov.jaren.map(j =>
+    `<th class="vp-num">${j}</th>`).join('')}<th class="vp-num vp-advies">Advies ${ov.targetJaar}</th></tr>`;
 
-  let afspraakHtml = '';
-  if (adv.afspraak) {
-    const diff = adv.afspraak.prijs - adv.adviesBedrag;
-    const afwijkLabel = Math.abs(diff) < 1 ? '' :
-      `<span class="pa-afspraak-diff">${diff >= 0 ? '+' : '−'} € ${fmtNum(Math.abs(diff))} t.o.v. advies</span>`;
-    afspraakHtml = `
-      <div class="pa-afspraak">
-        <span class="pa-afspraak-label">Vastgelegde afspraak:</span>
-        <span>€ ${fmtNum(adv.afspraak.prijs)}</span>
-        ${afwijkLabel}
-      </div>`;
-  }
+  const body = ov.rijen.map(r => {
+    const cellen = r.perJaar.map(j => `<td class="vp-num">
+        <div>${bedrag(j.gefactureerd)}</div>
+        ${j.afspraak !== null ? `<div class="vp-afspraak">afspraak € ${fmtNum(j.afspraak)}</div>` : ''}
+      </td>`).join('');
+    let status = '';
+    if (r.verschil !== null) {
+      const a = Math.abs(r.verschil);
+      status = a < 1 ? '<div class="vp-status pa-status-ok">✓ conform</div>'
+        : r.verschil < 0 ? `<div class="vp-status pa-status-laag">⚠ € ${fmtNum(a)} onder</div>`
+        : `<div class="vp-status pa-status-hoog">€ ${fmtNum(a)} boven</div>`;
+    }
+    const adviesCel = r.advies === null
+      ? `<span class="vp-leeg">${ov.indexatie ? `geen basis ${ov.bronJaar}` : 'geen indexatie'}</span>`
+      : `<div><strong>€ ${fmtNum(r.advies)}</strong></div>
+         <div class="vp-afspraak">${r.basisSoort === 'afspraak' ? 'op afspraak' : 'op gefactureerd'} ${ov.bronJaar}</div>${status}`;
+    return `<tr><td>${esc(r.label)}</td>${cellen}<td class="vp-num vp-advies">${adviesCel}</td></tr>`;
+  }).join('');
+
+  const indexTekst = ov.indexatie
+    ? `Advies = gefactureerd ${ov.bronJaar} plus ${(ov.indexatie.percentage * 100).toFixed(1).replace('.', ',')}% (${esc(ov.indexatie.label)}); zonder factuur over ${ov.bronJaar} telt de vastgelegde afspraak.`
+    : `Voor ${ov.targetJaar} is geen indexatie vastgelegd.`;
 
   return `
     <div class="pa-block">
       <div class="pa-header">
-        <span class="pa-title">Prijsadvies</span>
-        <span class="pa-sub">Jaarrekening ${adv.targetJaar}</span>
+        <span class="pa-title">Vaste prijzen</span>
+        <span class="pa-sub">Gefactureerd per dienstjaar en vastgelegde afspraak</span>
       </div>
       <div class="pa-body">
-        ${bodyHtml}
-        ${afspraakHtml}
-        <div class="pa-footer">Gebaseerd op gefactureerd bedrag vorig boekjaar + indexatie.</div>
+        <table class="vp-table"><thead>${kop}</thead><tbody>${body}</tbody></table>
+        <div class="pa-footer">${indexTekst} Publicatiestukken tellen niet mee bij de jaarrekening.</div>
       </div>
     </div>`;
 }
@@ -1206,7 +1250,7 @@ function selectClient(id) {
       ${renderStatusSectie(id)}
     </div>
 
-    ${renderPrijsAdvies(id)}
+    ${renderVastePrijzen(id)}
 
     <div class="section">
       <div class="section-title">
