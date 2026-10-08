@@ -211,9 +211,11 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
+| 🟡 beta | KantoorGemak | `/kantoorgemak.html` | bouwman-tools/KantoorGemak | **nee** | 2026-10-08 | Sylvain Bouwman | belastingplan | n.v.t. |
 | 🔵 concept | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🔵 concept | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
+- **KantoorGemak**: Kies een kantoorsjabloon (brieven aan de Belastingdienst, bezwaarschriften, brieven aan de klant), vul alleen de benodigde velden in en download het Word-bestand
 - **Prijsafspraken**: Toont per klant de geldende tariefafspraken, werkstatus en factuurhistorie uit een Excel-export
 - **Van rekenmodel naar bouwman.tools**: Inventarisatie van de resterende rekenmodellen, de clustering naar bouwopdrachten, de roadmap in golven en de bewijsstatus per tool. Geen rekentool: een overzichtspagina voor intern overleg
 
@@ -271,6 +273,13 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Wet inkomstenbelasting 2001, Artikel 3.30a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet inkomstenbelasting 2001, Artikel 3.79a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet op belastingen van rechtsverkeer, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
+
+## Let op: niet afgeschermd
+
+Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
+bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
+
+- KantoorGemak (`kantoorgemak.html`)
 
 ## Workers
 
