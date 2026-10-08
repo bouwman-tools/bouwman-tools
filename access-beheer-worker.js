@@ -118,6 +118,7 @@ const APP_IDS = {
   'kopen-huren.html': '74f9eb6a-14f6-40cb-9dd0-de7ad3b0be1a',
   'ouderlijke-woning.html': 'c69c4c01-2b64-42f5-8ada-a92054a78c4c',
   'bor-schenken.html': '8ddd3d53-297f-4bcc-9ce1-25e6192fd8bb',
+  'kantoorgemak.html': '8056c206-6416-4400-bb5d-951d89c29b91',
   'organogram-structuur.html': '3ddbb84d-a508-480a-9172-27bc6224f4a5',
   'staken-onderneming.html': 'c9bb6acd-20d6-4cf5-8621-7770de6d7de9',
 };
