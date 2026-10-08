@@ -211,7 +211,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | KantoorGemak | `/kantoorgemak.html` | bouwman-tools/KantoorGemak | **nee** | 2026-10-08 | Sylvain Bouwman | belastingplan | n.v.t. |
+| 🟡 beta | KantoorGemak | `/kantoorgemak.html` | bouwman-tools/KantoorGemak | ja | 2026-10-08 | Sylvain Bouwman | belastingplan | n.v.t. |
 | 🔵 concept | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🔵 concept | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
@@ -273,13 +273,6 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 - [Wet inkomstenbelasting 2001, Artikel 3.30a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet inkomstenbelasting 2001, Artikel 3.79a \(versie 21 februari 2026\)](https://wetten.overheid.nl/BWBR0011353/2026-02-21)
 - [Wet op belastingen van rechtsverkeer, Artikel 14 \(versie 1 januari 2026\)](https://wetten.overheid.nl/BWBR0002740/2026-01-01)
-
-## Let op: niet afgeschermd
-
-Deze tools hebben geen Cloudflare Access-app. Ze zijn voor iedereen met de URL
-bereikbaar, en rechten toekennen in `beheer.html` heeft er geen effect op.
-
-- KantoorGemak (`kantoorgemak.html`)
 
 ## Workers
 
