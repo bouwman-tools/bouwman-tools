@@ -14,7 +14,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | **ontbreekt** | Sylvain Bouwman | belastingplan | **nooit** |
-| 🔵 concept | Horecarapportage uit auditfile | `/horeca-rapportage.html` | Sylvainbouwman/rapportage-horeca | **nee** | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
+| 🔵 concept | Horecarapportage uit auditfile | `/horeca-rapportage.html` | Sylvainbouwman/rapportage-horeca | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 | 🔵 concept | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 

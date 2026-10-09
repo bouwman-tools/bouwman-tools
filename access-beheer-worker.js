@@ -121,6 +121,7 @@ const APP_IDS = {
   'kantoorgemak.html': '8056c206-6416-4400-bb5d-951d89c29b91',
   'organogram-structuur.html': '3ddbb84d-a508-480a-9172-27bc6224f4a5',
   'staken-onderneming.html': 'c9bb6acd-20d6-4cf5-8621-7770de6d7de9',
+  'horeca-rapportage.html': 'fa8c1859-b977-4168-bb99-89b5b6ab73c0',
 };
 
 export default {
