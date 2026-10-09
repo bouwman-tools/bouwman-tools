@@ -3,7 +3,7 @@
 > **Gegenereerd uit `tools.json`. Bewerk dit bestand niet met de hand.**
 > Werk `tools.json` bij en draai `python tools/check_tools.py --schrijf-tools-md`.
 
-Bijgewerkt: 2026-10-05
+Bijgewerkt: 2026-10-09
 
 Wettelijke verwijzingen zijn vastgelegde identificaties bij de vermelde versies.
 Dit is geen volledige bronnenlijst, actuele broncontrole of inhoudelijke accordering.
@@ -14,10 +14,12 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
 | 🟢 live | Auditfile App | `https://auditfile-app.streamlit.app/` | Sylvainbouwman/Auditfile_app | n.v.t. | **ontbreekt** | Sylvain Bouwman | belastingplan | **nooit** |
+| 🔵 concept | Horecarapportage uit auditfile | `/horeca-rapportage.html` | Sylvainbouwman/rapportage-horeca | **nee** | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 | 🔵 concept | Jaarrekening review | `/Join-jaarrekening-review.html` | bouwman-tools/Jaarrekening-review | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🟢 live | XAF Raw Export | `/xaf_export.html` | Sylvainbouwman/xaf-export-tool | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 
 - **Auditfile App**: Analyseert XAF-auditfiles en exporteert gestructureerde overzichten per grootboekrekening of kostensoort
+- **Horecarapportage uit auditfile**: Verlies- en winstrekening per kwartaal of cumulatief voor een horecavestiging, met KPI-tegels, een benchmark tegen CBS-sectorcijfers en een kostenverdeling, uit een auditfile (XAF) die alleen in de browser wordt gelezen
 - **Jaarrekening review**: Toetst een jaarrekening aan de kantoorstandaard voordat die naar de klant gaat
 - **XAF Raw Export**: Verwerkt XAF-auditfiles (3.1, 3.2 en 4.0) naar Excel of CSV met een aansluitcheck en een kolommenbalans, volledig in de browser, ook bij bestanden van 700 MB en groter
 
@@ -285,6 +287,7 @@ daar ook met 404.
 | Worker | Nodig voor |
 |---|---|
 | `access-beheer` | het portaal zelf |
+| `horeca-rapportage` | Horecarapportage uit auditfile |
 | `kennisgroepen-agent` | Kennisgroepen-zoeker |
 | `kvk-proxy` | KvK Nummers Zoeken |
 | `modellen-roadmap` | Van rekenmodel naar bouwman.tools |
