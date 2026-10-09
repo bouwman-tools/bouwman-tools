@@ -200,7 +200,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       <div>
         <h1 class="bt-kopbalk-titel">Tijdplan</h1>
         <div class="bt-kopbalk-sub">Leeftijden en mutatiemomenten per gezin, over de hele planningshorizon. <span id="versieStempel"></span></div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 29 sep 2026, 13:36</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 9 okt 2026, 22:10</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -240,6 +240,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="veld"><label for="horizon">Aantal jaren vooruit</label>
       <input type="number" id="horizon" value="45" min="1" max="100" step="1" /></div>
   </div>
+  <div id="startjaarHint" class="noprint"></div>
   <p class="hulp">Het bronmodel hield een vaste horizon van 45 jaar aan. Die is hier vrij,
     want de lengte van een tijdplan hoort bij de casus en niet bij het raster.</p>
 </div>
@@ -1340,6 +1341,37 @@ let personen = [
 ];
 let momenten = [];
 
+/*
+ * Het startjaar waarvoor de leeftijden zijn opgegeven (OPENSTAAND.md punt 16).
+ * De leeftijd is de leeftijd in het startjaar en schuift bewust niet mee, net als
+ * in het bronmodel. Wijzigt het startjaar terwijl er leeftijden staan, dan verandert
+ * het tijdplan dus; de hint hieronder zegt dat. Het is een schermhint bij een
+ * handeling en geen melding over de uitkomst: afdruk en export tonen startjaar en
+ * leeftijden zelf, en lopen daarom niet via relevanteMeldingen().
+ */
+let startjaarLeeftijden = null;
+
+function heeftLeeftijden() {
+  return personen.some(function (p) { return isFinite(p.leeftijd); });
+}
+
+/** De leeftijden gelden vanaf nu voor het startjaar dat er nu staat. */
+function legStartjaarVast() {
+  startjaarLeeftijden = Number(el('startjaar').value);
+  tekenStartjaarHint();
+}
+
+function tekenStartjaarHint() {
+  const nu = Number(el('startjaar').value);
+  const toon = startjaarLeeftijden !== null && heeftLeeftijden() &&
+    isGeheel(nu) && nu >= JAAR_MIN && nu <= JAAR_MAX && nu !== startjaarLeeftijden;
+  el('startjaarHint').innerHTML = toon
+    ? '<div class="melding waarschuwing">Het startjaar is gewijzigd van ' +
+      esc(startjaarLeeftijden) + ' naar ' + esc(nu) + '. De leeftijden bij Gezinsleden ' +
+      'gelden voor het nieuwe startjaar en schuiven niet mee; controleer ze.</div>'
+    : '';
+}
+
 function tekenPersonen() {
   const tb = el('personenBody');
   tb.innerHTML = '';
@@ -1365,7 +1397,7 @@ function tekenPersonen() {
       const i = Number(inp.dataset.i);
       personen[i][inp.dataset.veld] =
         inp.dataset.veld === 'leeftijd' ? Number(inp.value) : inp.value;
-      if (inp.dataset.veld === 'leeftijd') tekenPersonen();
+      if (inp.dataset.veld === 'leeftijd') { tekenPersonen(); legStartjaarVast(); }
       else zetPrinttekst(inp, inp.value);
       tekenMomenten();
       herbereken();
@@ -1377,7 +1409,7 @@ function tekenPersonen() {
       momenten = momenten.filter(function (m) {
         return m.soort !== 'leeftijd' || m.persoonIndex < personen.length;
       });
-      tekenPersonen(); tekenMomenten(); herbereken();
+      tekenPersonen(); tekenMomenten(); tekenStartjaarHint(); herbereken();
     });
   });
 }
@@ -1539,6 +1571,8 @@ function pasInvoerToe(inv) {
   el('toonAow').checked = inv.toonAow;
   personen = inv.personen;
   momenten = inv.momenten;
+  // De leeftijden in het dossier horen bij het startjaar in het dossier: geen hint.
+  legStartjaarVast();
   tekenPersonen(); tekenMomenten(); herbereken();
 }
 
@@ -1612,7 +1646,9 @@ document.addEventListener('DOMContentLoaded', function () {
   el('peildatum').value = datumStempel();
 
   el('btnPersoon').addEventListener('click', function () {
+    const eerste = !heeftLeeftijden();
     personen.push({ naam: '', leeftijd: 0 });
+    if (eerste) legStartjaarVast();
     tekenPersonen(); tekenMomenten(); herbereken();
   });
   el('btnMoment').addEventListener('click', function () {
@@ -1621,7 +1657,11 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   ['startjaar', 'horizon', 'kenmerk', 'opsteller', 'peildatum'].forEach(function (id) {
     el(id).addEventListener('input', function () {
-      if (id === 'startjaar') { tekenPersonen(); tekenMomenten(); }
+      if (id === 'startjaar') {
+        // Zonder leeftijden is er niets te controleren: die gelden straks voor dit jaar.
+        if (heeftLeeftijden()) tekenStartjaarHint(); else legStartjaarVast();
+        tekenPersonen(); tekenMomenten();
+      }
       herbereken();
     });
   });
@@ -1661,6 +1701,7 @@ document.addEventListener('DOMContentLoaded', function () {
     lezer.readAsText(f);
   });
 
+  legStartjaarVast();
   tekenPersonen();
   tekenMomenten();
   herbereken();
