@@ -213,7 +213,7 @@ Ontbrekende verwijzingen zeggen niets over de wettelijke basis van een tool.
 
 | | Tool | Locatie | Bronrepo | Afgeschermd | Jaarwaarden gecontroleerd | Eigenaar | Ritme | Geaccordeerd |
 |---|---|---|---|---|---|---|---|---|
-| 🟡 beta | KantoorGemak | `/kantoorgemak.html` | bouwman-tools/KantoorGemak | ja | 2026-10-08 | Sylvain Bouwman | belastingplan | n.v.t. |
+| 🟡 beta | KantoorGemak | `/kantoorgemak.html` | bouwman-tools/Sjablonen-Fiscaal | ja | 2026-10-08 | Sylvain Bouwman | belastingplan | n.v.t. |
 | 🔵 concept | Prijsafspraken | `/join-prijsafspraken.html` | bouwman-tools/Facturatie | ja | n.v.t. | Sylvain Bouwman | jaarlijks | n.v.t. |
 | 🔵 concept | Van rekenmodel naar bouwman.tools | `/modellen-naar-tools.html` | bouwman-tools/modellen-roadmap | ja | n.v.t. | Sylvain Bouwman | geen | n.v.t. |
 
