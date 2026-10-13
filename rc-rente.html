@@ -283,7 +283,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-rente uit mutaties</h1>
         <div class="bt-kopbalk-sub">Renteberekening over een rekening-courantverhouding tussen DGA en BV, op dagbasis, uit de mutaties zelf.</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 12 okt 2026, 23:44</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 13:28</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -453,8 +453,14 @@
     </div>
     <div class="veld">
       <label for="beginstand">Beginstand per 1 januari</label>
-      <input type="text" id="beginstand" class="bedrag" style="width:150px" />
-      <span class="hint" id="beginstand-hint">positief = vordering van de BV op de DGA</span>
+      <span style="display:flex; gap:6px">
+        <input type="text" id="beginstand" class="bedrag" style="width:150px" />
+        <select id="beginstand-teken" aria-label="Soort beginstand">
+          <option value="debet">debet: de BV heeft te vorderen</option>
+          <option value="credit">credit: de BV is schuldig</option>
+        </select>
+      </span>
+      <span class="hint" id="beginstand-hint">bedrag zonder minteken; kies of de stand bij de BV debet of credit staat</span>
     </div>
     <div class="veld">
       <label for="rente">Rente per jaar (%)</label>
@@ -479,7 +485,13 @@
     </div>
     <div class="veld">
       <label for="eindsaldo-bron">Eindsaldo volgens de bron</label>
-      <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
+      <span style="display:flex; gap:6px">
+        <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
+        <select id="eindsaldo-bron-teken" aria-label="Soort eindsaldo">
+          <option value="debet">debet: de BV heeft te vorderen</option>
+          <option value="credit">credit: de BV is schuldig</option>
+        </select>
+      </span>
       <span class="hint">voor de sluitcontrole, exclusief nog te boeken rente</span>
     </div>
   </div>
@@ -928,6 +940,14 @@ function interpreteerTabel(rijen) {
       if (n > meeste) { meeste = n; beste = k; }
     }
     if (meeste >= drempelDatums) kolommen.datum = beste;
+  }
+  // Wint een kolom op inhoud de datum, dan valt zij af voor de soort die haar kop noemde.
+  // Een kaart met de kop "Boekstuk" boven de boekdatums werd anders tegelijk datum en
+  // omschrijving, en dan stond in elke omschrijving een datum in plaats van de boekingstekst.
+  if (kolommen.datum !== null) {
+    for (const soort of Object.keys(kolommen)) {
+      if (soort !== "datum" && kolommen[soort] === kolommen.datum) kolommen[soort] = null;
+    }
   }
 
   // Numerieke kolommen die nog geen soort hebben.
@@ -3219,6 +3239,44 @@ function huidigeMutaties() {
   });
 }
 
+// Beginstand en eindsaldo zijn een bedrag plus de keuze debet of credit bij de BV. Een
+// enkel veld waarin een creditstand een minteken moest krijgen ging mis: een beginstand die
+// als positief bedrag van de kaart werd overgenomen telde als vordering in plaats van als
+// schuld, en de uitkomst week dan tweemaal de beginstand af. Een getypt minteken blijft
+// gelden, zodat oude invoer en een dossierbestand met teken hetzelfde uitkomen.
+function leesStand(id) {
+  const b = parseBedrag($(id).value);
+  if (b === null) return null;
+  if (b < 0) return b;
+  return $(id + "-teken").value === "credit" ? -b : b;
+}
+function zetStand(id, waarde) {
+  if (waarde === null || waarde === undefined || !Number.isFinite(waarde)) {
+    $(id).value = "";
+    return;
+  }
+  $(id).value = fmt(Math.abs(waarde));
+  $(id + "-teken").value = waarde < 0 ? "credit" : "debet";
+}
+// Een getypt minteken wordt omgezet in de keuze credit, zodat veld en keuze elkaar niet
+// tegenspreken.
+function normaliseerStand(id) {
+  const b = parseBedrag($(id).value);
+  if (b !== null && b < 0) zetStand(id, b);
+}
+
+// Het dossierbestand bewaart de stand als één tekst met teken, zoals voor deze wijziging.
+// Zo blijft het formaat gelijk en opent een ouder bestand ongewijzigd.
+function standVoorDossier(id) {
+  const w = leesStand(id);
+  return w === null ? $(id).value : fmt(w);
+}
+function zetStandUitTekst(id, tekst) {
+  const w = parseBedrag(tekst);
+  if (w === null) { $(id).value = tekst; $(id + "-teken").value = "debet"; }
+  else zetStand(id, w);
+}
+
 function vulUitgangspunten() {
   const opbouw = huidigeMutaties();
   const meldingen = [];
@@ -3234,7 +3292,7 @@ function vulUitgangspunten() {
   const afgeleid = leidBeginstandAf(opbouw.mutaties, { beginbalans: opbouw.beginbalans });
   if (afgeleid.gelukt) {
     if (!$("beginstand").dataset.handmatig) {
-      $("beginstand").value = fmt(afgeleid.beginstand);
+      zetStand("beginstand", afgeleid.beginstand);
     }
     $("beginstand-hint").textContent = afgeleid.herkomst === "beginbalansregel"
       ? `overgenomen uit de regel "${afgeleid.label}" van de bron (regel ${afgeleid.rijnr})`
@@ -3280,7 +3338,7 @@ function vulUitgangspunten() {
     : saldoVolgensBronEindeJaar(opbouw.mutaties, laatsteJaar, afgeleid.tekenSaldo === undefined ? 1 : afgeleid.tekenSaldo);
   const hint = $("eindsaldo-bron").parentElement.querySelector(".hint");
   if (bronsaldo.bekend && !$("eindsaldo-bron").dataset.handmatig) {
-    $("eindsaldo-bron").value = fmt(bronsaldo.saldo);
+    zetStand("eindsaldo-bron", bronsaldo.saldo);
   }
   if (hint) {
     hint.textContent = uitRegel
@@ -3393,7 +3451,7 @@ function toonRenteTabel() {
 function reken() {
   const opbouw = huidigeMutaties();
   const rente = renteVelden();
-  const beginstand = parseBedrag($("beginstand").value);
+  const beginstand = leesStand("beginstand");
   const jaren = gekozenJaren(opbouw);
   const fouten = [];
 
@@ -3424,7 +3482,7 @@ function reken() {
     renteBijschrijven: bijschrijven,
   });
 
-  const eindsaldoBron = parseBedrag($("eindsaldo-bron").value);
+  const eindsaldoBron = leesStand("eindsaldo-bron");
   // De bron kent een eventuele bijschrijving niet, dus de sluitcontrole gaat over het
   // eindsaldo zonder bijschrijving.
   const sluit = sluitcontrole(uitkomst.eindsaldoZonderBijschrijving, eindsaldoBron);
@@ -3507,9 +3565,9 @@ function verzamelDossier() {
     velden: {
       naamBv: $("naam-bv").value,
       naamDga: $("naam-dga").value,
-      beginstand: $("beginstand").value,
+      beginstand: standVoorDossier("beginstand"),
       beginstandHandmatig: !!$("beginstand").dataset.handmatig,
-      eindsaldoBron: $("eindsaldo-bron").value,
+      eindsaldoBron: standVoorDossier("eindsaldo-bron"),
       eindsaldoBronHandmatig: !!$("eindsaldo-bron").dataset.handmatig,
       conventie: $("conventie").value,
       rente: $("rente").value,
@@ -3565,9 +3623,9 @@ function dossierToepassen(data) {
   $("naam-dga").value = v.naamDga;
   $("jaar").value = data.rekenjaar === null ? "" : String(data.rekenjaar);
   if (data.rekenjaar !== null) $("jaar").dataset.handmatig = "1"; else delete $("jaar").dataset.handmatig;
-  $("beginstand").value = v.beginstand;
+  zetStandUitTekst("beginstand", v.beginstand);
   if (v.beginstandHandmatig) $("beginstand").dataset.handmatig = "1"; else delete $("beginstand").dataset.handmatig;
-  $("eindsaldo-bron").value = v.eindsaldoBron;
+  zetStandUitTekst("eindsaldo-bron", v.eindsaldoBron);
   if (v.eindsaldoBronHandmatig) $("eindsaldo-bron").dataset.handmatig = "1"; else delete $("eindsaldo-bron").dataset.handmatig;
   $("conventie").value = v.conventie;
   $("rente").value = v.rente;
@@ -3662,8 +3720,40 @@ function sluitcontroleHtml(u) {
       `Het berekende eindsaldo per 31-12-${laatsteJaar} is gelijk aan het saldo volgens de bron (${fmtEuro(stand)})`
       + `${u.bijschrijven ? ", de bijgeschreven rente niet meegerekend" : ""}.`);
   }
+  const teken = tekenverklaring(u);
   return melding("blokkerend", "Sluitcontrole klopt niet",
-    `Berekend eindsaldo ${fmtEuro(stand)} tegen ${fmtEuro(u.eindsaldoBron)} volgens de bron, een verschil van ${fmtEuro(u.sluit.verschil)}. Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd.`);
+    `Berekend eindsaldo ${fmtEuro(stand)} tegen ${fmtEuro(u.eindsaldoBron)} volgens de bron, een verschil van ${fmtEuro(u.sluit.verschil)}. `
+    + (teken
+      ? teken
+      : "Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd."));
+}
+
+// Een verschil van precies tweemaal de beginstand of het eindsaldo is bijna altijd een
+// verkeerd gekozen debet of credit. Dat zegt de melding dan met zoveel woorden, want het
+// verschilbedrag zelf wijst er niet op. Ook de mutaties kunnen gespiegeld zijn: dan sluit de
+// berekening met beide standen omgedraaid, en ligt het aan de tekenconventie van de bron.
+// De berekening zonder bijschrijving is lineair in de beginstand, dus omdraaien kan hier
+// zonder opnieuw te rekenen.
+function tekenverklaring(u) {
+  const t = 0.005;
+  const stand = u.uitkomst.eindsaldoZonderBijschrijving;
+  const begin = u.beginstand || 0;
+  const bron = u.eindsaldoBron;
+  if (bron === null || bron === undefined) return "";
+  const debetCredit = (w) => (w < 0 ? "credit (de BV is schuldig)" : "debet (de BV heeft te vorderen)");
+  const omgekeerd = (w) => debetCredit(-w);
+  if (Math.abs(begin) > t && Math.abs(stand - 2 * begin - bron) <= t) {
+    return `De berekening sluit wel als de beginstand van ${fmtEuro(Math.abs(begin))} ${omgekeerd(begin)} is in plaats van ${debetCredit(begin)}. Pas de keuze bij de beginstand aan en reken opnieuw.`;
+  }
+  if (Math.abs(bron) > t && Math.abs(stand + bron) <= t) {
+    return `De berekening sluit wel als het eindsaldo van ${fmtEuro(Math.abs(bron))} ${omgekeerd(bron)} is in plaats van ${debetCredit(bron)}. Pas de keuze bij het eindsaldo aan en reken opnieuw.`;
+  }
+  // Mutaties omdraaien geeft beginstand min mutaties; beide standen omdraaien geeft precies
+  // hetzelfde verschil. Welke van de twee het is, ziet alleen wie de kaart erbij pakt.
+  if (Math.abs(stand - 2 * begin + bron) <= t && (Math.abs(begin) > t || Math.abs(bron) > t)) {
+    return `De berekening sluit wel als de beginstand en het eindsaldo allebei het andere teken krijgen: beginstand ${fmtEuro(Math.abs(begin))} ${omgekeerd(begin)} en eindsaldo ${fmtEuro(Math.abs(bron))} ${omgekeerd(bron)}. Kijk op de kaart of de standen debet of credit staan. Kloppen ze toch zoals ingevuld, dan staan de mutaties gespiegeld en hoort in stap 3 de andere tekenconventie.`;
+  }
+  return "";
 }
 
 // Het uitklapblok bij het rentepercentage. Het toont het toetsingskader en één hard ijkpunt
@@ -3836,6 +3926,41 @@ function staffelHtml(jaar, meerjarig) {
   html += `</tbody><tfoot><tr><th colspan="6">Totaal ${jaar.jaar} (${s.noemer} dagen)</th>
     <th class="num ${klasse(s.totaleRente)}">${fmt(s.totaleRente)}</th></tr></tfoot></table></div>`;
   return html;
+}
+
+// De mutaties zoals de tool ze heeft doorgerekend, met per regel het lopende saldo. Dit is
+// het controlespoor naast de grootboekkaart: elke regel noemt zijn regelnummer in de bron,
+// en de laatste stand van een jaar is het eindsaldo dat de sluitcontrole gebruikt. Er wordt
+// niets nieuws berekend; de saldi zijn de beginstand plus de mutaties in datumvolgorde,
+// precies zoals de staffel ze optelt. Debet en credit staan in het perspectief van de BV.
+function mutatieOverzicht(u) {
+  const rijen = [];
+  const mutaties = (u.opbouw && u.opbouw.mutaties) || [];
+  for (const jaar of u.uitkomst.jaren) {
+    let saldo = jaar.beginstand;
+    rijen.push({ soort: "begin", jaar: jaar.jaar, iso: `${jaar.jaar}-01-01`, rijnr: null,
+      omschrijving: `Beginstand ${jaar.jaar}`, debet: null, credit: null, saldo });
+    const binnen = mutaties
+      .filter((m) => Number(m.iso.slice(0, 4)) === jaar.jaar)
+      .slice()
+      .sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : (a.rijnr || 0) - (b.rijnr || 0)));
+    for (const m of binnen) {
+      saldo += m.bedrag;
+      rijen.push({ soort: "mutatie", jaar: jaar.jaar, iso: m.iso, rijnr: m.rijnr === undefined ? null : m.rijnr,
+        omschrijving: m.omschrijving || "",
+        debet: m.bedrag > 0 ? m.bedrag : null, credit: m.bedrag < 0 ? -m.bedrag : null, saldo });
+    }
+    rijen.push({ soort: "eind", jaar: jaar.jaar, iso: `${jaar.jaar}-12-31`, rijnr: null,
+      omschrijving: `Eindstand ${jaar.jaar} vóór rente`, debet: null, credit: null, saldo });
+    if (jaar.bijschrijving) {
+      saldo += jaar.bijschrijving;
+      rijen.push({ soort: "rente", jaar: jaar.jaar, iso: `${jaar.jaar}-12-31`, rijnr: null,
+        omschrijving: `Bijgeschreven rente ${jaar.jaar}`,
+        debet: jaar.bijschrijving > 0 ? jaar.bijschrijving : null,
+        credit: jaar.bijschrijving < 0 ? -jaar.bijschrijving : null, saldo });
+    }
+  }
+  return rijen;
 }
 
 function vergelijkingHtml(u) {
@@ -4048,6 +4173,10 @@ function exporteerCsv(u) {
 // Een bevroren resultaatblad, zonder formules: de fiscale logica staat maar op één plek,
 // in de rekenkern hierboven. Dit blok schrijft alleen weg wat die kern al heeft berekend
 // en wat al op het scherm staat; het voegt geen fiscale waarde of conclusie toe.
+function debetOfCredit(w) {
+  return w < 0 ? "credit: de BV is schuldig" : "debet: de BV heeft te vorderen";
+}
+
 function exporteerExcel(u) {
   const r = u.uitkomst;
   const laatsteJaar = r.jaren[r.jaren.length - 1].jaar;
@@ -4072,10 +4201,11 @@ function exporteerExcel(u) {
     [celTekst("Invoer", true)],
     [celTekst("Naam BV"), celTekst(u.partijen && u.partijen.bv || "")],
     [celTekst("Naam DGA"), celTekst(u.partijen && u.partijen.dga || "")],
-    [celTekst("Beginstand " + r.jaren[0].jaar), celGetal(u.beginstand, "#,##0.00")],
+    [celTekst("Beginstand " + r.jaren[0].jaar), celGetal(u.beginstand, "#,##0.00"), celTekst(debetOfCredit(u.beginstand))],
     [celTekst("Tekenconventie van de bron"),
       celTekst(u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)")],
-    [celTekst("Eindsaldo volgens de bron"), u.eindsaldoBron === null ? celTekst("") : celGetal(u.eindsaldoBron, "#,##0.00")],
+    [celTekst("Eindsaldo volgens de bron"), u.eindsaldoBron === null ? celTekst("") : celGetal(u.eindsaldoBron, "#,##0.00"),
+      celTekst(u.eindsaldoBron === null ? "" : debetOfCredit(u.eindsaldoBron))],
     [celTekst("Rente per 31-12 bijschrijven"), celTekst(u.bijschrijven ? "ja" : "nee")],
     [celTekst("Bron"), celTekst(`${u.bron.naam || "geplakte gegevens"} (${u.bron.soort || "klembord"})`)],
     [celTekst("Aantal mutaties"), celGetal(r.jaren.reduce((n, j) => n + j.staffel.aantalMutaties, 0), "0")],
@@ -4147,11 +4277,54 @@ function exporteerExcel(u) {
     celTekst("De tool beoordeelt niet of het rentepercentage zakelijk is en stelt de rekening-courantverhouding niet vast; dat is werk van de adviseur.")]);
   const toelichtingBlad = { naam: "Toelichting", breedtes: [42, 90], rijen: toelichtingRijen };
 
+  // Het controlespoor: elke doorgerekende mutatie met haar regelnummer in de bron en het
+  // lopende saldo, zodat het blad regel voor regel naast de grootboekkaart kan worden gelegd.
+  const excelDatum = (iso) => celGetal(dagnummer(iso) - EXCEL_DAG0, "dd-mm-yyyy");
+  const bedragCel = (w, vet) => (w === null ? celTekst("") : celGetal(w, "#,##0.00", vet));
+  const mutatieRijen = [
+    [celTekst("Mutaties zoals doorgerekend", true)],
+    [celTekst("Debet is een toename van de vordering van de BV, credit een toename van haar schuld. Het saldo is positief bij een vordering van de BV en negatief bij een schuld.")],
+    [],
+    [celTekst("Datum", true), celTekst("Regel in bron", true), celTekst("Omschrijving", true),
+      celTekst("Debet", true), celTekst("Credit", true), celTekst("Saldo", true)],
+  ];
+  for (const m of mutatieOverzicht(u)) {
+    const vet = m.soort !== "mutatie";
+    mutatieRijen.push([
+      excelDatum(m.iso),
+      m.rijnr === null ? celTekst("") : celGetal(m.rijnr, "0"),
+      celTekst(m.omschrijving, vet),
+      bedragCel(m.debet), bedragCel(m.credit), bedragCel(m.saldo, vet),
+    ]);
+  }
+  const mutatieBlad = { naam: "Mutaties", breedtes: [12, 13, 60, 15, 15, 17], rijen: mutatieRijen };
+
+  // De staffel zoals op het scherm: per periode met een gelijk saldo en percentage.
+  const staffelRijen = [
+    [celTekst("Renteberekening per periode", true)],
+    [],
+    [celTekst("Jaar", true), celTekst("Van", true), celTekst("Tot en met", true), celTekst("Dagen", true),
+      celTekst("Mutatie", true), celTekst("Saldo", true), celTekst("%", true), celTekst("Rente", true)],
+  ];
+  for (const jaar of r.jaren) {
+    for (const seg of dichtStaffel(jaar.staffel.dagen)) {
+      staffelRijen.push([
+        celGetal(jaar.jaar, "0"), excelDatum(seg.van), excelDatum(seg.tot), celGetal(seg.dagen, "0"),
+        seg.mutatie ? celGetal(seg.mutatie, "#,##0.00") : celTekst(""),
+        celGetal(seg.saldo, "#,##0.00"), celGetal(seg.pct, "0.00"), celGetal(seg.rente, "#,##0.00"),
+      ]);
+    }
+    staffelRijen.push([celTekst(`Totaal ${jaar.jaar}`, true), celTekst(""), celTekst(""),
+      celGetal(jaar.staffel.noemer, "0", true), celTekst(""), celTekst(""), celTekst(""),
+      celGetal(jaar.staffel.totaleRente, "#,##0.00", true)]);
+  }
+  const staffelBlad = { naam: "Staffel", breedtes: [8, 12, 12, 8, 15, 17, 8, 13], rijen: staffelRijen };
+
   const kenmerkSlug = (kenmerk || "dossier").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "dossier";
   const naam = `rc-rente-${kenmerkSlug}-${vandaag.toISOString().slice(0, 10)}.xlsx`;
   try {
-    const bytes = xlsxBytes([kopBlad, invoerBlad, uitkomstBlad, toelichtingBlad]);
+    const bytes = xlsxBytes([kopBlad, invoerBlad, uitkomstBlad, mutatieBlad, staffelBlad, toelichtingBlad]);
     const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -4410,6 +4583,8 @@ function start() {
 
   ["beginstand", "eindsaldo-bron"].forEach((id) => {
     $(id).addEventListener("input", () => { $(id).dataset.handmatig = "1"; });
+    $(id).addEventListener("change", () => normaliseerStand(id));
+    $(id + "-teken").addEventListener("change", () => { $(id).dataset.handmatig = "1"; });
   });
   $("jaar").addEventListener("input", () => { $("jaar").dataset.handmatig = "1"; });
   $("jaar").addEventListener("change", () => { if (staat.rijen.length) vulUitgangspunten(); });
