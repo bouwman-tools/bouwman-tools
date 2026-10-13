@@ -286,7 +286,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-rente uit mutaties</h1>
         <div class="bt-kopbalk-sub">Renteberekening over een rekening-courantverhouding tussen DGA en BV of tussen twee vennootschappen, op dagbasis, uit de mutaties zelf.</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 13:44</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 14:02</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -479,8 +479,31 @@
           <option value="credit">credit (BV schuldig)</option>
         </select>
       </span>
-      <span class="hint" id="beginstand-hint">bedrag zonder minteken; kies of de stand bij de BV debet of credit staat</span>
+      <span class="hint" id="beginstand-hint">bedrag zonder minteken; debet of credit zoals op de kaart van de BV</span>
     </div>
+    <div class="veld">
+      <label for="eindsaldo-bron">Eindsaldo per 31 december volgens de bron</label>
+      <span style="display:flex; gap:6px">
+        <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
+        <select id="eindsaldo-bron-teken" aria-label="Soort eindsaldo">
+          <option value="debet">debet (BV vordert)</option>
+          <option value="credit">credit (BV schuldig)</option>
+        </select>
+      </span>
+      <span class="hint" id="eindsaldo-bron-hint">voor de sluitcontrole, vóór rente; leeg laten mag, dan controleert een collega het saldo</span>
+    </div>
+  </div>
+  <div class="rij">
+    <div class="veld">
+      <label for="conventie">Tekenconventie van de bron</label>
+      <select id="conventie">
+        <option value="bv" id="conventie-bv">Administratie van de BV: debet = vordering van de BV op de DGA</option>
+        <option value="dga" id="conventie-dga">Omgekeerd: debet = schuld van de BV aan de DGA</option>
+      </select>
+      <span class="hint" id="conventie-hint">In de uitkomst is positief altijd een vordering van de BV op de DGA.</span>
+    </div>
+  </div>
+  <div class="rij">
     <div class="veld">
       <label for="rente">Rente per jaar (%)</label>
       <input type="text" id="rente" class="bedrag" style="width:110px" />
@@ -493,27 +516,6 @@
     </div>
   </div>
   <div id="zakelijkheid" style="margin-bottom:14px"></div>
-  <div class="rij">
-    <div class="veld">
-      <label for="conventie">Tekenconventie van de bron</label>
-      <select id="conventie">
-        <option value="bv" id="conventie-bv">Administratie van de BV: debet = vordering van de BV op de DGA</option>
-        <option value="dga" id="conventie-dga">Omgekeerd: debet = schuld van de BV aan de DGA</option>
-      </select>
-      <span class="hint" id="conventie-hint">In de uitkomst is positief altijd een vordering van de BV op de DGA.</span>
-    </div>
-    <div class="veld">
-      <label for="eindsaldo-bron">Eindsaldo volgens de bron</label>
-      <span style="display:flex; gap:6px">
-        <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
-        <select id="eindsaldo-bron-teken" aria-label="Soort eindsaldo">
-          <option value="debet">debet (BV vordert)</option>
-          <option value="credit">credit (BV schuldig)</option>
-        </select>
-      </span>
-      <span class="hint">voor de sluitcontrole, exclusief nog te boeken rente</span>
-    </div>
-  </div>
   <div style="margin-bottom:12px; display:flex; flex-direction:column; gap:6px">
     <label style="font-size:13px"><input type="checkbox" id="rente-apart" /> <span id="rente-apart-tekst">een aparte rente voor de dagen waarop de BV geld aan de DGA schuldig is</span></label>
     <label style="font-size:13px" id="veld-alle-jaren" hidden><input type="checkbox" id="alle-jaren" /> <span id="alle-jaren-tekst">alle jaren uit de bron doorrekenen</span></label>
@@ -3400,7 +3402,7 @@ function vulUitgangspunten() {
   const bronsaldo = uitRegel
     ? { bekend: true, saldo: uitRegel.bedrag, iso: null, laterInBron: false, label: uitRegel.label, rijnr: uitRegel.rijnr }
     : saldoVolgensBronEindeJaar(opbouw.mutaties, laatsteJaar, afgeleid.tekenSaldo === undefined ? 1 : afgeleid.tekenSaldo);
-  const hint = $("eindsaldo-bron").parentElement.querySelector(".hint");
+  const hint = $("eindsaldo-bron-hint");
   if (bronsaldo.bekend && !$("eindsaldo-bron").dataset.handmatig) {
     zetStand("eindsaldo-bron", bronsaldo.saldo);
   }
@@ -3409,7 +3411,7 @@ function vulUitgangspunten() {
       ? `overgenomen uit de regel "${uitRegel.label}" van de bron; exclusief nog te boeken rente`
       : bronsaldo.bekend
         ? `stand volgens de bron per ${fmtDatum(bronsaldo.iso)}; exclusief nog te boeken rente`
-        : "voor de sluitcontrole, exclusief nog te boeken rente";
+        : "voor de sluitcontrole, vóór rente; leeg laten mag, dan controleert een collega het saldo";
   }
   if (bronsaldo.bekend && bronsaldo.laterInBron && !alleJaren) {
     meldingen.push(`Het eindsaldo voor de sluitcontrole is de stand per ${fmtDatum(bronsaldo.iso)}; de bron loopt daarna nog door.`);
@@ -3799,12 +3801,35 @@ function inlezenTekst(u) {
   return "met de lokale heuristiek. De AI-lezer stond aan" + waar
     + " maar haar voorstel is niet gebruikt; zie de meldingen bij het inlezen.";
 }
+// De uitslag van de sluitcontrole in één regel, voor de onderbouwing en de exports.
+function sluitcontroleKort(u) {
+  if (u.sluit.bekend) return u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`;
+  const stand = u.uitkomst.eindsaldoZonderBijschrijving;
+  return u.saldoAkkoord
+    ? `niet uitgevoerd; het eindsaldo vóór rente van ${fmt(stand)} is aan de hand van de administratie gecontroleerd en akkoord bevonden`
+    : `niet uitgevoerd; het eindsaldo vóór rente van ${fmt(stand)} is niet gecontroleerd`;
+}
+
 function sluitcontroleHtml(u) {
   const laatsteJaar = u.jaren[u.jaren.length - 1];
   const stand = u.uitkomst.eindsaldoZonderBijschrijving;
   if (!u.sluit.bekend) {
+    // Zonder eindsaldo uit de bron is de controle niet automatisch te doen. Dan doet een
+    // collega haar met de hand: het eindsaldo vóór rente naast de administratie leggen. Het
+    // vinkje legt vast dat dat is gebeurd; het hoort bij deze uitkomst en vervalt bij een
+    // nieuwe berekening.
+    const tp = tegenpartijVan(u.verhouding).naam;
+    const saldoTekst = `(${fmtEuro(Math.abs(stand))} ${stand < 0 ? `credit: de BV is ${tp} geld schuldig` : `debet: de BV heeft geld te vorderen van ${tp}`})`;
+    const vink = `<label class="niet-printen" style="display:flex; gap:8px; align-items:center; margin-top:8px; font-size:13px; font-weight:600">`
+      + `<input type="checkbox" id="saldo-akkoord"${u.saldoAkkoord ? " checked" : ""} /> eindsaldo gecontroleerd aan de hand van de administratie en akkoord</label>`;
+    if (u.saldoAkkoord) {
+      return melding("goed", "Eindsaldo gecontroleerd",
+        `Er is geen eindsaldo volgens de bron ingevuld. Het eindsaldo vóór rente per 31-12-${laatsteJaar} ${saldoTekst} is aan de hand van de administratie gecontroleerd en akkoord bevonden.`)
+        .replace(/<\/div>$/, vink + "</div>");
+    }
     return melding("let-op", "Sluitcontrole niet uitgevoerd",
-      "Er is geen eindsaldo volgens de bron ingevuld. Zonder die controle blijft een gemiste of dubbel ingelezen regel onopgemerkt.");
+      `Er is geen eindsaldo volgens de bron ingevuld. Laat een collega het eindsaldo vóór rente per 31-12-${laatsteJaar} ${saldoTekst} controleren aan de hand van de administratie, en vink daarna aan dat het akkoord is. Zonder die controle blijft een gemiste of dubbel ingelezen regel onopgemerkt.`)
+      .replace(/<\/div>$/, vink + "</div>");
   }
   if (u.sluit.sluit) {
     return melding("goed", "Sluitcontrole in orde",
@@ -4139,7 +4164,7 @@ function onderbouwingHtml(u) {
       <dt>Rentemoment</dt><dd>een mutatie rendeert vanaf de dag zelf; de rente wordt per 31-12 vastgesteld en binnen het jaar niet samengesteld</dd>
       <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
       <dt>Tekenconventie</dt><dd>positief is een vordering van de BV op ${tp}, oftewel een schuld van ${tp}; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)"}</dd>
-      <dt>Sluitcontrole</dt><dd>${u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
+      <dt>Sluitcontrole</dt><dd>${esc(sluitcontroleKort(u))}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
       ${u.partijen && (u.partijen.bv || u.partijen.dga) ? `<dt>Partijen</dt><dd>${esc([u.partijen.bv, u.partijen.dga].filter(Boolean).join(" en "))}</dd>` : ""}
       <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}</dd>
       <dt>Inlezen</dt><dd>${inlezenTekst(u)}</dd>
@@ -4249,6 +4274,12 @@ function toonUitkomst(u) {
   if ($("btn-excel")) $("btn-excel").addEventListener("click", () => exporteerExcel(u));
   if ($("btn-print")) $("btn-print").addEventListener("click", () => window.print());
   if ($("btn-kopieer-plan")) $("btn-kopieer-plan").addEventListener("click", () => kopieerPlan(u));
+  if ($("saldo-akkoord")) $("saldo-akkoord").addEventListener("change", (e) => {
+    u.saldoAkkoord = e.target.checked;
+    const y = window.scrollY;
+    toonUitkomst(u);
+    window.scrollTo(0, y);
+  });
 }
 
 // --- export ---------------------------------------------------------------------
@@ -4302,7 +4333,7 @@ function exporteerCsv(u) {
   }
   regels.push(["Eindstand", csvBedrag(r.eindsaldo)]);
   if (u.bijschrijven) regels.push(["Eindstand zonder bijgeschreven rente", csvBedrag(r.eindsaldoZonderBijschrijving)]);
-  regels.push(["Sluitcontrole", u.sluit.bekend ? (u.sluit.sluit ? "sluit aan" : "verschil " + csvBedrag(u.sluit.verschil)) : "niet uitgevoerd"]);
+  regels.push(["Sluitcontrole", sluitcontroleKort(u)]);
 
   const csv = "﻿" + regels.map((rij) => rij.map(csvVeld).join(";")).join("\r\n");
   const naam = `rc-rente-${r.jaren[0].jaar}${u.meerjarig ? "-" + r.jaren[r.jaren.length - 1].jaar : ""}.csv`;
@@ -4395,7 +4426,7 @@ function exporteerExcel(u) {
     uitkomstRijen.push([celTekst("Waarvan bijgeschreven rente"), celGetal(r.totaalBijgeschreven, "#,##0.00")]);
   }
   uitkomstRijen.push([celTekst("Sluitcontrole"), celTekst(
-    u.sluit.bekend ? (u.sluit.sluit ? "sluit aan op de bron" : `verschil van ${fmt(u.sluit.verschil)} met de bron`) : "niet uitgevoerd"
+    sluitcontroleKort(u)
   )]);
   const uitkomstBlad = { naam: "Uitkomst", breedtes: [24, 16, 10, 16, 16, 16, 16], rijen: uitkomstRijen };
 
