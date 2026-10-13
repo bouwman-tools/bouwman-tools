@@ -286,7 +286,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-rente uit mutaties</h1>
         <div class="bt-kopbalk-sub">Renteberekening over een rekening-courantverhouding tussen DGA en BV of tussen twee vennootschappen, op dagbasis, uit de mutaties zelf.</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 15:55</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 22:13</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1307,6 +1307,47 @@ function sluitcontrole(eindsaldoBerekend, eindsaldoBron, tolerantie) {
   }
   const verschil = afrond2(eindsaldoBerekend - eindsaldoBron);
   return { bekend: true, sluit: Math.abs(verschil) <= t, verschil };
+}
+
+// Een aanwijzing bij een sluitverschil: welke doorgerekende mutaties hebben een bedrag dat
+// gelijk is aan het verschil, of aan het halve verschil? Het halve verschil vangt een regel
+// die met het verkeerde teken is ingelezen, want die telt dubbel. Aanleiding 13-10-2026: een
+// memoregel stond in de export alleen met haar debetkant, en het verschil was op een cent na
+// haar bedrag. Dit is een aanwijzing en geen conclusie; de berekening verandert er niet door.
+// Alleen mutaties in de doorgerekende jaren tellen mee. Gelijke bedragen gaan voor halve,
+// daarna het kleinste afwijkingsbedrag en dan de volgorde in de bron.
+function kandidatenSluitverschil(mutaties, jaren, verschil, opties) {
+  const o = opties || {};
+  const tolerantie = o.tolerantie === undefined ? 0.01 : o.tolerantie;
+  const maximum = o.maximum === undefined ? 3 : o.maximum;
+  const leeg = { kandidaten: [], aantal: 0 };
+  if (verschil === null || verschil === undefined || !Number.isFinite(verschil)) return leeg;
+  const doel = Math.abs(verschil);
+  if (doel <= 0.005) return leeg;
+  const inJaren = new Set((jaren || []).map(Number));
+  // De kleine marge vangt de afronding van kommagetallen; zonder haar valt 0,01 net buiten 0,01.
+  const binnen = (a, b) => Math.abs(a - b) <= tolerantie + 1e-9;
+  const gevonden = [];
+  for (const m of mutaties || []) {
+    if (!m || typeof m.iso !== "string" || !inJaren.has(Number(m.iso.slice(0, 4)))) continue;
+    const bedrag = Math.abs(m.bedrag);
+    if (!Number.isFinite(bedrag) || bedrag <= 0.005) continue;
+    let soort = null;
+    if (binnen(bedrag, doel)) soort = "gelijk";
+    else if (binnen(bedrag, doel / 2)) soort = "half";
+    if (soort === null) continue;
+    gevonden.push({
+      rijnr: m.rijnr === undefined ? null : m.rijnr,
+      iso: m.iso,
+      omschrijving: m.omschrijving || "",
+      bedrag: m.bedrag,
+      soort,
+      afwijking: afrond2(Math.abs(bedrag - (soort === "gelijk" ? doel : doel / 2))),
+    });
+  }
+  gevonden.sort((a, b) => (a.soort === b.soort ? 0 : a.soort === "gelijk" ? -1 : 1)
+    || a.afwijking - b.afwijking || (a.rijnr || 0) - (b.rijnr || 0));
+  return { kandidaten: gevonden.slice(0, maximum), aantal: gevonden.length };
 }
 
 // --- de renteberekening ----------------------------------------------------------
@@ -2529,6 +2570,7 @@ return {
   gokJaar,
   controleerMutaties,
   sluitcontrole,
+  kandidatenSluitverschil,
   bouwStaffel,
   dichtStaffel,
   renteOpPeriodebasis,
@@ -2554,7 +2596,7 @@ return {
 /* ENGINE:END */
 
 // De publieke namen van de kern, los beschikbaar voor de schermcode hieronder.
-const { FISCAAL_PER_JAAR, KLEINE_STANDEN_VOORWAARDEN, EXCESSIEF_LENEN_KRING, EXCESSIEF_LENEN_KRING_BRON, KWALIFICATIE, WETTELIJKE_RENTE, wettelijkeRenteInJaar, ZAKELIJKHEID, afrond2, isSchrikkeljaar, dagenInJaar, dagnummer, isoVanDagnummer, EXCEL_DAG0, parseDatum, parseBedrag, KOLOMSOORTEN, gokKolomsoort, isLeegRij, standsoortVanRij, saldoAansluiting, interpreteerTabel, valideerInterpretatie, bouwMutaties, leidBeginstandAf, saldoVolgensBronEindeJaar, gokJaar, controleerMutaties, sluitcontrole, bouwStaffel, dichtStaffel, renteOpPeriodebasis, bouwMeerjarigeStaffel, toetsKleineStanden, toetsExcessiefLenen, journaalpost, pakUit, xlsxDagnulpunt, leesXlsxBestand, leesPdfFragmenten, pdfFragmentenNaarRijen, pdfLeesCMap, pdfTokens, decodeerTekst, splitsRegel, leesTekst, DOSSIER_TOOL_ID, DOSSIER_FORMAAT_VERSIE, dossierValideer } = RCRENTE;
+const { FISCAAL_PER_JAAR, KLEINE_STANDEN_VOORWAARDEN, EXCESSIEF_LENEN_KRING, EXCESSIEF_LENEN_KRING_BRON, KWALIFICATIE, WETTELIJKE_RENTE, wettelijkeRenteInJaar, ZAKELIJKHEID, afrond2, isSchrikkeljaar, dagenInJaar, dagnummer, isoVanDagnummer, EXCEL_DAG0, parseDatum, parseBedrag, KOLOMSOORTEN, gokKolomsoort, isLeegRij, standsoortVanRij, saldoAansluiting, interpreteerTabel, valideerInterpretatie, bouwMutaties, leidBeginstandAf, saldoVolgensBronEindeJaar, gokJaar, controleerMutaties, sluitcontrole, kandidatenSluitverschil, bouwStaffel, dichtStaffel, renteOpPeriodebasis, bouwMeerjarigeStaffel, toetsKleineStanden, toetsExcessiefLenen, journaalpost, pakUit, xlsxDagnulpunt, leesXlsxBestand, leesPdfFragmenten, pdfFragmentenNaarRijen, pdfLeesCMap, pdfTokens, decodeerTekst, splitsRegel, leesTekst, DOSSIER_TOOL_ID, DOSSIER_FORMAAT_VERSIE, dossierValideer } = RCRENTE;
 
 // SCHERMCONFIG — BEGIN
 // Versie van de pagina en de instellingen van het inlezen. Dit hoort bij het scherm en niet
@@ -3837,11 +3879,48 @@ function sluitcontroleHtml(u) {
       + `${u.bijschrijven ? ", de bijgeschreven rente niet meegerekend" : ""}.`);
   }
   const teken = tekenverklaring(u);
+  const hint = sluitverschilHint(u);
   return melding("blokkerend", "Sluitcontrole klopt niet",
     `Berekend eindsaldo ${fmtEuro(stand)} tegen ${fmtEuro(u.eindsaldoBron)} volgens de bron, een verschil van ${fmtEuro(u.sluit.verschil)}. `
     + (teken
       ? teken
-      : "Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd."));
+      : "Gebruik deze uitkomst niet voordat het verschil is verklaard: er is vermoedelijk een regel gemist, dubbel ingelezen of de tekenconventie staat verkeerd.")
+    + (hint ? " " + hint.tekst : ""),
+    hint ? hint.lijst : []);
+}
+
+// De aanwijzing bij een sluitverschil: mutaties waarvan het bedrag gelijk is aan het verschil
+// of aan de helft ervan (een regel met het verkeerde teken telt dubbel). Een aanwijzing en
+// geen conclusie, dus de tekst vraagt de regel te controleren en zegt niet dat zij fout is.
+// Komt uit het uitkomstobject: de mutaties, de doorgerekende jaren en het verschil.
+function kandidaatTekst(k) {
+  return `regel ${k.rijnr === null ? "?" : k.rijnr} (${fmtDatum(k.iso)}${k.omschrijving ? `, "${k.omschrijving}"` : ""}, ${fmtEuro(k.bedrag)})`;
+}
+function sluitverschilHint(u) {
+  if (!u.sluit || !u.sluit.bekend || u.sluit.sluit) return null;
+  const { kandidaten, aantal } = kandidatenSluitverschil(u.opbouw.mutaties, u.jaren, u.sluit.verschil);
+  if (kandidaten.length === 0) return null;
+  const verschil = fmtEuro(Math.abs(u.sluit.verschil));
+  const verband = (k) => (k.soort === "gelijk" ? "gelijk aan" : "tweemaal het bedrag van");
+  const controle = (k) => (k.soort === "gelijk"
+    ? "Controleer of die regel op deze rekening hoort."
+    : "Controleer of die regel met het goede teken is ingelezen en of zij op deze rekening hoort.");
+  if (kandidaten.length === 1) {
+    const k = kandidaten[0];
+    return { tekst: `Aanwijzing: het verschil van ${verschil} is ${verband(k)} ${kandidaatTekst(k)}. ${controle(k)}`, lijst: [] };
+  }
+  const meer = aantal > kandidaten.length ? ` Er zijn nog ${aantal - kandidaten.length} regel(s) met hetzelfde bedrag.` : "";
+  return {
+    tekst: `Aanwijzing: het verschil van ${verschil} past bij ${aantal} regels. Controleer of zij op deze rekening horen en met het goede teken zijn ingelezen.${meer}`,
+    lijst: kandidaten.map((k) => `${verband(k)[0].toUpperCase()}${verband(k).slice(1)} ${kandidaatTekst(k)}`),
+  };
+}
+
+// De aanwijzing in één regel, voor de onderbouwing.
+function sluitverschilHintKort(u) {
+  const hint = sluitverschilHint(u);
+  if (!hint) return "";
+  return hint.lijst.length ? `${hint.tekst} ${hint.lijst.join("; ")}.` : hint.tekst;
 }
 
 // Een verschil van precies tweemaal de beginstand of het eindsaldo is bijna altijd een
@@ -4164,7 +4243,7 @@ function onderbouwingHtml(u) {
       <dt>Rentemoment</dt><dd>een mutatie rendeert vanaf de dag zelf; de rente wordt per 31-12 vastgesteld en binnen het jaar niet samengesteld</dd>
       <dt>Bijschrijven</dt><dd>${u.bijschrijven ? `ja, ${fmtEuro(r.totaalBijgeschreven)} bijgeschreven op de rekening-courant; de bron kent die boeking nog niet` : "nee, de rente is niet op de rekening-courant bijgeschreven"}</dd>
       <dt>Tekenconventie</dt><dd>positief is een vordering van de BV op ${tp}, oftewel een schuld van ${tp}; bron gelezen als ${u.conventie === "dga" ? "omgekeerd (debet = schuld van de BV)" : "administratie van de BV (debet = vordering van de BV)"}</dd>
-      <dt>Sluitcontrole</dt><dd>${esc(sluitcontroleKort(u))}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}</dd>
+      <dt>Sluitcontrole</dt><dd>${esc(sluitcontroleKort(u))}${u.sluit.bekend && u.herkomst && u.herkomst.eindsaldo ? `; het eindsaldo is overgenomen uit de regel "${esc(u.herkomst.eindsaldo)}" van de bron` : ""}${sluitverschilHintKort(u) ? `. ${esc(sluitverschilHintKort(u))}` : ""}</dd>
       ${u.partijen && (u.partijen.bv || u.partijen.dga) ? `<dt>Partijen</dt><dd>${esc([u.partijen.bv, u.partijen.dga].filter(Boolean).join(" en "))}</dd>` : ""}
       <dt>Bron</dt><dd>${esc(u.bron.naam || "geplakte gegevens")} (${esc(u.bron.soort || "klembord")})${u.bron.soort === "pdf" ? ", kolommen afgeleid uit de plaats van de tekst" : ""}</dd>
       <dt>Inlezen</dt><dd>${inlezenTekst(u)}</dd>
