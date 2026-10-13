@@ -54,6 +54,9 @@
   .uitleg { color: var(--muted); font-size: 13px; margin: -6px 0 14px; }
   .rij { display: flex; flex-wrap: wrap; gap: 18px; }
   .veld { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  /* Een eigen display-regel overschrijft het hidden-attribuut; zonder deze regel stond een
+     verborgen veld, zoals de aparte rente over de schuld van de BV, toch in beeld. */
+  [hidden] { display: none !important; }
   .veld label { font-size: 13px; font-weight: 600; }
   .veld .hint { font-size: 12px; color: var(--muted); }
   input[type=text], input[type=number], select, textarea {
@@ -472,8 +475,8 @@
       <span style="display:flex; gap:6px">
         <input type="text" id="beginstand" class="bedrag" style="width:150px" />
         <select id="beginstand-teken" aria-label="Soort beginstand">
-          <option value="debet">debet: de BV heeft te vorderen</option>
-          <option value="credit">credit: de BV is schuldig</option>
+          <option value="debet">debet (BV vordert)</option>
+          <option value="credit">credit (BV schuldig)</option>
         </select>
       </span>
       <span class="hint" id="beginstand-hint">bedrag zonder minteken; kies of de stand bij de BV debet of credit staat</span>
@@ -504,8 +507,8 @@
       <span style="display:flex; gap:6px">
         <input type="text" id="eindsaldo-bron" class="bedrag" style="width:150px" />
         <select id="eindsaldo-bron-teken" aria-label="Soort eindsaldo">
-          <option value="debet">debet: de BV heeft te vorderen</option>
-          <option value="credit">credit: de BV is schuldig</option>
+          <option value="debet">debet (BV vordert)</option>
+          <option value="credit">credit (BV schuldig)</option>
         </select>
       </span>
       <span class="hint">voor de sluitcontrole, exclusief nog te boeken rente</span>
@@ -3290,7 +3293,26 @@ function zetStand(id, waarde) {
 // tegenspreken.
 function normaliseerStand(id) {
   const b = parseBedrag($(id).value);
-  if (b !== null && b < 0) zetStand(id, b);
+  if (b !== null) zetStand(id, leesStand(id));
+}
+
+// Wat de gekozen tekenconventie voor de stand per 31 december betekent, met de beginstand
+// zoals die nu in het veld staat. Eerder rekende deze zin met de afgeleide beginstand, en
+// was die er niet, met nul: dan noemde hij alleen het saldo van de mutaties.
+function toonConventieHint() {
+  const basis = staat.conventieBasis;
+  const conventieHint = $("conventie-hint");
+  if (!basis || !conventieHint) return;
+  const tp = tegenpartijVan($("verhouding").value).naam;
+  const begin = leesStand("beginstand");
+  if (begin === null) {
+    conventieHint.textContent = "Vul de beginstand in; dan staat hier wat deze keuze betekent voor de stand per 31-12.";
+    return;
+  }
+  const standNa = begin + basis.mutaties;
+  conventieHint.textContent = standNa > 0
+    ? `Met deze keuze is de stand per 31-12-${basis.laatsteJaar} een vordering van de BV op ${tp} van ${fmtEuro(standNa)}, oftewel een schuld van ${tp}.`
+    : `Met deze keuze is de stand per 31-12-${basis.laatsteJaar} een schuld van de BV aan ${tp} van ${fmtEuro(Math.abs(standNa))}, oftewel een vordering van ${tp}.`;
 }
 
 // Het dossierbestand bewaart de stand als één tekst met teken, zoals voor deze wijziging.
@@ -3400,12 +3422,11 @@ function vulUitgangspunten() {
   // omgekeerde keuze niet: draait het teken om, dan draaien de beginstand en het eindsaldo
   // mee en sluit de berekening in beide richtingen. Alleen de gebruiker kan zien welke kant
   // klopt, en daarvoor moet de uitkomst van de keuze zichtbaar zijn voordat er wordt gerekend.
-  const standNa = (afgeleid.gelukt ? afgeleid.beginstand : 0)
-    + opbouw.mutaties.filter((m) => Number(m.iso.slice(0, 4)) <= laatsteJaar).reduce((t, m) => t + m.bedrag, 0);
-  const tp = tegenpartijVan($("verhouding").value).naam;
-  $("conventie-hint").textContent = standNa > 0
-    ? `Met deze keuze is de stand per 31-12-${laatsteJaar} een vordering van de BV op ${tp} van ${fmtEuro(standNa)}, oftewel een schuld van ${tp}.`
-    : `Met deze keuze is de stand per 31-12-${laatsteJaar} een schuld van de BV aan ${tp} van ${fmtEuro(Math.abs(standNa))}, oftewel een vordering van ${tp}.`;
+  staat.conventieBasis = {
+    laatsteJaar,
+    mutaties: opbouw.mutaties.filter((m) => Number(m.iso.slice(0, 4)) <= laatsteJaar).reduce((t, m) => t + m.bedrag, 0),
+  };
+  toonConventieHint();
 
   if (controle.dubbel.length) {
     meldingen.push(`${controle.dubbel.length} regel(s) lijken dubbel: zelfde datum, bedrag en omschrijving (bijvoorbeeld regel ${controle.dubbel[0].tweede}).`);
@@ -4696,8 +4717,8 @@ function start() {
 
   ["beginstand", "eindsaldo-bron"].forEach((id) => {
     $(id).addEventListener("input", () => { $(id).dataset.handmatig = "1"; });
-    $(id).addEventListener("change", () => normaliseerStand(id));
-    $(id + "-teken").addEventListener("change", () => { $(id).dataset.handmatig = "1"; });
+    $(id).addEventListener("change", () => { normaliseerStand(id); toonConventieHint(); });
+    $(id + "-teken").addEventListener("change", () => { $(id).dataset.handmatig = "1"; toonConventieHint(); });
   });
   $("jaar").addEventListener("input", () => { $("jaar").dataset.handmatig = "1"; });
   $("jaar").addEventListener("change", () => { if (staat.rijen.length) vulUitgangspunten(); });
