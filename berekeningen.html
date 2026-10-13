@@ -261,7 +261,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">Berekeningen</h1>
         <div class="bt-kopbalk-sub">Annuïteiten, contante en toekomstige waarde, rendement en fiscale waarderingen</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 5 okt 2026, 21:11</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 07:21</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -303,8 +303,15 @@
 </div>
 
 <script>
-// FISCALE KERN — BEGIN
-// Pure rekenfuncties en constanten. Geen document, window, fetch of DOM.
+/* De fiscale kern. Het blok tussen ENGINE:START en ENGINE:END is puur: geen
+   pagina, netwerk, opslag, klok of toeval. Tests en andere omgevingen snijden
+   het blok uit dit bestand en voeren het los uit; het levert een object op,
+   BEREKENINGEN, met de publieke functies en constanten. De inhoud is bewust
+   niet ingesprongen, zodat de geschiedenis per regel leesbaar blijft. */
+/* ENGINE:START */
+const BEREKENINGEN = (function () {
+'use strict';
+// Pure rekenfuncties en constanten, zonder pagina, netwerk, opslag of klok.
 // Vindplaatsen staan bij de waarde zelf; het overzicht staat in BRONNEN.md.
 
 /* ============================================================
@@ -435,16 +442,69 @@ function aflossingsschema({ hoofdsom, rentePerTermijn, annuiteitBedrag, aantalTe
   return rijen;
 }
 
+/* ============================================================
+   Datums
+   Een datum is gestructureerde invoer: { jaar, maand, dag }, met maand en dag
+   vanaf 1. Een tekst in de vorm JJJJ-MM-DD wordt ook aanvaard en zonder
+   Date-object gelezen, zodat de kern niet van de klok of de tijdzone van de
+   machine afhangt. Een dag die in die maand niet bestaat is ongeldig en schuift
+   niet stil door naar de volgende maand.
+   ============================================================ */
+
+function isSchrikkeljaar(jaar) {
+  return (jaar % 4 === 0 && jaar % 100 !== 0) || jaar % 400 === 0;
+}
+
+function dagenInMaand(jaar, maand) {
+  return [31, isSchrikkeljaar(jaar) ? 29 : 28, 31, 30, 31, 30,
+          31, 31, 30, 31, 30, 31][maand - 1];
+}
+
+// Geeft { jaar, maand, dag } terug, of null als de waarde geen bestaande datum is.
+function leesDatum(waarde) {
+  let jaar, maand, dag;
+  if (typeof waarde === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(waarde);
+    if (!m) return null;
+    jaar = Number(m[1]); maand = Number(m[2]); dag = Number(m[3]);
+  } else if (waarde && typeof waarde === 'object') {
+    ({ jaar, maand, dag } = waarde);
+  } else {
+    return null;
+  }
+  if (!Number.isInteger(jaar) || !Number.isInteger(maand) || !Number.isInteger(dag)) return null;
+  if (jaar < 0 || jaar > 9999 || maand < 1 || maand > 12) return null;
+  if (dag < 1 || dag > dagenInMaand(jaar, maand)) return null;
+  return { jaar, maand, dag };
+}
+
+// Volgnummer van een dag in de gregoriaanse kalender, met 1 januari 1970 als
+// dag nul. Het verschil van twee volgnummers is het aantal dagen ertussen.
+function dagVolgnummer({ jaar, maand, dag }) {
+  const j = maand <= 2 ? jaar - 1 : jaar;
+  const eeuw = Math.floor(j / 400);
+  const jaarInEeuw = j - eeuw * 400;
+  const dagInJaar = Math.floor((153 * (maand + (maand > 2 ? -3 : 9)) + 2) / 5) + dag - 1;
+  const dagInEeuw = jaarInEeuw * 365 + Math.floor(jaarInEeuw / 4) -
+                    Math.floor(jaarInEeuw / 100) + dagInJaar;
+  return eeuw * 146097 + dagInEeuw - 719468;
+}
+
+function datumAlsTekst({ jaar, maand, dag }) {
+  return String(jaar).padStart(4, '0') + '-' + String(maand).padStart(2, '0') + '-' +
+         String(dag).padStart(2, '0');
+}
+
 // Renteaangroei tot de balansdatum, voor de jaarrekening. De eerste periode
 // loopt van de ingangsdatum tot 1 januari daarna en wordt naar dagen herrekend.
 function renteTotBalansdatum({ hoofdsom, rentePerJaar, ingangsdatum }) {
-  const d = new Date(ingangsdatum);
-  if (isNaN(d)) return { fout: 'Ongeldige datum.' };
-  const balansdatum = new Date(Date.UTC(d.getUTCFullYear() + 1, 0, 1));
-  const dagen = Math.round((balansdatum - d) / 86400000);
+  const d = leesDatum(ingangsdatum);
+  if (!d) return { fout: 'Ongeldige datum.' };
+  const balansdatum = { jaar: d.jaar + 1, maand: 1, dag: 1 };
+  const dagen = dagVolgnummer(balansdatum) - dagVolgnummer(d);
   const rente = hoofdsom * rentePerJaar * dagen / 365;
   return {
-    balansdatum: balansdatum.toISOString().slice(0, 10),
+    balansdatum: datumAlsTekst(balansdatum),
     dagenTotBalansdatum: dagen,
     renteTotBalansdatum: rente,
     boekwaardeOpBalansdatum: hoofdsom + rente
@@ -945,12 +1005,12 @@ function genotsrechtBox3({ waardeVolEigendom, personen, vervaltBij = 'enigLeven'
 // werkwijze van het bronmodel en kan er één jaar naast zitten.
 function leeftijdOpPeildatum({ geboortedatum = null, geboortejaar = null, peiljaar }) {
   if (geboortedatum) {
-    const g = new Date(geboortedatum);
-    if (isNaN(g)) return { fout: 'Ongeldige geboortedatum.' };
-    const peildatum = new Date(Date.UTC(peiljaar, 0, 1));
-    let leeftijd = peildatum.getUTCFullYear() - g.getUTCFullYear();
-    const naVerjaardag = (peildatum.getUTCMonth() > g.getUTCMonth()) ||
-      (peildatum.getUTCMonth() === g.getUTCMonth() && peildatum.getUTCDate() >= g.getUTCDate());
+    const g = leesDatum(geboortedatum);
+    if (!g) return { fout: 'Ongeldige geboortedatum.' };
+    const peildatum = { jaar: Math.trunc(peiljaar), maand: 1, dag: 1 };
+    let leeftijd = peildatum.jaar - g.jaar;
+    const naVerjaardag = (peildatum.maand > g.maand) ||
+      (peildatum.maand === g.maand && peildatum.dag >= g.dag);
     if (!naVerjaardag) leeftijd -= 1;
     return { leeftijd, benaderd: false };
   }
@@ -995,7 +1055,9 @@ const ART17A_LID4_VERLAGING = 20000;
 const ART17B_FACTOR_STANDAARD = 17;
 const ART17B_FACTOR_ONZELFSTANDIG = 20;
 
-// Art. 17a lid 6 Uitv.besl. IB 2001: drempel voor het tegenbewijs.
+// Art. 17a lid 6 Uitv.besl. IB 2001: drempel voor het tegenbewijs. Het lid is
+// ingevoegd bij Stb. 2025, 451 en werkt terug tot en met 3 april 2015 (art. XIII
+// lid 1 onder a), dus het geldt ook voor 2023 tot en met 2025.
 const ART17A_LID6_DREMPEL = 1.10;
 
 function leegwaarderatioUitTabel(jaar, huurquote) {
@@ -1040,13 +1102,33 @@ function leegwaarderatioBox3({
     jaarhuur = huurPerMaand * 12;
   }
 
-  // Art. 17a lid 4: verlaging met een vast bedrag bij een onzelfstandig deel.
-  const verlaging = onzelfstandigDeel ? ART17A_LID4_VERLAGING : 0;
+  // Art. 17a lid 4: verlaging met een vast bedrag bij een onzelfstandig deel,
+  // "voor de toepassing van het eerste en het tweede lid", dus alleen wanneer de
+  // waarde via de leegwaarderatio wordt bepaald. Zonder leegwaarderatio geldt
+  // art. 5.20 lid 1 Wet IB 2001 en blijft de WOZ-waarde staan. Tot en met 2025
+  // liep een niet-zakelijke huur tussen gelieerde partijen nog via lid 1 en 2
+  // (huur gesteld op 5,5 procent, art. 17a lid 3 tweede volzin), dus daar gold de
+  // verlaging wel. Gecorrigeerd op 12-10-2026; daarvoor werd de verlaging altijd
+  // toegepast.
+  const viaLeegwaarderatio = jaarhuur > 0 && huurbeschermingVanToepassing &&
+    !huurovereenkomstBepaaldeTijd && !(gelieerdNietZakelijk && jaar >= 2026);
+  const verlaging = onzelfstandigDeel && viaLeegwaarderatio ? ART17A_LID4_VERLAGING : 0;
+  if (onzelfstandigDeel && !viaLeegwaarderatio) {
+    meldingen.push({ soort: 'info',
+      tekst: 'De verlaging van art. 17a lid 4 Uitv.besl. IB 2001 geldt alleen bij ' +
+             'toepassing van de leegwaarderatio. Die is hier niet van toepassing, dus de ' +
+             'WOZ-waarde wordt niet verlaagd.' });
+  }
 
   // Art. 5.20 lid 4 Wet IB 2001 met art. 17b: het waardegegeven wordt eerst
   // verminderd met de gekapitaliseerde erfpachtcanon, en dat verminderde
   // gegeven geldt ook voor de leegwaarderatio en voor de huurquote.
-  const erfpachtfactor = onzelfstandigDeel
+  // Het twintigvoud van art. 17b tweede volzin geldt voor het deel van de canon
+  // dat kan worden toegerekend aan "een verhuurde woning als bedoeld in artikel
+  // 17a, vierde lid": de voorwaarde is verhuur, niet toepassing van de ratio.
+  // Zonder huur geldt de eerste volzin, het zeventienvoud. Gecorrigeerd op
+  // 12-10-2026; daarvoor gold het twintigvoud ook zonder huur.
+  const erfpachtfactor = onzelfstandigDeel && jaarhuur > 0
     ? ART17B_FACTOR_ONZELFSTANDIG : ART17B_FACTOR_STANDAARD;
   const erfpachtwaarde = erfpachtfactor * (erfpachtcanonPerJaar || 0);
   const waardegegeven = wozWaarde - verlaging - erfpachtwaarde;
@@ -1060,7 +1142,11 @@ function leegwaarderatioBox3({
   }
 
   // Art. 5.20 lid 3 en lid 5 Wet IB 2001: de gevallen waarin de
-  // leegwaarderatio niet wordt toegepast.
+  // leegwaarderatio niet wordt toegepast. Lid 5 bestaat sinds 2026 (Stb. 2025,
+  // 444). Tot en met 2025 stond de huur voor bepaalde tijd in lid 3, tweede
+  // volzin, en werd bij gelieerde partijen de huur gesteld op 5,5 procent van de
+  // WOZ-waarde (art. 17a lid 3, tweede volzin, Uitv.besl. IB 2001); dat geeft
+  // een ratio van 100 procent en dus dezelfde uitkomst.
   let ratioToegepast = true, reden = null;
   if (!(jaarhuur > 0)) {
     ratioToegepast = false;
@@ -1075,11 +1161,18 @@ function leegwaarderatioBox3({
   } else if (huurovereenkomstBepaaldeTijd) {
     ratioToegepast = false;
     reden = 'De huurovereenkomst is voor bepaalde tijd aangegaan (art. 7:271 BW). ' +
-            'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel a Wet IB 2001).';
+            (jaar >= 2026
+              ? 'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel a Wet IB 2001).'
+              : 'De leegwaarderatio geldt dan niet (art. 5.20 lid 3, tweede volzin, Wet IB ' +
+                '2001, versie ' + jaar + ').');
   } else if (gelieerdNietZakelijk) {
     ratioToegepast = false;
     reden = 'De huurprijs is tussen gelieerde partijen niet zakelijk. ' +
-            'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel b Wet IB 2001).';
+            (jaar >= 2026
+              ? 'De leegwaarderatio geldt dan niet (art. 5.20 lid 5 onderdeel b Wet IB 2001).'
+              : 'De huur wordt dan gesteld op 5,5 procent van de WOZ-waarde, wat een ' +
+                'leegwaarderatio van 100 procent geeft (art. 17a lid 3, tweede volzin, ' +
+                'Uitv.besl. IB 2001, versie ' + jaar + ').');
   }
 
   const huurquote = jaarhuur / waardegegeven;
@@ -1150,6 +1243,9 @@ function leegwaarderatioBox3({
    marktrente over de resterende rentevastperiode.
    ============================================================ */
 
+// Technische grens van dertig jaar, geen fiscale waarde. Een langere periode tot
+// de renteherziening geeft een melding in plaats van een uitkomst, zodat het deel
+// na maand 360 niet stil wegvalt. Besloten op 12-10-2026.
 const BOETERENTE_MAXIMUM_MAANDEN = 360;
 
 function boeterente({
@@ -1161,6 +1257,10 @@ function boeterente({
   if (!(hoofdsom > 0)) return { fout: 'Geef een hoofdsom groter dan nul op.' };
   if (!(maandenTotRenteherziening >= 1)) {
     return { fout: 'Het aantal maanden tot de renteherziening moet ten minste één zijn.' };
+  }
+  if (maandenTotRenteherziening > BOETERENTE_MAXIMUM_MAANDEN) {
+    return { fout: 'De tool rekent een periode tot de renteherziening van ten hoogste ' +
+      BOETERENTE_MAXIMUM_MAANDEN + ' maanden door. Controleer het aantal maanden.' };
   }
   if (soortLening === 'annuiteit' && !(resterendeMaandenLooptijd >= 1)) {
     return { fout: 'Voor een annuïteit is de resterende looptijd in maanden nodig.' };
@@ -1254,14 +1354,27 @@ function ovbTarieven(jaar) {
   return OVB_TARIEVEN_PER_JAAR[jaar] || null;
 }
 
+// Art. 13 lid 4 Wet BRV per jaar. Gecontroleerd op 12-10-2026 in de versies
+// geldend per 2025-01-01 en per 2026-01-01. Tot en met 2025 luidt de tweede
+// volzin alleen dat het verminderde bedrag niet lager is dan nihil. De
+// ondergrens van de uitkomst van lid 1 staat er pas vanaf 1 januari 2026
+// (Stb. 2025, 445). Ook de leden van art. 14 die als verlaagd tarief tellen,
+// verschillen per jaar.
+const OVB_LID4_PER_JAAR = {
+  2025: { ondergrensLid1: false, verlaagdeTarieven: 'art. 14 lid 2, 3, 4 of 7 Wet BRV (2025)' },
+  2026: { ondergrensLid1: true, verlaagdeTarieven: 'art. 14 lid 2, 3, 4, 5 of 8 Wet BRV' }
+};
+
 // De wettelijk verschuldigde belasting bij doorverkoop binnen zes maanden.
 // Lid 1 vermindert de grondslag; lid 4 vermindert in plaats daarvan het
 // belastingbedrag wanneer bij de vorige verkrijging een verlaagd tarief gold,
-// met als ondergrens de uitkomst van lid 1 en niet lager dan nihil.
+// niet lager dan nihil en vanaf 2026 ook niet lager dan de uitkomst van lid 1.
+// Voor lid 4 is het jaar nodig; een jaar zonder gecontroleerde tekst geeft een
+// melding en valt niet terug op een ander jaar.
 function ovbDoorverkoopWettelijk({
   waardeVerkrijging2, tarief,
   grondslagVerkrijging1 = 0, belastingVerkrijging1 = 0,
-  verlaagdTariefBijVerkrijging1 = false
+  verlaagdTariefBijVerkrijging1 = false, jaar = null
 }) {
   if (!(waardeVerkrijging2 >= 0)) return { fout: 'Geef de waarde van de tweede verkrijging op.' };
   if (!(tarief >= 0)) return { fout: 'Geef een tarief op.' };
@@ -1279,8 +1392,15 @@ function ovbDoorverkoopWettelijk({
     };
   }
 
+  const regel = OVB_LID4_PER_JAAR[jaar];
+  if (!regel) {
+    return { fout: 'Voor ' + jaar + ' is de tekst van art. 13 lid 4 Wet BRV niet gecontroleerd. ' +
+      'Gecontroleerd zijn: ' + Object.keys(OVB_LID4_PER_JAAR).join(', ') + '.' };
+  }
   const belastingLid4Ruw = afrondOmlaagOpEuro(tarief * waardeVerkrijging2 - belastingVerkrijging1);
-  const belastingLid4 = Math.max(0, Math.max(belastingLid1, belastingLid4Ruw));
+  const belastingLid4 = regel.ondergrensLid1
+    ? Math.max(0, Math.max(belastingLid1, belastingLid4Ruw))
+    : Math.max(0, belastingLid4Ruw);
   return {
     route: 'Art. 13 lid 4 Wet BRV',
     grondslag: waardeVerkrijging2,
@@ -1289,7 +1409,9 @@ function ovbDoorverkoopWettelijk({
     belastingLid4Ruw,
     belastingZonderVermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2),
     vermindering: afrondOmlaagOpEuro(tarief * waardeVerkrijging2) - belastingLid4,
-    ondergrensToegepast: belastingLid1 > belastingLid4Ruw
+    ondergrensToegepast: regel.ondergrensLid1 && belastingLid1 > belastingLid4Ruw,
+    ondergrensBestondNiet: !regel.ondergrensLid1 && belastingLid1 > belastingLid4Ruw,
+    verlaagdeTarieven: regel.verlaagdeTarieven
   };
 }
 
@@ -1346,7 +1468,7 @@ function ovbVoordeelBeding({ grondslagVerkrijging1, koopsomVerkrijging2, tarief 
 // voor inkomensvoorzieningen in aanmerking wordt genomen.
 const REVISIERENTE_PERCENTAGE = 0.20;
 
-// Art. 30i lid 3 AWR, derde volzin: de bedragen van de veronderstelde
+// Art. 30i lid 3 AWR, tweede volzin: de bedragen van de veronderstelde
 // navorderingsaanslagen worden gesteld op 50 percent van de premies. Dat is een
 // wettelijk forfait en geen aanname over het marginale tarief.
 const REVISIERENTE_NAVORDERING_DEEL = 0.50;
@@ -1412,14 +1534,18 @@ const AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR = {
 // De gebruiker stelt het beschikbare saldo vast inclusief toepasselijke jaargrenzen.
 const SALDOMETHODE_MAXIMUM_PER_JAAR = 2269;
 
-// Art. 30fc lid 1 AWR: het tijdvak vangt aan zes maanden te rekenen vanaf het
-// einde van het tijdvak waarover de belasting wordt geheven, dus op 1 juli van
-// het jaar na het premiejaar.
+// Art. 30fc lid 2 AWR (zie ook lid 1): het tijdvak vangt aan zes maanden te
+// rekenen vanaf het einde van het tijdvak waarover de belasting wordt geheven,
+// dus op 1 juli van het jaar na het premiejaar. Lid 1 regelt alleen wanneer er
+// rente in rekening wordt gebracht.
 const BELASTINGRENTE_STARTMAANDEN = 6;
 
 // Eerste premiejaar waarvoor dat aanvangsmoment hier is gecontroleerd. De
 // belastingrente van art. 30fc AWR verving de heffingsrente per 1 januari 2013
-// en geldt voor tijdvakken die op of na 1 januari 2012 aanvangen. Onder de
+// (Stb. 2011, 639, art. XXVIII aanhef); voor de inkomstenbelasting blijft het
+// oude recht gelden voor tijdvakken die zijn geeindigd voor 1 januari 2012
+// (art. XXXIV lid 1 onderdeel a), dus premiejaren vanaf 2012 vallen onder de
+// belastingrente. Onder de
 // heffingsrente ving de renteberekening op een ander moment aan, en dat moment
 // is in de loop der jaren verschoven. Die momenten zijn hier niet
 // gecontroleerd, dus een ouder premiejaar levert een melding op en geen
@@ -1431,16 +1557,29 @@ const BELASTINGRENTE_EERSTE_PREMIEJAAR = 2012;
    `vanaf` en `totEnMet` als {jaar, maand}. De rente is enkelvoudig
    (art. 30fc lid 2 AWR).
 
-   Grondslag: art. 30hb AWR, uitgewerkt in art. 1 lid 1 Besluit belasting- en
-   invorderingsrente: de ECB-herfinancieringsrente van voor 1 november van het
-   voorafgaande jaar plus 3 procentpunt, per 1 januari aangepast, afgerond op
-   halve procentpunten, ten minste 4,5 en met een wijziging van maximaal
-   2 procentpunt per keer. De reeks zelf komt uit het overzicht percentages
-   belastingrente van de Belastingdienst, gecontroleerd op 7 september 2026.
+   Grondslag: art. 30hb AWR. De uitwerking verschilt per tijdvak:
+   - 2012: het heffingsrentepercentage per kwartaal van het oude art. 30f lid 5
+     AWR, via Stb. 2011, 639, art. XXXIV lid 5;
+   - januari 2013 tot en met maart 2014: de wettelijke rente, zonder minimum;
+   - april 2014 tot en met mei 2020: de wettelijke rente met een minimum van
+     4 percent (Stb. 2013, 568, met de uitgestelde datum in art. III);
+   - oktober 2020 tot en met 2023: art. 1 onderdeel a Besluit belasting- en
+     invorderingsrente, de wettelijke rente met een minimum van 4 percent;
+   - vanaf 2024: art. 1 lid 1 van dat besluit (Stb. 2023, 511): de
+     ECB-herfinancieringsrente van voor 1 november van het voorafgaande jaar plus
+     3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten
+     minste 4,5 en met een wijziging van maximaal 2 procentpunt per keer.
+   De reeks zelf komt uit het overzicht percentages belastingrente van de
+   Belastingdienst, gecontroleerd op 7 september 2026; grondslagen per tijdvak
+   nagelezen op 12 oktober 2026.
 
    De verlaging naar 0,01 percent tijdens de coronacrisis geldt voor de
    inkomstenbelasting vanaf 1 juli 2020, en niet vanaf 1 juni 2020 zoals voor de
-   overige belastingen (Verzamelspoedwet COVID-19, Stb. 2020, 200).
+   overige belastingen: Verzamelspoedwet COVID-19, art. 3 onderdelen A en B
+   (Stb. 2020, 195), in werking volgens Stb. 2020, 196. In juni 2020 gold voor de
+   inkomstenbelasting dus nog vier percent (art. 3 onderdeel A, lid 2).
+   Gecorrigeerd op 12-10-2026: eerder stond hier Stb. 2020, 200, maar dat is het
+   Besluit belasting- en invorderingsrente.
 
    De reeks is bewust eindig. Het percentage wordt jaarlijks per 1 januari
    vastgesteld, dus voor een maand na december 2026 is het nog onbekend; een
@@ -2196,7 +2335,58 @@ function samenloopAfkoopLijfrente({ waardeEconomischVerkeer, grondslagBox1, revi
   };
 }
 
-// FISCALE KERN — EINDE
+return {
+  pmt, pvExcel, fvExcel, npvBij, irr, maandrente, annuiteit, aflossingsschema, leesDatum,
+  renteTotBalansdatum, periodeInJaren, contanteWaardeEenBedrag, toekomstigeWaardeEenBedrag,
+  contanteWaardeVasteReeks, contanteWaardeVariabeleReeks, periodiekeInlegVast,
+  periodiekeInlegVariabel, irrMaandreeks, normaleVerdeling, blackScholes,
+  GENOTSRECHT_FORFAIT, ART19_LID1_FACTOREN, ART19_LID2_KLASSEN, ART19_LID2_FACTOREN,
+  ART19_LID6_FACTOREN, ART19_VIERENTWINTIGVOUD, art19Lid1Factor, art19Lid2KlasseIndex,
+  art19Toetsleeftijd, art19Blokken, art19Waarde, genotsrechtBox3, leeftijdOpPeildatum,
+  LEEGWAARDERATIO_TABEL_VANAF_2023, LEEGWAARDERATIO_PER_JAAR, ART17A_LID4_VERLAGING,
+  ART17B_FACTOR_STANDAARD, ART17B_FACTOR_ONZELFSTANDIG, ART17A_LID6_DREMPEL,
+  leegwaarderatioUitTabel, leegwaarderatioBox3, BOETERENTE_MAXIMUM_MAANDEN, boeterente,
+  OVB_TERMIJN_MAANDEN, OVB_TARIEVEN_PER_JAAR, ovbTarieven, OVB_LID4_PER_JAAR, ovbDoorverkoopWettelijk,
+  ovbNettoOpbrengstVerkoper, ovbVoordeelBeding, REVISIERENTE_PERCENTAGE,
+  REVISIERENTE_NAVORDERING_DEEL, REVISIERENTE_TEGENBEWIJS_JAREN,
+  REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF, AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR,
+  SALDOMETHODE_MAXIMUM_PER_JAAR, BELASTINGRENTE_STARTMAANDEN,
+  BELASTINGRENTE_EERSTE_PREMIEJAAR, BELASTINGRENTE_IB_PERIODES, maandNummer,
+  belastingrenteIbPercentage, belastingrenteOverTijdvak, afrondOmlaagOpEuro,
+  revisierenteAfkoopLijfrente, REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN,
+  revisierenteAfkoopPensioen, BOX1_TARIEVEN_PER_JAAR, BOX1_TARIEVEN_ART210A_PER_JAAR,
+  box1Tarieven, PREMIES_VOLKSVERZEKERINGEN_PER_JAAR, premiesVolksverzekeringen,
+  maximumPremieInkomen, belastingBox1OverInkomen, heffingBox1MetPremies,
+  heffingsverschilAfkoop, samenloopAfkoopLijfrente
+};
+})();
+/* ENGINE:END */
+
+// De weergavelaag gebruikt de publieke namen van de kern rechtstreeks.
+const {
+  pmt, pvExcel, fvExcel, npvBij, irr, maandrente, annuiteit, aflossingsschema, leesDatum,
+  renteTotBalansdatum, periodeInJaren, contanteWaardeEenBedrag, toekomstigeWaardeEenBedrag,
+  contanteWaardeVasteReeks, contanteWaardeVariabeleReeks, periodiekeInlegVast,
+  periodiekeInlegVariabel, irrMaandreeks, normaleVerdeling, blackScholes,
+  GENOTSRECHT_FORFAIT, ART19_LID1_FACTOREN, ART19_LID2_KLASSEN, ART19_LID2_FACTOREN,
+  ART19_LID6_FACTOREN, ART19_VIERENTWINTIGVOUD, art19Lid1Factor, art19Lid2KlasseIndex,
+  art19Toetsleeftijd, art19Blokken, art19Waarde, genotsrechtBox3, leeftijdOpPeildatum,
+  LEEGWAARDERATIO_TABEL_VANAF_2023, LEEGWAARDERATIO_PER_JAAR, ART17A_LID4_VERLAGING,
+  ART17B_FACTOR_STANDAARD, ART17B_FACTOR_ONZELFSTANDIG, ART17A_LID6_DREMPEL,
+  leegwaarderatioUitTabel, leegwaarderatioBox3, BOETERENTE_MAXIMUM_MAANDEN, boeterente,
+  OVB_TERMIJN_MAANDEN, OVB_TARIEVEN_PER_JAAR, ovbTarieven, OVB_LID4_PER_JAAR, ovbDoorverkoopWettelijk,
+  ovbNettoOpbrengstVerkoper, ovbVoordeelBeding, REVISIERENTE_PERCENTAGE,
+  REVISIERENTE_NAVORDERING_DEEL, REVISIERENTE_TEGENBEWIJS_JAREN,
+  REVISIERENTE_SALDO_IN_TWEEDE_VOLZIN_VANAF, AFKOOPGRENS_KLEINE_LIJFRENTE_PER_JAAR,
+  SALDOMETHODE_MAXIMUM_PER_JAAR, BELASTINGRENTE_STARTMAANDEN,
+  BELASTINGRENTE_EERSTE_PREMIEJAAR, BELASTINGRENTE_IB_PERIODES, maandNummer,
+  belastingrenteIbPercentage, belastingrenteOverTijdvak, afrondOmlaagOpEuro,
+  revisierenteAfkoopLijfrente, REVISIERENTE_PENSIOEN_GECONTROLEERDE_JAREN,
+  revisierenteAfkoopPensioen, BOX1_TARIEVEN_PER_JAAR, BOX1_TARIEVEN_ART210A_PER_JAAR,
+  box1Tarieven, PREMIES_VOLKSVERZEKERINGEN_PER_JAAR, premiesVolksverzekeringen,
+  maximumPremieInkomen, belastingBox1OverInkomen, heffingBox1MetPremies,
+  heffingsverschilAfkoop, samenloopAfkoopLijfrente
+} = BEREKENINGEN;
 
 /* ============================================================
    Weergave. Roept de kern aan en raakt geen rekenlogica.
@@ -2814,12 +3004,19 @@ const ONDERWERPEN = [
       'afzonderlijk vervreemdbaar is: art. 17a lid 4 Uitv.besl. IB 2001.',
     'Gedeeltelijke verhuur: art. 17a lid 5. Tegenbewijs bij een uitkomst die ten minste ' +
       'tien procent hoger is dan de waarde in verhuurde staat: art. 17a lid 6 Uitv.besl. ' +
-      'IB 2001.',
+      'IB 2001, terugwerkend tot en met 3 april 2015 (Stb. 2025, 451, art. XIII lid 1 ' +
+      'onder a).',
     'Kapitalisatie van de erfpachtcanon, zeventienvoud of twintigvoud: art. 17b ' +
       'Uitv.besl. IB 2001.',
     'Voorrang van de erfpachtvermindering: art. 5.20 lid 4 Wet IB 2001. Voorwaarden en ' +
-      'uitsluitingen: art. 5.20 lid 3 en lid 5 Wet IB 2001.',
-    'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026.'
+      'uitsluitingen: art. 5.20 lid 3 en lid 5 Wet IB 2001 (lid 5 vanaf 2026). Tot en met ' +
+      '2025: huur voor bepaalde tijd in art. 5.20 lid 3, tweede volzin, en bij gelieerde ' +
+      'partijen een huur van 5,5 procent van de WOZ-waarde (art. 17a lid 3, tweede volzin, ' +
+      'Uitv.besl. IB 2001).',
+    'Gecontroleerd op 2 september 2026 in de versie geldend per 1 januari 2026; de ' +
+      'verlaging van art. 17a lid 4, het twintigvoud van art. 17b en de uitsluitingen ' +
+      'opnieuw gelezen op 12 oktober 2026 in de versies geldend per 1 januari 2023 tot en ' +
+      'met 2026.'
   ],
   afbakening: 'De tool dekt 2023 tot en met 2026; een ander jaar rekent niet door maar geeft een ' +
     'melding. Of de huurbescherming van Boek 7 BW van toepassing is, of de ' +
@@ -2910,8 +3107,11 @@ const ONDERWERPEN = [
 {
   vindplaatsen: [
     'Termijn van zes maanden en vermindering van de grondslag: art. 13 lid 1 Wet BRV.',
-    'Belastingvermindering bij een verlaagd tarief bij de vorige verkrijging, met de ' +
-      'uitkomst van lid 1 als ondergrens: art. 13 lid 4 Wet BRV.',
+    'Belastingvermindering bij een verlaagd tarief bij de vorige verkrijging: art. 13 lid 4 ' +
+      'Wet BRV. De uitkomst van lid 1 is daarbij pas vanaf 1 januari 2026 een ondergrens ' +
+      '(Stb. 2025, 445); in 2025 is het verminderde bedrag alleen niet lager dan nihil. Als ' +
+      'verlaagd tarief telt in 2025 art. 14 lid 2, 3, 4 of 7, en in 2026 art. 14 lid 2, 3, 4, ' +
+      '5 of 8 Wet BRV. Gecontroleerd op 12 oktober 2026.',
     'Algemeen tarief 10,4 procent: art. 14 lid 1 Wet BRV. Woning niet als hoofdverblijf ' +
       '8 procent: art. 14 lid 2, vanaf 2026. Woning als hoofdverblijf 2 procent: art. 14 ' +
       'lid 3 Wet BRV.',
@@ -2927,7 +3127,10 @@ const ONDERWERPEN = [
   ],
   afbakening: 'De tool rekent de vermindering van art. 13 lid 1 en de belastingvermindering van lid ' +
     '4. Hij toetst de termijn van zes maanden niet en beoordeelt niet welk tarief van ' +
-    'toepassing is. De tool dekt geen vrijstellingen, geen samenloop met de ' +
+    'toepassing is. De tool kent het tarief van 4 procent niet (art. 14 lid 7 in 2025, lid ' +
+    '8 in 2026), ook niet de 2 procent voor een wooncooperatie of de heffing over de ' +
+    'waardevermeerdering van art. 9, en niet de startersvrijstelling van art. 15. De tool ' +
+    'dekt geen vrijstellingen, geen samenloop met de ' +
     'omzetbelasting en niet de gevallen van art. 13 lid 2 over aandelen en rechten. Voor ' +
     'de aftrek van notariskosten in de netto-opbrengst van de verkoper is geen wettelijke ' +
     'basis teruggevonden; de tool meldt dat bij de uitkomst. De verschuldigde belasting ' +
@@ -2972,7 +3175,7 @@ const ONDERWERPEN = [
       waardeVerkrijging2: i.koopsomVerkrijging2, tarief,
       grondslagVerkrijging1: i.grondslagVerkrijging1,
       belastingVerkrijging1: i.belastingVerkrijging1 || 0,
-      verlaagdTariefBijVerkrijging1: i.verlaagdTariefBijVerkrijging1
+      verlaagdTariefBijVerkrijging1: i.verlaagdTariefBijVerkrijging1, jaar: i.jaar
     });
     if (wettelijk.fout) return wettelijk;
     const verkoper = ovbNettoOpbrengstVerkoper({
@@ -3007,6 +3210,14 @@ const ONDERWERPEN = [
     if (r.wettelijk.ondergrensToegepast) m.push({ soort: 'info',
       tekst: 'De ondergrens van art. 13 lid 4, tweede volzin, is toegepast: de uitkomst ' +
              'van lid 1 is gunstiger dan de belastingvermindering.' });
+    if (r.wettelijk.ondergrensBestondNiet) m.push({ soort: 'info',
+      tekst: 'In 2025 kende art. 13 lid 4 Wet BRV nog geen ondergrens van de uitkomst van ' +
+             'lid 1; die geldt pas vanaf 1 januari 2026 (Stb. 2025, 445). De belasting is ' +
+             'daarom alleen op nihil begrensd.' });
+    if (r.wettelijk.verlaagdeTarieven) m.push({ soort: 'info',
+      tekst: 'Lid 4 geldt alleen als bij de vorige verkrijging een tarief uit ' +
+             r.wettelijk.verlaagdeTarieven + ' is toegepast. De tool toetst dat niet; ' +
+             'beoordeel dat zelf.' });
     m.push({ soort: 'info', tekst: 'De doorverkoopregeling geldt alleen bij een verkrijging ' +
       'binnen ' + OVB_TERMIJN_MAANDEN + ' maanden na de vorige verkrijging door een ander. ' +
       'De tool toetst die termijn niet; beoordeel dat zelf.' });
@@ -3051,12 +3262,15 @@ const ONDERWERPEN = [
       'de dragende bron is dus voorlichting en geen wettekst of uitspraak.',
     'Art. 30fc lid 1 en 2 AWR: het rentetijdvak vangt aan zes maanden na het einde van het ' +
       'premiejaar, dus op 1 juli daarna, en de rente is enkelvoudig.',
-    'Art. 30hb AWR met art. 1 lid 1 Besluit belasting- en invorderingsrente: het percentage ' +
-      'is de ECB-herfinancieringsrente van voor 1 november van het voorafgaande jaar plus ' +
-      '3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten minste ' +
-      '4,5 en met een wijziging van maximaal 2 procentpunt.',
+    'Art. 30hb AWR met vanaf 2024 art. 1 lid 1 Besluit belasting- en invorderingsrente: het ' +
+      'percentage is de ECB-herfinancieringsrente van voor 1 november van het voorafgaande ' +
+      'jaar plus 3 procentpunt, per 1 januari aangepast, afgerond op halve procentpunten, ten ' +
+      'minste 4,5 en met een wijziging van maximaal 2 procentpunt. Van 2013 tot en met 2023 ' +
+      'volgde het percentage de wettelijke rente, vanaf april 2014 met een minimum van 4 ' +
+      'percent (Stb. 2013, 568; daarna art. 1 onderdeel a van dat besluit).',
     ...VINDPLAATSEN_SAMENLOOP_BOX1,
-    'Verzamelspoedwet COVID-19, Stb. 2020, 200: de verlaging naar 0,01 percent geldt voor ' +
+    'Verzamelspoedwet COVID-19, art. 3 onderdelen A en B (Stb. 2020, 195), in werking ' +
+      'volgens Stb. 2020, 196: de verlaging naar 0,01 percent geldt voor ' +
       'de inkomstenbelasting vanaf 1 juli 2020 en niet vanaf 1 juni 2020 zoals voor de ' +
       'overige belastingen. Juni 2020 valt dus nog onder vier percent.'
   ],
