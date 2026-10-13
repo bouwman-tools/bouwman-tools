@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
@@ -1151,7 +1151,7 @@
       <div>
         <h1 class="bt-kopbalk-titel">RC-schuld DGA</h1>
         <div class="bt-kopbalk-sub">Aflossingsroutes rekening-courantschuld via privéstorting en dividend</div>
-        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 4 okt 2026, 21:35</div>
+        <div class="bt-kopbalk-bijgewerkt" id="lastUpdated"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 00:05</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -1847,13 +1847,20 @@ function xlsxBytes(bladen) {
      9. invariantencontrole            — checkRouteInvariants()
     10. invoervalidatie en hoofdingang — normaliseInput(), solve()
 
-   Deze sectie raakt de DOM niet en bevat geen presentatielogica.
-   De testrunner (tests/run-tests.mjs) leest exact het blok tussen de markers
-   ENGINE-START en ENGINE-END uit dit HTML-bestand — er is dus één bron voor
-   de berekening, zowel in de browser als in de tests.
+   Deze sectie raakt de DOM niet en bevat geen presentatielogica. Alles staat
+   achter één object, RCSD; de presentatielaag spreekt de kern alleen via dat
+   object aan. De testrunners (tests/run-tests.mjs en de andere testbestanden)
+   lezen exact het blok tussen de markers ENGINE:START en ENGINE:END uit dit
+   HTML-bestand. Er is dus één bron voor de berekening, in de browser, in de
+   tests en in elke overname van de kern elders.
+
+   Binnen de markers geen DOM, geen klok, geen toeval en geen netwerk:
+   tests/run-tests.mjs bewaakt dat met een isolatietest.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// ==ENGINE-START==
+/* ENGINE:START */
+const RCSD = (function () {
+'use strict';
 
 var EPS = 0.005;          // afrondingstolerantie in euro's
 var TOL = 0.02;           // tolerantie voor invariantencontroles
@@ -1872,6 +1879,14 @@ var SETTLE = 0.5;         // een restschuld onder dit bedrag geldt als afgelost;
    Zij worden uitsluitend gebruikt door de economische vergelijking van laag 2,
    die de Vpb over de rentebate van de BV waardeert. De fiscale routeberekening
    raakt er niet aan: daar is de RC-rente een interne geldstroom en niets meer.
+
+   `dividendTaxRate` is 15% in elk jaar van deze tabel (art. 5 Wet DB 1965;
+   tekst 1-1-2023, 1-1-2024 en 1-1-2025, de laatste versie, die ook in 2026
+   geldt; nagelezen 12-10-2026).
+
+   2027 is een scenariojaar. Niet alleen de eerste schijf maar ook de box
+   2-tarieven zijn die van 2026 (art. 2.12 Wet IB 2001, tekst 1-1-2026): het
+   Belastingplan 2027 (Kamerstuk 37022) was op 12-10-2026 nog een voorstel.
    ─────────────────────────────────────────────────────────────────────────── */
 var TAX_CONFIG = {
   2023: {
@@ -3601,7 +3616,7 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
        box 2-heffing die hij anders niet had betaald. De melding op het scherm zei
        daarbij dat alle vier de hoeken dezelfde kant op wezen en dat de tool geen
        tarief aannam — terwijl zij dat in die gevallen feitelijk wél deed, namelijk
-       het hoge. Besloten door Sylvain op 18-09-2026. */
+       het hoge. Vastgesteld op 18-09-2026. */
     var opMinimum = 0;
     if (minL !== null) {
       for (i = 0; i < rows.length; i++) {
@@ -3687,8 +3702,8 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
 }
 
 /* ─────────── 7c. DE RANGSCHIKKING (laag 3) ─────────────────────────────────
-   Laag 1 rekent, laag 2 waardeert, en hier wordt gekozen. Besloten door Sylvain
-   op 18-09-2026, nadat laag 2 er eenmaal stond.
+   Laag 1 rekent, laag 2 waardeert, en hier wordt gekozen. Vastgesteld op
+   18-09-2026, nadat laag 2 er eenmaal stond.
 
    HET PROBLEEM. Rangschikken op de economische maatstaf `L` kan niet zonder een
    box 2-tarief en een Vpb-tarief aan te nemen, en die weet de tool niet. Laag 2
@@ -3717,7 +3732,7 @@ function buildEconomicComparison(inp, routes, targetRemainingDebt) {
    de eindvoorwaarde al niet halen, en juist daar is er geen economische
    vergelijking om hem door te vervangen: `buildEconomicComparison` levert dan
    niets. Hem weghalen zonder vervanging zou de volgorde van de mislukte routes
-   willekeurig maken. Dat blijft een open punt in ROADMAP.md.
+   willekeurig maken. Dat blijft een open punt.
    ─────────────────────────────────────────────────────────────────────────── */
 
 function economicVerdict(economic, currentBestId) {
@@ -4105,10 +4120,55 @@ function solve(raw) {
   };
 }
 
-// ==ENGINE-END==
+return {
+  EPS: EPS,
+  TOL: TOL,
+  TAX_CONFIG: TAX_CONFIG,
+  DEFAULT_TAX_YEAR: DEFAULT_TAX_YEAR,
+  getTaxConfig: getTaxConfig,
+  LOSS_CARRY_FORWARD_YEARS: LOSS_CARRY_FORWARD_YEARS,
+  LOSS_CARRY_BACK_YEARS: LOSS_CARRY_BACK_YEARS,
+  box2TaxOnIncome: box2TaxOnIncome,
+  availableLowBracket: availableLowBracket,
+  taxForYear: taxForYear,
+  excessiveLoanStep: excessiveLoanStep,
+  excessiveLowBracket: excessiveLowBracket,
+  settleBox2Losses: settleBox2Losses,
+  settleExcessiveLoanRun: settleExcessiveLoanRun,
+  computeYear: computeYear,
+  planYear: planYear,
+  simulateRoute: simulateRoute,
+  checkRouteInvariants: checkRouteInvariants,
+  betterRoute: betterRoute,
+  levelGrossForHorizon: levelGrossForHorizon,
+  optimiseDeposit: optimiseDeposit,
+  buildRoutes: buildRoutes,
+  routeShape: routeShape,
+  describeRoute: describeRoute,
+  referenceFullDividend: referenceFullDividend,
+  requiredAnnualPrivate: requiredAnnualPrivate,
+  reverseSchedule: reverseSchedule,
+  ECONOMIC_ASSUMPTIONS: ECONOMIC_ASSUMPTIONS,
+  economicPct: economicPct,
+  economicScenarios: economicScenarios,
+  economicCostOfRoute: economicCostOfRoute,
+  economicWealthCheck: economicWealthCheck,
+  buildEconomicComparison: buildEconomicComparison,
+  economicVerdict: economicVerdict,
+  normaliseInput: normaliseInput,
+  validateInput: validateInput,
+  evaluateGates: evaluateGates,
+  excessiveLoanSignal: excessiveLoanSignal,
+  peakFictiefOfRoute: peakFictiefOfRoute,
+  withdrawalImpact: withdrawalImpact,
+  longerRouteComparison: longerRouteComparison,
+  solve: solve
+};
+})();
+/* ENGINE:END */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PRESENTATIELAAG — leest uitsluitend het resultaat van solve() uit.
+   PRESENTATIELAAG — leest uitsluitend het resultaat van RCSD.solve() uit.
    Hier staat géén fiscale logica: alle bedragen komen uit de rekenengine.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -4164,7 +4224,7 @@ function barHtml(trackLabel, segments) {
 function el(id) { return document.getElementById(id); }
 function val(id) { var e = el(id); return e ? e.value : ''; }
 /* == Afrekenen over excessief lenen over meerdere jaren =====================
-   Presentatielaag. Alle fiscale beslissingen zitten in settleExcessiveLoanRun();
+   Presentatielaag. Alle fiscale beslissingen zitten in RCSD.settleExcessiveLoanRun();
    hieronder staat geen tarief en geen rekenregel.
    -------------------------------------------------------------------------- */
 
@@ -4183,7 +4243,7 @@ function vulAfrekeningInvoer() {
   var sel = el('afStartjaar');
   if (!sel) return;
   if (!sel.options.length) {
-    var mogelijk = Object.keys(TAX_CONFIG).map(Number).sort(function (a, b) { return a - b; });
+    var mogelijk = Object.keys(RCSD.TAX_CONFIG).map(Number).sort(function (a, b) { return a - b; });
     var html = '';
     for (var i = 0; i < mogelijk.length; i++) {
       // Een startjaar waarbij de reeks buiten de tarieventabel zou lopen wordt
@@ -4233,7 +4293,7 @@ function berekenAfrekening() {
 
   var res;
   try {
-    res = settleExcessiveLoanRun({
+    res = RCSD.settleExcessiveLoanRun({
       startYear: Number(val('afStartjaar')),
       debtAtStart: numVal('afSchuld'),
       debtChanges: mutaties,
@@ -4282,7 +4342,7 @@ function berekenAfrekening() {
           ' box 2-heffing, gemiddeld ' +
           (res.averageRate * 100).toFixed(2).replace('.', ',') + '%.</div>';
 
-  if (res.unsettledLossTotal > EPS) {
+  if (res.unsettledLossTotal > RCSD.EPS) {
     html += '<div class="signal warn" style="margin-top:10px;"><strong>Er blijft ' +
             euro(res.unsettledLossTotal) + ' verlies uit aanmerkelijk belang onverrekend ' +
             'binnen deze reeks.</strong> Dat verlies is niet verlopen: de termijn loopt tot zes ' +
@@ -4315,13 +4375,13 @@ function populateTaxYears() {
   // Een historisch jaar staat wel in de tarieventabel (de meerjarige afrekening
   // over excessief lenen begint in 2023) maar niet in deze keuzelijst: een
   // aflosroute plannen in een jaar dat al voorbij is heeft geen betekenis.
-  var years = Object.keys(TAX_CONFIG).sort().filter(function (y) {
-    return TAX_CONFIG[y].status !== 'historisch';
+  var years = Object.keys(RCSD.TAX_CONFIG).sort().filter(function (y) {
+    return RCSD.TAX_CONFIG[y].status !== 'historisch';
   });
   var html = '';
   for (var i = 0; i < years.length; i++) {
-    html += '<option value="' + years[i] + '"' + (Number(years[i]) === DEFAULT_TAX_YEAR ? ' selected' : '') + '>' +
-            TAX_CONFIG[years[i]].label + '</option>';
+    html += '<option value="' + years[i] + '"' + (Number(years[i]) === RCSD.DEFAULT_TAX_YEAR ? ' selected' : '') + '>' +
+            RCSD.TAX_CONFIG[years[i]].label + '</option>';
   }
   sel.innerHTML = html;
 }
@@ -4330,7 +4390,7 @@ function populateTaxYears() {
 function applyTaxYear() {
   var cfg;
   try {
-    cfg = getTaxConfig(val('taxYear'));
+    cfg = RCSD.getTaxConfig(val('taxYear'));
   } catch (err) {
     el('taxYearHint').innerHTML = '<strong style="color:var(--warn)">' + err.message + '</strong>';
     return;
@@ -4347,7 +4407,7 @@ function applyTaxYear() {
 }
 
 function updateBracketDisplay() {
-  var avail = availableLowBracket(
+  var avail = RCSD.availableLowBracket(
     numVal('lowBracket'),
     val('fiscalPartner') === 'true',
     numVal('otherBox2Self'),
@@ -4479,7 +4539,7 @@ function renderRouteCard(route, inp, opts) {
     html += signal('warn', '<strong>Hoog tarief geraakt.</strong> ' + euro(T.box2HighPart) +
       ' aan box 2-inkomen valt in het hoge tarief van ' + pct(inp.highRate) + '. Dat kost ' + euro(T.box2TaxHigh) +
       ' aan belasting; binnen de eerste schijf zou hetzelfde bedrag ' + euro(T.box2HighPart * inp.lowRate) + ' hebben gekost.');
-  } else if (T.grossDividend > EPS) {
+  } else if (T.grossDividend > RCSD.EPS) {
     html += signal('ok', '<strong>Volledig binnen de eerste schijf.</strong> Al het box 2-inkomen is belast tegen ' + pct(inp.lowRate) + '.');
   }
 
@@ -4543,27 +4603,27 @@ function renderRouteCard(route, inp, opts) {
 
   // ── Dividend en belasting ──
   var divRows = [];
-  if (T.grossDividend > EPS) {
+  if (T.grossDividend > RCSD.EPS) {
     divRows.push(row('Bruto dividend', euro(T.grossDividend)));
     divRows.push(row('Dividendbelasting (' + pct(inp.dividendTaxRate) + ')', '− ' + euro(T.dividendTax)));
     divRows.push(row('<strong>Netto dividendvordering aandeelhouder</strong>', '<strong>' + euro(T.netDividend) + '</strong>'));
     divRows.push(rowMuted('→ verrekend met de RC-schuld', euro(T.netSettled)));
-    if (T.netPaidInCash > EPS) divRows.push(rowMuted('→ in geld uitbetaald', euro(T.netPaidInCash)));
+    if (T.netPaidInCash > RCSD.EPS) divRows.push(rowMuted('→ in geld uitbetaald', euro(T.netPaidInCash)));
   } else {
     divRows.push(row('Bruto dividend', euro(0)));
   }
-  if (Math.abs(T.fictiefVoordeel) > EPS) {
+  if (Math.abs(T.fictiefVoordeel) > RCSD.EPS) {
     divRows.push(rowMuted('Fictief regulier voordeel Wet excessief lenen', euroSigned(T.fictiefVoordeel)));
   }
   divRows.push(rowMuted('─', '─'));
   divRows.push(row('Box 2 tegen ' + pct(inp.lowRate), euro(T.box2TaxLow)));
-  if (T.box2TaxHigh > EPS) divRows.push(row('Box 2 tegen ' + pct(inp.highRate), euro(T.box2TaxHigh), 'warn'));
+  if (T.box2TaxHigh > RCSD.EPS) divRows.push(row('Box 2 tegen ' + pct(inp.highRate), euro(T.box2TaxHigh), 'warn'));
   divRows.push(row('<strong>Totale inkomstenbelasting box 2</strong>', '<strong>' + euro(T.box2Total) + '</strong>'));
   divRows.push(row('Verrekenbare dividendbelasting', '− ' + euro(T.dividendTax)));
   divRows.push(row('<strong>Aanvullende IB voor de DGA</strong>', '<strong>' + euroSigned(T.additionalIB) + '</strong>',
-    T.additionalIB < -EPS ? 'ok' : ''));
-  if (T.taxRefund > EPS) divRows.push(rowMuted('waarvan teruggaaf dividendbelasting', euro(T.taxRefund)));
-  if (T.lossRefund > EPS || route.lossRefundAfterHorizon > EPS) {
+    T.additionalIB < -RCSD.EPS ? 'ok' : ''));
+  if (T.taxRefund > RCSD.EPS) divRows.push(rowMuted('waarvan teruggaaf dividendbelasting', euro(T.taxRefund)));
+  if (T.lossRefund > RCSD.EPS || route.lossRefundAfterHorizon > RCSD.EPS) {
     divRows.push(rowMuted('─', '─'));
     divRows.push(row('Af: teruggaaf door terugwenteling van verlies', '− ' + euro(T.lossRefund + route.lossRefundAfterHorizon)));
     divRows.push(row('<strong>Box 2-heffing per saldo</strong>', '<strong>' + euro(route.taxCost) + '</strong>', 'ok'));
@@ -4591,13 +4651,13 @@ function renderRouteCard(route, inp, opts) {
     }
     privRows.push(row('Af: rechtstreeks op de RC afgelost', '− ' + euro(T.depositApplied)));
     privRows.push(row('Af: aanvullende IB box 2', '− ' + euro(T.privateOutTax)));
-    if (T.lossRefund > EPS) {
+    if (T.lossRefund > RCSD.EPS) {
       privRows.push(row('Bij: teruggaaf door terugwenteling van verlies', '+ ' + euro(T.lossRefund)));
     }
-    if (T.netPaidInCash > EPS) privRows.push(row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)));
+    if (T.netPaidInCash > RCSD.EPS) privRows.push(row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)));
     privRows.push(row('<strong>Totaal privé ingezet</strong>', '<strong>' + euro(route.privateUsed) + '</strong>'));
     privRows.push(rowMuted('waarvan netto beroep op het privévermogen', euro(route.privateNetUsed)));
-    privRows.push(row('Privé resterend', euro(route.privateRemaining), route.privateRemaining < -EPS ? 'warn' : 'ok'));
+    privRows.push(row('Privé resterend', euro(route.privateRemaining), route.privateRemaining < -RCSD.EPS ? 'warn' : 'ok'));
     /* Teruggaaf van dividendbelasting, als memorandumpost ná de eindstand.
 
        Is de ingehouden dividendbelasting van een jaar hoger dan de box 2-heffing
@@ -4613,10 +4673,10 @@ function renderRouteCard(route, inp, opts) {
        Daarom staat hij hier ná de eindstand en niet als "Bij:"-regel erboven: de
        optelling tot "Privé resterend" moet blijven kloppen. Zou hij erboven staan,
        dan telde hij mee in een stand waarin hij niet zit. */
-    if (T.taxRefund > EPS) {
+    if (T.taxRefund > RCSD.EPS) {
       var tgJaren = [];
       for (var tg = 0; tg < route.rows.length; tg++) {
-        if (route.rows[tg].taxRefund > EPS) {
+        if (route.rows[tg].taxRefund > RCSD.EPS) {
           tgJaren.push('jaar ' + route.rows[tg].year + ': ' + euro(route.rows[tg].taxRefund));
         }
       }
@@ -4633,9 +4693,9 @@ function renderRouteCard(route, inp, opts) {
     }
     bvRows.push(row('Bij: ontvangen privéstortingen', '+ ' + euro(T.bvCashIn)));
     bvRows.push(row('Af: afgedragen dividendbelasting', '− ' + euro(T.dividendTax)));
-    if (T.netPaidInCash > EPS) bvRows.push(row('Af: netto dividend in geld uitbetaald', '− ' + euro(T.netPaidInCash)));
+    if (T.netPaidInCash > RCSD.EPS) bvRows.push(row('Af: netto dividend in geld uitbetaald', '− ' + euro(T.netPaidInCash)));
     bvRows.push(row('<strong>BV-kas na de route</strong>', '<strong>' + euro(route.bvCashRemaining) + '</strong>',
-      route.bvCashRemaining < -EPS ? 'warn' : ''));
+      route.bvCashRemaining < -RCSD.EPS ? 'warn' : ''));
     html += block('Kas van de BV', bvRows);
   }
 
@@ -4643,7 +4703,7 @@ function renderRouteCard(route, inp, opts) {
   var costRows = [
     row('<strong>Totale box 2-heffing</strong>', '<strong>' + euro(route.taxCost) + '</strong>', route.hitsHighRate ? 'warn' : '')
   ];
-  if (T.lossRefund > EPS || route.lossRefundAfterHorizon > EPS) {
+  if (T.lossRefund > RCSD.EPS || route.lossRefundAfterHorizon > RCSD.EPS) {
     // De opgelegde heffing en de teruggaaf apart, zodat zichtbaar blijft dat het
     // nettobedrag hierboven uit twee bewegingen bestaat die in verschillende
     // jaren vallen.
@@ -4651,7 +4711,7 @@ function renderRouteCard(route, inp, opts) {
     costRows.push(rowMuted('waarvan terugontvangen na terugwenteling', '− ' + euro(T.lossRefund + route.lossRefundAfterHorizon)));
   }
   if (inp.discountRate > 0) costRows.push(rowMuted('Contante waarde box 2 tegen ' + pct(inp.discountRate), euro(route.taxCostPV)));
-  if (T.interest > EPS) {
+  if (T.interest > RCSD.EPS) {
     costRows.push(rowMuted('Bijgeschreven RC-rente — interne geldstroom van de DGA naar de eigen BV; verhoogt de schuld en zit daardoor al in de heffing hierboven', euro(T.interest)));
   }
   /* De regel "Kosten na verrekening latente claim" stond hier tot 18-09-2026.
@@ -4702,7 +4762,7 @@ function renderRoutesTable(res) {
       '<td>' + r.years + '</td>' +
       '<td>' + euro(r.totals.grossDividend) + '</td>' +
       '<td>' + euro(r.totals.box2Total) + '</td>' +
-      '<td>' + (r.totals.box2TaxHigh > EPS ? euro(r.totals.box2TaxHigh) : '—') + '</td>' +
+      '<td>' + (r.totals.box2TaxHigh > RCSD.EPS ? euro(r.totals.box2TaxHigh) : '—') + '</td>' +
       '<td>' + euro(r.totals.interest) + '</td>' +
       '<td>' + euro(r.privateNetUsed) + '</td>' +
       '<td>' + euro(r.bvOwnCashUsed) + '</td>' +
@@ -4790,7 +4850,7 @@ function renderEconomisch(res) {
       '<td>' + (rij.fullyRepaid ? '€ 0' : euro(rij.remainingDebt)) + '</td>' +
       '<td>' + euro(rij.taxCost) + '</td>' +
       '<td>' + euro(rij.grossDividend) + '</td>' +
-      '<td>' + (rij.interest > EPS ? euro(rij.interest) : '—') + '</td>';
+      '<td>' + (rij.interest > RCSD.EPS ? euro(rij.interest) : '—') + '</td>';
     for (j = 0; j < kolommen.length; j++) {
       var c = cel(rij, kolommen[j]);
       html += '<td>' + c.html +
@@ -4812,7 +4872,7 @@ function renderEconomisch(res) {
   // over de last per euro rente alleen ruis zijn. Om dezelfde reden staat er dan
   // ook nergens een bereik in de tabel.
   var heeftRente = false;
-  for (i = 0; i < ec.rows.length; i++) if (ec.rows[i].interest > EPS) heeftRente = true;
+  for (i = 0; i < ec.rows.length; i++) if (ec.rows[i].interest > RCSD.EPS) heeftRente = true;
 
   if (inp.discountRate > 0) {
     html += '<p class="blok-intro" style="margin-top:12px;"><strong>De bedragen hieronder zijn contante ' +
@@ -4830,7 +4890,7 @@ function renderEconomisch(res) {
     'aanmerkelijkbelangclaim die met het uitgekeerde dividend is afgerekend' +
     (heeftRente
       ? ', plús het deel van de bijgeschreven RC-rente dat onderweg aan belasting verdwijnt (' +
-        economicPct(lo) + ' tot ' + economicPct(hi) + ' per euro rente: eerst vennootschapsbelasting ' +
+        RCSD.economicPct(lo) + ' tot ' + RCSD.economicPct(hi) + ' per euro rente: eerst vennootschapsbelasting ' +
         'over de rentebate van de BV, daarna box 2 over wat er van die winst bij de DGA terechtkomt). ' +
         'Een bereik in een kolom betekent dat de uitkomst afhangt van het Vpb-tarief van de BV; ' +
         'het linkergetal hoort bij het lage Vpb-tarief.'
@@ -4941,11 +5001,11 @@ function renderJaarplan(route, inp) {
   var rows = route.rows, i;
   var hasRente = false, hasDeposit = false, hasFictief = false, hasCash = false, hasOnttr = false;
   for (i = 0; i < rows.length; i++) {
-    if (Math.abs(rows[i].interestTotal) > EPS) hasRente = true;
-    if (rows[i].deposit > EPS) hasDeposit = true;
-    if (Math.abs(rows[i].fictiefVoordeel) > EPS) hasFictief = true;
-    if (rows[i].netPaidInCash > EPS) hasCash = true;
-    if ((rows[i].withdrawal || 0) > EPS) hasOnttr = true;
+    if (Math.abs(rows[i].interestTotal) > RCSD.EPS) hasRente = true;
+    if (rows[i].deposit > RCSD.EPS) hasDeposit = true;
+    if (Math.abs(rows[i].fictiefVoordeel) > RCSD.EPS) hasFictief = true;
+    if (rows[i].netPaidInCash > RCSD.EPS) hasCash = true;
+    if ((rows[i].withdrawal || 0) > RCSD.EPS) hasOnttr = true;
   }
 
   // Bij een onttrekking is de beginstand van de kolom "RC begin" de stand vóór
@@ -5009,7 +5069,7 @@ function renderKasstroom(route, inp) {
 
   html += block('Rekening-courantschuld', [
     row('Beginstand', euro(inp.rcDebt)),
-    (onttr > EPS ? row('Bij: nieuwe onttrekkingen (' + route.years + ' × ' + euro(inp.withdrawalAnnual) + ')',
+    (onttr > RCSD.EPS ? row('Bij: nieuwe onttrekkingen (' + route.years + ' × ' + euro(inp.withdrawalAnnual) + ')',
       '+ ' + euro(onttr)) : ''),
     row('Bij: RC-rente over de looptijd', '+ ' + euro(T.interest)),
     row('Af: privéstorting op de RC', '− ' + euro(T.depositApplied)),
@@ -5022,13 +5082,13 @@ function renderKasstroom(route, inp) {
     row('Beschikbaar over de looptijd', euro(privIn)),
     row('Af: rechtstreekse aflossing op de RC', '− ' + euro(T.depositApplied)),
     row('Af: aanvullende inkomstenbelasting box 2', '− ' + euro(T.privateOutTax)),
-    (T.netPaidInCash > EPS ? row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)) : ''),
+    (T.netPaidInCash > RCSD.EPS ? row('Bij: netto dividend in geld ontvangen', '+ ' + euro(T.netPaidInCash)) : ''),
     row('<strong>Privé resterend</strong>', '<strong>' + euro(route.privateRemaining) + '</strong>',
-      route.privateRemaining < -EPS ? 'warn' : 'ok'),
+      route.privateRemaining < -RCSD.EPS ? 'warn' : 'ok'),
     // Memorandumpost ná de eindstand; zie de toelichting bij hetzelfde blok in
     // renderRouteCard. De optelling hierboven moet blijven kloppen, dus deze
     // teruggaaf staat eronder en niet als bijtelling ertussen.
-    (T.taxRefund > EPS
+    (T.taxRefund > RCSD.EPS
       ? rowMuted('Nog te ontvangen: teruggaaf dividendbelasting via de aanslag — niet in de eindstand hierboven',
         '+ ' + euro(T.taxRefund))
       : '')
@@ -5038,11 +5098,11 @@ function renderKasstroom(route, inp) {
   html += block('Kas van de BV', [
     row('Beschikbaar over de looptijd', euro(bvIn)),
     row('Bij: ontvangen privéstortingen', '+ ' + euro(T.bvCashIn)),
-    (onttr > EPS ? row('Af: uitbetaald aan de DGA als nieuwe RC-opname', '− ' + euro(onttr)) : ''),
+    (onttr > RCSD.EPS ? row('Af: uitbetaald aan de DGA als nieuwe RC-opname', '− ' + euro(onttr)) : ''),
     row('Af: afgedragen dividendbelasting', '− ' + euro(T.dividendTax)),
-    (T.netPaidInCash > EPS ? row('Af: netto dividend in geld uitbetaald', '− ' + euro(T.netPaidInCash)) : ''),
+    (T.netPaidInCash > RCSD.EPS ? row('Af: netto dividend in geld uitbetaald', '− ' + euro(T.netPaidInCash)) : ''),
     row('<strong>BV-kas resterend</strong>', '<strong>' + euro(route.bvCashRemaining) + '</strong>',
-      route.bvCashRemaining < -EPS ? 'warn' : '')
+      route.bvCashRemaining < -RCSD.EPS ? 'warn' : '')
   ]);
 
   html += signal('info', 'Let op het verschil tussen verrekening en kasbetaling: het netto dividend van ' + euro(T.netDividend) +
@@ -5102,7 +5162,7 @@ function renderAdvies(res) {
     ? res.directNow : ref;
   var ineensGetoetst = ineens.liquidityChecked !== false;
   var saving = ineens.totals.box2Total - (best ? best.totals.box2Total : ineens.totals.box2Total);
-  var hasSaving = best && best.fullyRepaid && saving > EPS;
+  var hasSaving = best && best.fullyRepaid && saving > RCSD.EPS;
 
   /* Is de aanbevolen route zelf de eenjarige, dan staat er een streepje bij een
      onderschrift dat een besparing belooft, en dat leest alsof er iets ontbreekt.
@@ -5162,10 +5222,10 @@ function renderAdvies(res) {
         (ineens.hitsHighRate ? ', omdat dan ' + euro(ineens.totals.box2HighPart) + ' in het hoge tarief van ' + pct(inp.highRate) + ' valt' : '') +
         (ineensGetoetst ? '' : ' — daarbij is de liquiditeit niet getoetst') + '.';
     }
-    if (best.totals.interest > EPS) {
+    if (best.totals.interest > RCSD.EPS) {
       tekst += ' De ' + euro(best.totals.interest) + ' RC-rente over de looptijd is een interne geldstroom naar de eigen BV; de bijschrijving verhoogt de schuld en is daardoor al in de heffing verwerkt.';
     }
-    if (best.totals.box2TaxHigh > EPS) {
+    if (best.totals.box2TaxHigh > RCSD.EPS) {
       /* Waarom het hoge tarief hier toch de goedkoopste uitkomst is, komt uit de
          vergelijking met de goedkoopste langere route (longerRouteComparison).
          De tekst noemt alleen wat in die vergelijking is gemeten: hoeveel de
@@ -5174,8 +5234,8 @@ function renderAdvies(res) {
          totalen niet vast te stellen. Is er geen langere route die volledig
          aflost, dan staat er geen reden maar dat feit. */
       var alt = res.longerAlternative;
-      if (alt && alt.exists && alt.extraTax > EPS) {
-        var staart = alt.extraGrossDividend > EPS
+      if (alt && alt.exists && alt.extraTax > RCSD.EPS) {
+        var staart = alt.extraGrossDividend > RCSD.EPS
           ? ' en vraagt in totaal ' + euro(alt.extraGrossDividend) + ' meer bruto dividend'
           : '';
         tekst += ' Deze route gebruikt bewust ' + euro(best.totals.box2TaxHigh) +
@@ -5203,9 +5263,9 @@ function renderAdvies(res) {
       var minderHeffing = best.taxCost - fiscaal.taxCost;
       tekst += ' <strong>Deze aanbeveling wijkt af van de laagste box 2-heffing.</strong> ' +
         fiscaal.label.toLowerCase() + ' kost ' +
-        (minderHeffing > EPS ? euro(minderHeffing) + ' minder aan heffing' : 'nagenoeg evenveel heffing') +
+        (minderHeffing > RCSD.EPS ? euro(minderHeffing) + ' minder aan heffing' : 'nagenoeg evenveel heffing') +
         ', maar laat de schuld langer staan' +
-        (fiscaal.totals.interest - best.totals.interest > EPS
+        (fiscaal.totals.interest - best.totals.interest > RCSD.EPS
           ? ' en schrijft daardoor ' + euro(fiscaal.totals.interest - best.totals.interest) + ' meer rente bij'
           : '') +
         '. Die rente verdwijnt onderweg voor 39% tot 49% aan belasting, en dat weegt in alle vier de doorgerekende ' +
@@ -5410,7 +5470,7 @@ var LAST_RESULT = null;
 function calculate() {
   var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   updateBracketDisplay();
-  var res = solve(readInputs());
+  var res = RCSD.solve(readInputs());
   LAST_RESULT = res;
   var invoer = verzamelInvoer();
   LAST_INVOER = {
@@ -5706,11 +5766,11 @@ function dossierMelding(tekst, soort) {
 function jaarplanKolomvlaggen(rows) {
   var v = { rente: false, deposit: false, fictief: false, cash: false, onttr: false };
   for (var i = 0; i < rows.length; i++) {
-    if (Math.abs(rows[i].interestTotal) > EPS) v.rente = true;
-    if (rows[i].depositApplied > EPS) v.deposit = true;
-    if (Math.abs(rows[i].fictiefVoordeel) > EPS) v.fictief = true;
-    if (rows[i].netPaidInCash > EPS) v.cash = true;
-    if ((rows[i].withdrawal || 0) > EPS) v.onttr = true;
+    if (Math.abs(rows[i].interestTotal) > RCSD.EPS) v.rente = true;
+    if (rows[i].depositApplied > RCSD.EPS) v.deposit = true;
+    if (Math.abs(rows[i].fictiefVoordeel) > RCSD.EPS) v.fictief = true;
+    if (rows[i].netPaidInCash > RCSD.EPS) v.cash = true;
+    if ((rows[i].withdrawal || 0) > RCSD.EPS) v.onttr = true;
   }
   return v;
 }
@@ -5875,7 +5935,7 @@ function exporteerExcel() {
 
    De validatielogica raakt de DOM niet en is daarom apart testbaar; de testrunner
    (tests/dossierbestand.test.mjs) leest het blok tussen ==DOSSIER-PURE-START== en
-   ==DOSSIER-PURE-END==, samen met de rekenengine (voor TAX_CONFIG). */
+   ==DOSSIER-PURE-END==, samen met de rekenengine (voor RCSD.TAX_CONFIG). */
 // ==DOSSIER-PURE-START==
 var DOSSIER_TOOL = 'rc-schuld-dga';
 var DOSSIER_FORMAATVERSIE = 1;
@@ -5979,7 +6039,7 @@ function leesDossierTekst(tekst) {
       waarschuwingen.push('Dit dossier is opgeslagen met toolversie ' + rauw.toolversie +
         '; deze tool draait versie ' + TOOL_VERSIE + '. De uitkomst kan daardoor afwijken van destijds.');
     }
-    var beschikbareJaren = Object.keys(TAX_CONFIG).filter(function (y) { return TAX_CONFIG[y].status !== 'historisch'; });
+    var beschikbareJaren = Object.keys(RCSD.TAX_CONFIG).filter(function (y) { return RCSD.TAX_CONFIG[y].status !== 'historisch'; });
     if (!Number.isInteger(rauw.taxYear) || beschikbareJaren.indexOf(String(rauw.taxYear)) === -1) {
       return { ok: false, fouten: ['Dit dossier is opgeslagen voor belastingjaar ' + rauw.taxYear +
         '; deze tool ondersteunt dat jaar niet (meer) in de keuzelijst. Er is niets toegepast.'] };
