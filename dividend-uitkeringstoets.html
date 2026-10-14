@@ -218,7 +218,6 @@
       transition: all .15s; font-family: var(--sans);
     }
     .doc-btn:hover { border-color: var(--mint); background: var(--mint-light); }
-    .doc-btn.copied { background: var(--ok-light); border-color: #86efac; color: var(--ok); }
     .doc-status { font-size: 11.5px; color: var(--muted); }
 
     .doc-text {
@@ -264,25 +263,33 @@
     #docsSection { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-    /* Dossierstuk: het @media print-blok hieronder hergebruikt de bestaande pagina met
-       haar reeds berekende invoer en resultaten. Er wordt geen aparte afdrukpagina
-       opgebouwd die de gegevens opnieuw zou moeten samenstellen. */
+    /* Dossierstuk (open punt 52). De afdruk toont niet het invulscherm maar een weergave die
+       vlak voor het afdrukken uit de pagina wordt opgebouwd (bouwDossierAfdruk): per stap de
+       omschrijving en de ingevulde waarde, zonder knoppen, controleweergave en uitleg, en met
+       de uitkomsten en besluitteksten zoals de tool ze toont. Een blok gaat niet over een
+       paginagrens. */
     .printonly { display: none; }
     @media print {
-      .noprint, .bt-nav-back, .bt-page-footer, .bt-privacy-pill, .bt-logout-btn,
-      #testdataBtn, .notulen-tabs, .doc-toolbar { display: none !important; }
+      .content > :not(#printKop):not(#dossierAfdruk) { display: none !important; }
       .printonly { display: block; }
       body { padding: 0; background: #fff; }
-      .content { max-width: none; padding: 8px 4px 0; }
-      .card { break-inside: avoid; border: 1px solid #999; box-shadow: none; }
-      #docsSection { display: block !important; }
-      .notulen-doc { display: block !important; margin-bottom: 16px; }
-      .doc-text { padding: 8px 0; }
-      input[type=text], input[type=date], select, textarea {
-        border: none; padding: 2px 0; background: transparent; color: #000;
-      }
-      table.pg input { border: none; background: transparent; }
-      .btn, .doc-btn, .confirm input[type=checkbox] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .content { max-width: none; padding: 0; }
+      #dossierAfdruk { font-size: 11px; color: #111; }
+      #dossierAfdruk .da-sectie { margin: 0 0 14px; }
+      #dossierAfdruk h2 { font-size: 14px; margin: 14px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #999; break-after: avoid; }
+      #dossierAfdruk h3 { font-size: 12px; margin: 10px 0 4px; break-after: avoid; }
+      #dossierAfdruk .da-blok { break-inside: avoid; margin: 0 0 8px; }
+      #dossierAfdruk table.da { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      #dossierAfdruk table.da td { padding: 2px 6px 2px 0; vertical-align: top; border-bottom: 1px solid #e5e5e5; }
+      #dossierAfdruk table.da td.da-label { width: 58%; }
+      #dossierAfdruk table.da td.da-waarde { font-weight: 600; }
+      #dossierAfdruk table.da tr { break-inside: avoid; }
+      #dossierAfdruk table.pg { min-width: 0; width: 100%; font-size: 9px; }
+      #dossierAfdruk table.pg td, #dossierAfdruk table.pg th { padding: 2px 3px; font-size: 9px; position: static; white-space: normal; letter-spacing: 0; }
+      #dossierAfdruk table.pg td, #dossierAfdruk table.pg tbody th { white-space: nowrap; font-size: 9px !important; }
+      #dossierAfdruk .doc-text { white-space: pre-wrap; font-size: 10px; border: 1px solid #ccc; padding: 6px; break-inside: auto; }
+      #dossierAfdruk .card { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+      .toets-result, .conclusie-card, .calc-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   
     /* De kopbalk even breed als de inhoud eronder. */
@@ -399,7 +406,7 @@
       <div>
         <div class="bt-kopbalk-titel">Dividend &amp; Uitkeringstoets</div>
         <div class="bt-kopbalk-sub">Balanstest · Liquiditeitsprognose · Besluitdocumenten</div>
-        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 13 okt 2026, 08:41</div>
+        <div class="bt-kopbalk-bijgewerkt"><!-- LAST_UPDATED -->Laatste update: 15 okt 2026, 00:00</div>
       </div>
     </div>
     <div class="bt-kopbalk-acties noprint">
@@ -436,6 +443,7 @@
     <h1 style="font-size:18px;margin-bottom:4px;">Dossierstuk — Dividend &amp; Uitkeringstoets</h1>
     <div id="printKopInhoud" style="font-size:12px;color:var(--muted);margin-bottom:16px;"></div>
   </div>
+  <div class="printonly" id="dossierAfdruk"></div>
 
   <!-- Stap 1: BV & besluit -->
   <div class="card">
@@ -491,12 +499,29 @@
       <div class="radios">
         <label class="ro"><input type="radio" name="orgaan" value="ava" checked /> <span>Algemene vergadering — besluit in vergadering</span></label>
         <label class="ro"><input type="radio" name="orgaan" value="enig" /> <span>Enig aandeelhouder — besluit buiten vergadering</span></label>
+        <label class="ro"><input type="radio" name="orgaan" value="buiten" /> <span>Alle aandeelhouders samen — besluit buiten vergadering</span></label>
         <label class="ro"><input type="radio" name="orgaan" value="ander" /> <span>Een ander orgaan of een beperkte bevoegdheid volgens de statuten</span></label>
       </div>
       <div id="orgaanAnderWrap" style="display:none;margin-top:10px;">
         <label for="orgaanAnder">Naam van het bevoegde orgaan
           <input type="text" id="orgaanAnder" placeholder="bijv. de vergadering van houders van aandelen B" autocomplete="off" />
         </label>
+      </div>
+      <div id="buitenVergaderingWrap" style="display:none;margin-top:10px;">
+        <div class="confirm" id="buitenInstemmingWrap">
+          <input type="checkbox" id="buitenInstemming" />
+          <label for="buitenInstemming">
+            Alle vergadergerechtigden, de aandeelhouders inbegrepen, hebben met besluitvorming buiten vergadering ingestemd.
+            <span class="sub" style="font-weight:400;">Art. 2:238 lid 1 BW: besluitvorming buiten vergadering kan alleen als alle vergadergerechtigden met die wijze van besluitvorming hebben ingestemd. Vergadergerechtigden zijn de aandeelhouders en daarnaast bijvoorbeeld certificaathouders met vergaderrecht en vruchtgebruikers of pandhouders met stemrecht. Tenzij de statuten anders bepalen, kan de instemming ook langs elektronische weg. Zonder deze bevestiging blijft de uitkomst "nadere beoordeling noodzakelijk".</span>
+          </label>
+        </div>
+        <div class="confirm" id="buitenAdviesWrap" style="margin-top:10px;">
+          <input type="checkbox" id="buitenAdvies" />
+          <label for="buitenAdvies">
+            De bestuurders en, als die er zijn, de commissarissen zijn voorafgaand aan de besluitvorming in de gelegenheid gesteld advies uit te brengen.
+            <span class="sub" style="font-weight:400;">Art. 2:238 lid 2 BW. Zonder deze bevestiging blijft de uitkomst "nadere beoordeling noodzakelijk".</span>
+          </label>
+        </div>
       </div>
     </fieldset>
   </div>
@@ -1166,7 +1191,7 @@
       <h2><span class="step-badge">6</span> Besluitdocumenten</h2>
       <p class="lead">
         Beide documenten zijn opgebouwd uit uw invoer en de hierboven vastgelegde bevestigingen. Er staan geen feiten in
-        die u niet zelf hebt ingevoerd of bevestigd. U kunt de tekst hier nog aanpassen voordat u kopieert of print.
+        die u niet zelf hebt ingevoerd of bevestigd. U kunt de tekst hier nog aanpassen voordat u print of naar Word zet.
         <strong>Let op:</strong> wijzigt u daarna nog iets in de stappen hierboven, dan worden beide documenten opnieuw
         opgebouwd en gaan uw handmatige aanpassingen verloren. Rond de invoer dus af voordat u de tekst bewerkt.
       </p>
@@ -1178,7 +1203,6 @@
 
       <div class="notulen-doc active" id="docAh">
         <div class="doc-toolbar">
-          <button type="button" class="doc-btn" data-copy="ah">Kopiëren</button>
           <button type="button" class="doc-btn" data-print="ah">Printen</button>
           <button type="button" class="doc-btn" data-word="ah">Naar Word</button>
           <span class="doc-status" id="status_ah"></span>
@@ -1188,7 +1212,6 @@
 
       <div class="notulen-doc" id="docBestuur">
         <div class="doc-toolbar">
-          <button type="button" class="doc-btn" data-copy="bestuur">Kopiëren</button>
           <button type="button" class="doc-btn" data-print="bestuur">Printen</button>
           <button type="button" class="doc-btn" data-word="bestuur">Naar Word</button>
           <span class="doc-status" id="status_bestuur"></span>
@@ -1706,21 +1729,44 @@ function liquiditeitsprognose(s) {
  * Belastinglatenties kent V&A 12-008 niet. Zij zijn daarom optioneel en standaard leeg;
  * zie de toelichting bij het veld.
  */
+/*
+ * Onvolledige vergelijking (besluit eigenaar 13-10-2026, open punt 49). De hulp rekent mee
+ * zodra één veld is ingevuld, maar zonder activa of zonder pensioen-, stamrecht- of
+ * ODV-verplichting valt de dekking te gunstig of zinloos uit. Een leeg veld telt als nul,
+ * dus de toets is: activa nul, of verplichting en ODV allebei nul. Dan is de vergelijking
+ * onvolledig: `ontbreekt` noemt de velden, `maxUitkering` is null, de uitkomst wordt niet
+ * groen en er komt geen maximaal uitkeerbaar bedrag in besluit of dossier.
+ */
+const PEB_ONTBREEKT_ACTIVA = 'activa op waarde in het economisch verkeer';
+const PEB_ONTBREEKT_VERPLICHTING = 'pensioen-, loonstamrecht- of oudedagsverplichting';
+
 function pensioendekking(s) {
   if (s.peb !== 'ja' || !s.pebHulpGevuld) return null;
   const verplichtingen = s.pebVerplichting + s.pebVooroverlijden + s.pebOdv + s.pebPassiva;
   const middelen = s.pebActiva + s.pebLatentie;
   const dekkingVoor = middelen - verplichtingen;
   const dekkingNa = dekkingVoor - s.dividend;
+  const ontbreekt = [];
+  if (!s.pebActiva) ontbreekt.push(PEB_ONTBREEKT_ACTIVA);
+  if (!s.pebVerplichting && !s.pebOdv) ontbreekt.push(PEB_ONTBREEKT_VERPLICHTING);
+  const volledig = ontbreekt.length === 0;
   return {
     verplichtingen: verplichtingen,
     middelen: middelen,
     dekkingVoor: dekkingVoor,
     dekkingNa: dekkingNa,
-    maxUitkering: Math.max(0, dekkingVoor),
+    volledig: volledig,
+    ontbreekt: ontbreekt,
+    maxUitkering: volledig ? Math.max(0, dekkingVoor) : null,
     tekort: dekkingNa < 0 ? -dekkingNa : 0,
-    geslaagd: dekkingNa >= 0
+    geslaagd: volledig && dekkingNa >= 0
   };
+}
+
+/** Zin voor scherm, aandachtspunt en besluit bij een onvolledige vergelijking. */
+function pebOntbreektTekst(pd) {
+  return 'De dekkingsvergelijking is onvolledig: ' + pd.ontbreekt.join(' en ') + (pd.ontbreekt.length > 1 ? ' ontbreken' : ' ontbreekt')
+    + ' (leeg of nul). Zolang dat zo is, zegt de berekende dekking niets en volgt er geen maximaal uitkeerbaar bedrag uit.';
 }
 
 /* ============================================================
@@ -1965,7 +2011,14 @@ function valideer(s, bt, lp, pd, br) {
     fouten.push('Vul de naam van het bevoegde orgaan in, of kies de algemene vergadering.');
   }
   if (s.orgaan === 'enig' && s.ahMetNaam.length > 1) {
-    fouten.push('U hebt "enig aandeelhouder" gekozen, maar meer dan één aandeelhouder ingevoerd.');
+    fouten.push('U hebt "enig aandeelhouder" gekozen, maar meer dan één aandeelhouder ingevoerd. Nemen alle aandeelhouders het besluit samen buiten vergadering, kies dan die mogelijkheid.');
+  }
+  // Besluit buiten vergadering (open punt 53, besluiten van de eigenaar op 14-10-2026).
+  if (buitenVergadering(s) && !s.buitenInstemming) {
+    punten.push('Niet bevestigd is dat alle vergadergerechtigden met besluitvorming buiten vergadering hebben ingestemd. Zonder die instemming kan het besluit niet buiten vergadering worden genomen (art. 2:238 lid 1 BW).');
+  }
+  if (buitenVergadering(s) && !s.buitenAdvies) {
+    punten.push('Niet bevestigd is dat de bestuurders en, als die er zijn, de commissarissen voorafgaand aan de besluitvorming in de gelegenheid zijn gesteld advies uit te brengen (art. 2:238 lid 2 BW).');
   }
 
   if (prognose && s.naPeriode === 'ja') {
@@ -1996,14 +2049,16 @@ function valideer(s, bt, lp, pd, br) {
   // Pensioen in eigen beheer, oudedagsverplichting, stamrecht
   if (s.peb === 'ja') {
     if (s.pebFout) fouten.push('De dekkingsvergelijking bij het pensioen in eigen beheer bevat een ongeldig bedrag.');
-    if (pd && pd.tekort > 0) {
+    if (pd && !pd.volledig) {
+      punten.push(pebOntbreektTekst(pd) + ' Vul de ontbrekende waardering in bij de hulp in stap 5, of maak alle velden van de hulp leeg.');
+    } else if (pd && pd.tekort > 0) {
       punten.push('Volgens de ingevoerde dekkingsvergelijking blijft er na deze uitkering ' + eur(pd.tekort) + ' te weinig vermogen achter om de pensioen-, ODV- of stamrechtverplichting na te komen. De Belastingdienst merkt een uitkering die de dekking aantast aan als (gedeeltelijke) afkoop; de volledige aanspraak wordt dan belast als loon uit vroegere dienstbetrekking, bij pensioen en ODV vermeerderd met 20% revisierente. Op basis van deze cijfers is maximaal ' + eur(pd.maxUitkering) + ' uitkeerbaar zonder de dekking aan te tasten. Neem de mogelijke heffing bovendien op als voorzienbare verplichting in de liquiditeitsprognose.');
     }
     if (!s.pebWaardering) {
       punten.push('Niet bevestigd is op welke grondslag de pensioen-, ODV- of stamrechtverplichting in het ingevoerde eigen vermogen is opgenomen. Vraagt de jaarrekening een actuariële waardering en staat de verplichting op fiscale balanswaarde, dan is de uitkeringsruimte hierboven te hoog berekend.');
     }
     if (!s.pebDekking) {
-      punten.push('Niet bevestigd is dat afzonderlijk is beoordeeld of de vennootschap ook na de uitkering, op korte en lange termijn, voldoende vermogen behoudt om de pensioen-, ODV- of stamrechtverplichting na te komen, gewaardeerd op waarde in het economisch verkeer. Deze tool berekent die dekking niet; schiet zij tekort, dan kan de volledige aanspraak in de heffing worden betrokken.');
+      punten.push('Niet bevestigd is dat afzonderlijk is beoordeeld of de vennootschap ook na de uitkering, op korte en lange termijn, voldoende vermogen behoudt om de pensioen-, ODV- of stamrechtverplichting na te komen, gewaardeerd op waarde in het economisch verkeer. Zonder de dekkingsvergelijking rekent deze tool die dekking niet; de vergelijking rekent niets actuarieel uit en gebruikt alleen de ingevoerde waarderingen. Schiet de dekking tekort, dan kan de volledige aanspraak in de heffing worden betrokken.');
     }
   }
 
@@ -2257,7 +2312,7 @@ function eurD(cents) { return '€' + NBSP + eur(cents, { bare: true }); }
  * Registreert, naast de spatie-uitgelijnde platte tekst die de besluittekst nog altijd
  * vormt, welke cellen een tabelregel bevat. De platte tekst zelf verandert hierdoor
  * niets: dezelfde functies geven precies dezelfde string terug als voorheen, dus de
- * besluittekst op het scherm, in het klembord en in bestaande tests blijft ongewijzigd.
+ * besluittekst op het scherm en in bestaande tests blijft ongewijzigd.
  * De afdruk naar PDF gebruikt dit register om dezelfde regel als een echte tabelrij te
  * tekenen in plaats van in een apart, vaste-breedte lettertype.
  */
@@ -2268,10 +2323,13 @@ const _tabelRegisters = { ah: new Map(), bestuur: new Map() };
 let _tabelRegister = _tabelRegisters.ah;
 function _nieuweTabel(doc) { _tabelRegister = _tabelRegisters[doc]; _tabelRegister.clear(); }
 function _regRij(regel, cellen, uitlijn) { _tabelRegister.set(regel, { soort: 'rij', cellen: cellen, uitlijn: uitlijn }); return regel; }
-function _regSep(regel) { _tabelRegister.set(regel, { soort: 'sep' }); return regel; }
+// Een scheidingsregel die met spaties begint (scheidingsRegel) is een rekenlijn: in de afdruk
+// en in Word een lijn boven alleen de bedragkolommen, met de rij eronder vet als totaal. Een
+// regel die vooraan begint is een lijn over de volle breedte (open punt 51).
+function _regSep(regel) { _tabelRegister.set(regel, { soort: 'sep', kolom: regel.charAt(0) === ' ' }); return regel; }
 /**
  * Bedragregel waarvan het label in de platte tekst over twee regels loopt. In de platte
- * tekst verandert niets; in de afdruk en op het klembord wordt het één tabelrij met het
+ * tekst verandert niets; in de afdruk en in Word wordt het één tabelrij met het
  * volledige label, en valt de tweede regel weg. Zonder dit stond de eerste regel als losse
  * alinea in een ander lettertype boven de tabel en brak de tabel in tweeën.
  */
@@ -2302,8 +2360,10 @@ function labelRegel(label, waarde) {
 function bedragRegel(label, cents, breedte, teken) {
   const b = breedte || 52;
   let val;
-  if (teken === '-') val = (cents === 0 ? '' : '- ') + eur(Math.abs(cents), { bare: true });
-  else if (teken === '+') val = (cents < 0 ? '- ' : '+ ') + eur(Math.abs(cents), { bare: true });
+  // Minteken zonder spatie, net als een negatief bedrag uit eur() en in de balanstabel
+  // (open punt 51: "- 100.000,00" en "-100.000,00" stonden door elkaar).
+  if (teken === '-') val = (cents === 0 ? '' : '-') + eur(Math.abs(cents), { bare: true });
+  else if (teken === '+') val = (cents < 0 ? '-' : '+') + eur(Math.abs(cents), { bare: true });
   else val = eur(cents, { bare: true });
   return _regRij(label.padEnd(b) + val.padStart(KOL), [label.trim(), val]);
 }
@@ -2319,6 +2379,11 @@ function aardOmschrijving(s, hoofdletter) {
   else if (s.aard === 'reserves') t = 'uitkering ten laste van de overige reserves';
   else t = 'dividend over het boekjaar ' + s.boekjaar + ' (winstbestemming)';
   return hoofdletter ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+}
+
+/** Besluit buiten vergadering (art. 2:238 BW): door de enig aandeelhouder of door alle aandeelhouders samen. */
+function buitenVergadering(s) {
+  return s.orgaan === 'enig' || s.orgaan === 'buiten';
 }
 
 function orgaanNaam(s) {
@@ -2546,7 +2611,9 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
 
   const kop = s.orgaan === 'enig'
     ? 'BESLUIT VAN DE ENIG AANDEELHOUDER'
-    : (s.orgaan === 'ander' ? 'BESLUIT TOT UITKERING' : 'BESLUIT VAN DE ALGEMENE VERGADERING VAN AANDEELHOUDERS');
+    : s.orgaan === 'buiten'
+      ? 'BESLUIT VAN DE AANDEELHOUDERS BUITEN VERGADERING'
+      : (s.orgaan === 'ander' ? 'BESLUIT TOT UITKERING' : 'BESLUIT VAN DE ALGEMENE VERGADERING VAN AANDEELHOUDERS');
 
   L.push(kop);
   L.push('van de besloten vennootschap met beperkte aansprakelijkheid');
@@ -2562,15 +2629,36 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
   L.push('');
   L.push('1. BESLUITVORMEND ORGAAN');
   L.push('');
-  if (s.orgaan === 'enig') {
-    L.push(...wrapTekst('Dit besluit is genomen door de enig aandeelhouder buiten vergadering, met inachtneming van artikel 2:238 BW. Het bestuur is in de gelegenheid gesteld advies uit te brengen.', 74));
+  if (buitenVergadering(s)) {
+    /*
+     * Open punt 53 (bron-controleur 13-10-2026, besluiten van de eigenaar 14-10-2026). De
+     * enig aandeelhouder of alle aandeelhouders samen nemen het besluit dat op grond van
+     * art. 2:216 lid 1 BW aan de algemene vergadering toekomt, buiten vergadering
+     * (art. 2:238 BW); "als algemene vergadering" heeft in de wettekst geen vindplaats
+     * (bron-controleur 14-10-2026) en staat er daarom niet. Lid 1: alle
+     * vergadergerechtigden hebben met die wijze van besluitvorming ingestemd. Lid 2: de
+     * stemmen worden schriftelijk uitgebracht, en de bestuurders en de commissarissen worden
+     * voorafgaand in de gelegenheid gesteld advies uit te brengen. Instemming en advies zijn
+     * bevestigingen op het scherm; zonder bevestiging zegt de tekst dat het niet vaststaat.
+     */
+    const enig = s.orgaan === 'enig';
+    L.push(...wrapTekst((enig ? 'De enig aandeelhouder neemt' : 'De aandeelhouders nemen') + ' buiten vergadering (artikel 2:238 BW) het besluit dat op grond van artikel 2:216 lid 1 BW toekomt aan de algemene vergadering, die bevoegd is tot bestemming van de winst en tot vaststelling van uitkeringen, voor zover het eigen vermogen groter is dan de reserves die krachtens de wet of de statuten moeten worden aangehouden; ' + (enig ? 'de enig aandeelhouder brengt de stem' : 'iedere aandeelhouder brengt zijn stem') + ' schriftelijk uit door ondertekening van dit besluit.', 74));
+    L.push('');
+    L.push(...wrapTekst(s.buitenInstemming
+      ? 'Alle vergadergerechtigden hebben met deze wijze van besluitvorming ingestemd (artikel 2:238 lid 1 BW).'
+      : 'Niet bevestigd is dat alle vergadergerechtigden met deze wijze van besluitvorming hebben ingestemd (artikel 2:238 lid 1 BW). Dit moet vaststaan voordat het besluit buiten vergadering wordt genomen.', 74));
+    L.push('');
+    L.push(...wrapTekst(s.buitenAdvies
+      ? 'De bestuurders en, als die er zijn, de commissarissen zijn voorafgaand aan de besluitvorming in de gelegenheid gesteld advies uit te brengen (artikel 2:238 lid 2 BW).'
+      : 'Niet bevestigd is dat de bestuurders en, als die er zijn, de commissarissen voorafgaand aan de besluitvorming in de gelegenheid zijn gesteld advies uit te brengen (artikel 2:238 lid 2 BW). Dit moet vaststaan voordat het besluit wordt genomen.', 74));
   } else if (s.orgaan === 'ander') {
     L.push(...wrapTekst('Dit besluit is genomen door ' + s.orgaanAnder + ', dat op grond van de statuten bevoegd is tot vaststelling van uitkeringen (art. 2:216 lid 1, tweede volzin, BW).', 74));
   } else {
     L.push(...wrapTekst('Dit besluit is genomen door de algemene vergadering, die op grond van artikel 2:216 lid 1 BW bevoegd is tot bestemming van de winst en tot vaststelling van uitkeringen, voor zover het eigen vermogen groter is dan de reserves die krachtens de wet of de statuten moeten worden aangehouden.', 74));
   }
   L.push('');
-  L.push(...wrapTekst('De statuten zijn gecontroleerd en bevatten geen bepaling die deze uitkering of de bevoegdheid van dit orgaan verhindert of anders regelt.', 74));
+  // Buiten vergadering nemen de aandeelhouders het besluit van de algemene vergadering, niet van een eigen orgaan (punt 53).
+  L.push(...wrapTekst('De statuten zijn gecontroleerd en bevatten geen bepaling die deze uitkering of de bevoegdheid van ' + (buitenVergadering(s) ? 'de algemene vergadering' : 'dit orgaan') + ' verhindert of anders regelt.', 74));
   L.push('');
   L.push('');
   L.push(s.ahMetNaam.length === 1 ? '2. AANDEELHOUDER' : '2. AANDEELHOUDERS');
@@ -2649,8 +2737,11 @@ function maakAandeelhoudersbesluit(s, bt, lp, v) {
 /** Paragraaf 4 van het bestuursbesluit in de balansroute. */
 function balansrouteRegels(s, br) {
   const L = [];
-  const B = 44;
-  const kol = (a, b) => padL(a, KOL) + padL(b, KOL);
+  // Eigen kolombreedte: de kop noemt de volledige datum ("30 september 2026", 17 tekens) en
+  // past niet in KOL (open punt 51).
+  const B = 42;
+  const KB = 19;
+  const kol = (a, b) => padL(a, KB) + padL(b, KB);
   const regel = (label, a, b) => _regRij(pad(label, B) + kol(a, b), [label.trim(), a, b]);
   const bedrag = (c) => eur(c, { bare: true });
   // Bij voldoening via de rekening-courant hoeven de liquide middelen alleen het deel te
@@ -2658,21 +2749,23 @@ function balansrouteRegels(s, br) {
   const uitk = (br.rc && br.rc.actief) ? 'het deel van de uitkering in geld' : 'de uitkering';
   L.push(...wrapTekst('Beoordeeld is of de vennootschap na de uitkering kan blijven voortgaan met het betalen van haar opeisbare schulden. Het bestuur heeft daarvoor twee balansen gebruikt: de balans per ' + fmtDatum(s.peildatum) + ' en een verwachte balans per ' + fmtDatum(s.datumVerwacht) + '. Beide zijn opgesteld zonder rekening te houden met deze uitkering; hieronder is de uitkering op beide momenten in mindering gebracht op de liquide middelen en het eigen vermogen' + (br.rc && br.rc.verrekend > 0 ? ', behalve dat het deel dat met de rekening-courantvordering op de aandeelhouder wordt verrekend niet van de liquide middelen maar van die vordering afgaat' : '') + '. Bedragen in euro.', 74));
   L.push('');
-  const kopA = fmtDatum(s.peildatum).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
-  const kopB = fmtDatum(s.datumVerwacht).replace(/^(\d+) (\w{3})\w* /, '$1 $2 ');
+  const kopA = fmtDatum(s.peildatum);
+  const kopB = fmtDatum(s.datumVerwacht);
   L.push(_regRij(pad('', B) + kol(kopA, kopB), ['', kopA, kopB]));
-  L.push(_regSep('-'.repeat(B + 2 * KOL)));
+  L.push(_regSep('-'.repeat(B + 2 * KB)));
   const namen = {
     vasteActiva: 'Vaste activa', voorraden: 'Voorraden', vorderingen: 'Vorderingen en overige vlottende activa',
     liquide: 'Liquide middelen', eigenVermogen: 'Eigen vermogen', voorzieningen: 'Voorzieningen',
     langSchulden: 'Langlopende schulden', kortSchulden: 'Kortlopende schulden'
   };
   BALANS_ACTIEF.forEach(k => L.push(regel(namen[k], bedrag(s.balansPeil[k]), bedrag(s.balansVerwacht[k]))));
+  L.push(_regSep(pad('', B) + '-'.repeat(2 * KB)));
   L.push(regel('Totaal activa', bedrag(br.peil.totaalActief), bedrag(br.verwacht.totaalActief)));
   L.push('');
   BALANS_PASSIEF.forEach(k => L.push(regel(namen[k], bedrag(s.balansPeil[k]), bedrag(s.balansVerwacht[k]))));
+  L.push(_regSep(pad('', B) + '-'.repeat(2 * KB)));
   L.push(regel('Totaal passiva', bedrag(br.peil.totaalPassief), bedrag(br.verwacht.totaalPassief)));
-  L.push(_regSep('-'.repeat(B + 2 * KOL)));
+  L.push('');
   L.push(regel('Voorgenomen uitkering', '-' + bedrag(s.dividend), '-' + bedrag(s.dividend)));
   const rcV = br.rc && br.rc.verrekend > 0;
   if (rcV) {
@@ -2686,7 +2779,7 @@ function balansrouteRegels(s, br) {
   L.push(regel('Solvabiliteit (DK-norm* ' + fmtKengetal(DK_NORM.solvabiliteit, true) + ')', fmtKengetal(br.peil.solvabiliteit, true), fmtKengetal(br.verwacht.solvabiliteit, true)));
   L.push(regel('Current ratio (DK-norm* ' + fmtKengetal(DK_NORM.current) + ')', fmtKengetal(br.peil.current), fmtKengetal(br.verwacht.current)));
   L.push(regel('Quick ratio (DK-norm* ' + fmtKengetal(DK_NORM.quick) + ')', fmtKengetal(br.peil.quick), fmtKengetal(br.verwacht.quick)));
-  L.push(_regSep('-'.repeat(B + 2 * KOL)));
+  L.push(_regSep('-'.repeat(B + 2 * KB)));
   L.push('* interne DK-norm, geen wettelijke eis');
   L.push('');
   L.push(...wrapTekst('Het werkkapitaal is het totaal van voorraden, vorderingen en liquide middelen na de uitkering, verminderd met de kortlopende schulden. De solvabiliteit is het eigen vermogen gedeeld door het balanstotaal, beide na de uitkering. De current ratio deelt de vlottende activa door de kortlopende schulden, de quick ratio doet dat zonder de voorraden.', 74));
@@ -2848,7 +2941,10 @@ function maakBestuursbesluit(s, bt, lp, v, pd, br) {
       ? 'Afzonderlijk is beoordeeld en vastgelegd dat de vennootschap ook na deze uitkering, op korte en lange termijn, voldoende vermogen behoudt om die verplichting na te komen, gewaardeerd op waarde in het economisch verkeer.'
       : 'Niet bevestigd is dat afzonderlijk is beoordeeld of de vennootschap ook na deze uitkering voldoende vermogen behoudt om die verplichting na te komen. Die beoordeling moet plaatsvinden voordat tot uitkering wordt overgegaan.', 74));
     L.push('');
-    if (pd) {
+    if (pd && !pd.volledig) {
+      L.push(...wrapTekst(pebOntbreektTekst(pd), 74));
+      L.push('');
+    } else if (pd) {
       L.push('De daarbij gehanteerde vergelijking, op waarde in het economisch verkeer:');
       L.push('');
       L.push(bedragRegel('Middelen', pd.middelen));
@@ -3048,7 +3144,11 @@ const SCALAIRE_VELDEN = [
   { id: 'datumBesluit', soort: 'datum', label: 'Datum besluit' },
   { id: 'datumUitkering', soort: 'datum', label: 'Datum betaalbaarstelling' },
   { id: 'peildatum', soort: 'datum', label: 'Peildatum eigen vermogen' },
-  { id: 'orgaan', soort: 'keuze', label: 'Bevoegd orgaan', opties: ['ava', 'enig', 'ander'] },
+  { id: 'orgaan', soort: 'keuze', label: 'Bevoegd orgaan', opties: ['ava', 'enig', 'buiten', 'ander'] },
+  // Besluit buiten vergadering (art. 2:238 BW, open punt 53). Optioneel: een ouder dossier
+  // zonder deze velden opent met beide bevestigingen uit, en dan is de uitkomst oranje.
+  { id: 'buitenInstemming', soort: 'vink', optioneel: true, label: 'Alle vergadergerechtigden hebben met besluitvorming buiten vergadering ingestemd' },
+  { id: 'buitenAdvies', soort: 'vink', optioneel: true, label: 'Bestuurders en commissarissen in de gelegenheid gesteld advies uit te brengen' },
   { id: 'orgaanAnder', soort: 'tekst', label: 'Ander orgaan (omschrijving)' },
   // Voldoening via de rekening-courant (29-09-2026). Optioneel met een standaardwaarde,
   // zodat een dossierbestand van daarvoor gewoon opent als "volledig in geld".
@@ -3117,6 +3217,7 @@ const KEUZE_LABELS = {
   },
   orgaan: {
     ava: 'Algemene vergadering', enig: 'Enig aandeelhouder',
+    buiten: 'Alle aandeelhouders samen, buiten vergadering',
     ander: 'Ander orgaan of beperkte bevoegdheid volgens de statuten',
   },
   route: {
@@ -3502,7 +3603,9 @@ function uitkomstRijen(s, bt, lp, pd, br, v, status) {
     }
   }
 
-  if (s.peb === 'ja' && pd) {
+  if (s.peb === 'ja' && pd && !pd.volledig) {
+    uit.push({ label: 'Dekkingsvergelijking pensioen/ODV/stamrecht', tekst: 'onvolledig, ontbreekt: ' + pd.ontbreekt.join('; ') + '. Daarom geen dekking en geen maximaal uitkeerbaar bedrag' });
+  } else if (s.peb === 'ja' && pd) {
     uit.push(regelBedragCent('Dekking pensioen/ODV/stamrecht vóór de uitkering', pd.dekkingVoor));
     uit.push(regelBedragCent('Dekking na de uitkering', pd.dekkingNa));
     uit.push(regelBedragCent('Maximaal uitkeerbaar zonder de dekking aan te tasten', pd.maxUitkering));
@@ -3529,6 +3632,7 @@ const VINDPLAATSEN = [
   'Art. 2:216 lid 2 BW — een uitkeringsbesluit heeft geen gevolgen zolang het bestuur geen goedkeuring heeft verleend; het bestuur weigert die slechts als het weet of redelijkerwijs behoort te voorzien dat de vennootschap na de uitkering niet kan blijven voortgaan met het betalen van haar opeisbare schulden.',
   'Art. 2:216 lid 3 BW — kan de vennootschap na de uitkering niet voortgaan met het betalen van haar opeisbare schulden, dan zijn de bestuurders die dat ten tijde van de uitkering wisten of redelijkerwijs behoorden te voorzien jegens de vennootschap hoofdelijk verbonden voor het tekort dat door de uitkering is ontstaan, met de wettelijke rente; de ontvanger die dat wist of redelijkerwijs behoorde te voorzien, is gehouden tot vergoeding van dat tekort tot ten hoogste het bedrag of de waarde van de ontvangen uitkering.',
   'Art. 2:216 lid 11 BW — bij een uitkering in aandelen of een bijschrijving op niet-volgestorte aandelen blijft de goedkeuring van lid 2 nodig, maar geldt de aansprakelijkheid van lid 3 niet; deze tool toetst alleen uitkeringen in geld.',
+  'Art. 2:238 lid 1 en 2 BW — aandeelhouders kunnen buiten vergadering besluiten als alle vergadergerechtigden met die wijze van besluitvorming hebben ingestemd (tenzij de statuten anders bepalen ook langs elektronische weg); de stemmen worden schriftelijk uitgebracht, en de bestuurders en de commissarissen worden voorafgaand aan de besluitvorming in de gelegenheid gesteld advies uit te brengen.',
   'Art. 2:373 lid 4 BW — de wettelijke reserves zijn limitatief opgesomd; agio hoort daar niet bij.',
   'Art. 6:127 lid 1 BW — bij verrekening gaan beide verbintenissen teniet tot hun gemeenschappelijk beloop; het dividend kan dus niet voor meer worden verrekend dan de vordering van de vennootschap op de aandeelhouder.',
   'Art. 6:38 BW — is geen tijd voor de nakoming bepaald, dan kan terstond nakoming worden gevorderd; een rekening-courantschuld aan de aandeelhouder is dus behoudens een andere afspraak opeisbaar.',
@@ -3548,6 +3652,8 @@ const MODELKEUZES = [
   'Een verwachte balans van ten minste elf kalendermaanden na de betaalbaarstelling (M19), oranje bij een negatieve verwachte liquiditeit (M20), de eis dat een balans moet sluiten (M21) en het signaal bij een verwacht verlies (M22) zijn eveneens modelkeuzes zonder eigen bron.',
   'De DK-normen (solvabiliteit 20%, current ratio 1, quick ratio 1) zijn interne kengetallen en geen wettelijke eis; eronder wordt de uitkomst oranje, nooit rood.',
   'Een bijschrijving van dividend op een rekening-courantschuld aan de aandeelhouder telt in de toets van lid 2 als betaling bij de betaalbaarstelling, alsof de schuld direct wordt opgeëist (M23). Een schuld is behoudens een andere afspraak opeisbaar (art. 6:38 BW); de tool kent zo\'n afspraak geen gewicht toe.',
+  'De dekkingsvergelijking bij pensioen in eigen beheer, ODV of stamrecht geldt als onvolledig zolang de activa ontbreken, of zowel de pensioen- of loonstamrechtverplichting als de ODV ontbreekt (leeg of nul); dan wordt de uitkomst niet groen en volgt er geen maximaal uitkeerbaar bedrag. V&A 12-008 vraagt alle activa en passiva op waarde in het economisch verkeer maar geeft geen ondergrens voor volledigheid; deze regel is een keuze van de tool.',
+  'Het aandeelhoudersbesluit bepaalt dat de uitkering pas betaalbaar wordt gesteld nadat de goedkeuring van het bestuur is verleend en schriftelijk is vastgelegd. Art. 2:216 lid 2 BW eist geen schriftelijke vastlegging; zij dient als bewijs dat het bestuur de toets heeft gedaan, wat bij een beroep op art. 2:216 lid 3 BW van belang is.',
 ];
 
 const AFBAKENING = [
@@ -3680,10 +3786,13 @@ function wordTabel(rijen) {
       // Heeft een rij minder cellen dan de tabel, dan neemt de laatste cel de rest van de breedte.
       const span = (i === r.cellen.length - 1) ? n - i : 1;
       const breedte = kol.slice(i, i + span).reduce((a, b) => a + b, 0);
+      // Een rekenlijn ('bedrag') staat alleen boven of onder de bedragcellen, een volle lijn over de hele rij.
+      const heeftLijn = (soort) => soort === true || soort === 'vol' || (soort === 'bedrag' && uitlijn[i] === 'rechts');
+      const boven = heeftLijn(r.lijnBoven), onder = heeftLijn(r.lijnOnder);
       xml += '<w:tc><w:tcPr><w:tcW w:w="' + breedte + '" w:type="dxa"/>' + (span > 1 ? '<w:gridSpan w:val="' + span + '"/>' : '')
-        + (r.lijnBoven || r.lijnOnder ? '<w:tcBorders>' + (r.lijnBoven ? lijn('top') : '') + (r.lijnOnder ? lijn('bottom') : '') + '</w:tcBorders>' : '') + '</w:tcPr>'
+        + (boven || onder ? '<w:tcBorders>' + (boven ? lijn('top') : '') + (onder ? lijn('bottom') : '') + '</w:tcBorders>' : '') + '</w:tcPr>'
         + wordAlinea(c, {
-          na: 0, grootte: 19, bijElkaar: !laatste, rechts: uitlijn[i] === 'rechts',
+          na: 0, grootte: 19, bijElkaar: !laatste, rechts: uitlijn[i] === 'rechts', vet: !!r.vet,
           links: i === 0 && r.indent ? r.indent * 60 : 0
         })
         + '</w:tc>';
@@ -3697,13 +3806,13 @@ function wordTabel(rijen) {
 
 /**
  * Een tabelblok: geregistreerde regels worden tabelrijen, een losse regel ertussen wordt een
- * gewone alinea. Een scheidingsregel wordt een lijn boven de volgende rij, net als op het
- * klembord; staat hij als laatste, dan wordt het een lijn onder de laatste rij.
+ * gewone alinea. Een scheidingsregel wordt een lijn boven de volgende rij; staat hij als
+ * laatste, dan wordt het een lijn onder de laatste rij.
  */
 function wordTabelBlok(doc, regels) {
   let xml = '', rijen = [], lijnBoven = false;
   const sluit = () => {
-    if (lijnBoven && rijen.length) rijen[rijen.length - 1].lijnOnder = true;
+    if (lijnBoven && rijen.length) rijen[rijen.length - 1].lijnOnder = lijnBoven;
     if (rijen.length) xml += wordTabel(rijen);
     rijen = []; lijnBoven = false;
   };
@@ -3711,8 +3820,8 @@ function wordTabelBlok(doc, regels) {
     const g = _tabelOpzoek(doc, r);
     if (!g) { sluit(); xml += wordAlinea(r.trim(), { na: 160 }); return; }
     if (g.info.soort === 'vervolg') return;
-    if (g.info.soort === 'sep') { lijnBoven = true; return; }
-    rijen.push({ cellen: g.info.cellen, uitlijn: g.info.uitlijn, indent: g.indent, lijnBoven: lijnBoven });
+    if (g.info.soort === 'sep') { lijnBoven = g.info.kolom ? 'bedrag' : 'vol'; return; }
+    rijen.push({ cellen: g.info.cellen, uitlijn: g.info.uitlijn, indent: g.indent, lijnBoven: lijnBoven, vet: lijnBoven === 'bedrag' });
     lijnBoven = false;
   });
   sluit();
@@ -3813,6 +3922,7 @@ return {
   rcVoldoening,
   liquiditeitsprognose,
   pensioendekking,
+  pebOntbreektTekst,
   DK_NORM,
   BALANS_ACTIEF,
   BALANS_PASSIEF,
@@ -3842,6 +3952,7 @@ return {
   pad,
   padL,
   aardOmschrijving,
+  buitenVergadering,
   orgaanNaam,
   bestuurAanduiding,
   voorbehoudBlok,
@@ -3925,6 +4036,7 @@ const {
   rcVoldoening,
   liquiditeitsprognose,
   pensioendekking,
+  pebOntbreektTekst,
   DK_NORM,
   BALANS_ACTIEF,
   BALANS_PASSIEF,
@@ -3954,6 +4066,7 @@ const {
   pad,
   padL,
   aardOmschrijving,
+  buitenVergadering,
   orgaanNaam,
   bestuurAanduiding,
   voorbehoudBlok,
@@ -4200,6 +4313,8 @@ function leesInvoer() {
   s.peildatum = $('peildatum').value;
   s.orgaan = radioVal('orgaan');
   s.orgaanAnder = txt('orgaanAnder');
+  s.buitenInstemming = $('buitenInstemming').checked;
+  s.buitenAdvies = $('buitenAdvies').checked;
 
   s.aandeelhouders = [];
   $('ahRows').querySelectorAll('.rrow').forEach(row => {
@@ -4656,7 +4771,12 @@ function renderDekking(s, pd) {
   rij('Dekking ná de uitkering', eur(pd.dekkingNa), pd.dekkingNa < 0 ? 'neg' : 'pos', true);
 
   let cls, icon, html;
-  if (pd.dekkingNa < 0) {
+  if (!pd.volledig) {
+    // Punt 49: tijdens het invullen blijft de hulp meerekenen, maar zonder activa of
+    // verplichting is er geen uitkomst en geen maximaal uitkeerbaar bedrag.
+    cls = 'amber'; icon = '!';
+    html = '<strong>Vergelijking onvolledig.</strong> ' + pebOntbreektTekst(pd);   // vaste tekst, geen invoer
+  } else if (pd.dekkingNa < 0) {
     cls = 'warn'; icon = '×';
     html = '<strong>Onderdekking na de uitkering.</strong> Er blijft ' + eur(pd.tekort) + ' te weinig achter. '
       + 'Op basis van deze cijfers is maximaal <strong>' + eur(pd.maxUitkering) + '</strong> uitkeerbaar zonder de dekking aan te tasten. '
@@ -5167,7 +5287,7 @@ function exportBladen(u) {
 // EXPORTKERN — EINDE
 
 /* ============================================================
-   Kopiëren en printen
+   Printen
    ============================================================ */
 
 function docEl(which) { return which === 'ah' ? $('tekstAh') : $('tekstBestuur'); }
@@ -5178,111 +5298,6 @@ function meldStatus(which, tekst, ok) {
   n.textContent = tekst;
   n.style.color = ok === false ? 'var(--warn)' : (ok === true ? 'var(--ok)' : 'var(--muted)');
   if (tekst) window.setTimeout(() => { if (n.textContent === tekst) n.textContent = ''; }, 4000);
-}
-
-/**
- * Bouwt de HTML-tegenhanger van de besluittekst voor het klembord, met dezelfde opbouw
- * als de afdruk: kopjes, alinea's en de bedragen en balansregels als echte tabel. Eerder
- * ging de tekst als spatie-uitgelijnd blok in Consolas mee; Word hield die spaties en het
- * lettertype niet vast, waardoor de kolommen na het plakken uit elkaar vielen. De opmaak
- * staat hier inline op elk element, want Word negeert bij plakken een stijlblad met klassen.
- * Een scheidingsregel wordt een lijn boven de volgende rij in plaats van een lege rij, omdat
- * Word een lege tabelrij op volle regelhoogte tekent.
- */
-function klembordHtml(which, tekst) {
-  const d = document.implementation.createHTMLDocument('');
-  const wrap = d.createElement('div');
-  printBlokken(tekst).forEach(n => wrap.appendChild(printNode(d, which, n)));
-  const stijl = (el, css) => { el.setAttribute('style', css + (el.getAttribute('style') ? ';' + el.getAttribute('style') : '')); };
-  const LETTER = 'font-family:Arial,sans-serif;color:#111111';
-  stijl(wrap, LETTER + ';font-size:10.5pt;line-height:1.5');
-  wrap.querySelectorAll('p').forEach(p => stijl(p, LETTER + ';font-size:10.5pt;margin:0 0 8pt 0'
-    + (p.classList.contains('li') ? ';margin-left:16pt;text-indent:-16pt' : '')));
-  wrap.querySelectorAll('h2').forEach(h => stijl(h, LETTER + ';font-size:10.5pt;font-weight:bold;margin:16pt 0 6pt 0'));
-  wrap.querySelectorAll('.titel').forEach(t => {
-    stijl(t, 'margin:0 0 14pt 0');
-    if (t.firstElementChild) stijl(t.firstElementChild, 'font-weight:bold;font-size:12pt');
-  });
-  wrap.querySelectorAll('.regels').forEach(r => stijl(r, 'margin:0 0 8pt 0'));
-  wrap.querySelectorAll('table.tabel').forEach(tabel => {
-    tabel.setAttribute('border', '0');
-    tabel.setAttribute('cellspacing', '0');
-    tabel.setAttribute('cellpadding', '0');
-    tabel.setAttribute('width', '100%');
-    stijl(tabel, 'border-collapse:collapse;width:100%;margin:0 0 8pt 0');
-    Array.from(tabel.querySelectorAll('tr.sep')).forEach(sep => {
-      const volgende = sep.nextElementSibling, vorige = sep.previousElementSibling;
-      if (volgende && !volgende.classList.contains('sep')) volgende.querySelectorAll('td').forEach(td => stijl(td, 'border-top:1pt solid #333333'));
-      else if (vorige) vorige.querySelectorAll('td').forEach(td => stijl(td, 'border-bottom:1pt solid #333333'));
-      sep.remove();
-    });
-    tabel.querySelectorAll('td').forEach(td => {
-      const num = td.classList.contains('num');
-      if (num) td.setAttribute('align', 'right');
-      stijl(td, LETTER + ';font-size:9.5pt;line-height:1.3;vertical-align:top;padding:1.5pt ' + (num ? '0' : '4pt') + ' 1.5pt 0'
-        + (num ? ';text-align:right;white-space:nowrap' : ''));
-    });
-  });
-  return wrap.outerHTML;
-}
-
-async function kopieer(which) {
-  const tekst = docEl(which).innerText;
-  const btn = document.querySelector('[data-copy="' + which + '"]');
-  const gelukt = () => {
-    if (btn) {
-      btn.classList.add('copied');
-      const oud = btn.textContent;
-      btn.textContent = 'Gekopieerd';
-      window.setTimeout(() => { btn.classList.remove('copied'); btn.textContent = oud; }, 2000);
-    }
-  };
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      if (window.ClipboardItem) {
-        await navigator.clipboard.write([new ClipboardItem({
-          'text/plain': new Blob([tekst], { type: 'text/plain' }),
-          'text/html': new Blob([klembordHtml(which, tekst)], { type: 'text/html' })
-        })]);
-      } else {
-        await navigator.clipboard.writeText(tekst);
-      }
-      gelukt();
-      return;
-    }
-    throw new Error('clipboard niet beschikbaar');
-  } catch (e) {
-    // Fallback: verborgen textarea + execCommand
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = tekst;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.top = '-1000px';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      ta.setSelectionRange(0, tekst.length);
-      const ok = document.execCommand && document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (ok) { gelukt(); return; }
-      throw new Error('execCommand mislukt');
-    } catch (e2) {
-      // Laatste redmiddel: selecteer de tekst zodat de gebruiker zelf kan kopiëren
-      let geselecteerd = false;
-      try {
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(docEl(which));
-        sel.removeAllRanges();
-        sel.addRange(range);
-        geselecteerd = String(sel).length > 0;
-      } catch (e3) { /* negeren */ }
-      meldStatus(which, geselecteerd
-        ? 'Kopiëren is in deze browser niet toegestaan — de tekst is geselecteerd, gebruik Ctrl+C.'
-        : 'Kopiëren is in deze browser niet toegestaan — selecteer de tekst hieronder en gebruik Ctrl+C.', false);
-    }
-  }
 }
 
 
@@ -5296,7 +5311,7 @@ async function kopieer(which) {
  */
 function printTabel(d, doc, regels) {
   const frag = d.createDocumentFragment();
-  let tabel = null;
+  let tabel = null, rekenlijn = false, laatsteRij = null;
   regels.forEach(r => {
     const gevonden = _tabelOpzoek(doc, r);
     if (!gevonden) {
@@ -5307,7 +5322,14 @@ function printTabel(d, doc, regels) {
       return;
     }
     if (gevonden.info.soort === 'vervolg') return;
-    if (!tabel) { tabel = d.createElement('table'); tabel.className = 'tabel'; frag.appendChild(tabel); }
+    if (!tabel) { tabel = d.createElement('table'); tabel.className = 'tabel'; frag.appendChild(tabel); rekenlijn = false; }
+    // Rekenlijn (open punt 51): geen eigen rij, maar een lijn boven de bedragcellen van de
+    // volgende rij, die als totaal vet wordt. Staat hij als laatste, dan een lijn eronder.
+    if (gevonden.info.soort === 'sep' && gevonden.info.kolom) {
+      rekenlijn = true;
+      laatsteRij = tabel.lastElementChild;
+      return;
+    }
     const tr = d.createElement('tr');
     if (gevonden.info.soort === 'sep') {
       tr.className = 'sep';
@@ -5320,13 +5342,16 @@ function printTabel(d, doc, regels) {
       cellen.forEach((c, i) => {
         const td = d.createElement('td');
         td.textContent = c;
-        if (uitlijn[i] === 'rechts') td.className = 'num';
+        if (uitlijn[i] === 'rechts') td.className = rekenlijn ? 'num lijn' : 'num';
         if (i === 0 && gevonden.indent) td.style.paddingLeft = (4 + gevonden.indent * 2.5) + 'pt';
         tr.appendChild(td);
       });
+      if (rekenlijn) tr.className = 'totaal';
+      rekenlijn = false;
     }
     tabel.appendChild(tr);
   });
+  if (rekenlijn && laatsteRij) laatsteRij.querySelectorAll('td.num').forEach(td => td.classList.add('lijn-onder'));
   return frag;
 }
 
@@ -5381,6 +5406,11 @@ function printDoc(which) {
     + 'table.tabel td{padding:1.5pt 4pt 1.5pt 0;vertical-align:top}'
     + 'table.tabel td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;padding-right:0}'
     + 'table.tabel tr.sep td{border-top:1px solid #333;padding:0}'
+    // Open punt 51: rekenlijn alleen boven de bedragen, totaal vet, en een vaste breedte voor
+    // de bedragkolommen zodat losse tabellen in hetzelfde besluit recht onder elkaar staan.
+    + 'table.tabel td.num{width:32mm}'
+    + 'table.tabel td.num.lijn{border-top:1px solid #333}table.tabel td.num.lijn-onder{border-bottom:1px solid #333}'
+    + 'table.tabel tr.totaal td{font-weight:700}'
     + '.li{padding-left:16pt;text-indent:-16pt}'
     + '.regels{margin:0 0 8pt;break-inside:avoid}'
     + 'hr{border:0;border-top:1px solid #999;margin:10pt 0}';
@@ -5475,6 +5505,9 @@ function bereken() {
 
   // afhankelijke velden tonen/verbergen
   $('orgaanAnderWrap').style.display = s.orgaan === 'ander' ? 'block' : 'none';
+  $('buitenVergaderingWrap').style.display = buitenVergadering(s) ? 'block' : 'none';
+  $('buitenInstemmingWrap').classList.toggle('checked', s.buitenInstemming);
+  $('buitenAdviesWrap').classList.toggle('checked', s.buitenAdvies);
   $('naPeriodeWrap').style.display = s.naPeriode === 'ja' ? 'block' : 'none';
   $('pebWrap').style.display = s.peb === 'ja' ? 'block' : 'none';
   $('jaarrekeningWrap').style.display = s.aard === 'slot' ? 'flex' : 'none';
@@ -5539,6 +5572,183 @@ function bereken() {
    Uitgangen: dossierstuk (afdruk), Excel-export en dossierbestand
    ============================================================ */
 
+/*
+ * Afdrukweergave van het dossierstuk (open punt 52, beoordeling van Sylvain op 13-10-2026).
+ * Eerder drukte de pagina zichzelf af en kwamen knoppen, keuzerondjes, de controleweergave
+ * onder elk bedrag, alle uitleg en lege datumvelden ("dd-mm-jjjj") mee. Nu wordt vlak voor het
+ * afdrukken per stap een tabel gemaakt met de omschrijving en de ingevulde waarde, in de
+ * volgorde van het scherm. Alleen wat op het scherm zichtbaar is komt mee, dus een niet
+ * gekozen route of een lege hulp blijft weg. Uitkomsten (rekenblokken, meldingen, conclusie)
+ * en de besluitteksten worden als kopie overgenomen, zonder knoppen. De gegevens komen dus
+ * uit dezelfde velden als het scherm; er wordt niets opnieuw berekend.
+ */
+const DA_OVERSLAAN = '.noprint, button, .btn, .field-echo, .sub, .lead, .info-box, .warn-box, .pg-tools, '
+  + '.hulp-acties, .rr-head, .notulen-tabs, .doc-toolbar, .doc-status, .step-badge, .sr-only, script, style, hr';
+
+function daZichtbaar(n) { return n.getClientRects().length > 0; }
+
+function daTekst(n) {
+  const c = n.cloneNode(true);
+  c.querySelectorAll('.sub, input, select, textarea, button, .field-echo, .sr-only').forEach(x => x.remove());
+  return c.textContent.replace(/\s+/g, ' ').trim();
+}
+
+function daWaarde(c) {
+  if (c.type === 'checkbox') return c.checked ? 'Ja' : 'Nee';
+  if (c.tagName === 'SELECT') return c.selectedIndex >= 0 ? c.options[c.selectedIndex].text : '—';
+  const v = String(c.value || '').trim();
+  if (!v) return '—';
+  if (c.type === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(v) ? fmtDatum(v) : v;
+  if (c.classList.contains('money')) {
+    const p = parseCents(v);
+    return p.valid && p.cents !== null ? eur(p.cents) : v;
+  }
+  return v;
+}
+
+/** Kopie van een uitkomstblok of tabel: velden worden hun waarde, knoppen en uitleg vallen weg. */
+function daKopie(n) {
+  const c = n.cloneNode(true);
+  c.removeAttribute('id');
+  c.querySelectorAll('[id]').forEach(x => x.removeAttribute('id'));
+  const bron = n.querySelectorAll('input, select, textarea');
+  c.querySelectorAll('input, select, textarea').forEach((x, i) => {
+    const w = bron[i] ? daWaarde(bron[i]) : '';
+    x.replaceWith(document.createTextNode(w === '—' ? '' : w));
+  });
+  c.querySelectorAll('button, .btn, .sub, .field-echo, .doc-status').forEach(x => x.remove());
+  return c;
+}
+
+function bouwDossierAfdruk() {
+  const uit = $('dossierAfdruk');
+  if (!uit) return;
+  uit.textContent = '';
+  let sectie = null, blok = null, tabel = null;
+  const nieuwBlok = (kop) => {
+    blok = el('div', 'da-blok');
+    if (kop) blok.appendChild(el('h3', null, kop));
+    sectie.appendChild(blok);
+    tabel = null;
+  };
+  const rij = (label, waarde) => {
+    if (!blok) nieuwBlok();
+    if (!tabel) { tabel = el('table', 'da'); blok.appendChild(tabel); }
+    const tr = el('tr');
+    tr.appendChild(el('td', 'da-label', label));
+    tr.appendChild(el('td', 'da-waarde', waarde));
+    tabel.appendChild(tr);
+  };
+  const element = (n) => { if (!blok) nieuwBlok(); blok.appendChild(n); tabel = null; };
+
+  function loop(ouder) {
+    Array.from(ouder.children).forEach(loopEen);
+  }
+
+  function loopEen(n) {
+    if (n.matches(DA_OVERSLAAN) || !daZichtbaar(n)) return;
+    if (n.matches('details.hulp')) {
+      const gevuld = Array.from(n.querySelectorAll('input')).some(i => String(i.value || '').trim() !== '');
+      if (!gevuld) return;
+      nieuwBlok(daTekst(n.querySelector('summary')).replace(/\s*\(optioneel\)\s*$/, ''));
+      const body = n.querySelector('.hulp-body');
+      if (body) Array.from(body.children).forEach(k => {
+        if (k.matches('.hulp-rij')) {
+          const c = k.querySelector('input, select');
+          rij(daTekst(k.querySelector('span') || k), c ? daWaarde(c) : '—');
+        } else if (k.matches('.hulp-totaal')) {
+          const d = k.querySelectorAll('span');
+          rij(d[0] ? d[0].textContent.trim() : '', d[1] ? d[1].textContent.trim() : '');
+        } else if (!k.matches(DA_OVERSLAAN) && k.textContent.trim()) {
+          // Een dichtgeklapte hulp is niet zichtbaar, maar haar uitkomst hoort er wel bij.
+          element(daKopie(k));
+        }
+      });
+      nieuwBlok();
+      return;
+    }
+    if (n.matches('h3')) { nieuwBlok(n.textContent.trim()); return; }
+    if (n.matches('fieldset')) {
+      const legend = n.querySelector('legend');
+      const label = legend ? daTekst(legend) : '';
+      const gekozen = n.querySelector('.radios input[type=radio]:checked');
+      if (n.querySelector('.radios')) rij(label, gekozen ? daTekst(gekozen.closest('label')) : '—');
+      Array.from(n.children).forEach(k => { if (k !== legend && !k.matches('.radios')) loopEen(k); });
+      return;
+    }
+    if (n.matches('.confirm')) {
+      const c = n.querySelector('input[type=checkbox]');
+      const l = n.querySelector('label');
+      if (c && l) rij(daTekst(l), c.checked ? 'Bevestigd' : 'Niet bevestigd');
+      return;
+    }
+    if (n.matches('label')) {
+      const c = n.querySelector('input, select, textarea') || (n.htmlFor ? $(n.htmlFor) : null);
+      if (c) { rij(daTekst(n), daWaarde(c)); return; }
+    }
+    if (n.matches('.rowset')) {
+      const soort = n.id === 'bestRows' ? 'Bestuurder' : 'Aandeelhouder';
+      Array.from(n.querySelectorAll('.rrow')).forEach((r, i) => {
+        if (n.id === 'bestRows') { const x = r.querySelector('input'); rij(soort + ' ' + (i + 1), x ? daWaarde(x) : '—'); return; }
+        const naam = r.querySelector('.ah-naam'), pct = r.querySelector('.ah-pct'), bedrag = r.querySelector('.ah-bedrag');
+        const delen = [naam ? daWaarde(naam) : '—'];
+        if (pct && String(pct.value).trim()) delen.push(String(pct.value).trim() + '%');
+        if (bedrag && String(bedrag.value).trim()) delen.push(daWaarde(bedrag));
+        rij(soort + ' ' + (i + 1), delen.join(', '));
+        const rc = r.querySelector('.rr-rc');
+        if (rc && daZichtbaar(rc)) rc.querySelectorAll('label').forEach(l => {
+          const c = l.querySelector('input, select');
+          if (c && daZichtbaar(l)) rij('   ' + daTekst(l), daWaarde(c));
+        });
+      });
+      return;
+    }
+    if (n.matches('table')) { element(daKopie(n)); return; }
+    if (n.matches('.calc-box, .toets-result, .conclusie-card, .card.printonly')) {
+      if (n.textContent.trim()) element(daKopie(n));
+      return;
+    }
+    if (n.matches('input, select, textarea')) {
+      const fs = n.closest('fieldset'), lg = fs ? fs.querySelector('legend') : null;
+      rij(n.getAttribute('aria-label') || (lg ? daTekst(lg) : ''), daWaarde(n));
+      return;
+    }
+    if (n.children.length) loop(n);
+  }
+
+  Array.from(document.querySelector('.content').children).forEach(n => {
+    if (n.id === 'printKop' || n.id === 'dossierAfdruk' || n.matches('.noprint, .info-box')) return;
+    if (n.id === 'docsSection') {
+      if (!daZichtbaar(n)) return;
+      sectie = el('div', 'da-sectie');
+      sectie.appendChild(el('h2', null, 'Besluitdocumenten'));
+      uit.appendChild(sectie);
+      [['tekstAh', 'Aandeelhoudersbesluit'], ['tekstBestuur', 'Bestuursbesluit en uitkeringstoets']].forEach(([id, kop]) => {
+        nieuwBlok(kop);
+        blok.className = 'da-tekst';
+        const t = el('div', 'doc-text', $(id).innerText);
+        blok.appendChild(t);
+      });
+      return;
+    }
+    if (n.id === 'vindplaatsenCard') { uit.appendChild(daKopie(n)); return; }
+    if (!n.matches('.card') && n.id !== 'resultSection') return;
+    if (n.id !== 'resultSection' && !daZichtbaar(n)) return;
+    sectie = el('div', 'da-sectie');
+    const h2 = n.querySelector(':scope > h2');
+    const badge = h2 ? h2.querySelector('.step-badge') : null;
+    sectie.appendChild(el('h2', null, h2 ? (badge ? 'Stap ' + badge.textContent.trim() + '. ' : '') + daTekst(h2).replace(/^\d+\s*/, '') : 'Uitkomst'));
+    uit.appendChild(sectie);
+    blok = null; tabel = null;
+    if (n.id === 'resultSection') {
+      Array.from(n.children).forEach(k => { if (k.textContent.trim()) element(daKopie(k)); });
+    } else {
+      Array.from(n.children).forEach(k => { if (k !== h2) loopEen(k); });
+    }
+    if (!sectie.querySelector('.da-blok')) sectie.remove();
+  });
+}
+
 function toonUitgangmelding(tekst, isFout) {
   const m = $('uitgangMelding');
   if (!m) return;
@@ -5561,6 +5771,13 @@ function bewaarBestand(bytes, naam, type) {
  * Zet een gevalideerde dossierinvoer (van leesDossier) terug in het scherm. Draait pas
  * nadat leesDossier het hele bestand heeft goedgekeurd; er wordt hier niets meer getoetst.
  */
+// Het dossier bewaart een leeg veld van de dekkingshulp als nul. Terugzetten als "0,00" zou
+// de hulp aanzetten en een lege vergelijking als nul laten meetellen (punt 49); nul wordt
+// daarom weer een leeg veld. Voor de berekening is leeg gelijk aan nul.
+function pebVeld(cents) {
+  return cents ? eur(cents, { bare: true }) : '';
+}
+
 function zetInvoer(inv) {
   $('naamBV').value = inv.naamBV;
   $('plaatsnaam').value = inv.plaats;
@@ -5579,6 +5796,8 @@ function zetInvoer(inv) {
   $('peildatum').value = inv.peildatum;
   document.querySelectorAll('input[name="orgaan"]').forEach((r) => { r.checked = r.value === inv.orgaan; });
   $('orgaanAnder').value = inv.orgaanAnder;
+  $('buitenInstemming').checked = inv.buitenInstemming;
+  $('buitenAdvies').checked = inv.buitenAdvies;
   document.querySelectorAll('input[name="voldoening"]').forEach((r) => { r.checked = r.value === inv.voldoening; });
   $('rcNetto').checked = inv.rcNetto;
   $('rcGeenAflossing').checked = inv.rcGeenAflossing;
@@ -5608,12 +5827,12 @@ function zetInvoer(inv) {
   document.querySelectorAll('input[name="peb"]').forEach((r) => { r.checked = r.value === inv.peb; });
   $('pebWaardering').checked = inv.pebWaardering;
   $('pebDekking').checked = inv.pebDekking;
-  $('peb_activa').value = eur(inv.pebActiva, { bare: true });
-  $('peb_verplichting').value = eur(inv.pebVerplichting, { bare: true });
-  $('peb_vooroverlijden').value = eur(inv.pebVooroverlijden, { bare: true });
-  $('peb_odv').value = eur(inv.pebOdv, { bare: true });
-  $('peb_passiva').value = eur(inv.pebPassiva, { bare: true });
-  $('peb_latentie').value = eur(inv.pebLatentie, { bare: true });
+  $('peb_activa').value = pebVeld(inv.pebActiva);
+  $('peb_verplichting').value = pebVeld(inv.pebVerplichting);
+  $('peb_vooroverlijden').value = pebVeld(inv.pebVooroverlijden);
+  $('peb_odv').value = pebVeld(inv.pebOdv);
+  $('peb_passiva').value = pebVeld(inv.pebPassiva);
+  $('peb_latentie').value = pebVeld(inv.pebLatentie);
   $('ahType').value = inv.ahType;
 
   $('ahRows').textContent = '';
@@ -5688,7 +5907,9 @@ function startUitgangen() {
     vindplaatsenNode.appendChild(lijst(AFBAKENING));
   }
 
-  $('btnPrintDossier').addEventListener('click', () => window.print());
+  $('btnPrintDossier').addEventListener('click', () => { bouwDossierAfdruk(); window.print(); });
+  // Ook bij afdrukken via het menu van de browser (Ctrl+P) de weergave van punt 52.
+  window.addEventListener('beforeprint', bouwDossierAfdruk);
 
   $('btnExcel').addEventListener('click', () => {
     if (!LAATSTE || LAATSTE.s.dividend <= 0) {
@@ -5814,7 +6035,6 @@ function switchTab(tab) {
   });
 
   document.querySelectorAll('.ntab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
-  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => kopieer(b.dataset.copy)));
   document.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', () => printDoc(b.dataset.print)));
   document.querySelectorAll('[data-word]').forEach(b => b.addEventListener('click', () => {
     const which = b.dataset.word;
